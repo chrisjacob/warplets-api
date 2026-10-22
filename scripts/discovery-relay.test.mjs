@@ -41,6 +41,19 @@ test("finalized block-time reads accept only a single safe slot and cannot send 
     assert.equal((await request("sendTransaction",["payload"])).status,400);assert.equal(calls.length,1);
   }finally{await new Promise(resolve=>server.close(resolve));}
 });
+
+test("trending list relay fixes host, pagination and duration and requires local authorization", async () => {
+  const token = "shortlist-local-".repeat(4), calls = [];
+  const server = await startRelay({ token, rpcUrl: "https://api.mainnet-beta.solana.com", port: 0, transport: async (url) => { calls.push(url); return Response.json({ data: [] }); } });
+  const base = `http://127.0.0.1:${server.address().port}`;
+  try {
+    assert.equal((await fetch(`${base}/market/trending/24h/1`)).status, 401);
+    assert.equal((await fetch(`${base}/market/trending/24h/1`, { headers: { "x-tenx-local-relay": token } })).status, 200);
+    assert.equal(calls[0], "https://api.geckoterminal.com/api/v2/networks/solana/trending_pools?duration=24h&page=1&include=base_token");
+    for (const path of ["/market/trending/1s/1", "/market/trending/24h/3", "/market/trending/24h/1?url=https://evil.example"]) assert.equal((await fetch(base + path, { headers: { "x-tenx-local-relay": token } })).status, 404);
+    assert.equal(calls.length, 1);
+  } finally { await new Promise(resolve => server.close(resolve)); }
+});
 test("RPC starts are spaced across concurrent requests and a provider 429 is shared",async()=>{
   const token="test-shared-rate-".repeat(4),starts=[];let limited=false;
   const server=await startRelay({token,rpcUrl:"https://api.mainnet-beta.solana.com",port:0,transport:async()=>{starts.push(Date.now());return limited?new Response(null,{status:429,headers:{"retry-after":"1200"}}):Response.json({result:"ok"})}});

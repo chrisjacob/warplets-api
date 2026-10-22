@@ -31,6 +31,10 @@ export async function startRelay({ token, rpcUrl, port = 8795, transport = fetch
         if (!target || typeof key !== "string" || !/^[\x21-\x7e]{8,512}$/.test(key)) { response.writeHead(400); response.end(); return; }
         gmgn = true; limit = 1_000_000;
         init = { method: "GET", headers: { accept: "application/json", "X-APIKEY": key } };
+      } else if (request.method === "GET" && /^\/market\/trending\/(1h|6h|24h)\/[12]$/.test(request.url ?? "")) {
+        const parts = request.url.split("/");
+        target = `https://api.geckoterminal.com/api/v2/networks/solana/trending_pools?duration=${parts[3]}&page=${parts[4]}&include=base_token`;
+        init = { headers: { accept: "application/json" } }; limit = 1_000_000;
       } else if (request.method === "GET" && /^\/market\/pools\/(?:multi\/)?[1-9A-HJ-NP-Za-km-z,]{32,1350}$/.test(request.url ?? "")) {
         const addresses = request.url.split("/").at(-1).split(",");
         if (addresses.length > 30 || addresses.some(a => !/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(a)) || (!request.url.includes("/multi/") && addresses.length > 1)) { response.writeHead(400); response.end(); return; }

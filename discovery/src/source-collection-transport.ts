@@ -8,6 +8,7 @@ import { normalizeGmgn } from "./gmgn-normalize";
 import { GMGN_USE_AUTHORITY } from "./gmgn-model";
 import { GmgnCandleError } from "./gmgn-candles";
 import {GmgnActivityError} from "./gmgn-wallet-activity";
+import { normalizeShortlist } from "./shortlist-query-contract";
 
 const owned = `id=?1 AND owner=?2 AND request_hash=?3 AND reserved_at<=?4 AND lease_until>?4 AND day=substr(?4,1,10)
   AND EXISTS(SELECT 1 FROM tenx_control WHERE id=1 AND paused=0)`;
@@ -53,6 +54,8 @@ export async function executeReservedSource(db: D1Database, reservation: SourceR
   let accessProbe = false, accessAccepted = false, permissionReference: string | null = null;
   let validationFailure: GmgnCandleError["reason"] | GmgnActivityError["reason"] | null = null;
   let activityValidationFields:string[]=[];
+  const shortlistDiagnostics: { value: { stage: string; data_array?: boolean; rank_array?: boolean; list_array?: boolean; application_success?: boolean; rank_rows?: number; failure_kind?: string; data_fields?: string[]; root_fields?: string[] } | null } = { value: null };
+  const shortlist = row ? ["gmgn_market_rank", "geckoterminal_trending_list", "dexscreener_token_crosscheck"].includes(JSON.parse(row.request).kind) : false;
   const gmgnBackoff: { until: string | null } = { until: null };
   const controller = new AbortController();
   let timeout: ReturnType<typeof setTimeout> | undefined;
@@ -92,22 +95,32 @@ export async function executeReservedSource(db: D1Database, reservation: SourceR
       const length = response.headers.get("content-length");
       if (length && /^\d+$/.test(length) && Number(length) > L.response_bytes) throw new Error("body_limit");
       const body = await boundedJson(response, L.response_bytes);
+      if (shortlist) {
+        const root = body && typeof body === "object" && !Array.isArray(body) ? body as Record<string, unknown> : {};
+        const data = root.data && typeof root.data === "object" && !Array.isArray(root.data) ? root.data as Record<string, unknown> : {};
+        const shapeFields = (value: Record<string, unknown>) => Object.keys(value).filter(key => ["data", "rank", "list", "tokens", "items", "rows", "result", "count", "total", "code", "msg"].includes(key)).map(key => `${key}:${Array.isArray(value[key]) ? "array" : value[key] === null ? "null" : typeof value[key]}`);
+        shortlistDiagnostics.value = { stage: "parsed_json", application_success: root.code === 0 || root.code === "0", data_array: Array.isArray(root.data), rank_array: Array.isArray(data.rank), list_array: Array.isArray(data.list), data_fields: shapeFields(data), root_fields: shapeFields(root), ...(Array.isArray(data.rank) ? { rank_rows: data.rank.length } : {}) };
+      }
       boundedJsonValue(body, L.response_bytes);
+      if (shortlistDiagnostics.value) shortlistDiagnostics.value.stage = "bounded_json";
       if (descriptor.provider === "gmgn") {
         if (gmgn && JSON.stringify(body).includes(gmgn.apiKey)) throw new Error("gmgn_credential_echo");
         gmgnEnvelope(body);
         // Validate semantic/identity shape before accepting HTTP 200. Do not
         // persist a body which could not be normalized or an unknown-mint default.
-        normalizeGmgn(descriptor.request, body, clock().toISOString());
+        if (descriptor.request.kind === "gmgn_market_rank") normalizeShortlist(descriptor.request, body, clock().toISOString());
+        else normalizeGmgn(descriptor.request, body, clock().toISOString());
         accessAccepted = true;
         if (accessProbe) return null; // No token data or token-data hash retained.
       }
+      if (descriptor.request.kind === "geckoterminal_trending_list" || descriptor.request.kind === "dexscreener_token_crosscheck") normalizeShortlist(descriptor.request, body, clock().toISOString());
       return body;
     };
     responseBody = await Promise.race([operation(), new Promise<never>((_, reject) => {
       timeout = setTimeout(() => { controller.abort(); reject(new Error("timeout")); }, L.timeout_ms);
     })]);
   } catch (cause) {
+    if (shortlistDiagnostics.value) shortlistDiagnostics.value.failure_kind = cause instanceof Error && ["source_pilot_input_complexity_limit", "source_pilot_size_limit", "gmgn_application_error", "gmgn_empty_data"].includes("code" in cause ? String(cause.code) : cause.message) ? String("code" in cause ? cause.code : cause.message) : "schema_or_transport_validation";
     if (cause instanceof GmgnCandleError) validationFailure = cause.reason;
     if(cause instanceof GmgnActivityError){validationFailure=cause.reason;activityValidationFields=cause.fields;}
     // Do not persist upstream bodies/headers/errors/locations from failures.
@@ -123,6 +136,7 @@ export async function executeReservedSource(db: D1Database, reservation: SourceR
     received_at: finished.toISOString(), status: response?.status ?? null, error, response: responseBody,
     ...(gmgn ? { access_probe: accessProbe, access_accepted: accessAccepted, research_permission_reference: permissionReference, validation_failure: validationFailure } : {}),
     ...(activityValidationFields.length?{activity_validation_fields:activityValidationFields}:{}),
+    ...(shortlistDiagnostics.value ? { shortlist_diagnostic: shortlistDiagnostics.value } : {}),
     // HTTP receipt is not chain identity, provider signature or semantic validation.
     semantic_validation: accessAccepted ? "gmgn_selected_fields_v2" : "not_checked", canonical_pool_proof: "not_checked", scoring_effect: "none" };
   const payload = JSON.stringify(receipt), bytes = new TextEncoder().encode(payload).length, receipt_hash = await hashJson(receipt);

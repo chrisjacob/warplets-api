@@ -58,6 +58,7 @@ import {scoreFollowupPlan} from "./score-followup";
 import { sourcePilotReadiness } from "./source-pilot-readiness";
 import { gmgnPublicSummary, gmgnCandleWindow, gmgnSavedReview, gmgnStatus, runGmgnReview, runGmgnPilot, gmgnPilotHasCapacity,gmgnActivityTarget } from "./gmgn";
 import { GMGN_USE_AUTHORITY } from "./gmgn-model";
+import { runShortlistQuery } from "./shortlist-query";
 
 import { researchMode } from "./research-limits";
 import { holderHistory } from "./holder-history-store";
@@ -385,6 +386,15 @@ export async function handle(request: Request, env: Env): Promise<Response> {
       return json(await buildScoreReadPages(env.TENX_DB));
     }
     if (path === "/api/10x/admin/gmgn/review") return json(await runGmgnReview(gmgnSettings(env), body, gmgnFetcher(env)));
+    if (path === "/api/10x/admin/discovery/shortlist-query") return json(await runShortlistQuery(gmgnSettings(env), body, async (url, init) => {
+      const target = new URL(url);
+      if (target.origin === "https://openapi.gmgn.ai") return gmgnFetcher(env)(url, init);
+      if (env.TENX_NODE_RELAY === "true" && target.origin === "https://api.dexscreener.com") return fetch(`http://127.0.0.1:8795/dex/tokens/${target.pathname.split("/").at(-1)}`, {
+        ...init, headers: { "x-tenx-local-relay": env.TENX_ADMIN_TOKEN }, redirect: "manual", credentials: "omit" });
+      if (env.TENX_NODE_RELAY === "true" && target.origin === "https://api.geckoterminal.com") return fetch(`http://127.0.0.1:8795/market/trending/${target.searchParams.get("duration")}/${target.searchParams.get("page")}`, {
+        ...init, headers: { "x-tenx-local-relay": env.TENX_ADMIN_TOKEN }, redirect: "manual", credentials: "omit" });
+      return fetch(url, init);
+    }));
     if(path==="/api/10x/admin/gmgn/corroboration/collect"){const input=z.object({activity_id:z.uuid(),reason:z.string().min(3).max(300)}).strict().parse(body);return json(await collectGmgnCorroboration(settings(env),input.activity_id));}
     if(path==="/api/10x/admin/mint-reviews")return json(await enqueueMintReview(env.TENX_DB,body));
     if (path === "/api/10x/admin/rewards/lab") return json({ record: await createRewards(env.TENX_DB, body), replay: "verified" });

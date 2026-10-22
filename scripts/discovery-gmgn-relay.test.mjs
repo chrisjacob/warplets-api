@@ -34,6 +34,15 @@ test("trader bridge pins one unfiltered top-100 buy-ranked query and rejects bro
   assert.ok(gmgnRelayTarget(target,now));
   for(const bad of [target.replace("limit=100","limit=101"),target.replace("direction=desc","direction=asc"),target.replace("order_by=buy_volume_cur","order_by=profit"),target+"&tag=smart_degen",target+"&limit=100",target+"&cursor=next"])assert.equal(gmgnRelayTarget(bad,now),null);
 });
+
+test("list bridge pins Solana Pump rank reads with CLI repeated tags and bounded query parameters", () => {
+  const now=Date.parse("2026-10-22T12:00:00Z"), url=new URL("https://openapi.gmgn.ai/v1/market/rank");
+  for(const [k,v]of Object.entries({chain:"sol",interval:"24h",limit:"100",order_by:"volume",direction:"desc",min_liquidity:"10000",min_marketcap:"0",min_volume:"0",min_created:"24h",max_created:"48h",timestamp:String(now/1000),client_id:"00000000-0000-4000-8000-000000000001",platforms:"Pump.fun"}))url.searchParams.set(k,v);
+  for(const tag of ["renounced","frozen","is_out_market"])url.searchParams.append("filters",tag);
+  const target='/gmgn'+url.pathname+url.search;
+  assert.ok(gmgnRelayTarget(target,now));
+  for(const bad of [target+'&url=https://evil.test',target+'&limit=1',target.replace('max_created=48h','max_created=999h'),target.replace('platforms=Pump.fun','platforms=other'),target.replace('filters=renounced','filters=unsupported'),target.replace('min_created=24h','min_created=72h')])assert.equal(gmgnRelayTarget(bad,now),null);
+});
 test("activity bridge requires both a wallet and exact token with one 20-row page",()=>{
   const now=Date.parse("2026-10-21T01:00:22.000Z"),target=`/gmgn/v1/user/wallet_activity?${query(now).replace(`address=${address}`,`wallet_address=${address}&token_address=${address}`)}&limit=20`;
   assert.ok(gmgnRelayTarget(target,now));

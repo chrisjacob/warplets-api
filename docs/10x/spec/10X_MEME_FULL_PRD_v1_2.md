@@ -1,5 +1,7 @@
 # 10X.MEME — Full Product Requirements Document
 
+**22 October Discovery simplification — research priority:** [157 — live provider shortlist comparison](../157-provider-shortlist-experiment.md) tests four GMGN and two Gecko views:51 unique mints,30 DEX cross-checks, a provisional ten-survivor review queue. Prioritize a small cached provider union, transparent risk/review reasons and focused richer checks over more custom all-token enrichment; then prospective daily quality evaluation. Provider open age is not verified graduation, turnover is not certified organic and concentration holds are not scam verdicts. The authenticated metered experiment path is implemented; product adoption remains next. Existing v4, evidence/action/election gates, Free limits, serving149 and thesis-only exposure remain unchanged. No deploy.
+
 **22 October release constraint — decided:** The next production release must keep the old thesis at the App root and hide all unfinished 10X product pages, menu links and APIs behind the closed [exposure feature flag](../88-thesis-only-production-release.md). Migrations may ship without opening the product. Local development continues; evidence, action and provider gates remain unchanged. Production upload checks must verify the actual closed build and server setting. This prepares a future release and does not authorize deployment now.
 
 **Version:** 1.2\
