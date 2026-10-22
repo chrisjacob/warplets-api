@@ -9,6 +9,7 @@ import {withScratchEvidenceResolver} from "./discovery-evidence-scratch.mjs";
 import {evidencePrivatePath,evidenceRegularFile} from "./discovery-evidence-objects.mjs";
 import {inspectEvidenceAppendStage,readStagedEvidenceAppend} from "./discovery-evidence-append-stage.mjs";
 import {cachedCheckpointSql,cachedFinishSql} from "./evidence-wallet-cached-sql.mjs";
+import {walletQuotaSql,rpcQuotaSql} from "./evidence-wallet-quota-sql.mjs";
 
 const VERSION="discovery-evidence-publication-v1",FILE="metadata.sqlite",MAX_DB=2*1024**3;
 const Hash=z.string().regex(/^[a-f0-9]{64}$/),Id=z.string().uuid();
@@ -21,6 +22,8 @@ const Operation=z.discriminatedUnion("kind",[
 const Plan=z.object({publication_id:Id,ticket:Ticket,operations:Operation.array().min(1).max(128)}).strict();
 const MetadataPlan=z.object({publication_id:Id,kind:z.literal("candidate_metadata"),operations:Operation.array().min(1).max(128)}).strict();
 const WalletCachedPlan=z.object({publication_id:Id,kind:z.literal("wallet_cached_progress"),operations:Operation.array().min(1).max(4)}).strict();
+const QuotaLimit=z.number().int().safe().positive(),QuotaReservation=z.object({wallet:Id,rpc:Id,day:z.string().regex(/^\d{4}-\d{2}-\d{2}$/),wallet_limit:QuotaLimit,rpc_limit:QuotaLimit}).strict();
+const WalletQuotaPlan=z.object({publication_id:Id,kind:z.literal("wallet_quota"),reservation:QuotaReservation,operations:Operation.array().length(1)}).strict();
 const Header=z.object({version:z.literal(VERSION),file:z.literal(FILE),capacity_pin:Hash,source_archive_pin:Hash,base_reference_pin:Hash,context_pin:Hash,generation:Id,schema_sha256:Hash}).strict();
 const writable=new Set(["tenx_candidates","tenx_market_history","tenx_wallet_signals","tenx_proofs","tenx_evidence","tenx_account_evidence","tenx_wallet_runs","tenx_wallet_attempts","tenx_wallet_control","tenx_wallet_work","tenx_wallet_profiles"]);
 const SCHEMA=[
@@ -121,7 +124,16 @@ export function validateEvidenceWalletCachedPlan(input){
   }
   return plan;
 }
-export function validateEvidenceTargetPlan(input){return input?.kind==="candidate_metadata"?validateEvidenceCandidateMetadataPlan(input):input?.kind==="wallet_cached_progress"?validateEvidenceWalletCachedPlan(input):normalizedPlan(input);}
+export function validateEvidenceWalletQuotaPlan(input){
+  const plan=WalletQuotaPlan.parse(input),op=plan.operations[0];
+  if(op.kind!=="sql"||op.expect_changes!==undefined)throw Error("publication_wallet_quota_shape");
+  const wallet=op.sql===walletQuotaSql,rpc=op.sql===rpcQuotaSql,b=op.bindings;
+  if(!wallet&&!rpc||b.length!==(wallet?2:3)||rpc&&b[0]!=="rpc")throw Error("publication_wallet_quota_sql");
+  const r=plan.reservation,day=r.day;if(r.wallet===r.rpc||plan.publication_id!==(wallet?r.wallet:r.rpc)||b[wallet?0:1]!==day||b[wallet?1:2]!==r[wallet?"wallet_limit":"rpc_limit"])throw Error("publication_wallet_quota_identity");
+  if(new Date(day+"T00:00:00.000Z").toISOString().slice(0,10)!==day)throw Error("publication_wallet_quota_day");
+  return plan;
+}
+export function validateEvidenceTargetPlan(input){return input?.kind==="candidate_metadata"?validateEvidenceCandidateMetadataPlan(input):input?.kind==="wallet_cached_progress"?validateEvidenceWalletCachedPlan(input):input?.kind==="wallet_quota"?validateEvidenceWalletQuotaPlan(input):normalizedPlan(input);}
 function metadata(db,table,hash){
   const fields=table==="tenx_holder_evidence"?["payload_hash","address","slot","observed_at"]:["payload_hash","address","observed_at"],row=db.prepare(`SELECT ${fields.map(c=>c==="slot"?c:`CAST(${c} AS BLOB) AS ${c}`).join(",")} FROM ${table} WHERE payload_hash=?`).get(hash);
   return row?Object.fromEntries(fields.map(c=>[c,c==="slot"?row[c]:new TextDecoder("utf-8",{fatal:true,ignoreBOM:true}).decode(row[c])])):null;
@@ -146,24 +158,29 @@ export async function transferEvidencePublicationOwner(options,grant,nextOwner){
 }
 async function executePublication(options,grant,input,afterCommit,allowNew,metadataOnly=false){
   if(metadataOnly){grant=Grant.parse(grant);options=structuredClone(options);}
-  const plan=metadataOnly==="wallet_cached_progress"?validateEvidenceWalletCachedPlan(input):metadataOnly?validateEvidenceCandidateMetadataPlan(input):normalizedPlan(input),planHash=digest(plan),verified=metadataOnly?null:await readStagedEvidenceAppend(options.stage,plan.ticket),{db,body}=await opened(options,!allowNew);let publication,commitAttempted=false;
+  const plan=metadataOnly==="wallet_quota"?validateEvidenceWalletQuotaPlan(input):metadataOnly==="wallet_cached_progress"?validateEvidenceWalletCachedPlan(input):metadataOnly?validateEvidenceCandidateMetadataPlan(input):normalizedPlan(input),planHash=digest(plan),verified=metadataOnly?null:await readStagedEvidenceAppend(options.stage,plan.ticket),{db,body}=await opened(options,!allowNew);let publication,commitAttempted=false;
   try{
     db.exec(allowNew?"BEGIN IMMEDIATE":"BEGIN");fenced(db,body,grant);
-    const prior=db.prepare("SELECT plan_sha256,results_json FROM tenx_append_publications WHERE publication_id=?").get(plan.publication_id);
+    const prior=db.prepare("SELECT plan_sha256,results_json,generation,owner,epoch FROM tenx_append_publications WHERE publication_id=?").get(plan.publication_id);
     if(prior){
       if(prior.plan_sha256!==planHash)throw Error("publication_identity_conflict");
+      if(metadataOnly==="wallet_quota"&&plan.operations[0].sql===rpcQuotaSql){if(prior.generation!==body.generation)throw Error("publication_wallet_quota_generation");walletQuotaParent(db,plan,{generation:prior.generation,owner:prior.owner,epoch:prior.epoch});}
       if(!metadataOnly)append(db,verified,plan.ticket,plan.publication_id,false);
-      const results=z.object({success:z.literal(true),results:z.tuple([]),meta:z.object({changes:z.number().int().nonnegative()}).strict()}).strict().array().length(plan.operations.length).parse(JSON.parse(prior.results_json));
+      const results=publicationResults(plan,JSON.parse(prior.results_json));
       publication={results,reconciled:true};
     }
     else{
       if(!allowNew)throw Error("publication_reconciliation_requires_commit");
       const results=plan.operations.map(op=>{
+        if(metadataOnly==="wallet_quota"){
+          if(op.sql===rpcQuotaSql)walletQuotaParent(db,plan,grant);
+          const returned=db.prepare(op.sql).all(...op.bindings).map(row=>({...row}));return {success:true,results:returned,meta:{changes:returned.length}};
+        }
         let changes;if(op.kind==="receipt")changes=append(db,verified,plan.ticket,plan.publication_id);
         else{changes=Number(db.prepare(op.sql).run(...op.bindings).changes);if(op.expect_changes!==undefined&&changes!==op.expect_changes)throw Error("publication_expected_changes_mismatch");}
         return {success:true,results:[],meta:{changes}};
       });
-      db.prepare("INSERT INTO tenx_append_publications VALUES(?,?,?,?,?,?)").run(plan.publication_id,planHash,grant.generation,grant.owner,grant.epoch,JSON.stringify(results));publication={results,reconciled:false};
+      publicationResults(plan,results);db.prepare("INSERT INTO tenx_append_publications VALUES(?,?,?,?,?,?)").run(plan.publication_id,planHash,grant.generation,grant.owner,grant.epoch,JSON.stringify(results));publication={results,reconciled:false};
     }
     commitAttempted=true;db.exec("COMMIT");
   }catch(error){const uncertain=commitAttempted&&!db.isTransaction;if(db.isTransaction)db.exec("ROLLBACK");if(uncertain)throw Error("publication_commit_acknowledgement_unknown");throw error;}finally{db.close();}
@@ -178,6 +195,20 @@ export async function publishEvidenceCandidateMetadata(options,grant,input,after
 export async function reconcileEvidenceCandidateMetadata(options,grant,input,afterCommit){return executePublication(options,grant,input,afterCommit,false,true);}
 export async function publishEvidenceWalletCached(options,grant,input,afterCommit){return executePublication(options,grant,input,afterCommit,true,"wallet_cached_progress");}
 export async function reconcileEvidenceWalletCached(options,grant,input,afterCommit){return executePublication(options,grant,input,afterCommit,false,"wallet_cached_progress");}
+export async function publishEvidenceWalletQuota(options,grant,input,afterCommit){return executePublication(options,grant,input,afterCommit,true,"wallet_quota");}
+export async function reconcileEvidenceWalletQuota(options,grant,input,afterCommit){return executePublication(options,grant,input,afterCommit,false,"wallet_quota");}
+function publicationResults(plan,input){
+  // Only this exact quota domain can retain RETURNING rows. All older domains
+  // still require empty result arrays and preserve their original bytes.
+  const quota=plan.kind==="wallet_quota",rows=quota?z.object({used:z.number().int().safe().positive()}).strict().array().max(1):z.tuple([]);
+  const result=z.object({success:z.literal(true),results:rows,meta:z.object({changes:z.number().int().nonnegative()}).strict()}).strict().array().length(plan.operations.length).parse(input);
+  if(quota&&result.some(r=>r.meta.changes!==r.results.length||r.results.some(row=>row.used>plan.reservation[plan.operations[0].sql===walletQuotaSql?"wallet_limit":"rpc_limit"])))throw Error("publication_wallet_quota_result");return result;
+}
+function walletQuotaParent(db,plan,expectedGrant){
+  const r=plan.reservation,parentPlan=validateEvidenceWalletQuotaPlan({publication_id:r.wallet,kind:"wallet_quota",reservation:r,operations:[{kind:"sql",sql:walletQuotaSql,bindings:[r.day,r.wallet_limit]}]}),parent=db.prepare("SELECT plan_sha256,results_json,generation,owner,epoch FROM tenx_append_publications WHERE publication_id=?").get(r.wallet);
+  if(!parent||parent.plan_sha256!==digest(parentPlan)||!isDeepStrictEqual({generation:parent.generation,owner:parent.owner,epoch:parent.epoch},expectedGrant))throw Error("publication_wallet_quota_parent_required");
+  const result=publicationResults(parentPlan,JSON.parse(parent.results_json))[0];if(result.results.length!==1)throw Error("publication_wallet_quota_parent_declined");
+}
 export async function readPublishedEvidenceAppend(options,grant,table,hash){
   if(!["tenx_holder_evidence","tenx_wallet_evidence"].includes(table))throw Error("publication_table_unsupported");Hash.parse(hash);
   let ref;const first=await opened(options);
