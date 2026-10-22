@@ -1,0 +1,8 @@
+.tenx-personal-reviews{margin-top:1rem;border-top:1px solid #3c4e41;padding-top:1rem;overflow-wrap:anywhere}
+.tenx-personal-reviews h3:focus{outline:2px solid #8add9c;outline-offset:4px}
+.tenx-personal-reviews fieldset{min-width:0;margin:1rem 0;padding:1rem;border:1px solid #3c4e41;border-radius:8px}
+.tenx-personal-reviews label{display:grid;gap:.35rem;margin:.75rem 0}
+.tenx-personal-reviews select,.tenx-personal-reviews textarea{width:100%;min-width:0;max-width:100%;font:inherit;color:#e2ede6;background:#191d1a;border:1px solid #526b58;border-radius:6px;padding:.5rem}
+.tenx-personal-reviews textarea{resize:vertical}
+.tenx-personal-reviews ul,.tenx-personal-reviews ol{padding-left:1.3rem}
+.tenx-personal-reviews li{margin:.7rem 0}
