@@ -6,3 +6,10 @@
 .tenx-personal-reviews textarea{resize:vertical}
 .tenx-personal-reviews ul,.tenx-personal-reviews ol{padding-left:1.3rem}
 .tenx-personal-reviews li{margin:.7rem 0}
+.tenx-review-import{margin:1rem 0;padding:.75rem;border:1px solid #3c4e41;border-radius:6px}
+.tenx-review-import input[type=file]{min-width:0;max-width:100%;font:inherit}
+.tenx-review-import input[type=checkbox]{justify-self:start}
+.tenx-review-import .tenx-review-confirm{display:flex;align-items:flex-start;gap:.5rem}
+.tenx-review-confirm input{flex:0 0 auto;margin-top:.3rem}
+.tenx-review-import button{margin:.35rem .35rem 0 0}
+.tenx-review-import button:disabled{opacity:.5;cursor:not-allowed}
