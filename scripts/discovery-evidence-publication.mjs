@@ -200,6 +200,29 @@ export async function readEvidenceCandidateMetadata(options,grant,input){
     fenced(db,body,grant);db.exec("COMMIT");return {row,...inactive()};
   }finally{if(db.isTransaction)db.exec("ROLLBACK");db.close();}
 }
+// Cache/checkpoint reads for the offline cached-wallet replay. No SQL input,
+// writes, cache repair, quota reservations or historical owner activation.
+export async function readEvidenceWalletMetadata(options,grant,input){
+  grant=Grant.parse(grant);options=structuredClone(options);
+  const Text=z.string().max(4096),request=z.discriminatedUnion("kind",[
+    z.object({kind:z.literal("candidates")}).strict(),
+    z.object({kind:z.literal("transaction"),signature:Text}).strict(),
+    z.object({kind:z.literal("checkpoint"),hop:z.enum(["direct","second"]),address:Text,wallet:Text,anchor_signature:Text}).strict(),
+  ]).parse(input),{db,body}=await opened(options,true),decode=bytes=>new TextDecoder("utf-8",{fatal:true,ignoreBOM:true}).decode(bytes);
+  try{
+    db.exec("BEGIN");fenced(db,body,grant);let rows=[],row=null;
+    if(request.kind==="candidates"){
+      const selected=db.prepare("SELECT address,length(CAST(payload AS BLOB)) AS bytes FROM tenx_active_candidates WHERE mode='live' ORDER BY checked_at DESC,address LIMIT 500").all();let bytes=0;
+      for(const item of selected){if(!Number.isSafeInteger(item.bytes)||item.bytes<0||item.bytes>2000000||(bytes+=item.bytes)>16*1024**2)throw Error("publication_wallet_index_byte_bound");}
+      rows=selected.map(item=>({payload:decode(db.prepare("SELECT CAST(payload AS BLOB) AS payload FROM tenx_active_candidates WHERE mode='live' AND address=?").get(item.address).payload)}));
+    }else{
+      const transaction=request.kind==="transaction",from=transaction?"tenx_wallet_transactions WHERE signature=?":`${request.hop==="direct"?"tenx_funding_scans":"tenx_second_hop_scans"} WHERE address=? AND wallet=? AND anchor_signature=?`,bindings=transaction?[request.signature]:[request.address,request.wallet,request.anchor_signature],fields=transaction?["payload","payload_hash","fetched_at"]:["payload","payload_hash"];
+      const sizes=db.prepare(`SELECT ${fields.map(field=>`length(CAST(${field} AS BLOB)) AS ${field}`).join(",")} FROM ${from}`).get(...bindings);
+      if(sizes){for(const field of fields)if(!Number.isSafeInteger(sizes[field])||sizes[field]<0||sizes[field]>(field==="payload"?250000:4096))throw Error("publication_wallet_cache_byte_bound");const saved=db.prepare(`SELECT ${fields.map(field=>`CAST(${field} AS BLOB) AS ${field}`).join(",")} FROM ${from}`).get(...bindings);row=Object.fromEntries(fields.map(field=>[field,decode(saved[field])]));}
+    }
+    fenced(db,body,grant);db.exec("COMMIT");return {row,rows,...inactive()};
+  }finally{if(db.isTransaction)db.exec("ROLLBACK");db.close();}
+}
 const CohortText=z.string().max(4096),CohortPayload=z.string().max(2000000);
 const CohortRow=z.discriminatedUnion("kind",[
   z.object({kind:z.literal("cohort"),day:CohortText,address:CohortText,selected_at:CohortText,recommended:z.union([z.literal(0),z.literal(1)]),input_hash:Hash,payload:CohortPayload}).strict(),
