@@ -80,6 +80,8 @@ function normalizedPlan(input){
   }
   if(bytes>10*1024**2)throw Error("publication_plan_byte_bound");return plan;
 }
+// Offline producer adapters use the identical coordinator validation before IO.
+export function validateEvidencePublicationPlan(input){return normalizedPlan(input);}
 function metadata(db,table,hash){
   const fields=table==="tenx_holder_evidence"?["payload_hash","address","slot","observed_at"]:["payload_hash","address","observed_at"],row=db.prepare(`SELECT ${fields.map(c=>c==="slot"?c:`CAST(${c} AS BLOB) AS ${c}`).join(",")} FROM ${table} WHERE payload_hash=?`).get(hash);
   return row?Object.fromEntries(fields.map(c=>[c,c==="slot"?row[c]:new TextDecoder("utf-8",{fatal:true,ignoreBOM:true}).decode(row[c])])):null;

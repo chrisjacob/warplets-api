@@ -95,6 +95,9 @@ jobs:
       - name: Unified private frozen and published evidence reads
         run: pnpm test:discovery-publication-read
 
+      - name: Original producer batch and encrypted publication compatibility
+        run: pnpm test:discovery-producer-batches
+
       - name: Install dependencies (app)
         working-directory: app
         run: pnpm install --frozen-lockfile

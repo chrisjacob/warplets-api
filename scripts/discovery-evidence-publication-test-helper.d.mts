@@ -4,6 +4,6 @@ type Row={payload_hash:string;address:string;slot?:number;payload:string;observe
 type Item={table:string;row:Row};
 type Stage={directory:string;contextPin:string;keyFile:string};
 export type PublicationFixture={root:string;target:string;db:DatabaseSync;copy:DatabaseSync;source:ScratchOptions;stage:Stage;options:{directory:string;targetPin:string;stage:Stage};grant:{generation:string;owner:string;epoch:number};baseHolder:Item;baseWallet:Item};
-export function fixture(work:(f:PublicationFixture)=>Promise<void>):Promise<void>;
+export function fixture(work:(f:PublicationFixture)=>Promise<void>,beforeArchive?:(f:Pick<PublicationFixture,"db"|"baseHolder"|"baseWallet">)=>Promise<void>):Promise<void>;
 export function receipt(kind?:string,memo?:string):Item;
 export function sha(bytes:string|Uint8Array):string;
