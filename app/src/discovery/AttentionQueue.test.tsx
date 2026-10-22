@@ -1,6 +1,7 @@
 import {expect,it,vi} from "vitest";
 import {renderToStaticMarkup} from "react-dom/server";
-import {AttentionCandleDetails,AttentionTraderDetails,AttentionQueuePanel,AttentionQueueValues} from "./AttentionQueue";
+import {AttentionCandleDetails,AttentionTraderDetails,AttentionQueuePanel,AttentionQueueValues,AttentionTokenDetails} from "./AttentionQueue";
+import {captureAttentionReview} from "./attention-review-store";
 import {normalizeAttentionTraders} from "../../../discovery/src/attention-traders";
 import {normalizeAttentionCandles} from "../../../discovery/src/attention-candles";
 import {buildAttentionQueue} from "../../../discovery/src/attention-queue";
@@ -9,9 +10,19 @@ import {normalizeAttention} from "../../../discovery/src/attention-feed-contract
 const at=new Date("2026-10-22T14:00:00.000Z"),address="0x0000000000000000000000000000000000001234";
 const snapshot=normalizeAttention({kind:"gmgn_hot_searches",chains:["base"],intervals:["24h"]},{code:0,data:[{chain:"base",interval:"24h",tokens:[{address,name:"Established meme",symbol:"MEME",visiting_count:120,rank:2,open_timestamp:at.getTime()/1000-8640000}]}]},at.toISOString());
 it("shows an older cross-chain token with source provenance and quality unknowns instead of a safety score",()=>{
- const html=renderToStaticMarkup(<AttentionQueueValues report={buildAttentionQueue([snapshot],at)}/>);
- for(const text of["Established meme","base","120 reported search/visit heat","Quality review needed","honeypot status unknown","Token age has no maximum","Launch selection remains unavailable","do not establish organic participation or safety"])expect(html).toContain(text);
+ const report=buildAttentionQueue([snapshot],at),html=renderToStaticMarkup(<AttentionQueueValues report={report}/>);
+ for(const text of["Established meme","base","GMGN","Quality review needed","Token age has no maximum","Launch selection remains unavailable","do not establish organic participation or safety","View evidence"])expect(html).toContain(text);
  expect(html).not.toContain("Score / 100");expect(html).not.toContain("Safe token");
+ expect(html).not.toContain("Source ranks &amp; timing");expect(html).not.toContain("Candles and participation");
+ const detail=renderToStaticMarkup(<AttentionTokenDetails context={captureAttentionReview(report,address,"base")} onClose={()=>{}}/>);
+ for(const text of["120 reported search/visit heat","honeypot status unknown","Reported market activity","Attention sources and timing","Candles and participation","not connected for this chain","stays fixed","Close evidence"])expect(detail).toContain(text);
+});
+it("keeps the selected identity, snapshot dates, flags and explicit refresh state in a separate detail surface",()=>{
+ const report=buildAttentionQueue([snapshot],at),context=captureAttentionReview(report,address,"base");context.token.checks="adverse";
+ const fetcher=vi.spyOn(globalThis,"fetch"),html=renderToStaticMarkup(<AttentionTokenDetails context={context} onClose={()=>{}} onReview={()=>{}} reviewBusy newerReport outsideView onUpdate={()=>{}}/>);
+ for(const text of[address,"Adverse flags","outside the current shortlist filters","A different saved list is available","Load latest saved evidence","Review this snapshot","Snapshot saved at","Scores and launch checks are unchanged"])expect(html).toContain(text);
+ expect(html).toMatch(/disabled=""[^>]*>Review this snapshot/);expect(html).not.toContain("<table");expect(html).not.toContain("<dialog");expect(fetcher).not.toHaveBeenCalled();fetcher.mockRestore();
+ const absent=renderToStaticMarkup(<AttentionTokenDetails context={context} onClose={()=>{}} newerReport/>);expect(absent).toContain("absent from that saved list");expect(absent).not.toContain("Load latest saved evidence");
 });
 it("hides explicit adverse flags by default while preserving the review control",()=>{
  const adverse=structuredClone(snapshot);adverse.rows[0]!.honeypot=true;

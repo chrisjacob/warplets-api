@@ -1,0 +1,14 @@
+.tenx-attention-detail{margin:1.25rem 0;padding:1rem;border:1px solid #526b58;border-radius:10px;background:#111d16;min-width:0;overflow-wrap:anywhere}
+.tenx-attention-detail-header{display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:.75rem}
+.tenx-attention-detail-header h3{margin:0;flex:1;min-width:0;font-size:1.1rem}
+.tenx-attention-detail h3:focus{outline:2px solid #8add9c;outline-offset:4px}
+.tenx-attention-detail h4{margin:1.25rem 0 .5rem;color:#e2ede6;font-size:1rem}
+.tenx-attention-detail p,.tenx-attention-detail li{line-height:1.65}
+.tenx-attention-detail ul{padding-left:1.25rem}
+.tenx-attention-detail details{margin:.75rem 0}
+.tenx-attention-detail summary{cursor:pointer;padding:.5rem 0;min-height:44px}
+.tenx-attention-detail .tenx-button{min-height:44px;white-space:normal;max-width:100%}
+.tenx-attention-detail .tenx-attention-detail-metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,10rem),1fr));gap:.75rem;margin:.75rem 0}
+.tenx-attention-detail-metrics>div{border:1px solid #344c3c;border-radius:6px;padding:.6rem;min-width:0}
+.tenx-attention-detail-metrics dt{color:#adc6b5}.tenx-attention-detail-metrics dd{margin:.25rem 0 0;color:#e2ede6;font-weight:600}
+@media(max-width:480px){.tenx-attention-detail{padding:.75rem}.tenx-attention-detail-header{flex-direction:column}.tenx-attention-detail-header h3{font-size:1rem}}
