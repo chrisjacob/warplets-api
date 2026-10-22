@@ -1,0 +1,58 @@
+// Offline only. Never a D1 proxy, Worker import or application backend.
+import {z} from "zod";
+import {prepareEvidenceProducerBatch,type ProducerBatchInput} from "./evidence-producer-plan";
+import {persistEvidencePublicationIntent,publishStoredEvidenceIntent,reconcileStoredEvidenceIntent} from "../discovery-evidence-intents.mjs";
+
+const Hash=z.string().regex(/^[a-f0-9]{64}$/),Id=z.string().uuid(),Path=z.string().min(1).max(4096);
+const Publication=z.object({directory:Path,targetPin:Hash,stage:z.object({directory:Path,contextPin:Hash,keyFile:Path}).strict()}).strict();
+const Journal=z.object({directory:Path,contextPin:Hash}).strict();
+const Grant=z.object({generation:Id,owner:Id,epoch:z.number().int().safe().positive()}).strict();
+export type ProducerPublication=z.infer<typeof Publication>;
+export type ProducerJournal=z.infer<typeof Journal>;
+export type ProducerGrant=z.infer<typeof Grant>;
+type Inactive={runtime_activated:false;action_authority:false;evidence_qualified:false;provider_requests:0;free_acceptance:false};
+type PositionResult={success:true;results:[];meta:{changes:number}};
+export type ProducerCommitted=Inactive&{state:"committed";publication_id:string;results:PositionResult[];reconciled:boolean;post_commit:"not_requested"|"completed"|"failed";post_commit_error?:string};
+type Phase="preflight"|"stage"|"persist"|"publish"|"reconcile";
+export type ProducerHeld=Inactive&{state:"held";publication_id:string|null;stage_id:string|null;phase:Phase;sql_attempt:"not_started"|"unconfirmed"|"read_only";code:"producer_preflight_held"|"producer_stage_held"|"producer_intent_held"|"producer_publication_unconfirmed"|"producer_reconciliation_held"};
+export type ProducerPublicationOutcome=ProducerCommitted|ProducerHeld;
+type AfterCommit=(outcome:ProducerCommitted)=>Promise<void>|void;
+const inactive=():Inactive=>({runtime_activated:false,action_authority:false,evidence_qualified:false,provider_requests:0,free_acceptance:false});
+function held(phase:Phase,id:unknown,stage:unknown):ProducerHeld{
+  const codes={preflight:"producer_preflight_held",stage:"producer_stage_held",persist:"producer_intent_held",publish:"producer_publication_unconfirmed",reconcile:"producer_reconciliation_held"} as const;
+  return {state:"held",publication_id:Id.safeParse(id).success?id as string:null,stage_id:Id.safeParse(stage).success?stage as string:null,phase,sql_attempt:phase==="publish"?"unconfirmed":phase==="reconcile"?"read_only":"not_started",code:codes[phase],...inactive()};
+}
+function context(publication:ProducerPublication,journal:ProducerJournal,grant:ProducerGrant,callback?:AfterCommit){
+  if(callback!==undefined&&typeof callback!=="function")throw Error("producer_callback_invalid");
+  return {publication:Publication.parse(publication),journal:Journal.parse(journal),grant:Grant.parse(grant)};
+}
+
+// The caller supplies and retains BOTH IDs before invoking this API. Publication
+// always reads the persisted, authenticated plan; it never executes the in-memory
+// statements directly. A held result carries no successful D1 result vector.
+export async function publishEvidenceProducerBatch(publication:ProducerPublication,journal:ProducerJournal,grant:ProducerGrant,input:ProducerBatchInput,afterCommit?:AfterCommit):Promise<ProducerPublicationOutcome>{
+  let phase:Phase="preflight",id:unknown,stageId:unknown;
+  try{
+    id=input?.publicationId;stageId=input?.stageId;
+    const saved=context(publication,journal,grant,afterCommit),identity={publicationId:Id.parse(id),stageId:Id.parse(stageId),statements:input.statements};
+    phase="stage";
+    // prepare normalizes the complete original ordered batch before its first
+    // await, including the original receipt position and all coordinator bounds.
+    const plan=await prepareEvidenceProducerBatch(saved.publication.stage,identity);
+    phase="persist";await persistEvidencePublicationIntent(saved.publication,saved.journal,saved.grant,plan);
+    phase="publish";return await publishStoredEvidenceIntent(saved.publication,saved.journal,saved.grant,identity.publicationId,afterCommit) as ProducerCommitted;
+  }catch{return held(phase,id,stageId);}
+}
+
+// Explicit recovery: no original statements, replacement identities, automatic
+// fallback to publication or inferred absence. Reconciliation is read-only;
+// publishing an uncommitted intent still requires its exact original grant.
+export async function recoverEvidenceProducerBatch(publication:ProducerPublication,journal:ProducerJournal,grant:ProducerGrant,input:{publicationId:string;mode:"publish"|"reconcile"},afterCommit?:AfterCommit):Promise<ProducerPublicationOutcome>{
+  let phase:Phase="preflight",id:unknown;
+  try{
+    id=input?.publicationId;const saved=context(publication,journal,grant,afterCommit),request=z.object({publicationId:Id,mode:z.enum(["publish","reconcile"])}).strict().parse(input);
+    phase=request.mode;
+    const execute=request.mode==="publish"?publishStoredEvidenceIntent:reconcileStoredEvidenceIntent;
+    return await execute(saved.publication,saved.journal,saved.grant,request.publicationId,afterCommit) as ProducerCommitted;
+  }catch{return held(phase,id,null);}
+}

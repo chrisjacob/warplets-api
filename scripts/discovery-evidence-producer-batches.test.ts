@@ -6,6 +6,8 @@ import {randomUUID} from "node:crypto";
 import type {DatabaseSync} from "node:sqlite";
 import {fixture,receipt,type PublicationFixture} from "./discovery-evidence-publication-test-helper.mjs";
 import {recordEvidenceProducerBatches} from "./lib/evidence-producer-batches";
+import {publishEvidenceProducerBatch,recoverEvidenceProducerBatch} from "./lib/evidence-producer-publication";
+import {createEvidenceIntentJournal,readEvidencePublicationIntent} from "./discovery-evidence-intents.mjs";
 import {publishEvidenceAppend,transferEvidencePublicationOwner} from "./discovery-evidence-publication.mjs";
 import {withScratchEvidenceResolver} from "./discovery-evidence-scratch.mjs";
 import {publicationEvidenceReadStore} from "./lib/evidence-publication-read-store";
@@ -79,21 +81,25 @@ async function run(kind:Producer,db:D1Database,values:Awaited<ReturnType<typeof 
 }
 
 for(const kind of ["candidate","wallet","cached_replay"] as const)test(`${kind}: actual producer batch matches encrypted publication SQL, result positions and receipt bytes`,context=>producerFixture(kind,async(f,values)=>{
+  const directory=path.resolve(".tmp","producer-parity-intent-"+randomUUID());
+  context.after(async()=>{const actual=await fs.realpath(directory);assert.equal(path.dirname(actual),await fs.realpath(".tmp"));assert.ok(path.basename(actual).startsWith("producer-parity-intent-"));await fs.rm(actual,{recursive:true,force:true});});
+  const created=await createEvidenceIntentJournal({target:directory,publication:f.options,grant:f.grant}),journal={directory,contextPin:created.context_pin};
   let tables:string[]=[],beforeCohorts:unknown,afterBatch:unknown;
   const recorder=recordEvidenceProducerBatches(sqliteD1(f.db),{before:async statements=>{tables=affected([...statements]);prerequisites(f,tables);beforeCohorts=snapshot(f.copy,cohortTables);},after:async()=>{afterBatch=snapshot(f.db,tables.filter(t=>!t.endsWith("_evidence")));}});
   await run(kind,recorder.db,values);const batches=recorder.recorded();assert.equal(batches.length,1);const batch=batches[0]!;
   const publicationId=randomUUID(),stageId=randomUUID(),plan=await recorder.prepare(f.stage,{publicationId,stageId,statements:batch.statements});
   assert.equal(plan.operations.length,batch.statements.length);assert.equal(plan.operations.findIndex(o=>o.kind==="receipt"),kind==="cached_replay"?0:kind==="wallet"?1:values.candidate.market?2:1);
   for(let i=0;i<plan.operations.length;i++){const op=plan.operations[i]!;if(op.kind==="sql")assert.deepEqual({sql:op.sql,bindings:op.bindings},batch.statements[i]);}
-  const published=await publishEvidenceAppend(f.options,f.grant,plan);assert.deepEqual(published.results.map(r=>r.meta.changes),batch.changes);
+  const published=await publishEvidenceProducerBatch(f.options,journal,f.grant,{publicationId,stageId,statements:batch.statements});assert.equal(published.state,"committed",JSON.stringify(published));if(published.state!=="committed")throw Error("producer_commit_expected");assert.deepEqual(published.results.map(r=>r.meta.changes),batch.changes);
+  assert.deepEqual((await readEvidencePublicationIntent(f.options,journal,f.grant,publicationId)).plan,plan);
   assert.deepEqual(snapshot(f.copy,tables.filter(t=>!t.endsWith("_evidence"))),afterBatch);compare(f.copy,f.db,tables);
   assert.deepEqual(snapshot(f.copy,cohortTables),beforeCohorts);
   const stable=snapshot(f.copy,tables),retry=await recorder.prepare(f.stage,{publicationId,stageId,statements:batch.statements});assert.deepEqual(retry,plan);
-  const retried=await publishEvidenceAppend(f.options,f.grant,retry,kind==="cached_replay"?undefined:async()=>{
+  const retried=await recoverEvidenceProducerBatch(f.options,journal,f.grant,{publicationId,mode:"reconcile"},kind==="cached_replay"?undefined:async()=>{
     const saved=f.copy.prepare("SELECT payload FROM tenx_candidates WHERE address=? AND mode='live'").get(values.candidate.address)!;
     const current=CandidateSchema.parse(JSON.parse(String(saved.payload)));await captureCohort(sqliteD1(f.copy),current,current.checked_at);
   });
-  assert.equal(retried.reconciled,true);assert.deepEqual(snapshot(f.copy,tables),stable);compare(f.copy,f.db,cohortTables);
+  assert.equal(retried.state,"committed");if(retried.state!=="committed")throw Error("producer_reconciliation_expected");assert.equal(retried.reconciled,true);assert.deepEqual(snapshot(f.copy,tables),stable);compare(f.copy,f.db,cohortTables);
   await withScratchEvidenceResolver(f.source,async source=>{
     const store=publicationEvidenceReadStore(source,f.options,f.grant),table=kind==="candidate"?"holder":"wallet",row=f.db.prepare(`SELECT * FROM tenx_${table}_evidence WHERE address=? ORDER BY observed_at DESC LIMIT 1`).get(values.candidate.address)!;
     assert.deepEqual(await store[`${table}Receipt`](String(row.payload_hash)),{...row});return null;

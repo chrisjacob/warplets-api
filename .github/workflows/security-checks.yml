@@ -101,6 +101,9 @@ jobs:
       - name: Encrypted publication intents and process restart reconciliation
         run: pnpm test:discovery-intents
 
+      - name: Persist-before-execute producer publication and explicit caller outcomes
+        run: pnpm test:discovery-producer-publication
+
       - name: Install dependencies (app)
         working-directory: app
         run: pnpm install --frozen-lockfile
