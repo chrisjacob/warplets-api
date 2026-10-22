@@ -6,7 +6,7 @@ import {isDeepStrictEqual} from "node:util";
 import {z} from "zod";
 import {evidencePrivatePath,evidenceRegularFile} from "./discovery-evidence-objects.mjs";
 import {inspectEvidenceAppendStage,readStagedEvidenceAppend} from "./discovery-evidence-append-stage.mjs";
-import {validateEvidenceTargetPlan,selectEvidencePublication,publishEvidenceAppend,reconcileEvidenceAppend,publishEvidenceCandidateMetadata,reconcileEvidenceCandidateMetadata,publishEvidenceWalletCached,reconcileEvidenceWalletCached,publishEvidenceWalletQuota,reconcileEvidenceWalletQuota,publishEvidenceWalletCycle,reconcileEvidenceWalletCycle,publishEvidenceWalletCollection,reconcileEvidenceWalletCollection} from "./discovery-evidence-publication.mjs";
+import {validateEvidenceTargetPlan,selectEvidencePublication,publishEvidenceAppend,reconcileEvidenceAppend,publishEvidenceCandidateMetadata,reconcileEvidenceCandidateMetadata,publishEvidenceWalletCached,reconcileEvidenceWalletCached,publishEvidenceWalletQuota,reconcileEvidenceWalletQuota,publishEvidenceWalletCycle,reconcileEvidenceWalletCycle,publishEvidenceWalletCollection,reconcileEvidenceWalletCollection,publishEvidenceWalletDirect,reconcileEvidenceWalletDirect} from "./discovery-evidence-publication.mjs";
 
 const VERSION="discovery-evidence-intents-v1",MAX=16*1024**2;
 const Hash=z.string().regex(/^[a-f0-9]{64}$/),Id=z.string().uuid();
@@ -93,9 +93,9 @@ export async function publishStoredEvidenceIntent(publication,journal,grant,id,a
   grant=Grant.parse(grant);
   const saved=await readEvidencePublicationIntent(publication,journal,grant,id);
   if(!isDeepStrictEqual(saved.original_grant,Grant.parse(grant)))throw Error("intent_original_owner_required");
-  return (saved.plan.kind==="candidate_metadata"?publishEvidenceCandidateMetadata:saved.plan.kind==="wallet_cached_progress"?publishEvidenceWalletCached:saved.plan.kind==="wallet_quota"?publishEvidenceWalletQuota:saved.plan.kind==="wallet_cycle_control"?publishEvidenceWalletCycle:saved.plan.kind==="wallet_collection"?publishEvidenceWalletCollection:publishEvidenceAppend)(publication,grant,saved.plan,afterCommit);
+  return (saved.plan.kind==="candidate_metadata"?publishEvidenceCandidateMetadata:saved.plan.kind==="wallet_cached_progress"?publishEvidenceWalletCached:saved.plan.kind==="wallet_quota"?publishEvidenceWalletQuota:saved.plan.kind==="wallet_cycle_control"?publishEvidenceWalletCycle:saved.plan.kind==="wallet_collection"?publishEvidenceWalletCollection:saved.plan.kind==="wallet_direct_cycle"?publishEvidenceWalletDirect:publishEvidenceAppend)(publication,grant,saved.plan,afterCommit);
 }
 export async function reconcileStoredEvidenceIntent(publication,journal,grant,id,afterCommit){
   grant=Grant.parse(grant);
-  const saved=await readEvidencePublicationIntent(publication,journal,grant,id);return (saved.plan.kind==="candidate_metadata"?reconcileEvidenceCandidateMetadata:saved.plan.kind==="wallet_cached_progress"?reconcileEvidenceWalletCached:saved.plan.kind==="wallet_quota"?reconcileEvidenceWalletQuota:saved.plan.kind==="wallet_cycle_control"?reconcileEvidenceWalletCycle:saved.plan.kind==="wallet_collection"?reconcileEvidenceWalletCollection:reconcileEvidenceAppend)(publication,grant,saved.plan,afterCommit);
+  const saved=await readEvidencePublicationIntent(publication,journal,grant,id);return (saved.plan.kind==="candidate_metadata"?reconcileEvidenceCandidateMetadata:saved.plan.kind==="wallet_cached_progress"?reconcileEvidenceWalletCached:saved.plan.kind==="wallet_quota"?reconcileEvidenceWalletQuota:saved.plan.kind==="wallet_cycle_control"?reconcileEvidenceWalletCycle:saved.plan.kind==="wallet_collection"?reconcileEvidenceWalletCollection:saved.plan.kind==="wallet_direct_cycle"?reconcileEvidenceWalletDirect:reconcileEvidenceAppend)(publication,grant,saved.plan,afterCommit);
 }

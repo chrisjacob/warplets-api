@@ -125,6 +125,9 @@ jobs:
       - name: Original funding collection with recorded transport and persisted cache/checkpoints
         run: pnpm test:discovery-wallet-collection-target
 
+      - name: Integrated original recorded direct-funding cycle, catch-up and backoff
+        run: pnpm test:discovery-wallet-direct-cycle-target
+
       - name: Install dependencies (app)
         working-directory: app
         run: pnpm install --frozen-lockfile

@@ -2,7 +2,9 @@
 import {z} from "zod";
 import {prepareEvidenceProducerBatch,type ProducerBatchInput} from "./evidence-producer-plan";
 import {persistEvidencePublicationIntent,publishStoredEvidenceIntent,reconcileStoredEvidenceIntent} from "../discovery-evidence-intents.mjs";
-import {validateEvidenceCandidateMetadataPlan,validateEvidenceWalletCachedPlan,validateEvidenceWalletQuotaPlan,validateEvidenceWalletCyclePlan,validateEvidenceWalletCollectionPlan} from "../discovery-evidence-publication.mjs";
+import {validateEvidenceCandidateMetadataPlan,validateEvidenceWalletCachedPlan,validateEvidenceWalletQuotaPlan,validateEvidenceWalletCyclePlan,validateEvidenceWalletCollectionPlan,validateEvidenceWalletDirectPlan} from "../discovery-evidence-publication.mjs";
+import {WalletWorkSchema} from "../../discovery/src/wallet-work-model";
+import {directWorkSql} from "../evidence-wallet-direct-sql.mjs";
 import {FundingScanSchema,fundingTask} from "../../discovery/src/funding-history";
 import {WalletTransactionSchema} from "../../discovery/src/wallet-rpc";
 import {collectionTransactionSql,collectionRepairSql} from "../evidence-wallet-collection-sql.mjs";
@@ -114,6 +116,16 @@ export async function publishEvidenceWalletCollectionBatch(publication:ProducerP
     if(op.kind!=="sql")throw Error("wallet_collection_sql_required");
     if(op.sql===collectionTransactionSql){const tx=WalletTransactionSchema.parse(JSON.parse(String(op.bindings[2])));if(await hashJson(tx)!==op.bindings[1])throw Error("wallet_collection_normalized_hash_required");}
     else fundingTask(FundingScanSchema.parse(JSON.parse(String(op.bindings[Object.values(collectionRepairSql).includes(op.sql)?0:3]))));
+    phase="persist";await persistEvidencePublicationIntent(saved.publication,saved.journal,saved.grant,plan);
+    phase="publish";return await publishStoredEvidenceIntent(saved.publication,saved.journal,saved.grant,plan.publication_id,afterCommit) as ProducerCommitted;
+  }catch{return held(phase,id,null);}
+}
+
+export async function publishEvidenceWalletDirectBatch(publication:ProducerPublication,journal:ProducerJournal,grant:ProducerGrant,input:{publicationId:string;cycle:WalletCycleContext;sourceHash:string;limits:{wallet:number;rpc:number};statements:unknown},afterCommit?:AfterCommit):Promise<ProducerPublicationOutcome>{
+  let phase:Phase="preflight",id:unknown;
+  try{
+    id=input?.publicationId;const saved=context(publication,journal,grant,afterCommit),plan=validateEvidenceWalletDirectPlan({publication_id:Id.parse(id),kind:"wallet_direct_cycle",cycle:input.cycle,source_hash:input.sourceHash,limits:input.limits,operations:ProducerStatements.parse(input.statements).map(row=>({kind:"sql",...row}))});
+    for(const op of plan.operations)if(op.kind==="sql"&&op.sql===directWorkSql)WalletWorkSchema.parse(JSON.parse(String(op.bindings[2])));
     phase="persist";await persistEvidencePublicationIntent(saved.publication,saved.journal,saved.grant,plan);
     phase="publish";return await publishStoredEvidenceIntent(saved.publication,saved.journal,saved.grant,plan.publication_id,afterCommit) as ProducerCommitted;
   }catch{return held(phase,id,null);}
