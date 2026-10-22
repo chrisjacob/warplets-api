@@ -1,0 +1,4 @@
+// Exact ordinary collector statements. Private target only; no provider permit.
+export const collectionTransactionSql="INSERT OR IGNORE INTO tenx_wallet_transactions(signature,payload_hash,payload,fetched_at) VALUES(?1,?2,?3,?4)";
+export const collectionCheckpointSql=Object.fromEntries(["direct","second"].map(hop=>[hop,`INSERT INTO ${hop==="direct"?"tenx_funding_scans":"tenx_second_hop_scans"}(address,wallet,anchor_signature,payload,payload_hash,attempted_at) VALUES(?1,?2,?3,?4,?5,?6) ON CONFLICT(address,wallet,anchor_signature) DO UPDATE SET payload=excluded.payload,payload_hash=excluded.payload_hash,attempted_at=excluded.attempted_at`]));
+export const collectionRepairSql=Object.fromEntries(["direct","second"].map(hop=>[hop,`UPDATE ${hop==="direct"?"tenx_funding_scans":"tenx_second_hop_scans"} SET payload=?,payload_hash=?,attempted_at=? WHERE address=? AND wallet=? AND anchor_signature=? AND payload_hash=?`]));

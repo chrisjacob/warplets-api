@@ -122,6 +122,9 @@ jobs:
       - name: Integrated original cache-only wallet cycle with lease and recovery
         run: pnpm test:discovery-wallet-cycle-target
 
+      - name: Original funding collection with recorded transport and persisted cache/checkpoints
+        run: pnpm test:discovery-wallet-collection-target
+
       - name: Install dependencies (app)
         working-directory: app
         run: pnpm install --frozen-lockfile

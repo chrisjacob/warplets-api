@@ -11,6 +11,7 @@ import {inspectEvidenceAppendStage,readStagedEvidenceAppend} from "./discovery-e
 import {cachedCheckpointSql,cachedFinishSql} from "./evidence-wallet-cached-sql.mjs";
 import {walletQuotaSql,rpcQuotaSql} from "./evidence-wallet-quota-sql.mjs";
 import {walletLeaseSql,walletSpacingSql,walletReleaseSql,walletFailureSql,walletFailureRunSql,walletAttemptSql} from "./evidence-wallet-cycle-sql.mjs";
+import {collectionTransactionSql,collectionCheckpointSql,collectionRepairSql} from "./evidence-wallet-collection-sql.mjs";
 
 const VERSION="discovery-evidence-publication-v1",FILE="metadata.sqlite",MAX_DB=2*1024**3;
 const Hash=z.string().regex(/^[a-f0-9]{64}$/),Id=z.string().uuid();
@@ -27,6 +28,7 @@ const QuotaLimit=z.number().int().safe().positive(),QuotaReservation=z.object({w
 const WalletQuotaPlan=z.object({publication_id:Id,kind:z.literal("wallet_quota"),reservation:QuotaReservation,operations:Operation.array().length(1)}).strict();
 const Cycle=z.object({lease_id:Id,job:Id,address:z.string().min(1).max(4096),at:z.string().datetime(),until:z.string().datetime(),rapid:z.union([z.literal(0),z.literal(1)])}).strict();
 const WalletCyclePlan=z.object({publication_id:Id,kind:z.literal("wallet_cycle_control"),cycle:Cycle,operations:Operation.array().length(1)}).strict();
+const WalletCollectionPlan=z.object({publication_id:Id,kind:z.literal("wallet_collection"),operations:Operation.array().length(1)}).strict();
 const Header=z.object({version:z.literal(VERSION),file:z.literal(FILE),capacity_pin:Hash,source_archive_pin:Hash,base_reference_pin:Hash,context_pin:Hash,generation:Id,schema_sha256:Hash}).strict();
 const writable=new Set(["tenx_candidates","tenx_market_history","tenx_wallet_signals","tenx_proofs","tenx_evidence","tenx_account_evidence","tenx_wallet_runs","tenx_wallet_attempts","tenx_wallet_control","tenx_wallet_work","tenx_wallet_profiles"]);
 const SCHEMA=[
@@ -151,7 +153,29 @@ export function validateEvidenceWalletCyclePlan(input){
   }
   return plan;
 }
-export function validateEvidenceTargetPlan(input){return input?.kind==="candidate_metadata"?validateEvidenceCandidateMetadataPlan(input):input?.kind==="wallet_cached_progress"?validateEvidenceWalletCachedPlan(input):input?.kind==="wallet_quota"?validateEvidenceWalletQuotaPlan(input):input?.kind==="wallet_cycle_control"?validateEvidenceWalletCyclePlan(input):normalizedPlan(input);}
+export function validateEvidenceWalletCollectionPlan(input){
+  const plan=WalletCollectionPlan.parse(input),op=plan.operations[0],Text=z.string().min(1).max(4096),Time=z.string().datetime();
+  if(op.kind!=="sql"||op.expect_changes!==undefined||op.bindings.some(b=>typeof b!=="string"))throw Error("publication_wallet_collection_shape");
+  const b=op.bindings;
+  if(op.sql===collectionTransactionSql){
+    if(b.length!==4)throw Error("publication_wallet_collection_bindings");Text.parse(b[0]);Hash.parse(b[1]);Time.parse(b[3]);
+    if(Buffer.byteLength(b[2])>250000)throw Error("publication_wallet_collection_bytes");const tx=JSON.parse(b[2]);
+    if(digest(tx)!==b[1]||tx.transaction?.signatures?.[0]!==b[0])throw Error("publication_wallet_collection_transaction");
+  }else{
+    const hop=Object.keys(collectionCheckpointSql).find(h=>op.sql===collectionCheckpointSql[h]||op.sql===collectionRepairSql[h]);if(!hop)throw Error("publication_wallet_collection_sql");
+    const repair=op.sql===collectionRepairSql[hop];if(b.length!==(repair?7:6))throw Error("publication_wallet_collection_bindings");
+    const payload=repair?b[0]:b[3],hash=repair?b[1]:b[4],at=repair?b[2]:b[5],wallet=repair?b[4]:b[1],anchor=repair?b[5]:b[2];
+    Text.parse(repair?b[3]:b[0]);Text.parse(wallet);Text.parse(anchor);Hash.parse(hash);Time.parse(at);if(repair)Hash.parse(b[6]);
+    if(Buffer.byteLength(payload)>250000)throw Error("publication_wallet_collection_bytes");const scan=JSON.parse(payload);
+    if(hop==="second")z.number().int().nonnegative().parse(scan.anchor?.instruction_index);
+    const key=hop==="second"?`${scan.anchor?.signature}:${scan.anchor?.instruction_index}`:scan.anchor?.signature;
+    // A cache repair may update an exact legacy second-hop key selected by the
+    // original loader. Ordinary second-hop inserts always use instruction keys.
+    if(digest(scan)!==hash||scan.wallet!==wallet||scan.anchor?.wallet!==wallet||scan.attempted_at!==at||anchor!==key&&!(repair&&hop==="second"&&anchor===scan.anchor?.signature))throw Error("publication_wallet_collection_checkpoint");
+  }
+  return plan;
+}
+export function validateEvidenceTargetPlan(input){return input?.kind==="candidate_metadata"?validateEvidenceCandidateMetadataPlan(input):input?.kind==="wallet_cached_progress"?validateEvidenceWalletCachedPlan(input):input?.kind==="wallet_quota"?validateEvidenceWalletQuotaPlan(input):input?.kind==="wallet_cycle_control"?validateEvidenceWalletCyclePlan(input):input?.kind==="wallet_collection"?validateEvidenceWalletCollectionPlan(input):normalizedPlan(input);}
 function metadata(db,table,hash){
   const fields=table==="tenx_holder_evidence"?["payload_hash","address","slot","observed_at"]:["payload_hash","address","observed_at"],row=db.prepare(`SELECT ${fields.map(c=>c==="slot"?c:`CAST(${c} AS BLOB) AS ${c}`).join(",")} FROM ${table} WHERE payload_hash=?`).get(hash);
   return row?Object.fromEntries(fields.map(c=>[c,c==="slot"?row[c]:new TextDecoder("utf-8",{fatal:true,ignoreBOM:true}).decode(row[c])])):null;
@@ -176,7 +200,7 @@ export async function transferEvidencePublicationOwner(options,grant,nextOwner){
 }
 async function executePublication(options,grant,input,afterCommit,allowNew,metadataOnly=false){
   if(metadataOnly){grant=Grant.parse(grant);options=structuredClone(options);}
-  const plan=metadataOnly==="wallet_cycle_control"?validateEvidenceWalletCyclePlan(input):metadataOnly==="wallet_quota"?validateEvidenceWalletQuotaPlan(input):metadataOnly==="wallet_cached_progress"?validateEvidenceWalletCachedPlan(input):metadataOnly?validateEvidenceCandidateMetadataPlan(input):normalizedPlan(input),planHash=digest(plan),verified=metadataOnly?null:await readStagedEvidenceAppend(options.stage,plan.ticket),{db,body}=await opened(options,!allowNew);let publication,commitAttempted=false;
+  const plan=metadataOnly==="wallet_collection"?validateEvidenceWalletCollectionPlan(input):metadataOnly==="wallet_cycle_control"?validateEvidenceWalletCyclePlan(input):metadataOnly==="wallet_quota"?validateEvidenceWalletQuotaPlan(input):metadataOnly==="wallet_cached_progress"?validateEvidenceWalletCachedPlan(input):metadataOnly?validateEvidenceCandidateMetadataPlan(input):normalizedPlan(input),planHash=digest(plan),verified=metadataOnly?null:await readStagedEvidenceAppend(options.stage,plan.ticket),{db,body}=await opened(options,!allowNew);let publication,commitAttempted=false;
   try{
     db.exec(allowNew?"BEGIN IMMEDIATE":"BEGIN");fenced(db,body,grant);
     const prior=db.prepare("SELECT plan_sha256,results_json,generation,owner,epoch FROM tenx_append_publications WHERE publication_id=?").get(plan.publication_id);
@@ -225,6 +249,8 @@ export async function publishEvidenceWalletQuota(options,grant,input,afterCommit
 export async function reconcileEvidenceWalletQuota(options,grant,input,afterCommit){return executePublication(options,grant,input,afterCommit,false,"wallet_quota");}
 export async function publishEvidenceWalletCycle(options,grant,input,afterCommit){return executePublication(options,grant,input,afterCommit,true,"wallet_cycle_control");}
 export async function reconcileEvidenceWalletCycle(options,grant,input,afterCommit){return executePublication(options,grant,input,afterCommit,false,"wallet_cycle_control");}
+export async function publishEvidenceWalletCollection(options,grant,input,afterCommit){return executePublication(options,grant,input,afterCommit,true,"wallet_collection");}
+export async function reconcileEvidenceWalletCollection(options,grant,input,afterCommit){return executePublication(options,grant,input,afterCommit,false,"wallet_collection");}
 function publicationResults(plan,input){
   // Only exact quota and lease acquisition plans can retain RETURNING rows.
   // All older domains still require empty arrays and preserve their bytes.
@@ -318,6 +344,7 @@ export async function readEvidenceWalletMetadata(options,grant,input){
     z.object({kind:z.literal("candidates")}).strict(),
     z.object({kind:z.literal("transaction"),signature:Text}).strict(),
     z.object({kind:z.literal("checkpoint"),hop:z.enum(["direct","second"]),address:Text,wallet:Text,anchor_signature:Text}).strict(),
+    z.object({kind:z.literal("checkpoint_key"),hop:z.enum(["direct","second"]),address:Text,wallet:Text,preferred:Text,legacy:Text}).strict(),
   ]).parse(input),{db,body}=await opened(options,true),decode=bytes=>new TextDecoder("utf-8",{fatal:true,ignoreBOM:true}).decode(bytes);
   try{
     db.exec("BEGIN");fenced(db,body,grant);let rows=[],row=null;
@@ -325,6 +352,9 @@ export async function readEvidenceWalletMetadata(options,grant,input){
       const selected=db.prepare("SELECT address,length(CAST(payload AS BLOB)) AS bytes FROM tenx_active_candidates WHERE mode='live' ORDER BY checked_at DESC,address LIMIT 500").all();let bytes=0;
       for(const item of selected){if(!Number.isSafeInteger(item.bytes)||item.bytes<0||item.bytes>2000000||(bytes+=item.bytes)>16*1024**2)throw Error("publication_wallet_index_byte_bound");}
       rows=selected.map(item=>({payload:decode(db.prepare("SELECT CAST(payload AS BLOB) AS payload FROM tenx_active_candidates WHERE mode='live' AND address=?").get(item.address).payload)}));
+    }else if(request.kind==="checkpoint_key"){
+      const table=request.hop==="direct"?"tenx_funding_scans":"tenx_second_hop_scans",from=`${table} WHERE address=? AND wallet=? AND anchor_signature IN (?,?) ORDER BY CASE WHEN anchor_signature=? THEN 0 ELSE 1 END LIMIT 1`,bindings=[request.address,request.wallet,request.preferred,request.legacy,request.preferred],size=db.prepare(`SELECT length(CAST(anchor_signature AS BLOB)) AS n FROM ${from}`).get(...bindings);
+      if(size){if(!Number.isSafeInteger(size.n)||size.n<0||size.n>4096)throw Error("publication_wallet_key_byte_bound");row={anchor_signature:decode(db.prepare(`SELECT CAST(anchor_signature AS BLOB) AS value FROM ${from}`).get(...bindings).value)};}
     }else{
       const transaction=request.kind==="transaction",from=transaction?"tenx_wallet_transactions WHERE signature=?":`${request.hop==="direct"?"tenx_funding_scans":"tenx_second_hop_scans"} WHERE address=? AND wallet=? AND anchor_signature=?`,bindings=transaction?[request.signature]:[request.address,request.wallet,request.anchor_signature],fields=transaction?["payload","payload_hash","fetched_at"]:["payload","payload_hash"];
       const sizes=db.prepare(`SELECT ${fields.map(field=>`length(CAST(${field} AS BLOB)) AS ${field}`).join(",")} FROM ${from}`).get(...bindings);

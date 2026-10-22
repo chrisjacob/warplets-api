@@ -2,7 +2,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import {evidenceRegularFile} from "./discovery-evidence-objects.mjs";
-import {publishEvidenceProducerBatch,publishEvidenceCandidateMetadataBatch,publishEvidenceWalletCachedBatch,publishEvidenceWalletQuotaBatch,publishEvidenceWalletCycleBatch,recoverEvidenceProducerBatch} from "./lib/evidence-producer-publication";
+import {publishEvidenceProducerBatch,publishEvidenceCandidateMetadataBatch,publishEvidenceWalletCachedBatch,publishEvidenceWalletQuotaBatch,publishEvidenceWalletCycleBatch,publishEvidenceWalletCollectionBatch,recoverEvidenceProducerBatch} from "./lib/evidence-producer-publication";
 
 const [file,mode]=process.argv.slice(2),info=await evidenceRegularFile(file!,65536),handle=await fs.open(info.file,"r");
 let input;
@@ -19,7 +19,7 @@ if(mode==="ready_stop"){
   };
 }
 let outcome;
-if(mode==="submit"||mode==="ready_stop"||mode==="commit_stop")outcome=await (input.plan_kind==="candidate_metadata"?publishEvidenceCandidateMetadataBatch:input.plan_kind==="wallet_cached_progress"?publishEvidenceWalletCachedBatch:input.plan_kind==="wallet_quota"?publishEvidenceWalletQuotaBatch:input.plan_kind==="wallet_cycle_control"?publishEvidenceWalletCycleBatch:publishEvidenceProducerBatch)(input.publication,input.journal,input.grant,input.batch,mode==="commit_stop"?()=>{process.exit(76);}:undefined);
+if(mode==="submit"||mode==="ready_stop"||mode==="commit_stop")outcome=await (input.plan_kind==="candidate_metadata"?publishEvidenceCandidateMetadataBatch:input.plan_kind==="wallet_cached_progress"?publishEvidenceWalletCachedBatch:input.plan_kind==="wallet_quota"?publishEvidenceWalletQuotaBatch:input.plan_kind==="wallet_cycle_control"?publishEvidenceWalletCycleBatch:input.plan_kind==="wallet_collection"?publishEvidenceWalletCollectionBatch:publishEvidenceProducerBatch)(input.publication,input.journal,input.grant,input.batch,mode==="commit_stop"?()=>{process.exit(76);}:undefined);
 else if(mode==="publish"||mode==="reconcile")outcome=await recoverEvidenceProducerBatch(input.publication,input.journal,input.grant,{publicationId:input.id,mode});
 else throw Error("fixture_mode_invalid");
 console.log(JSON.stringify(outcome));
