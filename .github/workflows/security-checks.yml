@@ -107,6 +107,9 @@ jobs:
       - name: Original candidate workflow on isolated fenced metadata and encrypted receipts
         run: pnpm test:discovery-candidate-target
 
+      - name: Receipt-free candidate metadata intents and restart recovery
+        run: pnpm test:discovery-candidate-metadata
+
       - name: Install dependencies (app)
         working-directory: app
         run: pnpm install --frozen-lockfile

@@ -6,7 +6,7 @@ import {isDeepStrictEqual} from "node:util";
 import {z} from "zod";
 import {evidencePrivatePath,evidenceRegularFile} from "./discovery-evidence-objects.mjs";
 import {inspectEvidenceAppendStage,readStagedEvidenceAppend} from "./discovery-evidence-append-stage.mjs";
-import {validateEvidencePublicationPlan,selectEvidencePublication,publishEvidenceAppend,reconcileEvidenceAppend} from "./discovery-evidence-publication.mjs";
+import {validateEvidenceTargetPlan,selectEvidencePublication,publishEvidenceAppend,reconcileEvidenceAppend,publishEvidenceCandidateMetadata,reconcileEvidenceCandidateMetadata} from "./discovery-evidence-publication.mjs";
 
 const VERSION="discovery-evidence-intents-v1",MAX=16*1024**2;
 const Hash=z.string().regex(/^[a-f0-9]{64}$/),Id=z.string().uuid();
@@ -61,19 +61,19 @@ async function readAt(open,id){
   const role=derive(open.key,open.pin,id,"plan");let plain;
   try{
     const decipher=createDecipheriv("aes-256-gcm",role,Buffer.from(ready.iv,"hex"),{authTagLength:16});decipher.setAAD(aad(open.pin,id,"plan"));decipher.setAuthTag(Buffer.from(ready.tag,"hex"));plain=Buffer.concat([decipher.update(ciphertext),decipher.final()]);
-    const saved=Intent.parse(json(plain)),plan=validateEvidencePublicationPlan(saved.plan);
-    if(plan.publication_id!==id||plan.ticket.context_pin!==open.body.stage_pin||saved.original_grant.generation!==open.body.generation)throw Error("intent_plan_context_mismatch");
+    const saved=Intent.parse(json(plain)),plan=validateEvidenceTargetPlan(saved.plan);
+    if(plan.publication_id!==id||plan.kind!=="candidate_metadata"&&plan.ticket.context_pin!==open.body.stage_pin||saved.original_grant.generation!==open.body.generation)throw Error("intent_plan_context_mismatch");
     return {original_grant:saved.original_grant,plan,ready_sha256:sha(readyBytes)};
   }finally{plain?.fill(0);role.fill(0);}
 }
 export async function persistEvidencePublicationIntent(publication,journal,grant,input){
-  const plan=validateEvidencePublicationPlan(input),original=Grant.parse(grant);
-  if(plan.ticket.context_pin!==publication.stage.contextPin)throw Error("intent_stage_context_mismatch");
+  const plan=validateEvidenceTargetPlan(input),original=Grant.parse(grant);
+  if(plan.kind!=="candidate_metadata"&&plan.ticket.context_pin!==publication.stage.contextPin)throw Error("intent_stage_context_mismatch");
   const encoded=Buffer.from(JSON.stringify({version:VERSION,original_grant:original,plan}));
   if(encoded.length>MAX){encoded.fill(0);throw Error("intent_plan_byte_bound");}
   let open,role;
   try{
-    open=await opened(publication,journal,original);await readStagedEvidenceAppend(publication.stage,plan.ticket);
+    open=await opened(publication,journal,original);if(plan.kind!=="candidate_metadata")await readStagedEvidenceAppend(publication.stage,plan.ticket);
     const folder=await evidencePrivatePath(path.join(open.folder,"pending",plan.publication_id),true);let existing=false;
     try{await fs.lstat(folder);existing=true;}catch(error){if(error.code!=="ENOENT")throw error;}
     if(existing){const saved=await readAt(open,plan.publication_id);if(!isDeepStrictEqual(saved.original_grant,original)||!isDeepStrictEqual(saved.plan,plan))throw Error("intent_immutable_identity_conflict");await fence(publication,original);return {publication_id:plan.publication_id,ready_sha256:saved.ready_sha256,reused:true,...inactive()};}
@@ -93,9 +93,9 @@ export async function publishStoredEvidenceIntent(publication,journal,grant,id,a
   grant=Grant.parse(grant);
   const saved=await readEvidencePublicationIntent(publication,journal,grant,id);
   if(!isDeepStrictEqual(saved.original_grant,Grant.parse(grant)))throw Error("intent_original_owner_required");
-  return publishEvidenceAppend(publication,grant,saved.plan,afterCommit);
+  return (saved.plan.kind==="candidate_metadata"?publishEvidenceCandidateMetadata:publishEvidenceAppend)(publication,grant,saved.plan,afterCommit);
 }
 export async function reconcileStoredEvidenceIntent(publication,journal,grant,id,afterCommit){
   grant=Grant.parse(grant);
-  const saved=await readEvidencePublicationIntent(publication,journal,grant,id);return reconcileEvidenceAppend(publication,grant,saved.plan,afterCommit);
+  const saved=await readEvidencePublicationIntent(publication,journal,grant,id);return (saved.plan.kind==="candidate_metadata"?reconcileEvidenceCandidateMetadata:reconcileEvidenceAppend)(publication,grant,saved.plan,afterCommit);
 }

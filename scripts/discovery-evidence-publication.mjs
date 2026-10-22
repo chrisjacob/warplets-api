@@ -18,6 +18,7 @@ const Operation=z.discriminatedUnion("kind",[
   z.object({kind:z.literal("sql"),sql:z.string().min(1).max(16384),bindings:z.union([z.string().max(2000000),z.number().finite(),z.null()]).array().max(100),expect_changes:z.number().int().nonnegative().optional()}).strict(),
 ]);
 const Plan=z.object({publication_id:Id,ticket:Ticket,operations:Operation.array().min(1).max(128)}).strict();
+const MetadataPlan=z.object({publication_id:Id,kind:z.literal("candidate_metadata"),operations:Operation.array().min(1).max(128)}).strict();
 const Header=z.object({version:z.literal(VERSION),file:z.literal(FILE),capacity_pin:Hash,source_archive_pin:Hash,base_reference_pin:Hash,context_pin:Hash,generation:Id,schema_sha256:Hash}).strict();
 const writable=new Set(["tenx_candidates","tenx_market_history","tenx_wallet_signals","tenx_proofs","tenx_evidence","tenx_account_evidence","tenx_wallet_runs","tenx_wallet_attempts","tenx_wallet_control","tenx_wallet_work","tenx_wallet_profiles"]);
 const SCHEMA=[
@@ -82,6 +83,24 @@ function normalizedPlan(input){
 }
 // Offline producer adapters use the identical coordinator validation before IO.
 export function validateEvidencePublicationPlan(input){return normalizedPlan(input);}
+// A separate, explicit plan domain. Receipt plans still require exactly one
+// authenticated receipt; metadata plans cannot contain one or name its tables.
+export function validateEvidenceCandidateMetadataPlan(input){
+  const plan=MetadataPlan.parse(input),tables=new Set(["tenx_candidates","tenx_market_history","tenx_proofs","tenx_evidence","tenx_account_evidence"]);let bytes=0;
+  for(const [index,op] of plan.operations.entries()){
+    if(op.kind!=="sql")throw Error("publication_metadata_sql_required");
+    const table=op.sql.match(/^(?:INSERT(?: OR IGNORE)? INTO|UPDATE|DELETE FROM) (\w+)\b/i)?.[1];
+    if(!tables.has(table)||/[;]|--|\/\*|\bRETURNING\b/i.test(op.sql)||index>0&&(table==="tenx_candidates"||!op.sql.startsWith(table==="tenx_proofs"?"INSERT INTO tenx_proofs(":`INSERT OR IGNORE INTO ${table}(`)))throw Error("publication_metadata_sql_not_allowed");
+    bytes+=Buffer.byteLength(op.sql)+op.bindings.reduce((n,b)=>n+(typeof b==="string"?Buffer.byteLength(b):8),0);
+  }
+  if(bytes>10*1024**2)throw Error("publication_plan_byte_bound");
+  const first=plan.operations[0];
+  if(!first.sql.startsWith("INSERT INTO tenx_candidates(address,pool,payload,checked_at,mode) VALUES(?1,?2,?3,?4,?5)")||first.bindings.length!==5||first.bindings[4]!=="live"||typeof first.bindings[2]!=="string")throw Error("publication_metadata_candidate_required");
+  const candidate=JSON.parse(first.bindings[2]);
+  if(candidate.address!==first.bindings[0]||candidate.pool!==first.bindings[1]||candidate.checked_at!==first.bindings[3]||candidate.mode!=="live")throw Error("publication_metadata_candidate_mismatch");
+  return plan;
+}
+export function validateEvidenceTargetPlan(input){return input?.kind==="candidate_metadata"?validateEvidenceCandidateMetadataPlan(input):normalizedPlan(input);}
 function metadata(db,table,hash){
   const fields=table==="tenx_holder_evidence"?["payload_hash","address","slot","observed_at"]:["payload_hash","address","observed_at"],row=db.prepare(`SELECT ${fields.map(c=>c==="slot"?c:`CAST(${c} AS BLOB) AS ${c}`).join(",")} FROM ${table} WHERE payload_hash=?`).get(hash);
   return row?Object.fromEntries(fields.map(c=>[c,c==="slot"?row[c]:new TextDecoder("utf-8",{fatal:true,ignoreBOM:true}).decode(row[c])])):null;
@@ -104,14 +123,15 @@ export async function transferEvidencePublicationOwner(options,grant,nextOwner){
   Id.parse(nextOwner);const {db,body}=await opened(options);
   try{db.exec("BEGIN IMMEDIATE");fenced(db,body,grant);const next={generation:grant.generation,owner:nextOwner,epoch:grant.epoch+1};Grant.parse(next);db.prepare("UPDATE tenx_append_control SET owner=?,epoch=? WHERE id=1").run(next.owner,next.epoch);db.exec("COMMIT");return {grant:next,...inactive()};}finally{if(db.isTransaction)db.exec("ROLLBACK");db.close();}
 }
-async function executePublication(options,grant,input,afterCommit,allowNew){
-  const plan=normalizedPlan(input),planHash=digest(plan),verified=await readStagedEvidenceAppend(options.stage,plan.ticket),{db,body}=await opened(options,!allowNew);let publication,commitAttempted=false;
+async function executePublication(options,grant,input,afterCommit,allowNew,metadataOnly=false){
+  if(metadataOnly){grant=Grant.parse(grant);options=structuredClone(options);}
+  const plan=metadataOnly?validateEvidenceCandidateMetadataPlan(input):normalizedPlan(input),planHash=digest(plan),verified=metadataOnly?null:await readStagedEvidenceAppend(options.stage,plan.ticket),{db,body}=await opened(options,!allowNew);let publication,commitAttempted=false;
   try{
     db.exec(allowNew?"BEGIN IMMEDIATE":"BEGIN");fenced(db,body,grant);
     const prior=db.prepare("SELECT plan_sha256,results_json FROM tenx_append_publications WHERE publication_id=?").get(plan.publication_id);
     if(prior){
       if(prior.plan_sha256!==planHash)throw Error("publication_identity_conflict");
-      append(db,verified,plan.ticket,plan.publication_id,false);
+      if(!metadataOnly)append(db,verified,plan.ticket,plan.publication_id,false);
       const results=z.object({success:z.literal(true),results:z.tuple([]),meta:z.object({changes:z.number().int().nonnegative()}).strict()}).strict().array().length(plan.operations.length).parse(JSON.parse(prior.results_json));
       publication={results,reconciled:true};
     }
@@ -133,6 +153,8 @@ async function executePublication(options,grant,input,afterCommit,allowNew){
 export async function publishEvidenceAppend(options,grant,input,afterCommit){return executePublication(options,grant,input,afterCommit,true);}
 // Read-only reconciliation can never execute an uncommitted former-owner plan.
 export async function reconcileEvidenceAppend(options,grant,input,afterCommit){return executePublication(options,grant,input,afterCommit,false);}
+export async function publishEvidenceCandidateMetadata(options,grant,input,afterCommit){return executePublication(options,grant,input,afterCommit,true,true);}
+export async function reconcileEvidenceCandidateMetadata(options,grant,input,afterCommit){return executePublication(options,grant,input,afterCommit,false,true);}
 export async function readPublishedEvidenceAppend(options,grant,table,hash){
   if(!["tenx_holder_evidence","tenx_wallet_evidence"].includes(table))throw Error("publication_table_unsupported");Hash.parse(hash);
   let ref;const first=await opened(options);

@@ -2,6 +2,8 @@
 import {z} from "zod";
 import {prepareEvidenceProducerBatch,type ProducerBatchInput} from "./evidence-producer-plan";
 import {persistEvidencePublicationIntent,publishStoredEvidenceIntent,reconcileStoredEvidenceIntent} from "../discovery-evidence-intents.mjs";
+import {validateEvidenceCandidateMetadataPlan} from "../discovery-evidence-publication.mjs";
+import {ProducerStatements} from "./evidence-producer-plan";
 
 const Hash=z.string().regex(/^[a-f0-9]{64}$/),Id=z.string().uuid(),Path=z.string().min(1).max(4096);
 const Publication=z.object({directory:Path,targetPin:Hash,stage:z.object({directory:Path,contextPin:Hash,keyFile:Path}).strict()}).strict();
@@ -54,5 +56,16 @@ export async function recoverEvidenceProducerBatch(publication:ProducerPublicati
     phase=request.mode;
     const execute=request.mode==="publish"?publishStoredEvidenceIntent:reconcileStoredEvidenceIntent;
     return await execute(saved.publication,saved.journal,saved.grant,request.publicationId,afterCommit) as ProducerCommitted;
+  }catch{return held(phase,id,null);}
+}
+
+// Receipt-free candidate metadata uses a distinct plan kind, with no invented
+// receipt/ticket/stage ID. Existing target/stage/key context admission remains.
+export async function publishEvidenceCandidateMetadataBatch(publication:ProducerPublication,journal:ProducerJournal,grant:ProducerGrant,input:{publicationId:string;statements:unknown},afterCommit?:AfterCommit):Promise<ProducerPublicationOutcome>{
+  let phase:Phase="preflight",id:unknown;
+  try{
+    id=input?.publicationId;const saved=context(publication,journal,grant,afterCommit),plan=validateEvidenceCandidateMetadataPlan({publication_id:Id.parse(id),kind:"candidate_metadata",operations:ProducerStatements.parse(input.statements).map(row=>({kind:"sql",...row}))});
+    phase="persist";await persistEvidencePublicationIntent(saved.publication,saved.journal,saved.grant,plan);
+    phase="publish";return await publishStoredEvidenceIntent(saved.publication,saved.journal,saved.grant,plan.publication_id,afterCommit) as ProducerCommitted;
   }catch{return held(phase,id,null);}
 }

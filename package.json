@@ -34,6 +34,7 @@
     "test:discovery-intents": "node --test scripts/discovery-evidence-intents.test.mjs",
     "test:discovery-producer-publication": "tsx --test scripts/discovery-evidence-producer-publication.test.ts",
     "test:discovery-candidate-target": "tsx --test scripts/discovery-evidence-candidate-target.test.ts",
+    "test:discovery-candidate-metadata": "tsx --test scripts/discovery-candidate-metadata.test.ts",
     "security:preflight": "node scripts/security-preflight.mjs",
     "security:test": "node scripts/test-security-blocklist.mjs",
     "security:test:redirects": "node --test scripts/test-http-redirect-security.mjs",

@@ -133,6 +133,6 @@ test("missing holder input and fixture mode hold without creating intents, chang
 
 test("caller configuration, candidate and raw evidence snapshots retain original bytes across IO",()=>setup(async f=>{
   const input=structuredClone(f.input),options=structuredClone(f.options),grant={...f.grant},pending=saveCandidateOnEvidenceTarget(options,f.journal,grant,input);
-  input.candidate.symbol="changed";input.holderEvidence.creator=null;input.publicationId=randomUUID();options.targetPin="0".repeat(64);grant.epoch++;
+  input.candidate.symbol="changed";input.holderEvidence!.creator=null;input.publicationId=randomUUID();options.targetPin="0".repeat(64);grant.epoch++;
   const result=committed(await pending);assert.equal(result.publication_id,f.input.publicationId);const current=JSON.parse(String(f.copy.prepare("SELECT payload FROM tenx_candidates").get()!.payload));assert.equal(current.symbol,f.input.candidate.symbol);
 }));

@@ -6,11 +6,11 @@ import type {HolderEvidence} from "../../discovery/src/holders";
 import type {Transaction,Accounts} from "../../discovery/src/rpc";
 import {readEvidenceCandidateMetadata,writeEvidenceCandidateCohorts} from "../discovery-evidence-publication.mjs";
 import {holderEvidenceSql,ProducerStatements,type ProducerStatement} from "./evidence-producer-plan";
-import {publishEvidenceProducerBatch,type ProducerPublication,type ProducerJournal,type ProducerGrant,type ProducerPublicationOutcome} from "./evidence-producer-publication";
+import {publishEvidenceProducerBatch,publishEvidenceCandidateMetadataBatch,type ProducerPublication,type ProducerJournal,type ProducerGrant,type ProducerPublicationOutcome} from "./evidence-producer-publication";
 
 const proofSql="SELECT payload_hash FROM tenx_proofs WHERE address=?1 AND kind=?2",candidateSql="SELECT payload FROM tenx_candidates WHERE mode='live' AND address=?1";
 const cohortSql="INSERT OR IGNORE INTO tenx_cohorts(day,address,selected_at,recommended,input_hash,payload) VALUES(?1,?2,?3,?4,?5,?6)",walletSql="INSERT OR IGNORE INTO tenx_wallet_cohorts(day,address,selected_at,input_hash,payload) VALUES(?1,?2,?3,?4,?5)",selectionSql="INSERT OR IGNORE INTO tenx_selections(day,address,selected_at,input_hash,payload) VALUES(?1,?2,?3,?4,?5)";
-export type CandidateTargetInput={publicationId:string;stageId:string;candidate:Candidate;transactions?:Transaction[];state?:Accounts;holderEvidence:HolderEvidence};
+export type CandidateTargetInput={publicationId:string;stageId?:string;candidate:Candidate;transactions?:Transaction[];state?:Accounts;holderEvidence?:HolderEvidence};
 export type CandidateTargetOutcome=ProducerPublicationOutcome&{workflow:"candidate_save";cohort:"not_started"|"completed"|"unconfirmed"};
 
 export async function saveCandidateOnEvidenceTarget(publication:ProducerPublication,journal:ProducerJournal,grant:ProducerGrant,input:CandidateTargetInput):Promise<CandidateTargetOutcome>{
@@ -19,8 +19,10 @@ export async function saveCandidateOnEvidenceTarget(publication:ProducerPublicat
     // Retain exact object/key order: the original writer validates but does not
     // replace the candidate/evidence with schema-normalized objects before hash.
     const saved=structuredClone({publication,journal,grant,input});
-    id=z.string().uuid().parse(saved.input.publicationId);z.string().uuid().parse(saved.input.stageId);
-    if(saved.input.candidate.mode!=="live"||!saved.input.candidate.holders?.payload_hash||!saved.input.holderEvidence)throw Error("candidate_target_receipt_required");
+    id=z.string().uuid().parse(saved.input.publicationId);
+    const receipt=Boolean(saved.input.candidate.holders?.payload_hash&&saved.input.holderEvidence);
+    if(saved.input.candidate.mode!=="live")throw Error("candidate_target_live_required");
+    if(receipt)z.string().uuid().parse(saved.input.stageId);else if(saved.input.stageId!==undefined)throw Error("candidate_target_metadata_stage_id_forbidden");
     const owned=new WeakMap<object,ProducerStatement>();let producerBatches=0;
     function prepare(sql:string,bindings:unknown[]=[]):D1PreparedStatement{
       const statement={
@@ -39,9 +41,10 @@ export async function saveCandidateOnEvidenceTarget(publication:ProducerPublicat
     }
     const db={prepare,async batch(statements:D1PreparedStatement[]){
       const rows=ProducerStatements.parse(statements.map(statement=>{const row=owned.get(statement);if(!row)throw Error("candidate_target_foreign_statement");return row;}));
-      if(rows.some(row=>row.sql===holderEvidenceSql)){
+      if(!producerBatches){
+        if(rows.some(row=>row.sql===holderEvidenceSql)!==receipt)throw Error("candidate_target_receipt_mode_mismatch");
         if(++producerBatches!==1)throw Error("candidate_target_multiple_producer_batches");
-        published=await publishEvidenceProducerBatch(saved.publication,saved.journal,saved.grant,{publicationId:saved.input.publicationId,stageId:saved.input.stageId,statements:rows});
+        published=receipt?await publishEvidenceProducerBatch(saved.publication,saved.journal,saved.grant,{publicationId:saved.input.publicationId,stageId:saved.input.stageId!,statements:rows}):await publishEvidenceCandidateMetadataBatch(saved.publication,saved.journal,saved.grant,{publicationId:saved.input.publicationId,statements:rows});
         if(published.state!=="committed")throw Error("candidate_target_publication_held");return published.results;
       }
       if(published?.state!=="committed"||cohort!=="not_started")throw Error("candidate_target_cohort_order_invalid");

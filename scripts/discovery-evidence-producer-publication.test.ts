@@ -50,7 +50,7 @@ for(const kind of ["holder","wallet"])test(`${kind}: standalone submit syncs the
     const handle=await open(name,flags,...args);if(flags==="wx"&&String(name)===ready){const sync=handle.sync.bind(handle);handle.sync=async()=>{assert.equal(f.copy.prepare("SELECT count(*) AS n FROM tenx_append_publications").get()!.n,0);assert.equal(f.copy.prepare("SELECT count(*) AS n FROM tenx_append_references").get()!.n,0);assert.ok(String(f.copy.prepare("SELECT checked_at FROM tenx_candidates").get()!.checked_at).endsWith("Z"));await sync();synced++;};}return handle;
   });
   const result=committed(await submit(f));assert.equal(synced,1);assert.deepEqual(result.results.map(r=>r.meta.changes),[1,1,1]);assert.equal(result.post_commit,"not_requested");
-  const intent=await readEvidencePublicationIntent(f.options,f.journal,f.grant,f.batch.publicationId);assert.equal(intent.plan.operations[1].kind,"receipt");assert.equal(intent.plan.ticket.stage_id,f.batch.stageId);
+  const intent=await readEvidencePublicationIntent(f.options,f.journal,f.grant,f.batch.publicationId);assert.equal(intent.plan.operations[1].kind,"receipt");assert.ok("ticket" in intent.plan);assert.equal(intent.plan.ticket.stage_id,f.batch.stageId);
   assert.equal(sha(await fs.readFile(path.join(f.root,"source.sqlite"))),sourceBefore);
   const before=snapshot(f),encrypted=await fs.readFile(path.join(f.journal.directory,"pending",f.batch.publicationId,"intent.bin"));assert.equal(encrypted.includes(Buffer.from(f.item.row.payload)),false);
   const retry=committed(await submit(f));assert.equal(retry.reconciled,true);assert.deepEqual(retry.results,result.results);assert.deepEqual(snapshot(f),before);
