@@ -104,6 +104,9 @@ jobs:
       - name: Persist-before-execute producer publication and explicit caller outcomes
         run: pnpm test:discovery-producer-publication
 
+      - name: Original candidate workflow on isolated fenced metadata and encrypted receipts
+        run: pnpm test:discovery-candidate-target
+
       - name: Install dependencies (app)
         working-directory: app
         run: pnpm install --frozen-lockfile

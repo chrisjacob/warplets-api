@@ -161,3 +161,47 @@ export async function selectEvidencePublication(options,grant,input){
     return {context:{capacity_pin:body.capacity_pin,source_archive_pin:body.source_archive_pin,base_reference_pin:body.base_reference_pin},baseline,rows};
   }finally{if(db.isTransaction)db.exec("ROLLBACK");db.close();}
 }
+
+// Narrow non-receipt paths for the offline original candidate-save workflow.
+// No caller SQL, raw database handle, runtime D1 proxy or authority mutations.
+export async function readEvidenceCandidateMetadata(options,grant,input){
+  grant=Grant.parse(grant);options=structuredClone(options);
+  const Text=z.string().max(4096),request=z.discriminatedUnion("kind",[
+    z.object({kind:z.literal("candidate"),address:Text}).strict(),
+    z.object({kind:z.literal("proof"),address:Text,proof_kind:z.enum(["creation","graduation"])}).strict(),
+  ]).parse(input),{db,body}=await opened(options,true);
+  try{
+    db.exec("BEGIN");fenced(db,body,grant);let row=null;
+    const candidate=request.kind==="candidate",column=candidate?"payload":"payload_hash",from=candidate?"tenx_candidates WHERE mode='live' AND address=?":"tenx_proofs WHERE address=? AND kind=?",bindings=candidate?[request.address]:[request.address,request.proof_kind];
+    const saved=db.prepare(`SELECT length(CAST(${column} AS BLOB)) AS bytes FROM ${from}`).get(...bindings);
+    if(saved){if(!Number.isSafeInteger(saved.bytes)||saved.bytes<0||saved.bytes>(candidate?2000000:4096))throw Error("publication_candidate_metadata_byte_bound");const bytes=db.prepare(`SELECT CAST(${column} AS BLOB) AS value FROM ${from}`).get(...bindings).value,value=new TextDecoder("utf-8",{fatal:true,ignoreBOM:true}).decode(bytes);row=candidate?{payload:value}:{payload_hash:value};}
+    fenced(db,body,grant);db.exec("COMMIT");return {row,...inactive()};
+  }finally{if(db.isTransaction)db.exec("ROLLBACK");db.close();}
+}
+const CohortText=z.string().max(4096),CohortPayload=z.string().max(2000000);
+const CohortRow=z.discriminatedUnion("kind",[
+  z.object({kind:z.literal("cohort"),day:CohortText,address:CohortText,selected_at:CohortText,recommended:z.union([z.literal(0),z.literal(1)]),input_hash:Hash,payload:CohortPayload}).strict(),
+  z.object({kind:z.literal("wallet"),day:CohortText,address:CohortText,selected_at:CohortText,input_hash:Hash,payload:CohortPayload}).strict(),
+  z.object({kind:z.literal("selection"),day:CohortText,address:CohortText,selected_at:CohortText,input_hash:Hash,payload:CohortPayload}).strict(),
+]);
+export async function writeEvidenceCandidateCohorts(options,grant,input){
+  grant=Grant.parse(grant);options=structuredClone(options);
+  const request=z.object({publication_id:Id,rows:CohortRow.array().min(1).max(3)}).strict().parse(input),first=request.rows[0];
+  if(first.kind!=="cohort"||new Set(request.rows.map(row=>row.kind)).size!==request.rows.length)throw Error("publication_cohort_shape_invalid");
+  for(const row of request.rows){
+    if(row.address!==first.address||row.day!==first.day||row.selected_at!==first.selected_at||Buffer.byteLength(row.payload)>2000000)throw Error("publication_cohort_scope_invalid");
+    const payload=JSON.parse(row.payload);
+    if(createHash("sha256").update(row.payload).digest("hex")!==row.input_hash||payload.candidate?.address!==row.address||payload.selected_at!==row.selected_at||(row.kind==="wallet"&&payload.cohort_kind!=="first_wallet_sample")||(row.kind==="selection"&&payload.candidate?.eligibility!=="eligible")||(row.kind==="cohort"&&row.recommended!==(payload.candidate?.eligibility==="eligible"?1:0)))throw Error("publication_cohort_payload_mismatch");
+  }
+  const {db,body}=await opened(options);let attempted=false;
+  try{
+    db.exec("BEGIN IMMEDIATE");fenced(db,body,grant);
+    if(!db.prepare("SELECT 1 FROM tenx_append_publications WHERE publication_id=?").get(request.publication_id))throw Error("publication_cohort_parent_uncommitted");
+    const results=request.rows.map(row=>{
+      const table=row.kind==="cohort"?"tenx_cohorts":row.kind==="wallet"?"tenx_wallet_cohorts":"tenx_selections",columns=row.kind==="cohort"?"day,address,selected_at,recommended,input_hash,payload":"day,address,selected_at,input_hash,payload",bindings=row.kind==="cohort"?[row.day,row.address,row.selected_at,row.recommended,row.input_hash,row.payload]:[row.day,row.address,row.selected_at,row.input_hash,row.payload];
+      const result=db.prepare(`INSERT OR IGNORE INTO ${table}(${columns}) VALUES(${bindings.map(()=>"?").join(",")})`).run(...bindings);
+      return {success:true,results:[],meta:{changes:Number(result.changes)}};
+    });
+    attempted=true;db.exec("COMMIT");return {state:"committed",results,...inactive()};
+  }catch(error){const uncertain=attempted&&!db.isTransaction;if(db.isTransaction)db.exec("ROLLBACK");if(uncertain)throw Error("publication_cohort_acknowledgement_unknown");throw error;}finally{db.close();}
+}
