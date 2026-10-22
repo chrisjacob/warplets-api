@@ -27,8 +27,8 @@ const Operation=z.discriminatedUnion("kind",[
   z.object({kind:z.literal("receipt")}).strict(),
   z.object({kind:z.literal("sql"),sql:z.string().min(1).max(16384),bindings:z.union([z.string().max(2000000),z.number().finite(),z.null()]).array().max(100),expect_changes:z.number().int().nonnegative().optional()}).strict(),
 ]);
-const Plan=z.object({publication_id:Id,ticket:Ticket,operations:Operation.array().min(1).max(128)}).strict();
-const MetadataPlan=z.object({publication_id:Id,kind:z.literal("candidate_metadata"),operations:Operation.array().min(1).max(128)}).strict();
+const Plan=z.object({publication_id:Id,ticket:Ticket,cohort_id:Id.optional(),operations:Operation.array().min(1).max(128)}).strict();
+const MetadataPlan=z.object({publication_id:Id,kind:z.literal("candidate_metadata"),cohort_id:Id.optional(),operations:Operation.array().min(1).max(128)}).strict();
 const WalletCachedPlan=z.object({publication_id:Id,kind:z.literal("wallet_cached_progress"),operations:Operation.array().min(1).max(4)}).strict();
 const QuotaLimit=z.number().int().safe().positive(),QuotaReservation=z.object({wallet:Id,rpc:Id,day:z.string().regex(/^\d{4}-\d{2}-\d{2}$/),wallet_limit:QuotaLimit,rpc_limit:QuotaLimit}).strict();
 const WalletQuotaPlan=z.object({publication_id:Id,kind:z.literal("wallet_quota"),reservation:QuotaReservation,operations:Operation.array().length(1)}).strict();
@@ -247,9 +247,12 @@ export async function transferEvidencePublicationOwner(options,grant,nextOwner){
   Id.parse(nextOwner);const {db,body}=await opened(options);
   try{db.exec("BEGIN IMMEDIATE");fenced(db,body,grant);const next={generation:grant.generation,owner:nextOwner,epoch:grant.epoch+1};Grant.parse(next);db.prepare("UPDATE tenx_append_control SET owner=?,epoch=? WHERE id=1").run(next.owner,next.epoch);db.exec("COMMIT");return {grant:next,...inactive()};}finally{if(db.isTransaction)db.exec("ROLLBACK");db.close();}
 }
-async function executePublication(options,grant,input,afterCommit,allowNew,metadataOnly=false){
+async function executePublication(options,grant,input,afterCommit,allowNew,metadataOnly=false,companion){
   if(metadataOnly){grant=Grant.parse(grant);options=structuredClone(options);}
   const plan=metadataOnly==="candidate_cohorts"?validateEvidenceCohortPlan(input):metadataOnly==="wallet_snapshot_cycle"?validateEvidenceWalletSnapshotPlan(input):metadataOnly==="wallet_reader_recovery"?validateEvidenceWalletRecoveryPlan(input):metadataOnly==="wallet_direct_cycle"?validateEvidenceWalletDirectPlan(input):metadataOnly==="wallet_collection"?validateEvidenceWalletCollectionPlan(input):metadataOnly==="wallet_cycle_control"?validateEvidenceWalletCyclePlan(input):metadataOnly==="wallet_quota"?validateEvidenceWalletQuotaPlan(input):metadataOnly==="wallet_cached_progress"?validateEvidenceWalletCachedPlan(input):metadataOnly?validateEvidenceCandidateMetadataPlan(input):normalizedPlan(input),planHash=digest(plan),verified=plan.ticket?await readStagedEvidenceAppend(options.stage,plan.ticket):null;
+  let linked;
+  if(plan.cohort_id!==undefined){linked=validateEvidenceCohortPlan(companion);if(linked.publication_id!==plan.cohort_id||!isDeepStrictEqual(linked.parent,plan))throw Error("publication_cohort_link_required");}
+  else if(companion!==undefined)throw Error("publication_cohort_link_unexpected");
   if(metadataOnly==="wallet_snapshot_cycle")validateSnapshotReceipt(plan,verified);
   const parentVerified=metadataOnly==="candidate_cohorts"&&plan.parent.ticket?await readStagedEvidenceAppend(options.stage,plan.parent.ticket):null;
   if(parentVerified){if(parentVerified.row.address!==plan.operations[0].bindings[1])throw Error("publication_cohort_parent_address");if(plan.parent.kind==="wallet_snapshot_cycle")validateSnapshotReceipt(plan.parent,parentVerified);else if(parentVerified.table!=="tenx_holder_evidence")throw Error("publication_cohort_holder_parent_required");}
@@ -271,6 +274,7 @@ async function executePublication(options,grant,input,afterCommit,allowNew,metad
     }
     else{
       if(!allowNew)throw Error("publication_reconciliation_requires_commit");
+      if(linked)cohortState(db,linked);
       if(metadataOnly==="candidate_cohorts")cohortParent(db,body,plan,grant,parentVerified);
       if(metadataOnly==="candidate_cohorts")cohortState(db,plan);
       if(metadataOnly==="wallet_snapshot_cycle"){walletCycleParent(db,plan,grant);if(plan.ticket)snapshotDispatch(db,plan,new Date().toISOString());}
@@ -294,7 +298,9 @@ async function executePublication(options,grant,input,afterCommit,allowNew,metad
         else{changes=Number(db.prepare(op.sql).run(...op.bindings).changes);if(op.expect_changes!==undefined&&changes!==op.expect_changes)throw Error("publication_expected_changes_mismatch");}
         return {success:true,results:[],meta:{changes}};
       });
-      publicationResults(plan,results);if(metadataOnly==="candidate_cohorts")cohortState(db,plan,results);db.prepare("INSERT INTO tenx_append_publications VALUES(?,?,?,?,?,?)").run(plan.publication_id,planHash,grant.generation,grant.owner,grant.epoch,JSON.stringify(results));publication={results,reconciled:false};
+      publicationResults(plan,results);if(metadataOnly==="candidate_cohorts")cohortState(db,plan,results);
+      if(linked&&candidateBody(db,linked.operations[0].bindings[1]).hash!==linked.candidate_hash)throw Error("publication_cohort_candidate_changed");
+      db.prepare("INSERT INTO tenx_append_publications VALUES(?,?,?,?,?,?)").run(plan.publication_id,planHash,grant.generation,grant.owner,grant.epoch,JSON.stringify(results));publication={results,reconciled:false};
     }
     commitAttempted=true;db.exec("COMMIT");
   }catch(error){const uncertain=commitAttempted&&!db.isTransaction;if(db.isTransaction)db.exec("ROLLBACK");if(uncertain)throw Error("publication_commit_acknowledgement_unknown");throw error;}finally{db.close();}
@@ -302,11 +308,11 @@ async function executePublication(options,grant,input,afterCommit,allowNew,metad
   if(afterCommit){try{await afterCommit(structuredClone(outcome));outcome.post_commit="completed";}catch{outcome.post_commit="failed";outcome.post_commit_error="publication_post_commit_work_failed";}}
   return outcome;
 }
-export async function publishEvidenceAppend(options,grant,input,afterCommit){return executePublication(options,grant,input,afterCommit,true);}
+export async function publishEvidenceAppend(options,grant,input,afterCommit,companion){return executePublication(options,grant,input,afterCommit,true,false,companion);}
 // Read-only reconciliation can never execute an uncommitted former-owner plan.
-export async function reconcileEvidenceAppend(options,grant,input,afterCommit){return executePublication(options,grant,input,afterCommit,false);}
-export async function publishEvidenceCandidateMetadata(options,grant,input,afterCommit){return executePublication(options,grant,input,afterCommit,true,true);}
-export async function reconcileEvidenceCandidateMetadata(options,grant,input,afterCommit){return executePublication(options,grant,input,afterCommit,false,true);}
+export async function reconcileEvidenceAppend(options,grant,input,afterCommit,companion){return executePublication(options,grant,input,afterCommit,false,false,companion);}
+export async function publishEvidenceCandidateMetadata(options,grant,input,afterCommit,companion){return executePublication(options,grant,input,afterCommit,true,true,companion);}
+export async function reconcileEvidenceCandidateMetadata(options,grant,input,afterCommit,companion){return executePublication(options,grant,input,afterCommit,false,true,companion);}
 export async function publishEvidenceWalletCached(options,grant,input,afterCommit){return executePublication(options,grant,input,afterCommit,true,"wallet_cached_progress");}
 export async function reconcileEvidenceWalletCached(options,grant,input,afterCommit){return executePublication(options,grant,input,afterCommit,false,"wallet_cached_progress");}
 export async function publishEvidenceWalletQuota(options,grant,input,afterCommit){return executePublication(options,grant,input,afterCommit,true,"wallet_quota");}
@@ -331,6 +337,21 @@ function cohortParent(db,body,plan,expectedGrant,verified){
   if(verified)append(db,verified,plan.parent.ticket,plan.parent.publication_id,false);
 }
 const CohortKey=z.object({kind:z.enum(["cohort","wallet","selection"]),day:z.string().regex(/^\d{4}-\d{2}-\d{2}$/),address:z.string().min(1).max(4096)}).strict();
+function candidateBody(db,address){
+  const size=db.prepare("SELECT length(CAST(payload AS BLOB)) AS bytes FROM tenx_candidates WHERE mode='live' AND address=?").get(address);
+  if(!size||!Number.isSafeInteger(size.bytes)||size.bytes<1||size.bytes>2000000)throw Error("publication_cohort_candidate_bound");
+  const bytes=db.prepare("SELECT CAST(payload AS BLOB) AS payload FROM tenx_candidates WHERE mode='live' AND address=?").get(address).payload;
+  return {payload:new TextDecoder("utf-8",{fatal:true,ignoreBOM:true}).decode(bytes),hash:createHash("sha256").update(bytes).digest("hex")};
+}
+// Execute only the original candidate upsert in a rolled-back transaction. This
+// preserves SQLite's exact json_set merge and triggers without publishing rows.
+export async function previewEvidenceCandidateForCohort(options,grant,input){
+  options=structuredClone(options);grant=Grant.parse(grant);const plan=validateEvidenceTargetPlan(input);
+  if(![undefined,"candidate_metadata"].includes(plan.kind)||!plan.cohort_id||plan.cohort_id===plan.publication_id)throw Error("publication_cohort_candidate_parent");
+  const op=plan.operations[0];if(op.kind!=="sql"||!op.sql.startsWith("INSERT INTO tenx_candidates(address,pool,payload,checked_at,mode) VALUES(?1,?2,?3,?4,?5)")||op.bindings.length!==5||op.bindings[4]!=="live")throw Error("publication_cohort_candidate_parent");
+  const {db,body}=await opened(options);
+  try{db.exec("BEGIN IMMEDIATE");fenced(db,body,grant);db.prepare(op.sql).run(...op.bindings);const candidate=candidateBody(db,op.bindings[0]);fenced(db,body,grant);db.exec("ROLLBACK");fenced(db,body,grant);return {...candidate,...inactive()};}finally{if(db.isTransaction)db.exec("ROLLBACK");db.close();}
+}
 function cohortHead(db,key){
   const table=key.kind==="cohort"?"tenx_cohorts":key.kind==="wallet"?"tenx_wallet_cohorts":"tenx_selections",fields=["day","address","selected_at",...(key.kind==="cohort"?["recommended"]:[]),"input_hash","payload"],text=fields.filter(f=>f!=="recommended");
   const sizes=db.prepare(`SELECT ${text.map(f=>`length(CAST(${f} AS BLOB)) AS ${f}`).join(",")} FROM ${table} WHERE day=? AND address=?`).get(key.day,key.address);if(!sizes)return null;

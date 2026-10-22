@@ -6,13 +6,14 @@ export const cohortSql="INSERT OR IGNORE INTO tenx_cohorts(day,address,selected_
 export const walletCohortSql="INSERT OR IGNORE INTO tenx_wallet_cohorts(day,address,selected_at,input_hash,payload) VALUES(?1,?2,?3,?4,?5)";
 export const selectionCohortSql="INSERT OR IGNORE INTO tenx_selections(day,address,selected_at,input_hash,payload) VALUES(?1,?2,?3,?4,?5)";
 const Operation=z.object({kind:z.literal("sql"),sql:z.string().max(16384),bindings:Binding.array().max(6)}).strict();
-const Plan=z.object({kind:z.literal("candidate_cohorts"),publication_id:Id,parent:z.unknown(),heads:z.string().regex(/^[a-f0-9]{64}$/).nullable().array().min(1).max(3),operations:Operation.array().min(1).max(3)}).strict();
+const Plan=z.object({kind:z.literal("candidate_cohorts"),publication_id:Id,parent:z.unknown(),candidate_hash:z.string().regex(/^[a-f0-9]{64}$/).optional(),heads:z.string().regex(/^[a-f0-9]{64}$/).nullable().array().min(1).max(3),operations:Operation.array().min(1).max(3)}).strict();
 const hash=s=>createHash("sha256").update(s).digest("hex");
 export function normalizeCohortPublicationPlan(input,validateParent){
   const p=Plan.parse(input),raw=p.parent;
   if(p.heads.length!==p.operations.length)throw Error("publication_cohort_heads");
   if(!raw||![undefined,"candidate_metadata","wallet_snapshot_cycle"].includes(raw.kind))throw Error("publication_cohort_parent_kind");
   const parent=validateParent(raw);if(parent.publication_id===p.publication_id)throw Error("publication_cohort_identity");
+  if(parent.cohort_id!==undefined?(parent.cohort_id!==p.publication_id||!p.candidate_hash):p.candidate_hash!==undefined)throw Error("publication_cohort_link");
   let address;
   if(parent.kind==="wallet_snapshot_cycle"){if(!parent.ticket)throw Error("publication_cohort_snapshot_required");address=parent.cycle.address;}
   else{

@@ -139,6 +139,9 @@ jobs:
       - name: Durable post-commit cohort publication and recovery
         run: pnpm test:discovery-cohort-publication
 
+      - name: Linked candidate and cohort readiness recovery
+        run: pnpm test:discovery-candidate-workflow
+
       - name: Install dependencies (app)
         working-directory: app
         run: pnpm install --frozen-lockfile

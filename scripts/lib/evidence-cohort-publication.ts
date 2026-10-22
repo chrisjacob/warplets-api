@@ -17,13 +17,14 @@ export async function publishEvidenceCohortBatch(publication:ProducerPublication
     if(afterCommit!==undefined&&typeof afterCommit!=="function")throw Error("cohort_callback_invalid");
     const statements=ProducerStatements.parse(saved.input.statements),parent=await readEvidencePublicationIntent(saved.publication,saved.journal,saved.grant,saved.input.parentId);
     if(!isDeepStrictEqual(parent.original_grant,saved.grant))throw Error("cohort_original_owner_required");
-    let plan=validateEvidenceCohortPlan({kind:"candidate_cohorts",publication_id:id,parent:parent.plan,heads:statements.map(()=>null),operations:statements.map(r=>({kind:"sql",...r}))});
     const prior=await readEvidencePublicationIntentIfPresent(saved.publication,saved.journal,saved.grant,Id.parse(id));
     if(prior){
       const retained=validateEvidenceCohortPlan(prior.plan);
-      if(!isDeepStrictEqual(prior.original_grant,saved.grant)||!isDeepStrictEqual(retained.parent,plan.parent)||!isDeepStrictEqual(retained.operations,plan.operations))throw Error("cohort_identity_conflict");
+      if(!isDeepStrictEqual(prior.original_grant,saved.grant)||!isDeepStrictEqual(retained.parent,parent.plan)||!isDeepStrictEqual(retained.operations,statements.map(r=>({kind:"sql",...r}))))throw Error("cohort_identity_conflict");
       phase="publish";return await publishStoredEvidenceIntent(saved.publication,saved.journal,saved.grant,Id.parse(id),afterCommit) as ProducerPublicationOutcome;
     }
+    if("cohort_id" in parent.plan&&parent.plan.cohort_id!==undefined)throw Error("cohort_link_readiness_required");
+    let plan=validateEvidenceCohortPlan({kind:"candidate_cohorts",publication_id:id,parent:parent.plan,heads:statements.map(()=>null),operations:statements.map(r=>({kind:"sql",...r}))});
     // Admission replays the original policy/cohort builder on the exact current
     // candidate. Recovery later uses these saved bytes, never today's candidate.
     const first=statements[0]!,body=JSON.parse(String(first.bindings[5])),picked=Object.fromEntries(Object.keys(CandidateSchema.shape).filter(k=>Object.hasOwn(body.candidate??{},k)).map(k=>[k,body.candidate[k]])),candidate=CandidateSchema.parse(picked);

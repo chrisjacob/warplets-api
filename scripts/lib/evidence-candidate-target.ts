@@ -8,6 +8,7 @@ import {readEvidenceCandidateMetadata,writeEvidenceCandidateCohorts} from "../di
 import {holderEvidenceSql,ProducerStatements,type ProducerStatement} from "./evidence-producer-plan";
 import {publishEvidenceProducerBatch,publishEvidenceCandidateMetadataBatch,type ProducerPublication,type ProducerJournal,type ProducerGrant,type ProducerPublicationOutcome} from "./evidence-producer-publication";
 import {publishEvidenceCohortBatch} from "./evidence-cohort-publication";
+import {publishLinkedCandidateBatch} from "./evidence-candidate-workflow";
 
 const proofSql="SELECT payload_hash FROM tenx_proofs WHERE address=?1 AND kind=?2",candidateSql="SELECT payload FROM tenx_candidates WHERE mode='live' AND address=?1";
 const cohortSql="INSERT OR IGNORE INTO tenx_cohorts(day,address,selected_at,recommended,input_hash,payload) VALUES(?1,?2,?3,?4,?5,?6)",walletSql="INSERT OR IGNORE INTO tenx_wallet_cohorts(day,address,selected_at,input_hash,payload) VALUES(?1,?2,?3,?4,?5)",selectionSql="INSERT OR IGNORE INTO tenx_selections(day,address,selected_at,input_hash,payload) VALUES(?1,?2,?3,?4,?5)";
@@ -46,7 +47,7 @@ export async function saveCandidateOnEvidenceTarget(publication:ProducerPublicat
       if(!producerBatches){
         if(rows.some(row=>row.sql===holderEvidenceSql)!==receipt)throw Error("candidate_target_receipt_mode_mismatch");
         if(++producerBatches!==1)throw Error("candidate_target_multiple_producer_batches");
-        published=receipt?await publishEvidenceProducerBatch(saved.publication,saved.journal,saved.grant,{publicationId:saved.input.publicationId,stageId:saved.input.stageId!,statements:rows}):await publishEvidenceCandidateMetadataBatch(saved.publication,saved.journal,saved.grant,{publicationId:saved.input.publicationId,statements:rows});
+        published=saved.input.cohortPublicationId?await publishLinkedCandidateBatch(saved.publication,saved.journal,saved.grant,{publicationId:saved.input.publicationId,stageId:saved.input.stageId,cohortId:saved.input.cohortPublicationId,statements:rows}):receipt?await publishEvidenceProducerBatch(saved.publication,saved.journal,saved.grant,{publicationId:saved.input.publicationId,stageId:saved.input.stageId!,statements:rows}):await publishEvidenceCandidateMetadataBatch(saved.publication,saved.journal,saved.grant,{publicationId:saved.input.publicationId,statements:rows});
         if(published.state!=="committed")throw Error("candidate_target_publication_held");return published.results;
       }
       if(published?.state!=="committed"||cohort!=="not_started")throw Error("candidate_target_cohort_order_invalid");

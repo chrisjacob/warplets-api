@@ -45,6 +45,7 @@
     "test:discovery-wallet-snapshot-cycle-target": "tsx --test scripts/discovery-wallet-snapshot-cycle-target.test.ts",
     "test:discovery-wallet-automatic-cycle-target": "tsx --test scripts/discovery-wallet-automatic-cycle-target.test.ts",
     "test:discovery-cohort-publication": "tsx --test scripts/discovery-cohort-publication.test.ts",
+    "test:discovery-candidate-workflow": "tsx --test scripts/discovery-candidate-workflow.test.ts",
     "security:preflight": "node scripts/security-preflight.mjs",
     "security:test": "node scripts/test-security-blocklist.mjs",
     "security:test:redirects": "node --test scripts/test-http-redirect-security.mjs",

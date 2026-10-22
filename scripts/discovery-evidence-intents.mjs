@@ -99,13 +99,20 @@ export async function readEvidencePublicationIntentIfPresent(publication,journal
     const saved=present?await readAt(open,id):null;await fence(publication,grant);return saved;
   }finally{open.key.fill(0);}
 }
+async function linkedCohort(publication,journal,grant,saved){
+  if(saved.plan.cohort_id===undefined)return undefined;
+  const child=await readEvidencePublicationIntent(publication,journal,grant,saved.plan.cohort_id);
+  if(child.plan.kind!=="candidate_cohorts"||!isDeepStrictEqual(child.original_grant,saved.original_grant)||!isDeepStrictEqual(child.plan.parent,saved.plan))throw Error("intent_cohort_link_mismatch");
+  return child.plan;
+}
 export async function publishStoredEvidenceIntent(publication,journal,grant,id,afterCommit){
   grant=Grant.parse(grant);
   const saved=await readEvidencePublicationIntent(publication,journal,grant,id);
   if(!isDeepStrictEqual(saved.original_grant,Grant.parse(grant)))throw Error("intent_original_owner_required");
-  return (saved.plan.kind==="candidate_cohorts"?publishEvidenceCohorts:saved.plan.kind==="wallet_snapshot_cycle"?publishEvidenceWalletSnapshot:saved.plan.kind==="candidate_metadata"?publishEvidenceCandidateMetadata:saved.plan.kind==="wallet_cached_progress"?publishEvidenceWalletCached:saved.plan.kind==="wallet_quota"?publishEvidenceWalletQuota:saved.plan.kind==="wallet_cycle_control"?publishEvidenceWalletCycle:saved.plan.kind==="wallet_collection"?publishEvidenceWalletCollection:saved.plan.kind==="wallet_direct_cycle"?publishEvidenceWalletDirect:saved.plan.kind==="wallet_reader_recovery"?publishEvidenceWalletRecovery:publishEvidenceAppend)(publication,grant,saved.plan,afterCommit);
+  const companion=await linkedCohort(publication,journal,grant,saved);
+  return (saved.plan.kind==="candidate_cohorts"?publishEvidenceCohorts:saved.plan.kind==="wallet_snapshot_cycle"?publishEvidenceWalletSnapshot:saved.plan.kind==="candidate_metadata"?publishEvidenceCandidateMetadata:saved.plan.kind==="wallet_cached_progress"?publishEvidenceWalletCached:saved.plan.kind==="wallet_quota"?publishEvidenceWalletQuota:saved.plan.kind==="wallet_cycle_control"?publishEvidenceWalletCycle:saved.plan.kind==="wallet_collection"?publishEvidenceWalletCollection:saved.plan.kind==="wallet_direct_cycle"?publishEvidenceWalletDirect:saved.plan.kind==="wallet_reader_recovery"?publishEvidenceWalletRecovery:publishEvidenceAppend)(publication,grant,saved.plan,afterCommit,companion);
 }
 export async function reconcileStoredEvidenceIntent(publication,journal,grant,id,afterCommit){
   grant=Grant.parse(grant);
-  const saved=await readEvidencePublicationIntent(publication,journal,grant,id);return (saved.plan.kind==="candidate_cohorts"?reconcileEvidenceCohorts:saved.plan.kind==="wallet_snapshot_cycle"?reconcileEvidenceWalletSnapshot:saved.plan.kind==="candidate_metadata"?reconcileEvidenceCandidateMetadata:saved.plan.kind==="wallet_cached_progress"?reconcileEvidenceWalletCached:saved.plan.kind==="wallet_quota"?reconcileEvidenceWalletQuota:saved.plan.kind==="wallet_cycle_control"?reconcileEvidenceWalletCycle:saved.plan.kind==="wallet_collection"?reconcileEvidenceWalletCollection:saved.plan.kind==="wallet_direct_cycle"?reconcileEvidenceWalletDirect:saved.plan.kind==="wallet_reader_recovery"?reconcileEvidenceWalletRecovery:reconcileEvidenceAppend)(publication,grant,saved.plan,afterCommit);
+  const saved=await readEvidencePublicationIntent(publication,journal,grant,id),companion=await linkedCohort(publication,journal,grant,saved);return (saved.plan.kind==="candidate_cohorts"?reconcileEvidenceCohorts:saved.plan.kind==="wallet_snapshot_cycle"?reconcileEvidenceWalletSnapshot:saved.plan.kind==="candidate_metadata"?reconcileEvidenceCandidateMetadata:saved.plan.kind==="wallet_cached_progress"?reconcileEvidenceWalletCached:saved.plan.kind==="wallet_quota"?reconcileEvidenceWalletQuota:saved.plan.kind==="wallet_cycle_control"?reconcileEvidenceWalletCycle:saved.plan.kind==="wallet_collection"?reconcileEvidenceWalletCollection:saved.plan.kind==="wallet_direct_cycle"?reconcileEvidenceWalletDirect:saved.plan.kind==="wallet_reader_recovery"?reconcileEvidenceWalletRecovery:reconcileEvidenceAppend)(publication,grant,saved.plan,afterCommit,companion);
 }
