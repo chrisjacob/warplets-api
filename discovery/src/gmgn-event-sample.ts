@@ -7,7 +7,7 @@ import {GMGN_CORROBORATION_BYTES,GMGN_CORROBORATION_CACHE_BYTES} from "./gmgn-co
 import {WalletTransactionSchema} from "./wallet-rpc";
 import {boundedJsonValue} from "./source-pilot";
 import {hashJson} from "./solana";
-import{GmgnEventSamplePlanSchema,GmgnEventSampleInputSchema,GmgnEventSampleReportSchema as SampleReport}from"./gmgn-event-sample-model";
+import{GmgnEventSamplePlanSchema,GmgnEventSampleInputSchema,GmgnEventSampleCurrentReportSchema,GmgnEventSampleReportSchema as SampleReport}from"./gmgn-event-sample-model";
 export{GmgnEventSamplePlanSchema,GmgnEventSampleInputSchema}from"./gmgn-event-sample-model";
 
 const Time=z.string().datetime();
@@ -71,7 +71,7 @@ async function reviewFromSource(input:z.infer<typeof GmgnEventSampleInputSchema>
 }
 // Request-scoped preparation only. Keep private source/plan copies so neither
 // caller mutation nor a reused closure can bypass original replay checks.
-export async function prepareGmgnEventSampleReview(activityId:string,raw:unknown,cutoffAt:string){
+export async function prepareGmgnEventSampleReview(activityId:string,raw:unknown,cutoffAt:string,version:"v1"|"v2"="v1"){
   boundedJsonValue(raw,GMGN_ACTIVITY_REPLAY_BYTES);const activityRecord:unknown=structuredClone(raw);
   const source=await sampleSource(activityRecord),plan=await planFromSource(activityId,source,cutoffAt);let used=false;
   return{plan:structuredClone(plan),compare:async(transactions:unknown)=>{
@@ -79,8 +79,20 @@ export async function prepareGmgnEventSampleReview(activityId:string,raw:unknown
     const rawInput={version:"gmgn-event-sample-input-v1",activity_id:activityId,cutoff_at:cutoffAt,activity_record:activityRecord,plan,transactions};
     boundedJsonValue(rawInput,GMGN_CORROBORATION_BYTES);
     const inputs=GmgnEventSampleInputSchema.parse(structuredClone(rawInput));
-    return{inputs,report:await reviewFromSource(inputs,source,plan)};
+    const report=await reviewFromSource(inputs,source,plan);
+    return{inputs,report:version==="v1"?report:await currentReport(report)};
   }};
+}
+async function currentReport(report:z.infer<typeof SampleReport>){
+  const{report_hash:_hash,live_collection_enabled:_disabled,...original}=report;
+  const body={...original,version:"gmgn-event-sample-comparison-v2",gaps:report.gaps.filter(g=>g!=="live_collection_not_connected").concat("operator_collection_separate"),collection_mode:"explicit_operator_only"};
+  return GmgnEventSampleCurrentReportSchema.parse({...body,report_hash:await hashJson(body)});
+}
+export async function reviewGmgnEventSampleCurrent(raw:unknown){return currentReport(await reviewGmgnEventSample(raw));}
+export async function replayGmgnEventSampleCurrent(raw:unknown){
+  boundedJsonValue(raw,GMGN_CORROBORATION_BYTES+100_000);
+  const bundle=z.object({inputs:GmgnEventSampleInputSchema,report:GmgnEventSampleCurrentReportSchema}).strict().parse(raw),report=await reviewGmgnEventSampleCurrent(bundle.inputs);
+  if(await hashJson(report)!==await hashJson(bundle.report))throw Error("gmgn_sample_report_mismatch");return report;
 }
 export async function replayGmgnEventSample(raw:unknown) {
   boundedJsonValue(raw,GMGN_CORROBORATION_BYTES+100_000);const bundle=z.object({inputs:GmgnEventSampleInputSchema,report:SampleReport}).strict().parse(raw),report=await reviewGmgnEventSample(bundle.inputs);

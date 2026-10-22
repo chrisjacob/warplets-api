@@ -69,6 +69,7 @@ import { holderAcquisition } from "./holder-acquisition-store";
 import { HolderAcquisitionError } from "./holder-acquisition";
 import{gmgnCorroboration,collectGmgnCorroboration}from"./gmgn-corroboration-store";
 import{gmgnEventSample}from"./gmgn-event-sample-store";
+import{collectGmgnEventSample,gmgnEventCollection}from"./gmgn-event-collection";
 import{gmgnQuote}from"./gmgn-quote-store";
 import{ComparisonAddresses,discoveryComparison}from"./discovery-comparison";
 import { rotationCoverage } from "./rotation-coverage";
@@ -203,8 +204,14 @@ export async function handle(request: Request, env: Env): Promise<Response> {
   const eventSample=path.match(/^\/api\/10x\/gmgn\/event-sample\/([a-f0-9-]{36})$/i);
   if(method==="GET"&&eventSample){
     if(!z.uuid().safeParse(eventSample[1]).success)return json({error:"invalid_activity_id"},400);
-    try{const result=await gmgnEventSample(env.TENX_DB,eventSample[1]!);return result?json(result.report):json({error:"accepted_research_activity_not_found"},404);}
+    try{const result=await gmgnEventSample(env.TENX_DB,eventSample[1]!,new Date(),"v2");return result?json(result.report):json({error:"accepted_research_activity_not_found"},404);}
     catch{return json({error:"gmgn_event_sample_unavailable"},503);}
+  }
+  const eventCollection=path.match(/^\/api\/10x\/admin\/gmgn\/event-sample\/([a-f0-9-]{36})$/i);
+  if(method==="GET"&&eventCollection){
+    if(!z.uuid().safeParse(eventCollection[1]).success)return json({error:"invalid_activity_id"},400);
+    try{const record=await gmgnEventCollection(env.TENX_DB,eventCollection[1]!);return record?json(record):json({error:"gmgn_event_collection_not_found"},404);}
+    catch{return json({error:"gmgn_event_collection_unavailable"},503);}
   }
   const rpcComparison=path.match(/^\/api\/10x\/(admin\/)?gmgn\/corroboration\/([a-f0-9-]{36})$/i);
   const quoteReview=path.match(/^\/api\/10x\/(admin\/)?gmgn\/quote\/([a-f0-9-]{36})$/i);
@@ -426,6 +433,7 @@ export async function handle(request: Request, env: Env): Promise<Response> {
         ...init, headers: { "x-tenx-local-relay": env.TENX_ADMIN_TOKEN }, redirect: "manual", credentials: "omit" });
       return fetch(url, init);
     }));
+    if(path==="/api/10x/admin/gmgn/event-sample/collect"){const input=z.object({activity_id:z.uuid(),reason:z.string().min(3).max(300)}).strict().parse(body);return json(await collectGmgnEventSample(settings(env),input.activity_id));}
     if(path==="/api/10x/admin/gmgn/corroboration/collect"){const input=z.object({activity_id:z.uuid(),reason:z.string().min(3).max(300)}).strict().parse(body);return json(await collectGmgnCorroboration(settings(env),input.activity_id));}
     if(path==="/api/10x/admin/mint-reviews")return json(await enqueueMintReview(env.TENX_DB,body));
     if (path === "/api/10x/admin/rewards/lab") return json({ record: await createRewards(env.TENX_DB, body), replay: "verified" });

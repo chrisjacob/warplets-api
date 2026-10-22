@@ -19,3 +19,9 @@ export const GmgnEventSampleReportSchema=z.object({version:z.literal("gmgn-event
   live_collection_enabled:z.literal(false),provider_requests:z.literal(0),database_writes:z.literal(0),scoring_effect:z.literal("none"),evidence_gates_changed:z.literal(false),input_hash:Hash,report_hash:Hash}).strict();
 
 export type GmgnEventSampleReport=z.infer<typeof GmgnEventSampleReportSchema>;
+// Archived v1 remains replayable with its original disconnected-collector claim.
+export const GmgnEventSampleCurrentReportSchema=GmgnEventSampleReportSchema.omit({live_collection_enabled:true}).extend({
+  version:z.literal("gmgn-event-sample-comparison-v2"),collection_mode:z.literal("explicit_operator_only")
+});
+export const GmgnEventSampleAnyReportSchema=z.union([GmgnEventSampleReportSchema,GmgnEventSampleCurrentReportSchema]);
+export type GmgnEventSampleAnyReport=z.infer<typeof GmgnEventSampleAnyReportSchema>;
