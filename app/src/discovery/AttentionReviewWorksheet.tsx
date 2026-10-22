@@ -3,6 +3,7 @@ import { ATTENTION_REVIEW_KEY, AttentionReviewLabels, exportAttentionReviews, pa
   type ReviewContext, type ReviewLabels, type ReviewLedger } from "./attention-review-store";
 import "./attention-review.css";
 import { previewAttentionReviewImport, readAttentionReviewFile, restoreAttentionReviews, type AttentionReviewImportPreview } from "./attention-review-import";
+import { AttentionReviewProgress } from "./AttentionReviewProgress";
 
 const blank:ReviewLabels={decision:"needs_evidence",relevance:"uncertain",catalyst:"",concerns:"",rationale:"",outcome:"not_followed_up",outcome_note:""};
 const readable=(value:string)=>value.replaceAll("_"," ");
@@ -58,6 +59,7 @@ export function AttentionReviewWorksheet({context,onClose,onBusyChange}:{context
     <p>Personal notes stay in this browser and are not synced. Each saved revision retains the observations you reviewed. Labels do not change scores, prove safety or enable a launch.</p>
     <div className="tenx-row"><button className="tenx-button tenx-button--quiet" disabled={busy} onClick={()=>void load()}>Reload local history</button><button className="tenx-button tenx-button--quiet" disabled={busy||!ready||!records.length} onClick={()=>void download()}>Export review history</button></div>
     <p role="status" aria-live="polite">{busy?"Checking local review history…":message||`${records.length} saved revision${records.length===1?"":"s"}.`}</p>
+    <AttentionReviewProgress ledger={ledger} disabled={busy||!ready} onFollowUp={record=>{setSelected(structuredClone(record.context));setDraft({...record.labels});setMessage("");heading.current?.focus();}}/>
     <details className="tenx-review-import"><summary>Restore an exported review history</summary><p>Choose a JSON export from another browser or backup. The file is checked locally. Compatible revisions can be restored; existing notes will not be deleted or merged with a conflicting history.</p>
       <label>Review export file<input type="file" accept="application/json,.json" disabled={busy||!ready} onChange={e=>{const file=e.target.files?.[0];e.target.value="";void inspectImport(file);}}/></label>
       {importPreview&&<div aria-label="Review restore preview"><p><strong>{importName}</strong></p><p>Exported {new Date(importPreview.exported_at).toLocaleString()}. {importPreview.incoming_records} file revisions, {importPreview.existing_records} local revisions, {importPreview.new_records} new revisions.</p>

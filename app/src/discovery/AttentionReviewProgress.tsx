@@ -1,0 +1,22 @@
+import {useEffect,useState} from "react";
+import {attentionReviewProgress,type AttentionReviewProgressReport} from "./attention-review-progress";
+import type {ReviewLedger,ReviewRecord} from "./attention-review-store";
+import "./attention-review-progress.css";
+
+export function AttentionReviewProgressValues({report,onFollowUp,disabled=false}:{report:AttentionReviewProgressReport;onFollowUp:(record:ReviewRecord)=>void;disabled?:boolean}) {
+  const due=report.rows.filter(row=>row.state==="due");
+  return <div className="tenx-review-progress">
+    <h4>Personal follow-up progress</h4><p>As of {new Date(report.as_of).toLocaleString()}. Counts cover only tokens in this browser's verified note history, not the market or every token shown in Discovery.</p>
+    <dl><div><dt>Reviewed tokens</dt><dd>{report.tokens}</dd></div><div><dt>Under 24h since first review</dt><dd>{report.awaiting_24h}</dd></div><div><dt>Due for 24h follow-up</dt><dd>{report.due}</dd></div><div><dt>Reported at 24h or later</dt><dd>{report.reported}</dd></div></dl>
+    <p>Follow-ups are due 24 hours after the first saved personal review. A later edit does not restart the clock. {report.early_outcomes} latest outcome report{report.early_outcomes===1?"":"s"} came earlier and {report.early_outcomes===1?"does":"do"} not satisfy the 24h follow-up.</p>
+    {due.length>0?<><h4>Follow up next · oldest first</h4><ul>{due.slice(0,10).map(row=><li key={row.first.id}><strong>{row.latest.context.token.symbol??"Unknown token"} · {row.latest.context.token.chain}</strong><p className="tenx-address">{row.latest.context.token.address}</p><p>First reviewed {new Date(row.first.recorded_at).toLocaleString()}; follow-up due {new Date(row.follow_up_at).toLocaleString()}. {row.early_outcome?"An earlier outcome is retained; a 24h follow-up is still due.":"No latest 24h outcome report."}</p><button className="tenx-button tenx-button--quiet" disabled={disabled} onClick={()=>onFollowUp(structuredClone(row.latest))}>Follow up on this review</button></li>)}</ul>{due.length>10&&<p>{due.length-10} more due tokens remain in the saved-token history below.</p>}</>:<p>No 24h follow-ups due in this verified history.</p>}
+    {report.cohorts.length>0&&<details><summary>Daily cohorts · first personal review date in Sydney</summary><div className="tenx-review-progress-table"><table><caption>Latest personal reports by original review day</caption><thead><tr><th scope="col">First review day</th><th scope="col">Tokens</th><th scope="col">Under 24h</th><th scope="col">Due</th><th scope="col">Still active</th><th scope="col">Attention faded</th><th scope="col">Adverse reported</th><th scope="col">Unknown reported</th></tr></thead><tbody>{report.cohorts.map(c=><tr key={c.day}><th scope="row">{c.day}</th><td>{c.tokens}</td><td>{c.awaiting_24h}</td><td>{c.due}</td><td>{c.outcomes.still_active}</td><td>{c.outcomes.attention_faded}</td><td>{c.outcomes.adverse_reported}</td><td>{c.outcomes.unknown}</td></tr>)}</tbody></table></div></details>}
+    <p>Only each token's latest revision counts. Unknown reports stay unknown. Reported outcomes are personal claims, not independently verified token performance, a success rate or permission to change scores or launch checks.</p>
+  </div>;
+}
+export function AttentionReviewProgress({ledger,onFollowUp,disabled=false}:{ledger:ReviewLedger|null;onFollowUp:(record:ReviewRecord)=>void;disabled?:boolean}) {
+  const [report,setReport]=useState<AttentionReviewProgressReport|null>(null),[error,setError]=useState(false),[refresh,setRefresh]=useState(0);
+  useEffect(()=>{let current=true;setReport(null);setError(false);if(ledger)void attentionReviewProgress(ledger).then(value=>{if(current)setReport(value);}).catch(()=>{if(current)setError(true);});return()=>{current=false;};},[ledger,refresh]);
+  if(!ledger)return null;
+  return <>{disabled&&<p>Progress refers to the last verified history. Reload local history after any verification warning before following up.</p>}{error?<p role="alert">Follow-up progress is unavailable. Check this device's clock and reload verified local history; no notes were changed.</p>:report?<AttentionReviewProgressValues report={report} onFollowUp={onFollowUp} disabled={disabled}/>:<p role="status">Checking personal follow-up progress…</p>}<button className="tenx-button tenx-button--quiet" disabled={disabled} onClick={()=>setRefresh(v=>v+1)}>Refresh follow-up progress</button></>;
+}

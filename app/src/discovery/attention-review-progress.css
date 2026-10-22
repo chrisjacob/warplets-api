@@ -1,0 +1,8 @@
+.tenx-review-progress{margin:1rem 0;padding:1rem;border:1px solid #3c4e41;border-radius:8px;min-width:0;overflow-wrap:anywhere}
+.tenx-review-progress h4{font-size:1rem;margin:.5rem 0}.tenx-review-progress p{line-height:1.65}
+.tenx-review-progress dl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.75rem}
+.tenx-review-progress dl>div{padding:.6rem;border:1px solid #344c3c;border-radius:6px;min-width:0}
+.tenx-review-progress dd{margin:.25rem 0 0;font-weight:600}.tenx-review-progress .tenx-button{min-height:44px;white-space:normal;max-width:100%}
+.tenx-review-progress-table{overflow:auto;max-height:20rem}.tenx-review-progress-table table{border-collapse:collapse;min-width:650px;width:100%;text-align:left;font-size:.8rem}
+.tenx-review-progress-table th,.tenx-review-progress-table td{padding:.5rem;border-bottom:1px solid #344c3c;overflow-wrap:normal;word-break:normal}.tenx-review-progress-table caption{text-align:left;padding:.5rem 0}
+@media(max-width:480px){.tenx-review-progress{padding:.75rem}.tenx-review-progress dl{grid-template-columns:minmax(0,1fr)}}
