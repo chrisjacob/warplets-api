@@ -11,6 +11,9 @@ import { executeReservedSource } from "./source-collection-transport";
 import { GMGN_USE_AUTHORITY } from "./gmgn-model";
 import { normalizeAttentionTraders } from "./attention-traders";
 import { attentionTradersFresh, type AttentionTraderResult } from "./attention-trader-model";
+import { normalizeAttentionActivity,attentionActivityIssue } from "./attention-activity";
+import type { AttentionActivityResult,AttentionActivityIssueResult } from "./attention-activity-model";
+import { GmgnRequestSchema } from "./gmgn-request";
 type SourceRow = z.infer<typeof AttentionSource> & { token: z.infer<typeof AttentionToken> };
 // Chain + contract is identity. A symbol is never a join key; pools are not votes.
 export function buildAttentionQueue(rawSnapshots: AttentionSnapshot[], now = new Date(), completedLaunches: {chain: z.infer<typeof AttentionChain>;address:string}[] = []): AttentionQueueResult {
@@ -94,32 +97,41 @@ export async function readAttentionQueue(db: D1Database, now = new Date(), scope
   const since = new Date(now.getTime()-86400000).toISOString();
   // A collecting turn also needs the original reservation/lease/receipt SQL.
   // Leave room for that work instead of spending the display's full read budget.
-  const attentionLimit=scope==="review"?10:28, marketLimit=scope==="review"?4:8, candleLimit=scope==="review"?3:6, traderLimit=scope==="review"?3:6;
+  const attentionLimit=scope==="review"?8:24, marketLimit=scope==="review"?4:8, candleLimit=scope==="review"?3:6, traderLimit=scope==="review"?3:6, activityLimit=scope==="review"?1:2;
   // Keep both attention history and market corroboration within the original
   // 48-receipt/8MB bound. Market receipts must not evict every discovery list.
-  const selected = await db.prepare(`WITH ranked AS (SELECT id,bytes,state,
-    CASE json_extract(request,'$.kind') WHEN 'attention_dex_crosscheck' THEN 1 WHEN 'gmgn_token_candles' THEN 2 WHEN 'gmgn_token_traders' THEN 3 ELSE 0 END AS bucket,
-    ROW_NUMBER() OVER (PARTITION BY CASE json_extract(request,'$.kind') WHEN 'attention_dex_crosscheck' THEN 1 WHEN 'gmgn_token_candles' THEN 2 WHEN 'gmgn_token_traders' THEN 3 ELSE 0 END ORDER BY reserved_at DESC,id DESC) AS position,
-    COUNT(*) OVER (PARTITION BY CASE json_extract(request,'$.kind') WHEN 'attention_dex_crosscheck' THEN 1 WHEN 'gmgn_token_candles' THEN 2 WHEN 'gmgn_token_traders' THEN 3 ELSE 0 END) AS total, reserved_at
-    FROM tenx_source_reservations WHERE day>=?1 AND reserved_at>=?2 AND reserved_at<=?3
-    AND (json_extract(request,'$.kind') IN ('gmgn_hot_searches','geckoterminal_global_trending','attention_dex_crosscheck')
-      OR (json_extract(request,'$.kind')='gmgn_token_candles' AND id GLOB 'attention-candles-*')
-      OR (json_extract(request,'$.kind')='gmgn_token_traders' AND id GLOB 'attention-traders-*'))
-    ) SELECT id,bytes,state,bucket,total FROM ranked WHERE position<=CASE bucket WHEN 1 THEN ?5 WHEN 2 THEN ?6 WHEN 3 THEN ?7 ELSE ?4 END
-    ORDER BY reserved_at DESC,id DESC`).bind(since.slice(0,10),since,now.toISOString(),attentionLimit,marketLimit,candleLimit,traderLimit).all<{id:string;bytes:number;state:string;bucket:number;total:number}>();
-  const snapshots: AttentionSnapshot[] = [], candles:AttentionCandleResult[]=[], traders:AttentionTraderResult[]=[], gaps: string[] = []; let bytes=0;
+  // Activity replay costs two receipts: its event page AND original selection.
+  // Include both bytes here, even when the trader bucket also reads the source.
+  const selected = await db.prepare(`WITH scoped AS (SELECT r.id,r.state,r.reserved_at,
+    r.bytes+CASE WHEN json_extract(r.request,'$.kind')='gmgn_wallet_activity' THEN COALESCE(s.bytes,1900000) ELSE 0 END AS bytes,
+    CASE json_extract(r.request,'$.kind') WHEN 'attention_dex_crosscheck' THEN 1 WHEN 'gmgn_token_candles' THEN 2 WHEN 'gmgn_token_traders' THEN 3 WHEN 'gmgn_wallet_activity' THEN 4 ELSE 0 END AS bucket
+    FROM tenx_source_reservations r LEFT JOIN tenx_source_reservations s
+      ON json_extract(r.request,'$.kind')='gmgn_wallet_activity' AND s.id=json_extract(r.request,'$.selection_id')
+    WHERE r.day>=?1 AND r.reserved_at>=?2 AND r.reserved_at<=?3
+    AND (json_extract(r.request,'$.kind') IN ('gmgn_hot_searches','geckoterminal_global_trending','attention_dex_crosscheck')
+      OR (json_extract(r.request,'$.kind')='gmgn_token_candles' AND r.id GLOB 'attention-candles-*')
+      OR (json_extract(r.request,'$.kind')='gmgn_token_traders' AND r.id GLOB 'attention-traders-*')
+      OR (json_extract(r.request,'$.kind')='gmgn_wallet_activity' AND json_extract(r.request,'$.selection_id') GLOB 'attention-traders-*'))
+    ), ranked AS (SELECT *,ROW_NUMBER() OVER (PARTITION BY bucket ORDER BY reserved_at DESC,id DESC) AS position,COUNT(*) OVER (PARTITION BY bucket) AS total FROM scoped)
+    SELECT id,bytes,state,bucket,total FROM ranked WHERE position<=CASE bucket WHEN 1 THEN ?5 WHEN 2 THEN ?6 WHEN 3 THEN ?7 WHEN 4 THEN ?8 ELSE ?4 END
+    ORDER BY reserved_at DESC,id DESC`).bind(since.slice(0,10),since,now.toISOString(),attentionLimit,marketLimit,candleLimit,traderLimit,activityLimit).all<{id:string;bytes:number;state:string;bucket:number;total:number}>();
+  const snapshots: AttentionSnapshot[] = [], candles:AttentionCandleResult[]=[], traders:AttentionTraderResult[]=[], activities:AttentionActivityResult[]=[], issues:AttentionActivityIssueResult[]=[], gaps: string[] = []; let bytes=0;
   for (const row of selected.results.slice(0,48)) {
-    if(row.state!=="succeeded"){gaps.push("collection_attempt_not_successful");continue;}
+    if(row.state!=="succeeded"){gaps.push("collection_attempt_not_successful");if(row.bucket!==4||row.state!=="failed")continue;}
     if(bytes+row.bytes>8000000){gaps.push("receipt_read_byte_bound");break;}
     bytes+=row.bytes;
-    try { const saved=await readSourceReceiptWithRequest(db,row.id); if(!saved||saved.receipt.error!==null)throw Error("receipt_unusable");
+    try { const saved=await readSourceReceiptWithRequest(db,row.id); if(!saved)throw Error("receipt_unusable");
+      if(saved.receipt.error!==null){if(row.bucket===4){issues.push(attentionActivityIssue(row.id,saved));continue;}throw Error("receipt_unusable");}
       if(row.bucket===2) candles.push(normalizeAttentionCandles(row.id,saved.request,saved.receipt.response,saved.receipt.received_at));
       else if(row.bucket===3) traders.push(normalizeAttentionTraders(row.id,saved.request,saved.receipt.response,saved.receipt.received_at));
+      else if(row.bucket===4){const request=GmgnRequestSchema.parse(saved.request);if(request.kind!=="gmgn_wallet_activity")throw Error("activity_request_required");
+        const source=await readSourceReceiptWithRequest(db,request.selection_id);if(!source)throw Error("activity_source_missing");
+        activities.push(await normalizeAttentionActivity(row.id,saved,source));}
       else snapshots.push(normalizeAttention(saved.request,saved.receipt.response,saved.receipt.received_at));
     }catch{gaps.push("receipt_replay_or_schema_failed");}
   }
   const result=buildAttentionQueue(snapshots,now);
-  return AttentionQueue.parse({...result,candle_reviews:candles,trader_reviews:traders,history_truncated:result.history_truncated||selected.results.some(r=>r.total>(r.bucket===3?traderLimit:r.bucket===2?candleLimit:r.bucket===1?marketLimit:attentionLimit))||gaps.includes("receipt_read_byte_bound"),gaps:[...new Set([...gaps,"completed_launch_registry_not_connected"])]});
+  return AttentionQueue.parse({...result,candle_reviews:candles,trader_reviews:traders,activity_reviews:activities,activity_issues:issues,history_truncated:result.history_truncated||selected.results.some(r=>r.total>(r.bucket===4?activityLimit:r.bucket===3?traderLimit:r.bucket===2?candleLimit:r.bucket===1?marketLimit:attentionLimit))||gaps.includes("receipt_read_byte_bound"),gaps:[...new Set([...gaps,"completed_launch_registry_not_connected"])]});
 }
 
 export function attentionReviewRequest(queue: AttentionQueueResult) {

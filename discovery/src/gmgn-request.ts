@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { Address } from "./model";
+import { GmgnTraderSourceId } from "./gmgn-receipt-id";
 
 const Time = z.string().datetime();
 export const GmgnCandleSeriesSchema = z.object({ id: z.uuid(), start_at: Time, end_at: Time, part: z.number().int().min(0).max(3) }).strict()
@@ -9,7 +10,7 @@ export function gmgnCandlePart(series: z.infer<typeof GmgnCandleSeriesSchema>) {
   return { start_at: new Date(start).toISOString(), end_at: new Date(Math.min(start + 6_000_000, Date.parse(series.end_at))).toISOString() };
 }
 export const GmgnRequestSchema = z.union([
-  z.object({kind:z.literal("gmgn_wallet_activity"),address:Address,wallet:Address,selection_id:z.uuid(),selection_hash:z.string().regex(/^[a-f0-9]{64}$/)}).strict(),
+  z.object({kind:z.literal("gmgn_wallet_activity"),address:Address,wallet:Address,selection_id:GmgnTraderSourceId,selection_hash:z.string().regex(/^[a-f0-9]{64}$/)}).strict(),
   z.object({ kind: z.enum(["gmgn_token_info", "gmgn_token_security", "gmgn_token_pool", "gmgn_token_traders"]), address: Address }).strict(),
   z.object({ kind: z.literal("gmgn_token_candles"), address: Address, start_at: Time, end_at: Time, series: GmgnCandleSeriesSchema.optional() }).strict()
     .refine(v => Date.parse(v.end_at) > Date.parse(v.start_at) && Date.parse(v.end_at) - Date.parse(v.start_at) <= 21_600_000 &&

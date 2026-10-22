@@ -3,6 +3,8 @@ import { createHash } from "node:crypto";
 import { buildAttentionQueue } from "../../../discovery/src/attention-queue";
 import { normalizeAttention } from "../../../discovery/src/attention-feed-contract";
 import { normalizeAttentionTraders } from "../../../discovery/src/attention-traders";
+import { AttentionActivityReview } from "../../../discovery/src/attention-activity-model";
+import { normalizeGmgnWalletActivity } from "../../../discovery/src/gmgn-wallet-activity";
 import { previewAttentionReviewImport,restoreAttentionReviews } from "./attention-review-import";
 import { ATTENTION_REVIEW_KEY, AttentionReviewLabels, REVIEW_BYTE_LIMIT, appendAttentionReview, captureAttentionReview, exportAttentionReviews,
   parseAttentionReviews, reviewDay, reviewHash, reviewHead, saveAttentionReview, AttentionReviewContext, type ReviewLabels } from "./attention-review-store";
@@ -55,15 +57,23 @@ it("detects writes during hashing and exports verified local history with all ad
 });
 it("preserves old v1 hashes without a trader field and freezes new samples through export and replay",async()=>{
  const original=context(),hash=await reviewHash(original);expect(Object.hasOwn(original,"trader_review")).toBe(false);
+ expect(Object.hasOwn(original,"activity_review")).toBe(false);
+ expect(Object.hasOwn(original,"activity_issue")).toBe(false);
  expect(await reviewHash(AttentionReviewContext.parse(JSON.parse(JSON.stringify(original))))).toBe(hash);
  const old=await appendAttentionReview(await parseAttentionReviews(null),original,labels,at);expect(await parseAttentionReviews(JSON.stringify(old))).toEqual(old);
  const mint="So11111111111111111111111111111111111111112",queue=buildAttentionQueue([normalizeAttention({kind:"gmgn_hot_searches"},{code:0,data:[{chain:"sol",interval:"24h",tokens:[{address:mint}]}]},at.toISOString())],at);
  queue.trader_reviews=[normalizeAttentionTraders("attention-traders-2026102214",{kind:"gmgn_token_traders",address:mint},{code:0,data:{list:[]}},at.toISOString())];
+ queue.activity_reviews=[AttentionActivityReview.parse({chain:"solana",address:mint,request_id:"10000000-0000-4000-8000-000000000001",received_at:at.toISOString(),selection_received_at:at.toISOString(),response_identity:"token_echo_wallet_request_context",
+  activity:normalizeGmgnWalletActivity({activities:[]},{address:mint,selection_id:"attention-traders-2026102214",selection_hash:"a".repeat(64)},at.toISOString())})];
+ queue.activity_issues=[{chain:"solana",address:mint,request_id:"10000000-0000-4000-8000-000000000002",received_at:at.toISOString(),http_status:200,error:"source_collection_response_unusable",fields:["activities"]}];
  const captured=captureAttentionReview(queue,mint,"solana");queue.trader_reviews[0]!.sample.returned_rows=100;expect(captured.trader_review?.sample.returned_rows).toBe(0);
+ queue.activity_reviews[0]!.activity.returned_events=20;expect(captured.activity_review?.activity.returned_events).toBe(0);
+ queue.activity_issues[0]!.fields=[];expect(captured.activity_issue?.fields).toEqual(["activities"]);
  const next=await appendAttentionReview(old,captured,labels,at),raw=JSON.stringify(next);expect(await parseAttentionReviews(raw)).toEqual(next);expect(next.records[0]).toEqual(old.records[0]);
  const exported=JSON.stringify(await exportAttentionReviews({getItem:()=>raw,setItem:vi.fn()},at)),destination=storage(),preview=await previewAttentionReviewImport(destination,exported,at);
  expect((await restoreAttentionReviews(destination,exported,preview,at)).ledger).toEqual(next);expect(await parseAttentionReviews(destination.raw())).toEqual(next);
  const changed=JSON.parse(raw);changed.records[1].context.trader_review.sample.returned_rows=100;await expect(parseAttentionReviews(JSON.stringify(changed))).rejects.toThrow();
+ const changedActivity=JSON.parse(raw);changedActivity.records[1].context.activity_review.activity.returned_events=20;await expect(parseAttentionReviews(JSON.stringify(changedActivity))).rejects.toThrow();
  expect(AttentionReviewContext.safeParse({...captured,trader_review:{...captured.trader_review,address:"11111111111111111111111111111111"}}).success).toBe(false);
  expect(AttentionReviewContext.safeParse({...captured,as_of:new Date(at.getTime()-1).toISOString()}).success).toBe(false);
 });

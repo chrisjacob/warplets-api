@@ -86,6 +86,6 @@ it("retains all four evidence buckets within the existing 48-receipt and collect
   const seed=sqlite.prepare("SELECT * FROM tenx_source_reservations WHERE id LIKE ? LIMIT 1").get(`${prefix}-%`)!;
   for(let n=0;n<count;n++)sqlite.prepare(`INSERT INTO tenx_source_reservations (${Object.keys(seed).join(",")}) VALUES (${Object.keys(seed).map(()=>"?").join(",")})`).run(...Object.values({...seed,id:`${prefix}-20261021${String(n).padStart(2,"0")}`,owner:`synthetic-${prefix}-${n}`,reserved_at:new Date(later.getTime()-n-1).toISOString()}) as (string|number|null)[]);
  }
- const reader=vi.spyOn(db,"prepare"),queue=await readAttentionQueue(db,later);expect(reader).toHaveBeenCalledTimes(49);expect(queue.snapshot_count).toBe(36);expect(queue.candle_reviews).toHaveLength(6);expect(queue.trader_reviews).toHaveLength(6);expect(queue.history_truncated).toBe(true);
- reader.mockClear();const focused=await readAttentionQueue(db,later,"review");expect(reader).toHaveBeenCalledTimes(21);expect(focused.snapshot_count).toBe(14);expect(focused.candle_reviews).toHaveLength(3);expect(focused.trader_reviews).toHaveLength(3);
+ const reader=vi.spyOn(db,"prepare"),queue=await readAttentionQueue(db,later);expect(reader).toHaveBeenCalledTimes(45);expect(queue.snapshot_count).toBe(32);expect(queue.candle_reviews).toHaveLength(6);expect(queue.trader_reviews).toHaveLength(6);expect(queue.history_truncated).toBe(true);
+ reader.mockClear();const focused=await readAttentionQueue(db,later,"review");expect(reader).toHaveBeenCalledTimes(19);expect(focused.snapshot_count).toBe(12);expect(focused.candle_reviews).toHaveLength(3);expect(focused.trader_reviews).toHaveLength(3);
 });

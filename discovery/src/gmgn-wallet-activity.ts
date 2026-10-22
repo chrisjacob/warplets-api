@@ -1,5 +1,6 @@
 import {z} from "zod";
 import {Address,Signature} from "./model";
+import {GmgnTraderSourceId} from "./gmgn-receipt-id";
 const NumberValue=z.union([z.number().finite(),z.string().max(100).regex(/^\d+(?:\.\d+)?$/).transform(Number)]).pipe(z.number().finite().nonnegative());
 const SignedValue=z.union([z.number().finite(),z.string().max(100).regex(/^-?\d+(?:\.\d+)?(?:[eE][+-]?\d{1,3})?$/).transform(Number)]).pipe(z.number().finite());
 const Cost=z.unknown().transform(value=>{
@@ -19,7 +20,7 @@ export class GmgnActivityError extends Error{
   constructor(readonly fields:string[]){super("gmgn_activity_schema_invalid");}
 }
 export const GmgnWalletActivitySchema=z.object({version:z.literal("gmgn-wallet-activity-v1"),
-  selection:z.literal("largest_complete_regular_wallet_flow_in_saved_trader_sample"),source_request_id:z.uuid(),source_receipt_hash:z.string().regex(/^[a-f0-9]{64}$/),
+  selection:z.literal("largest_complete_regular_wallet_flow_in_saved_trader_sample"),source_request_id:GmgnTraderSourceId,source_receipt_hash:z.string().regex(/^[a-f0-9]{64}$/),
   received_at:z.string().datetime(),requested_limit:z.literal(20),returned_events:Count,limit_reached:z.boolean(),
   pagination:z.enum(["more_reported","end_reported","unknown"]),population_coverage:z.literal("unknown"),
   buy_events:Count,sell_events:Count,non_trade_events:Count,unique_transactions:Count,unknown_time_events:Count,

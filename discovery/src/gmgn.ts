@@ -13,6 +13,7 @@ import { GmgnTraderSampleSchema } from "./gmgn-traders";
 import {GmgnWalletActivitySchema} from "./gmgn-wallet-activity";
 import {gmgnActivitySelection} from "./gmgn-activity-selection";
 import {freezeGmgnDailyCohort,readGmgnDailyCohort} from "./gmgn-rotation";
+import {GmgnTraderSourceId,GmgnSavedReceiptId} from "./gmgn-receipt-id";
 
 export const GmgnReviewRequestSchema = z.object({ reason: z.string().min(3).max(300), request_id: z.uuid(),
   mode: z.enum(["access_probe", "retained_research"]), request: GmgnRequestSchema }).strict();
@@ -119,7 +120,7 @@ export async function runGmgnReview(settings: GmgnSettings, raw: unknown, fetche
     request_id: input.request_id, scoring_effect: "none" };
 }
 export async function gmgnSavedReview(db: D1Database, id: string, cutoff?: string) {
-  z.uuid().parse(id);
+  GmgnSavedReceiptId.parse(id);
   const requestRow = await db.prepare("SELECT request FROM tenx_source_reservations WHERE id=?1").bind(id).first<{request:string}>();
   if (!requestRow) return null;
   const parsed = GmgnRequestSchema.safeParse(JSON.parse(requestRow.request));
@@ -151,7 +152,7 @@ async function gmgnTraderSourceRecord(db:D1Database,id:string){
   return{version:"gmgn-trader-replay-v1",request,receipt,receipt_hash:await hashJson(receipt),report_hash:await hashJson(normalizeGmgn(request,receipt.response,receipt.received_at))};
 }
 export async function gmgnActivityTarget(db:D1Database,id:string,now=new Date()){
-  z.uuid().parse(id);const record=await gmgnTraderSourceRecord(db,id);
+  GmgnTraderSourceId.parse(id);const record=await gmgnTraderSourceRecord(db,id);
   if(!record)return{state:"held" as const,reason:"retained_trader_sample_required",provider_requests:0};
   try{const selected=await gmgnActivitySelection(record,now);
     return{state:"ready" as const,request:{kind:"gmgn_wallet_activity" as const,address:selected.address,wallet:selected.wallet,selection_id:id,selection_hash:selected.selection_hash},provider_requests:0};

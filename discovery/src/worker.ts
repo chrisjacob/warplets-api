@@ -60,6 +60,7 @@ import { gmgnPublicSummary, gmgnCandleWindow, gmgnSavedReview, gmgnStatus, runGm
 import { GMGN_USE_AUTHORITY } from "./gmgn-model";
 import { runShortlistQuery } from "./shortlist-query";
 import { collectAttention, readAttentionQueue, reviewAttention, collectAttentionCandles, collectAttentionTraders } from "./attention-queue";
+import { collectAttentionActivity } from "./attention-activity-collection";
 
 import { researchMode } from "./research-limits";
 import { holderHistory } from "./holder-history-store";
@@ -208,11 +209,11 @@ export async function handle(request: Request, env: Env): Promise<Response> {
   if (method === "GET" && path === "/api/10x/admin/gmgn/status") return json(await gmgnStatus(gmgnSettings(env)));
   if (method === "GET" && path === "/api/10x/admin/score-read-model") return json(await readScoreReadModel(env.TENX_DB));
   if (method === "GET" && path === "/api/10x/admin/score-read-pages") return json(await readScoreReadPages(env.TENX_DB,Object.fromEntries(url.searchParams)));
-  const activityTarget=path.match(/^\/api\/10x\/admin\/gmgn\/activity-target\/([a-f0-9-]{36})$/i);
+  const activityTarget=path.match(/^\/api\/10x\/admin\/gmgn\/activity-target\/([a-f0-9-]{36}|attention-traders-\d{10})$/i);
   if(method==="GET"&&activityTarget)return json(await gmgnActivityTarget(env.TENX_DB,activityTarget[1]!));
   const gmgnWindow=path.match(/^\/api\/10x\/admin\/gmgn\/windows\/([a-f0-9-]{36})$/i);
   if(method==="GET"&&gmgnWindow){const report=await gmgnCandleWindow(env.TENX_DB,gmgnWindow[1]!);return report?json(report):json({error:"gmgn_window_not_found"},404);}
-  const gmgnReview = path.match(/^\/api\/10x\/admin\/gmgn\/reviews\/([a-f0-9-]{36})$/i);
+  const gmgnReview = path.match(/^\/api\/10x\/admin\/gmgn\/reviews\/([a-f0-9-]{36}|attention-(?:traders|candles)-\d{10})$/i);
   if (method === "GET" && gmgnReview) { const saved = await gmgnSavedReview(env.TENX_DB, gmgnReview[1]!); return saved ? json(saved) : json({ error: "gmgn_review_not_found" }, 404); }
   const gmgnToken = path.match(/^\/api\/10x\/gmgn\/solana\/([^/]+)$/);
   if (method === "GET" && gmgnToken) return json(await gmgnPublicSummary(env.TENX_DB, gmgnToken[1]!));
@@ -394,6 +395,7 @@ export async function handle(request: Request, env: Env): Promise<Response> {
     if(path==="/api/10x/admin/discovery/attention/review")return json(await reviewAttention(gmgnSettings(env),body,attentionFetcher(env)));
     if(path==="/api/10x/admin/discovery/attention/candles")return json(await collectAttentionCandles(gmgnSettings(env),body,gmgnFetcher(env)));
     if(path==="/api/10x/admin/discovery/attention/traders")return json(await collectAttentionTraders(gmgnSettings(env),body,gmgnFetcher(env)));
+    if(path==="/api/10x/admin/discovery/attention/activity")return json(await collectAttentionActivity(gmgnSettings(env),body,gmgnFetcher(env)));
     if(path==="/api/10x/admin/score-read-model"){
       z.object({reason:z.string().min(3).max(300)}).strict().parse(body);
       return json(await buildScoreReadModel(env.TENX_DB));
