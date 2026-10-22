@@ -14,6 +14,9 @@ import {WalletTransactionSchema} from "../../discovery/src/wallet-rpc";
 import {collectionTransactionSql,collectionRepairSql} from "../evidence-wallet-collection-sql.mjs";
 import {hashJson} from "../../discovery/src/solana";
 import {ProducerStatements} from "./evidence-producer-plan";
+import {validateEvidenceWalletSnapshotPlan} from "../discovery-evidence-publication.mjs";
+import {WalletEvidenceSchema,analyzeWalletEvidence} from "../../discovery/src/wallet-analysis";
+import {isDeepStrictEqual} from "node:util";
 
 const Hash=z.string().regex(/^[a-f0-9]{64}$/),Id=z.string().uuid(),Path=z.string().min(1).max(4096);
 const Publication=z.object({directory:Path,targetPin:Hash,stage:z.object({directory:Path,contextPin:Hash,keyFile:Path}).strict()}).strict();
@@ -55,6 +58,24 @@ export async function publishEvidenceProducerBatch(publication:ProducerPublicati
     const plan=await prepareEvidenceProducerBatch(saved.publication.stage,identity);
     phase="persist";await persistEvidencePublicationIntent(saved.publication,saved.journal,saved.grant,plan);
     phase="publish";return await publishStoredEvidenceIntent(saved.publication,saved.journal,saved.grant,identity.publicationId,afterCommit) as ProducerCommitted;
+  }catch{return held(phase,id,stageId);}
+}
+
+export type WalletSnapshotBatchInput={publicationId:string;stageId?:string;cycle:WalletCycleContext;sourceHash:string|null;candidateHash:string;limits:{wallet:number;rpc:number};statements:unknown};
+export async function publishEvidenceWalletSnapshotBatch(publication:ProducerPublication,journal:ProducerJournal,grant:ProducerGrant,input:WalletSnapshotBatchInput,afterCommit?:AfterCommit):Promise<ProducerPublicationOutcome>{
+  let phase:Phase="preflight",id:unknown,stageId:unknown;
+  try{
+    const saved=structuredClone({publication,journal,grant,input});id=saved.input.publicationId;stageId=saved.input.stageId;const ctx=context(saved.publication,saved.journal,saved.grant,afterCommit),i=saved.input,rows=ProducerStatements.parse(i.statements);
+    const base={kind:"wallet_snapshot_cycle",publication_id:Id.parse(id),cycle:i.cycle,source_hash:i.sourceHash,candidate_hash:i.candidateHash,limits:i.limits};let plan;
+    if(stageId!==undefined){
+      const placeholder={...base,ticket:{context_pin:ctx.publication.stage.contextPin,stage_id:Id.parse(stageId),ticket_sha256:"0".repeat(64)},operations:rows.map((r,index)=>index===1?{kind:"receipt"}:{kind:"sql",...r})};validateEvidenceWalletSnapshotPlan(placeholder);
+      const body=rows[1]!.bindings[2];if(typeof body!=="string")throw Error("wallet_snapshot_body_required");const evidence=WalletEvidenceSchema.parse(JSON.parse(body)),analysis=await analyzeWalletEvidence(evidence);
+      if(JSON.stringify(evidence)!==body||!isDeepStrictEqual(analysis,JSON.parse(String(rows[2]!.bindings[0]))))throw Error("wallet_snapshot_analysis_mismatch");
+      phase="stage";const prepared=await prepareEvidenceProducerBatch(ctx.publication.stage,{publicationId:i.publicationId,stageId:Id.parse(stageId),statements:rows});
+      plan=validateEvidenceWalletSnapshotPlan({...base,ticket:prepared.ticket,operations:prepared.operations});
+    }else plan=validateEvidenceWalletSnapshotPlan({...base,operations:rows.map(r=>({kind:"sql",...r}))});
+    phase="persist";await persistEvidencePublicationIntent(ctx.publication,ctx.journal,ctx.grant,plan);
+    phase="publish";return await publishStoredEvidenceIntent(ctx.publication,ctx.journal,ctx.grant,i.publicationId,afterCommit) as ProducerCommitted;
   }catch{return held(phase,id,stageId);}
 }
 

@@ -130,6 +130,8 @@ jobs:
 
       - name: Integrated recorded reader recovery with guarded claim and cache adoption
         run: pnpm test:discovery-wallet-recovery-cycle-target
+      - name: Isolated recorded wallet snapshot cycle
+        run: pnpm test:discovery-wallet-snapshot-cycle-target
 
       - name: Install dependencies (app)
         working-directory: app
