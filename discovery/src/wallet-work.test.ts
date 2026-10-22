@@ -10,13 +10,15 @@ import { hashJson } from "./solana";
 import { MAINNET_GENESIS, RpcClient } from "./rpc";
 import { canContinueFunding, catchupLimit, continueFunding, priorWalletEvidence, replayLegacyWallets, walletWork } from "./wallet-work";
 import { runWalletCycle } from "./wallet-cycle";
-import { assess, DEFAULT_POLICY } from "./model";
+import { assess, CandidateSchema, DEFAULT_POLICY } from "./model";
 import transient from "../fixtures/recorded/temporary-wsol-trade.json";
 import { WalletTransactionSchema } from "./wallet-rpc";
 import { compareCollectionPotential, comparePotential } from "./priority";
 import { compareWalletPlans, walletPlan, walletPlans } from "./wallet-plan";
 import { FundingScanSchema, type FundingScan } from "./funding-history";
 import realFunding from "../fixtures/recorded/v1-wallet-funding.json";
+import holderRecord from "../fixtures/recorded/holder-evidence.json";
+import { HolderEvidenceSchema } from "./holders";
 const opened: DatabaseSync[] = [];
 afterEach(() => { opened.splice(0).forEach(d => d.close()); vi.restoreAllMocks(); });
 async function setup() {
@@ -175,6 +177,34 @@ describe("funding continuations keep eligibility snapshots honest", () => {
     await db.prepare("UPDATE tenx_control SET retry_after=?1,last_error='rpc_rate_limited'").bind(later).run(); expect(await runWalletCycle(settings,candidate.address)).toEqual({state:"waiting",reason:"shared_rpc_backoff"});
     await db.prepare("UPDATE tenx_control SET retry_after=NULL,last_error=NULL").run(); await db.prepare("UPDATE tenx_wallet_control SET lease_until=?1").bind(later).run(); expect(await runWalletCycle(settings,candidate.address)).toEqual({state:"waiting"});
     await db.prepare("UPDATE tenx_wallet_control SET lease_until=NULL").run(); await db.prepare("INSERT INTO tenx_wallet_usage(day,used) VALUES(?1,800)").bind(new Date().toISOString().slice(0,10)).run(); expect(await runWalletCycle(settings,candidate.address)).toMatchObject({state:"failed",error_code:"wallet_daily_budget_exhausted"}); expect(transport).not.toHaveBeenCalled();
+  });
+  it("journals an impossible holder envelope before RPC without trimming or publishing evidence", async () => {
+    const { sqlite, db, candidate, settings, transport } = await setup();
+    // Structurally valid size stress fixture, not certified holder evidence.
+    const holder = HolderEvidenceSchema.parse({ ...holderRecord.evidence,
+      inventory: { ...holderRecord.evidence.inventory, value: Array.from({ length: 5000 }, () => holderRecord.evidence.inventory.value[0]!) } });
+    const payload = JSON.stringify(holder), hash = await hashJson(holder), now = new Date();
+    expect(new TextEncoder().encode(payload).length).toBeGreaterThan(1_800_000);
+    const selected = CandidateSchema.parse({ ...candidate, wallet_analysis: null, holders: { ...holderRecord.expected, payload_hash: hash } });
+    // Set this test's initial snapshot explicitly; saveCandidate intentionally
+    // preserves newer wallet observations when a later refresh omits them.
+    await db.prepare("UPDATE tenx_candidates SET payload=?1 WHERE mode='live' AND address=?2").bind(JSON.stringify(selected), candidate.address).run();
+    await db.prepare("INSERT INTO tenx_holder_evidence(payload_hash,address,slot,payload,observed_at) VALUES(?1,?2,?3,?4,?5)")
+      .bind(hash, candidate.address, holder.inventory.context.slot, payload, now.toISOString()).run();
+    const tables = ["tenx_candidates", "tenx_holder_evidence", "tenx_wallet_evidence", "tenx_wallet_transactions", "tenx_wallet_profiles", "tenx_wallet_work", "tenx_cohorts", "tenx_wallet_cohorts", "tenx_selections", "tenx_control"];
+    const before = tables.map(t => sqlite.prepare(`SELECT * FROM ${t}`).all());
+    expect(await runWalletCycle(settings, candidate.address, now)).toEqual({ state: "failed", error_code: "wallet_evidence_size_limit", rpc_calls: 0 });
+    expect(transport).not.toHaveBeenCalled();
+    expect(sqlite.prepare("SELECT * FROM tenx_wallet_usage").all()).toEqual([]);
+    expect(sqlite.prepare("SELECT * FROM tenx_usage WHERE provider='rpc'").all()).toEqual([]);
+    expect(tables.map(t => sqlite.prepare(`SELECT * FROM ${t}`).all())).toEqual(before);
+    expect(sqlite.prepare("SELECT state,rpc_calls,error_code FROM tenx_wallet_runs").all()).toEqual([{ state: "failed", rpc_calls: 0, error_code: "wallet_evidence_size_limit" }]);
+    expect(sqlite.prepare("SELECT lease_owner,lease_until,last_success,last_error,next_refresh_at FROM tenx_wallet_control").get())
+      .toEqual({ lease_owner: null, lease_until: null, last_success: null, last_error: "wallet_evidence_size_limit", next_refresh_at: new Date(now.getTime() + 300_000).toISOString() });
+    expect(sqlite.prepare("SELECT next_attempt_at FROM tenx_wallet_attempts WHERE address=?").get(candidate.address))
+      .toEqual({ next_attempt_at: new Date(now.getTime() + 3_600_000).toISOString() });
+    expect(await runWalletCycle(settings, candidate.address, new Date(now.getTime() + 1000))).toEqual({ state: "waiting" });
+    expect(transport).not.toHaveBeenCalled();
   });
   it("recovers a recorded real buyer from legacy evidence without freshening timestamps or changing cohorts",async()=>{
     const {db}=await setup(),tx=WalletTransactionSchema.parse(transient.transaction),at=transient.recorded_at;

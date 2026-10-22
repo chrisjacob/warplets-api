@@ -20,6 +20,7 @@ import {currentWalletReader,DIRECT_FUNDING_WALLETS} from "./wallet-funding-scope
 import { continueCachedFunding, recordCachedFundingWork } from "./funding-cache-work";
 import {d1EvidenceReadStore,type EvidenceReadStore} from "./evidence-read-store";
 import {d1EvidenceWriteStore} from "./evidence-write-store";
+import { walletEvidenceJson } from "./wallet-evidence-size";
 
 export type WalletSettings = Settings & { walletEnabled: boolean; walletDailyLimit: number };
 export async function walletHolderInputFromStore(store:EvidenceReadStore,candidate:Candidate):Promise<WalletEvidence["holders"]>{
@@ -44,6 +45,11 @@ export function reserveWalletQuota(db: D1Database, settings: WalletSettings, now
 }
 async function collect(settings: WalletSettings, candidate: Candidate, rpc: RpcClient): Promise<WalletEvidence> {
   const db = settings.db;
+  // A holder receipt can fit its own storage bound yet exceed the complete
+  // wallet envelope. Reject that impossible input before spending RPC quota.
+  // Pin this exact input for the eventual full-size check and replay.
+  const holders = await walletHolderInputFromStore(d1EvidenceReadStore(db), candidate);
+  walletEvidenceJson({ holders });
   const prior = await priorWalletEvidence(db, candidate);
   const records: WalletEvidence["records"] = [], histories: WalletEvidence["histories"] = [], gaps = new Set<string>();
   let recordBytes = 0;
@@ -137,7 +143,6 @@ async function collect(settings: WalletSettings, candidate: Candidate, rpc: RpcC
   const baseTransactions = records.flatMap(r => r.transaction ? [r.transaction] : []);
   const outflows = await buildSecondHopOutflows(baseTransactions, candidate.address, candidate.pool, candidate.creation?.slot ?? null, devs, scans.map(s => s.anchor), true);
   const secondScans = await collectFundingHistories(db, rpc, candidate.address, secondHopAnchors(outflows, devs), readFunding, { secondHop: true,cacheRecovery:true });
-  const holders=await walletHolderInputFromStore(d1EvidenceReadStore(db),candidate);
   const priorLosses = new Map<string, { tokens: Set<string>; hashes: Set<string> }>();
   const reports = await db.prepare(`SELECT payload FROM (SELECT day,payload,ROW_NUMBER() OVER(PARTITION BY day ORDER BY created_at DESC,input_hash) AS position FROM tenx_reviews WHERE created_at>=?1) WHERE position=1 ORDER BY day DESC LIMIT 30`).bind(new Date(Date.now() - 30 * 86400000).toISOString()).all<{ payload: string }>();
   for (const report of reports.results.map(r => ReviewSchema.parse(JSON.parse(r.payload)))) for (const outcome of report.outcomes.filter(o => o.status === "measured" && o.outcome === "severe_loss_signal" && Date.parse(o.endpoint_at ?? "") <= Date.now())) for (const w of outcome.wallets) {
@@ -234,7 +239,7 @@ export async function runWalletCycle(settings: WalletSettings, address?: string,
       return { state: "progressed", address: candidate.address, rpc_calls: rpc.calls, progress, snapshot_updated: false };
     }
     const evidence = await collect(settings, candidate, rpc);
-    const payload = JSON.stringify(evidence); if (new TextEncoder().encode(payload).length > 1800000) throw new Error("wallet_evidence_size_limit");
+    const payload = walletEvidenceJson(evidence);
     const analysis = await analyzeWalletEvidence(evidence);
     const statements = [
       runRow("succeeded",Math.max(0,(analysis.funding_coverage?.filter(f=>f.status==="window_examined").length ?? 0)-selectedPlan.examined_windows),Math.max(0,analysis.metrics.distinct_buyers-(candidate.wallet_analysis?.metrics.distinct_buyers ?? 0))),
