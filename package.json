@@ -41,6 +41,7 @@
     "test:discovery-wallet-cycle-target": "tsx --test scripts/discovery-wallet-cycle-target.test.ts",
     "test:discovery-wallet-collection-target": "tsx --test scripts/discovery-wallet-collection-target.test.ts",
     "test:discovery-wallet-direct-cycle-target": "tsx --test scripts/discovery-wallet-direct-cycle-target.test.ts",
+    "test:discovery-wallet-recovery-cycle-target": "tsx --test scripts/discovery-wallet-recovery-cycle-target.test.ts",
     "security:preflight": "node scripts/security-preflight.mjs",
     "security:test": "node scripts/test-security-blocklist.mjs",
     "security:test:redirects": "node --test scripts/test-http-redirect-security.mjs",

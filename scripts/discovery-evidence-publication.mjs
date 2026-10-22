@@ -13,6 +13,7 @@ import {walletQuotaSql,rpcQuotaSql} from "./evidence-wallet-quota-sql.mjs";
 import {walletLeaseSql,walletSpacingSql,walletReleaseSql,walletFailureSql,walletFailureRunSql,walletAttemptSql} from "./evidence-wallet-cycle-sql.mjs";
 import {collectionTransactionSql,collectionCheckpointSql,collectionRepairSql} from "./evidence-wallet-collection-sql.mjs";
 import {directCatchupSql,directBackoffSql,directWorkSql,directFinishSql,directUnsupportedSql} from "./evidence-wallet-direct-sql.mjs";
+import {recoveryClaimSql,recoveryCacheSql,recoveryFinishSql} from "./evidence-wallet-recovery-sql.mjs";
 
 const VERSION="discovery-evidence-publication-v1",FILE="metadata.sqlite",MAX_DB=2*1024**3;
 const Hash=z.string().regex(/^[a-f0-9]{64}$/),Id=z.string().uuid();
@@ -31,6 +32,8 @@ const Cycle=z.object({lease_id:Id,job:Id,address:z.string().min(1).max(4096),at:
 const WalletCyclePlan=z.object({publication_id:Id,kind:z.literal("wallet_cycle_control"),cycle:Cycle,operations:Operation.array().length(1)}).strict();
 const WalletCollectionPlan=z.object({publication_id:Id,kind:z.literal("wallet_collection"),operations:Operation.array().length(1)}).strict();
 const WalletDirectPlan=z.object({publication_id:Id,kind:z.literal("wallet_direct_cycle"),cycle:Cycle,source_hash:Hash,limits:z.object({wallet:QuotaLimit,rpc:QuotaLimit}).strict(),operations:Operation.array().min(1).max(3)}).strict();
+const RecoveryRow=z.object({signature:z.string().regex(/^[1-9A-HJ-NP-Za-km-z]{64,88}$/),slot:z.number().int().safe().nonnegative(),blockTime:z.number().int().safe().nonnegative(),hop:z.enum(["direct","second"]),wallet:z.string().min(1).max(4096),anchor_key:z.string().min(1).max(4096),checkpoint_hash:Hash}).strict();
+const WalletRecoveryPlan=z.object({publication_id:Id,kind:z.literal("wallet_reader_recovery"),cycle:Cycle,source_hash:Hash,claim_id:Id,row:RecoveryRow,operations:Operation.array().min(1).max(2)}).strict();
 const Header=z.object({version:z.literal(VERSION),file:z.literal(FILE),capacity_pin:Hash,source_archive_pin:Hash,base_reference_pin:Hash,context_pin:Hash,generation:Id,schema_sha256:Hash}).strict();
 const writable=new Set(["tenx_candidates","tenx_market_history","tenx_wallet_signals","tenx_proofs","tenx_evidence","tenx_account_evidence","tenx_wallet_runs","tenx_wallet_attempts","tenx_wallet_control","tenx_wallet_work","tenx_wallet_profiles"]);
 const SCHEMA=[
@@ -195,7 +198,28 @@ export function validateEvidenceWalletDirectPlan(input){
   }else throw Error("publication_wallet_direct_shape");
   return plan;
 }
-export function validateEvidenceTargetPlan(input){return input?.kind==="wallet_direct_cycle"?validateEvidenceWalletDirectPlan(input):input?.kind==="candidate_metadata"?validateEvidenceCandidateMetadataPlan(input):input?.kind==="wallet_cached_progress"?validateEvidenceWalletCachedPlan(input):input?.kind==="wallet_quota"?validateEvidenceWalletQuotaPlan(input):input?.kind==="wallet_cycle_control"?validateEvidenceWalletCyclePlan(input):input?.kind==="wallet_collection"?validateEvidenceWalletCollectionPlan(input):normalizedPlan(input);}
+export function validateEvidenceWalletRecoveryPlan(input){
+  const p=WalletRecoveryPlan.parse(input),c=p.cycle,r=p.row,ops=p.operations,version="solana-json-legacy-v0-v1-r1";
+  if(p.claim_id===c.lease_id||p.publication_id===c.lease_id||Date.parse(c.until)!==Date.parse(c.at)+360000||ops.some(o=>o.kind!=="sql"||o.expect_changes!==undefined))throw Error("publication_wallet_recovery_shape");
+  if(ops.length===1&&ops[0].sql===recoveryClaimSql[r.hop]){
+    if(p.publication_id!==p.claim_id||!isDeepStrictEqual(ops[0].bindings,recoveryClaimBindings(p)))throw Error("publication_wallet_recovery_claim");
+  }else{
+    if(p.publication_id===p.claim_id)throw Error("publication_wallet_recovery_identity");
+    const last=ops.at(-1),b=last.bindings;if(last.sql!==recoveryFinishSql[r.hop]||b.length!==12)throw Error("publication_wallet_recovery_finish");
+    const [signature,reader,job,at,outcome,hash,slot,hop,wallet,anchor,checkpoint,blockTime]=b;
+    if(!isDeepStrictEqual([signature,reader,job,slot,hop,wallet,anchor,checkpoint,blockTime],[r.signature,version,c.job,r.slot,r.hop,r.wallet,r.anchor_key,r.checkpoint_hash,r.blockTime]))throw Error("publication_wallet_recovery_scope");
+    z.string().datetime().parse(at);z.string().regex(/^[a-z0-9_]{1,80}$/).parse(outcome);if(Date.parse(at)<Date.parse(c.at))throw Error("publication_wallet_recovery_time");
+    if(hash===null){if(ops.length!==1||outcome==="available")throw Error("publication_wallet_recovery_empty");}
+    else{
+      Hash.parse(hash);if(ops.length!==2||ops[0].sql!==recoveryCacheSql[r.hop]||outcome!=="available")throw Error("publication_wallet_recovery_cache");
+      const cache=ops[0].bindings;if(cache.length!==12||!isDeepStrictEqual(cache.slice(0,5),[r.signature,version,c.job,at,hash])||!isDeepStrictEqual(cache.slice(6),[r.slot,r.hop,r.wallet,r.anchor_key,r.checkpoint_hash,r.blockTime])||typeof cache[5]!=="string"||Buffer.byteLength(cache[5])>250000)throw Error("publication_wallet_recovery_cache");
+      const tx=JSON.parse(cache[5]);if(digest(tx)!==hash||tx.transaction?.signatures?.[0]!==r.signature||tx.slot!==r.slot||tx.blockTime!==r.blockTime)throw Error("publication_wallet_recovery_body");
+    }
+  }
+  return p;
+}
+function recoveryClaimBindings(p){const c=p.cycle,r=p.row;return [r.signature,"solana-json-legacy-v0-v1-r1",r.slot,c.job,c.address,p.source_hash,r.hop,r.wallet,r.anchor_key,r.checkpoint_hash,c.at,c.at.slice(0,10)+"T00:00:00.000Z",20,2,r.blockTime];}
+export function validateEvidenceTargetPlan(input){return input?.kind==="wallet_reader_recovery"?validateEvidenceWalletRecoveryPlan(input):input?.kind==="wallet_direct_cycle"?validateEvidenceWalletDirectPlan(input):input?.kind==="candidate_metadata"?validateEvidenceCandidateMetadataPlan(input):input?.kind==="wallet_cached_progress"?validateEvidenceWalletCachedPlan(input):input?.kind==="wallet_quota"?validateEvidenceWalletQuotaPlan(input):input?.kind==="wallet_cycle_control"?validateEvidenceWalletCyclePlan(input):input?.kind==="wallet_collection"?validateEvidenceWalletCollectionPlan(input):normalizedPlan(input);}
 function metadata(db,table,hash){
   const fields=table==="tenx_holder_evidence"?["payload_hash","address","slot","observed_at"]:["payload_hash","address","observed_at"],row=db.prepare(`SELECT ${fields.map(c=>c==="slot"?c:`CAST(${c} AS BLOB) AS ${c}`).join(",")} FROM ${table} WHERE payload_hash=?`).get(hash);
   return row?Object.fromEntries(fields.map(c=>[c,c==="slot"?row[c]:new TextDecoder("utf-8",{fatal:true,ignoreBOM:true}).decode(row[c])])):null;
@@ -220,12 +244,13 @@ export async function transferEvidencePublicationOwner(options,grant,nextOwner){
 }
 async function executePublication(options,grant,input,afterCommit,allowNew,metadataOnly=false){
   if(metadataOnly){grant=Grant.parse(grant);options=structuredClone(options);}
-  const plan=metadataOnly==="wallet_direct_cycle"?validateEvidenceWalletDirectPlan(input):metadataOnly==="wallet_collection"?validateEvidenceWalletCollectionPlan(input):metadataOnly==="wallet_cycle_control"?validateEvidenceWalletCyclePlan(input):metadataOnly==="wallet_quota"?validateEvidenceWalletQuotaPlan(input):metadataOnly==="wallet_cached_progress"?validateEvidenceWalletCachedPlan(input):metadataOnly?validateEvidenceCandidateMetadataPlan(input):normalizedPlan(input),planHash=digest(plan),verified=metadataOnly?null:await readStagedEvidenceAppend(options.stage,plan.ticket),{db,body}=await opened(options,!allowNew);let publication,commitAttempted=false;
+  const plan=metadataOnly==="wallet_reader_recovery"?validateEvidenceWalletRecoveryPlan(input):metadataOnly==="wallet_direct_cycle"?validateEvidenceWalletDirectPlan(input):metadataOnly==="wallet_collection"?validateEvidenceWalletCollectionPlan(input):metadataOnly==="wallet_cycle_control"?validateEvidenceWalletCyclePlan(input):metadataOnly==="wallet_quota"?validateEvidenceWalletQuotaPlan(input):metadataOnly==="wallet_cached_progress"?validateEvidenceWalletCachedPlan(input):metadataOnly?validateEvidenceCandidateMetadataPlan(input):normalizedPlan(input),planHash=digest(plan),verified=metadataOnly?null:await readStagedEvidenceAppend(options.stage,plan.ticket),{db,body}=await opened(options,!allowNew);let publication,commitAttempted=false;
   try{
     db.exec(allowNew?"BEGIN IMMEDIATE":"BEGIN");fenced(db,body,grant);
     const prior=db.prepare("SELECT plan_sha256,results_json,generation,owner,epoch FROM tenx_append_publications WHERE publication_id=?").get(plan.publication_id);
     if(prior){
       if(prior.plan_sha256!==planHash)throw Error("publication_identity_conflict");
+      if(metadataOnly==="wallet_reader_recovery"){if(prior.generation!==body.generation)throw Error("publication_wallet_recovery_generation");walletRecoveryParent(db,plan,{generation:prior.generation,owner:prior.owner,epoch:prior.epoch});}
       if(metadataOnly==="wallet_direct_cycle"){if(prior.generation!==body.generation)throw Error("publication_wallet_direct_generation");walletCycleParent(db,plan,{generation:prior.generation,owner:prior.owner,epoch:prior.epoch});}
       if(metadataOnly==="wallet_quota"&&plan.operations[0].sql===rpcQuotaSql){if(prior.generation!==body.generation)throw Error("publication_wallet_quota_generation");walletQuotaParent(db,plan,{generation:prior.generation,owner:prior.owner,epoch:prior.epoch});}
       if(metadataOnly==="wallet_cycle_control"){if(prior.generation!==body.generation)throw Error("publication_wallet_cycle_generation");if(plan.operations[0].sql!==walletLeaseSql)walletCycleParent(db,plan,{generation:prior.generation,owner:prior.owner,epoch:prior.epoch});}
@@ -235,8 +260,10 @@ async function executePublication(options,grant,input,afterCommit,allowNew,metad
     }
     else{
       if(!allowNew)throw Error("publication_reconciliation_requires_commit");
+      if(metadataOnly==="wallet_reader_recovery")walletRecoveryParent(db,plan,grant);
       if(metadataOnly==="wallet_direct_cycle")walletCycleParent(db,plan,grant);
       const results=plan.operations.map(op=>{
+        if(metadataOnly==="wallet_reader_recovery"&&op.sql===recoveryClaimSql[plan.row.hop]){const returned=db.prepare(op.sql).all(...op.bindings).map(row=>({...row}));return {success:true,results:returned,meta:{changes:returned.length}};}
         if(metadataOnly==="wallet_direct_cycle"&&op.sql===directCatchupSql){const returned=db.prepare(op.sql).all(...op.bindings).map(row=>({...row}));return {success:true,results:returned,meta:{changes:returned.length}};}
         if(metadataOnly==="wallet_cycle_control"){
           if(op.sql===walletLeaseSql){
@@ -276,18 +303,26 @@ export async function publishEvidenceWalletCollection(options,grant,input,afterC
 export async function reconcileEvidenceWalletCollection(options,grant,input,afterCommit){return executePublication(options,grant,input,afterCommit,false,"wallet_collection");}
 export async function publishEvidenceWalletDirect(options,grant,input,afterCommit){return executePublication(options,grant,input,afterCommit,true,"wallet_direct_cycle");}
 export async function reconcileEvidenceWalletDirect(options,grant,input,afterCommit){return executePublication(options,grant,input,afterCommit,false,"wallet_direct_cycle");}
+export async function publishEvidenceWalletRecovery(options,grant,input,afterCommit){return executePublication(options,grant,input,afterCommit,true,"wallet_reader_recovery");}
+export async function reconcileEvidenceWalletRecovery(options,grant,input,afterCommit){return executePublication(options,grant,input,afterCommit,false,"wallet_reader_recovery");}
 function publicationResults(plan,input){
-  // Only exact quota, catch-up and lease acquisition plans retain rows.
+  // Only exact quota, catch-up, lease and reader-claim plans retain rows.
   // All older domains still require empty arrays and preserve their bytes.
-  const catchup=plan.kind==="wallet_direct_cycle"&&plan.operations[0].sql===directCatchupSql,quota=plan.kind==="wallet_quota",lease=plan.kind==="wallet_cycle_control"&&plan.operations[0].sql===walletLeaseSql,rows=quota||catchup?z.object({used:z.number().int().safe().positive()}).strict().array().max(1):lease?z.object({id:z.literal(1)}).strict().array().max(1):z.tuple([]);
+  const claim=plan.kind==="wallet_reader_recovery"&&plan.operations[0].sql===recoveryClaimSql[plan.row.hop],catchup=plan.kind==="wallet_direct_cycle"&&plan.operations[0].sql===directCatchupSql,quota=plan.kind==="wallet_quota",lease=plan.kind==="wallet_cycle_control"&&plan.operations[0].sql===walletLeaseSql,rows=claim?z.object({signature:z.literal(plan.row.signature)}).strict().array().max(1):quota||catchup?z.object({used:z.number().int().safe().positive()}).strict().array().max(1):lease?z.object({id:z.literal(1)}).strict().array().max(1):z.tuple([]);
   const result=z.object({success:z.literal(true),results:rows,meta:z.object({changes:z.number().int().nonnegative()}).strict()}).strict().array().length(plan.operations.length).parse(input);
   if(lease&&result.some(r=>r.meta.changes!==r.results.length))throw Error("publication_wallet_cycle_result");
+  if(claim&&result.some(r=>r.meta.changes!==r.results.length))throw Error("publication_wallet_recovery_result");
   if(catchup&&result.some(r=>r.meta.changes!==r.results.length||r.results.some(row=>row.used%18!==0||row.used>Math.min(180,Math.floor(plan.limits.wallet/4/18)*18))))throw Error("publication_wallet_direct_result");
   if(quota&&result.some(r=>r.meta.changes!==r.results.length||r.results.some(row=>row.used>plan.reservation[plan.operations[0].sql===walletQuotaSql?"wallet_limit":"rpc_limit"])))throw Error("publication_wallet_quota_result");return result;
 }
 function walletCycleParent(db,plan,expectedGrant){
   const c=plan.cycle,parentPlan=validateEvidenceWalletCyclePlan({publication_id:c.lease_id,kind:"wallet_cycle_control",cycle:c,operations:[{kind:"sql",sql:walletLeaseSql,bindings:[c.job,c.until,c.at,c.rapid]}]}),parent=db.prepare("SELECT plan_sha256,results_json,generation,owner,epoch FROM tenx_append_publications WHERE publication_id=?").get(c.lease_id);
   if(!parent||parent.plan_sha256!==digest(parentPlan)||!isDeepStrictEqual({generation:parent.generation,owner:parent.owner,epoch:parent.epoch},expectedGrant)||publicationResults(parentPlan,JSON.parse(parent.results_json))[0].results.length!==1)throw Error("publication_wallet_cycle_parent_required");
+}
+function walletRecoveryParent(db,p,grant){
+  walletCycleParent(db,p,grant);if(p.operations[0].sql===recoveryClaimSql[p.row.hop])return;
+  const parentPlan=validateEvidenceWalletRecoveryPlan({...p,publication_id:p.claim_id,operations:[{kind:"sql",sql:recoveryClaimSql[p.row.hop],bindings:recoveryClaimBindings(p)}]}),parent=db.prepare("SELECT plan_sha256,results_json,generation,owner,epoch FROM tenx_append_publications WHERE publication_id=?").get(p.claim_id);
+  if(!parent||parent.plan_sha256!==digest(parentPlan)||!isDeepStrictEqual({generation:parent.generation,owner:parent.owner,epoch:parent.epoch},grant)||publicationResults(parentPlan,JSON.parse(parent.results_json))[0].results.length!==1)throw Error("publication_wallet_recovery_parent_required");
 }
 // A recorded response still requires current scheduling authority. This reads
 // no raw receipt and never grants permission to use a live provider transport.
@@ -303,6 +338,23 @@ function walletQuotaParent(db,plan,expectedGrant){
   const r=plan.reservation,parentPlan=validateEvidenceWalletQuotaPlan({publication_id:r.wallet,kind:"wallet_quota",reservation:r,operations:[{kind:"sql",sql:walletQuotaSql,bindings:[r.day,r.wallet_limit]}]}),parent=db.prepare("SELECT plan_sha256,results_json,generation,owner,epoch FROM tenx_append_publications WHERE publication_id=?").get(r.wallet);
   if(!parent||parent.plan_sha256!==digest(parentPlan)||!isDeepStrictEqual({generation:parent.generation,owner:parent.owner,epoch:parent.epoch},expectedGrant))throw Error("publication_wallet_quota_parent_required");
   const result=publicationResults(parentPlan,JSON.parse(parent.results_json))[0];if(result.results.length!==1)throw Error("publication_wallet_quota_parent_declined");
+}
+
+export async function readEvidenceWalletRecoveryMetadata(options,grant,input){
+  grant=Grant.parse(grant);options=structuredClone(options);const Text=z.string().max(4096),request=z.discriminatedUnion("kind",[
+    z.object({kind:z.literal("count"),since:z.string().regex(/^\d{4}-\d{2}-\d{2}T00:00:00\.000Z$/)}).strict(),
+    z.object({kind:z.literal("seen"),signature:RecoveryRow.shape.signature,reader:z.literal("solana-json-legacy-v0-v1-r1")}).strict(),
+    z.object({kind:z.literal("key"),hop:z.enum(["direct","second"]),address:Text,wallet:Text,preferred:Text,legacy:Text,hash:Hash}).strict(),
+  ]).parse(input),{db,body}=await opened(options,true);let row=null;
+  try{db.exec("BEGIN");fenced(db,body,grant);
+    if(request.kind==="count"){const saved=db.prepare("SELECT COUNT(*) AS n FROM tenx_funding_reads WHERE is_recovery=1 AND started_at>=?").get(request.since);row={n:z.number().int().safe().nonnegative().parse(saved.n)};}
+    else if(request.kind==="seen")row=db.prepare("SELECT 1 FROM tenx_funding_reads WHERE signature=? AND reader_version=?").get(request.signature,request.reader)?{"1":1}:null;
+    else{
+      const table=request.hop==="direct"?"tenx_funding_scans":"tenx_second_hop_scans",from=`${table} WHERE address=? AND wallet=? AND anchor_signature IN (?,?) AND payload_hash=? ORDER BY CASE WHEN anchor_signature=? THEN 0 ELSE 1 END LIMIT 1`,bindings=[request.address,request.wallet,request.preferred,request.legacy,request.hash,request.preferred],size=db.prepare(`SELECT length(CAST(anchor_signature AS BLOB)) AS n FROM ${from}`).get(...bindings);
+      if(size){if(!Number.isSafeInteger(size.n)||size.n<0||size.n>4096)throw Error("publication_wallet_recovery_key_bound");row={anchor_signature:new TextDecoder("utf-8",{fatal:true,ignoreBOM:true}).decode(db.prepare(`SELECT CAST(anchor_signature AS BLOB) AS value FROM ${from}`).get(...bindings).value)};}
+    }
+    fenced(db,body,grant);db.exec("COMMIT");return {row,...inactive()};
+  }finally{if(db.isTransaction)db.exec("ROLLBACK");db.close();}
 }
 
 export async function readEvidenceWalletCycleMetadata(options,grant,input){

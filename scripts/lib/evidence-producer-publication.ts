@@ -2,7 +2,11 @@
 import {z} from "zod";
 import {prepareEvidenceProducerBatch,type ProducerBatchInput} from "./evidence-producer-plan";
 import {persistEvidencePublicationIntent,publishStoredEvidenceIntent,reconcileStoredEvidenceIntent} from "../discovery-evidence-intents.mjs";
-import {validateEvidenceCandidateMetadataPlan,validateEvidenceWalletCachedPlan,validateEvidenceWalletQuotaPlan,validateEvidenceWalletCyclePlan,validateEvidenceWalletCollectionPlan,validateEvidenceWalletDirectPlan} from "../discovery-evidence-publication.mjs";
+import {validateEvidenceCandidateMetadataPlan,validateEvidenceWalletCachedPlan,validateEvidenceWalletQuotaPlan,validateEvidenceWalletCyclePlan,validateEvidenceWalletCollectionPlan,validateEvidenceWalletDirectPlan,validateEvidenceWalletRecoveryPlan} from "../discovery-evidence-publication.mjs";
+import type {FundingRecovery} from "../../discovery/src/funding-recovery";
+import {validWalletTransaction} from "../../discovery/src/wallet-trades";
+import {keys} from "../../discovery/src/wallet-rpc";
+import {recoveryCacheSql} from "../evidence-wallet-recovery-sql.mjs";
 import {WalletWorkSchema} from "../../discovery/src/wallet-work-model";
 import {directWorkSql} from "../evidence-wallet-direct-sql.mjs";
 import {FundingScanSchema,fundingTask} from "../../discovery/src/funding-history";
@@ -19,9 +23,9 @@ export type ProducerPublication=z.infer<typeof Publication>;
 export type ProducerJournal=z.infer<typeof Journal>;
 export type ProducerGrant=z.infer<typeof Grant>;
 type Inactive={runtime_activated:false;action_authority:false;evidence_qualified:false;provider_requests:0;free_acceptance:false};
-// Native validation scopes {used} to quota and {id:1} to cycle acquisition.
+// Native validation scopes returned quota/lease/reader-claim rows by domain.
 // Receipt/candidate/cached-progress and other control results stay empty.
-type PositionResult={success:true;results:({used:number}|{id:1})[];meta:{changes:number}};
+type PositionResult={success:true;results:({used:number}|{id:1}|{signature:string})[];meta:{changes:number}};
 export type ProducerCommitted=Inactive&{state:"committed";publication_id:string;results:PositionResult[];reconciled:boolean;post_commit:"not_requested"|"completed"|"failed";post_commit_error?:string};
 type Phase="preflight"|"stage"|"persist"|"publish"|"reconcile";
 export type ProducerHeld=Inactive&{state:"held";publication_id:string|null;stage_id:string|null;phase:Phase;sql_attempt:"not_started"|"unconfirmed"|"read_only";code:"producer_preflight_held"|"producer_stage_held"|"producer_intent_held"|"producer_publication_unconfirmed"|"producer_reconciliation_held"};
@@ -126,6 +130,19 @@ export async function publishEvidenceWalletDirectBatch(publication:ProducerPubli
   try{
     id=input?.publicationId;const saved=context(publication,journal,grant,afterCommit),plan=validateEvidenceWalletDirectPlan({publication_id:Id.parse(id),kind:"wallet_direct_cycle",cycle:input.cycle,source_hash:input.sourceHash,limits:input.limits,operations:ProducerStatements.parse(input.statements).map(row=>({kind:"sql",...row}))});
     for(const op of plan.operations)if(op.kind==="sql"&&op.sql===directWorkSql)WalletWorkSchema.parse(JSON.parse(String(op.bindings[2])));
+    phase="persist";await persistEvidencePublicationIntent(saved.publication,saved.journal,saved.grant,plan);
+    phase="publish";return await publishStoredEvidenceIntent(saved.publication,saved.journal,saved.grant,plan.publication_id,afterCommit) as ProducerCommitted;
+  }catch{return held(phase,id,null);}
+}
+
+export async function publishEvidenceWalletRecoveryBatch(publication:ProducerPublication,journal:ProducerJournal,grant:ProducerGrant,input:{publicationId:string;claimId:string;cycle:WalletCycleContext;sourceHash:string;row:FundingRecovery;statements:unknown},afterCommit?:AfterCommit):Promise<ProducerPublicationOutcome>{
+  let phase:Phase="preflight",id:unknown;
+  try{
+    id=input?.publicationId;const saved=context(publication,journal,grant,afterCommit),plan=validateEvidenceWalletRecoveryPlan({publication_id:Id.parse(id),kind:"wallet_reader_recovery",claim_id:input.claimId,cycle:input.cycle,source_hash:input.sourceHash,row:input.row,operations:ProducerStatements.parse(input.statements).map(row=>({kind:"sql",...row}))});
+    for(const op of plan.operations)if(op.kind==="sql"&&op.sql===recoveryCacheSql[plan.row.hop]){
+      const tx=WalletTransactionSchema.parse(JSON.parse(String(op.bindings[5])));validWalletTransaction(tx);
+      if(await hashJson(tx)!==op.bindings[4]||!keys(tx).includes(plan.row.wallet)||tx.blockTime!*1000>Date.parse(String(op.bindings[3])))throw Error("wallet_recovery_body_not_certified");
+    }
     phase="persist";await persistEvidencePublicationIntent(saved.publication,saved.journal,saved.grant,plan);
     phase="publish";return await publishStoredEvidenceIntent(saved.publication,saved.journal,saved.grant,plan.publication_id,afterCommit) as ProducerCommitted;
   }catch{return held(phase,id,null);}

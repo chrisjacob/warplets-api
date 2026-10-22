@@ -128,6 +128,9 @@ jobs:
       - name: Integrated original recorded direct-funding cycle, catch-up and backoff
         run: pnpm test:discovery-wallet-direct-cycle-target
 
+      - name: Integrated recorded reader recovery with guarded claim and cache adoption
+        run: pnpm test:discovery-wallet-recovery-cycle-target
+
       - name: Install dependencies (app)
         working-directory: app
         run: pnpm install --frozen-lockfile
