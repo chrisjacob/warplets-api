@@ -1,6 +1,6 @@
 import {z} from "zod";
 import {Address} from "./model";
-import {replayGmgnActivityRecord} from "./gmgn-activity-replay";
+import {GMGN_ACTIVITY_REPLAY_BYTES,replayGmgnActivityRecord} from "./gmgn-activity-replay";
 import {GmgnWalletActivityResearchSchema,GMGN_ACTIVITY_RESEARCH_VALIDATION} from "./gmgn-wallet-activity";
 import {GmgnComparisonEvent,compareGmgnEventGroups} from "./gmgn-event-comparison";
 import {GMGN_CORROBORATION_BYTES,GMGN_CORROBORATION_CACHE_BYTES} from "./gmgn-corroboration-model";
@@ -46,6 +46,9 @@ async function planFromSource(activityId:string,{record,replay,events}:Awaited<R
 
 export async function reviewGmgnEventSample(raw:unknown) {
   boundedJsonValue(raw,GMGN_CORROBORATION_BYTES);const input=GmgnEventSampleInputSchema.parse(raw),source=await sampleSource(input.activity_record),plan=await planFromSource(input.activity_id,source,input.cutoff_at);
+  return reviewFromSource(input,source,plan);
+}
+async function reviewFromSource(input:z.infer<typeof GmgnEventSampleInputSchema>,source:Awaited<ReturnType<typeof sampleSource>>,plan:z.infer<typeof GmgnEventSamplePlanSchema>){
   if(await hashJson(plan)!==await hashJson(input.plan))throw Error("gmgn_sample_plan_mismatch");
   if(plan.state==="held"&&input.transactions.length)throw Error("gmgn_sample_held_with_cache");
   const {record,events}=source,signatures=plan.selected.map(v=>v.signature),cache=new Map<string,z.infer<typeof WalletTransactionSchema>>();let bytes=0;
@@ -65,6 +68,19 @@ export async function reviewGmgnEventSample(raw:unknown) {
     state:plan.state==="held"?"held":cache.size<signatures.length?"cache_missing":"compared_sample",page_events:plan.page_events,selected_events:plan.selected_events,selected_trade_events:plan.selected_trade_events,unselected_events:plan.unselected_events,unselected_trade_events:plan.unselected_trade_events,
     required_transactions:signatures.length,cached_transactions:cache.size,exact_quantity_events:result.exact,aggregate_only_events:result.aggregate,groups:result.groups,gaps,representative_sample:false,finality_independently_attested:false,usd_volume_verified:false,organic_volume_usd:null,live_collection_enabled:false,provider_requests:0,database_writes:0,scoring_effect:"none",evidence_gates_changed:false,input_hash:await hashJson(input)};
   return SampleReport.parse({...body,report_hash:await hashJson(body)});
+}
+// Request-scoped preparation only. Keep private source/plan copies so neither
+// caller mutation nor a reused closure can bypass original replay checks.
+export async function prepareGmgnEventSampleReview(activityId:string,raw:unknown,cutoffAt:string){
+  boundedJsonValue(raw,GMGN_ACTIVITY_REPLAY_BYTES);const activityRecord:unknown=structuredClone(raw);
+  const source=await sampleSource(activityRecord),plan=await planFromSource(activityId,source,cutoffAt);let used=false;
+  return{plan:structuredClone(plan),compare:async(transactions:unknown)=>{
+    if(used)throw Error("gmgn_sample_preparation_already_used");used=true;
+    const rawInput={version:"gmgn-event-sample-input-v1",activity_id:activityId,cutoff_at:cutoffAt,activity_record:activityRecord,plan,transactions};
+    boundedJsonValue(rawInput,GMGN_CORROBORATION_BYTES);
+    const inputs=GmgnEventSampleInputSchema.parse(structuredClone(rawInput));
+    return{inputs,report:await reviewFromSource(inputs,source,plan)};
+  }};
 }
 export async function replayGmgnEventSample(raw:unknown) {
   boundedJsonValue(raw,GMGN_CORROBORATION_BYTES+100_000);const bundle=z.object({inputs:GmgnEventSampleInputSchema,report:SampleReport}).strict().parse(raw),report=await reviewGmgnEventSample(bundle.inputs);

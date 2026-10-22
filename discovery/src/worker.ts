@@ -1,4 +1,4 @@
-import { API_HEADERS, LOCAL_ORIGINS, authorized, requireAdminBrowser, adminJson, RequestSecurityError } from "./request-security";
+import { API_HEADERS, LOCAL_ORIGINS, authorized, requireAdminBrowser, requireLocalReadBrowser, adminJson, RequestSecurityError } from "./request-security";
 import {historyDirectory} from "./history-directory";
 import {buildScoreReadModel,readScoreReadModel} from "./score-read-model";
 import {buildScoreReadPages,readScoreReadPages} from "./score-read-pages";
@@ -170,6 +170,10 @@ async function status(env: Env) {
 export async function handle(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
   if (env.TENX_LOCAL_ONLY !== "true" || !loopback.has(url.hostname)) return json({ error: "local_runtime_required" }, 503);
+  if(request.method==="GET"){
+    try{requireLocalReadBrowser(request);}
+    catch(error){if(error instanceof RequestSecurityError)return json({error:error.message},error.status);throw error;}
+  }
   const path = url.pathname.replace(/\/+$/, "");
   if (path.startsWith("/api/10x/identity/")) return identityRoute(request, env.TENX_DB);
   const admin = path.startsWith("/api/10x/admin/");

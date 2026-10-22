@@ -1,4 +1,5 @@
 import { z } from "zod";
+import{fetchDiscoveryJson}from"./bounded-json";
 import { CandidateCardSchema } from "../../../discovery/src/candidate-card";
 import { AssessedCandidateSchema, PolicySchema } from "../../../discovery/src/model";
 import { HistorySchema, ReviewSchema } from "../../../discovery/src/research-model";
@@ -59,9 +60,7 @@ export type ListData = z.infer<typeof ListResponse>;
 export type StatusData = z.infer<typeof StatusResponse>;
 export const marketSource = (source: string) => source === "dexscreener" ? "DEX Screener" : source === "mixed" ? "GeckoTerminal + DEX Screener" : "GeckoTerminal";
 export async function getJson<T>(url: string, schema: z.ZodType<T>, signal?: AbortSignal): Promise<T> {
-  const response = await fetch(url, { signal, cache: "no-store" });
-  if (!response.ok) throw new Error(`Discovery service unavailable (${response.status}).`);
-  const result = schema.safeParse(await response.json());
+  const result = schema.safeParse(await fetchDiscoveryJson(url,signal));
   if (!result.success) throw new Error("Discovery data could not be verified. Reload this page or check Data status.");
   return result.data;
 }

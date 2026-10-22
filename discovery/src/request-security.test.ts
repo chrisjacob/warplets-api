@@ -1,7 +1,7 @@
 import { afterEach, expect, it, vi } from "vitest";
 import { DatabaseSync } from "node:sqlite";
 import { sqliteD1 } from "../../app/functions/_lib/sqliteTestDb";
-import { API_HEADERS, adminJson, authorized, requireAdminBrowser } from "./request-security";
+import { API_HEADERS, adminJson, authorized, requireAdminBrowser, requireLocalReadBrowser } from "./request-security";
 import worker, { type LocalEnv } from "./worker";
 
 const token = "a".repeat(64);
@@ -18,6 +18,18 @@ it("blocks foreign and null origins and cross-site metadata for private reads an
   for (const site of ["cross-site", "same-site", "invalid"]) expect(() => requireAdminBrowser(req({ "sec-fetch-site": site }))).toThrow("admin_cross_site_request");
   const allowed: HeadersInit[] = [{}, { origin: "https://app-local.10x.meme", "sec-fetch-site": "same-origin" }, { "sec-fetch-site": "none" }];
   for (const headers of allowed) expect(() => requireAdminBrowser(req(headers))).not.toThrow();
+});
+it("rejects foreign-browser public reads, including embeds without Origin, before database work",async()=>{
+  const db={prepare:vi.fn(()=>{throw Error("No database work allowed");})}as Pick<D1Database,"prepare">;
+  const env={TENX_DB:db,TENX_LOCAL_ONLY:"true"}as LocalEnv;
+  const path="http://localhost:8794/api/10x/gmgn/event-sample/10000000-0000-4000-8000-000000000001";
+  const blocked:HeadersInit[]=[{origin:"https://evil.example"},{origin:"null"},{origin:"https://app-local.10x.meme.evil.example"},{"sec-fetch-site":"cross-site"},{"sec-fetch-site":"same-site"},{"sec-fetch-site":"invalid"}];
+  for(const headers of blocked){
+    const response=await worker.fetch(new Request(path,{headers}),env);expect(response.status).toBe(403);expect(response.headers.get("cache-control")).toBe("no-store");
+  }
+  expect(db.prepare).not.toHaveBeenCalled();
+  const allowed:HeadersInit[]=[{}, {"sec-fetch-site":"same-origin"},{"sec-fetch-site":"none"},{origin:"https://app-local.10x.meme","sec-fetch-site":"cross-site"},{origin:"http://localhost:5183","sec-fetch-site":"same-site"}];
+  for(const headers of allowed)expect(()=>requireLocalReadBrowser(new Request(path,{headers}))).not.toThrow();
 });
 it("bounds streamed and advertised JSON bodies and rejects invalid JSON media types", async () => {
   await expect(adminJson(req({ "content-type": "application/json; charset=utf-8" }, '{"reason":"valid"}'))).resolves.toEqual({ reason: "valid" });

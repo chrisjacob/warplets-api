@@ -6,7 +6,7 @@ import{GMGN_USE_AUTHORITY}from"./gmgn-model";
 import{GMGN_ACTIVITY_RESEARCH_VALIDATION}from"./gmgn-wallet-activity";
 import{hashJson}from"./solana";
 import{WalletTransactionSchema}from"./wallet-rpc";
-import{planGmgnEventSample,reviewGmgnEventSample,replayGmgnEventSample}from"./gmgn-event-sample";
+import{planGmgnEventSample,reviewGmgnEventSample,replayGmgnEventSample,prepareGmgnEventSampleReview}from"./gmgn-event-sample";
 import{reviewGmgnCorroboration}from"./gmgn-corroboration";
 
 const traderId="10000000-0000-4000-8000-000000000001",activityId="10000000-0000-4000-8000-000000000002",at="2026-10-21T09:00:00.000Z",received="2026-10-21T09:00:20.000Z",cutoff="2026-10-21T09:01:00.000Z";
@@ -24,6 +24,12 @@ async function fixture(change?:(events:Event[])=>void,legacy=false){
  return{activityRecord,events,tx,transaction,address};
 }
 async function inputs(record:unknown,transactions:unknown[]=[]) {return{version:"gmgn-event-sample-input-v1",activity_id:activityId,activity_record:record,cutoff_at:cutoff,plan:await planGmgnEventSample(activityId,record,cutoff),transactions};}
+
+it("reuses one private request replay without accepting caller mutation or reuse",async()=>{
+ const source=await fixture(),original=await inputs(source.activityRecord,[await source.transaction()]),expected=await reviewGmgnEventSample(original),prepared=await prepareGmgnEventSampleReview(activityId,source.activityRecord,cutoff);
+ source.activityRecord.report_hash="f".repeat(64);source.events[0]!.token_amount="999";prepared.plan.selected.length=0;prepared.plan.page_events=0;
+ const saved=await prepared.compare(original.transactions);expect(saved.report).toEqual(expected);expect(await replayGmgnEventSample(saved)).toEqual(expected);await expect(prepared.compare([])).rejects.toThrow("already_used");
+});
 
 it("plans against the complete page and preserves all selected signature events including non-trades",async()=>{
  const{activityRecord,events}=await fixture(rows=>{rows[0]!.event_type="buy";rows[49]!.tx_hash=rows[0]!.tx_hash;rows[49]!.event_type="sell";rows[48]!.tx_hash=rows[0]!.tx_hash;});

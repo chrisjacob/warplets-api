@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, useState } from "react";
+import{fetchDiscoveryJson,DiscoveryResponseError}from"./bounded-json";
 import {HistoryDirectoryPage} from "./HistoryDirectory";
 import type { AssessedCandidate, Proof } from "../../../discovery/src/model";
 import type { CandidateCard as Card } from "../../../discovery/src/candidate-card";
@@ -307,13 +308,11 @@ function AdminView() {
   async function action(path: string, body?: unknown) {
     setBusy(true); setMessage("");
     try {
-      const response = await fetch(`/api/10x/admin/${path}`, { method: body ? "POST" : "GET", headers: { authorization: `Bearer ${token}`, ...(body ? { "content-type": "application/json" } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}), cache: "no-store" });
-      const value: unknown = await response.json();
-      if (!response.ok) throw new Error(response.status === 401 ? "Enter the local operator token to continue." : `Request failed (${response.status}).`);
+      const value = await fetchDiscoveryJson(`/api/10x/admin/${path}`,undefined,{ method: body ? "POST" : "GET", headers: { authorization: `Bearer ${token}`, ...(body ? { "content-type": "application/json" } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) });
       if (value && typeof value === "object") setData(value as Record<string, unknown>);
       if (path === "dry-run") setElectionRequestId(crypto.randomUUID());
       setMessage(path==="mint-reviews"?value&&typeof value==="object"&&"duplicate" in value&&value.duplicate===true?"This mint already has a review. Inspect its saved progress in Data status; resubmitting does not restart the scan.":"Mint review saved. The paced collector will check it within existing source limits; no eligibility is granted.":"Local operation completed.");
-    } catch (error) { setMessage(error instanceof Error ? error.message : "Operation failed."); }
+    } catch (error) { setMessage(error instanceof DiscoveryResponseError?(error.status===401?"Enter the local operator token to continue.":`Request failed (${error.status}).`):`Operation status is unknown. Inspect Data status before retrying. ${error instanceof Error?error.message:"Operation failed."}`); }
     finally { setBusy(false); }
   }
   return <><header className="tenx-heading"><p className="tenx-eyebrow">LOCAL / ADMIN</p><h1>Discovery controls.</h1><p>Read jobs, pause ingestion and run a simulated election. No token launch or spending controls exist here.</p></header>

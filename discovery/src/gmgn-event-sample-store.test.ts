@@ -8,6 +8,7 @@ import{gmgnActivityTarget,runGmgnReview}from"./gmgn";
 import{GMGN_USE_AUTHORITY}from"./gmgn-model";
 import{gmgnEventSample}from"./gmgn-event-sample-store";
 import{replayGmgnEventSample}from"./gmgn-event-sample";
+import*as activityReplay from"./gmgn-activity-replay";
 import{WalletTransactionSchema}from"./wallet-rpc";
 import{hashJson}from"./solana";
 import worker,{type LocalEnv}from"./worker";
@@ -32,9 +33,10 @@ async function setup(change?:(rows:Record<string,unknown>[])=>void){
 it("replays the whole saved page and original selection, reads at most two chosen bodies and never writes or fetches",async()=>{
   const second=await acquisitionTrade("buy",72),{db,sqlite,cached}=await setup(rows=>{rows[1]!.tx_hash=second.transaction.signatures[0]!;rows[1]!.event_type="buy";rows[1]!.token_amount="0.000100";});
   await cached();await cached(second);const before=sqlite.prepare("SELECT total_changes() n").get(),prepare=vi.spyOn(db,"prepare"),fetcher=vi.spyOn(globalThis,"fetch").mockRejectedValue(Error("no source IO"));
-  const saved=await gmgnEventSample(db,id,now);expect(saved!.report).toMatchObject({state:"compared_sample",page_events:50,selected_events:2,unselected_events:48,required_transactions:2,cached_transactions:2,exact_quantity_events:2,provider_requests:0,database_writes:0,live_collection_enabled:false,scoring_effect:"none"});
+  const replay=vi.spyOn(activityReplay,"replayGmgnActivityRecord"),saved=await gmgnEventSample(db,id,now);expect(replay).toHaveBeenCalledOnce();expect(saved!.report).toMatchObject({state:"compared_sample",page_events:50,selected_events:2,unselected_events:48,required_transactions:2,cached_transactions:2,exact_quantity_events:2,provider_requests:0,database_writes:0,live_collection_enabled:false,scoring_effect:"none"});
   expect(await replayGmgnEventSample(saved)).toEqual(saved!.report);expect(fetcher).not.toHaveBeenCalled();expect(sqlite.prepare("SELECT total_changes() n").get()).toEqual(before);
   expect(prepare.mock.calls.filter(([sql])=>sql.includes("FROM tenx_wallet_transactions"))).toHaveLength(2);
+  expect(prepare.mock.calls.filter(([sql])=>sql.includes("FROM tenx_source_reservations"))).toHaveLength(2);
 });
 it("keeps absent and future cache bodies unknown and never searches for replacement transactions",async()=>{
   const{db,cached}=await setup();await cached(undefined,"2026-10-21T09:02:00.000Z");
@@ -78,4 +80,15 @@ it("keeps legacy accepted activity separate from the fifty-event contract",async
 it("rejects an altered original selection before reading cached transaction bodies",async()=>{
   const{db}=await setup();await db.prepare("UPDATE tenx_source_reservations SET receipt_hash=?1 WHERE id=?2").bind("f".repeat(64),traderId).run();
   const prepare=vi.spyOn(db,"prepare");await expect(gmgnEventSample(db,id,now)).rejects.toThrow("receipt_mismatch");expect(prepare.mock.calls.some(([sql])=>sql.includes("tenx_wallet_transactions"))).toBe(false);
+});
+it("projects no oversized payload into Worker memory, including when two bodies together exceed the bound",async()=>{
+  const second=await acquisitionTrade("buy",72),{db,tx,cached}=await setup(rows=>{rows[1]!.tx_hash=second.transaction.signatures[0]!;rows[1]!.event_type="buy";rows[1]!.token_amount="0.000100";});await cached();await cached(second);
+  const firstPayload=JSON.stringify({...tx,padding:"x".repeat(950_000)}),secondPayload=JSON.stringify({...second,padding:"y".repeat(950_000)});
+  for(const[value,payload]of[[tx,firstPayload],[second,secondPayload]]as const)await db.prepare("UPDATE tenx_wallet_transactions SET payload=?1 WHERE signature=?2").bind(payload,value.transaction.signatures[0]!).run();
+  const prepare=db.prepare.bind(db),returned:{bytes:number;payload:string|null}[]=[];
+  vi.spyOn(db,"prepare").mockImplementation(sql=>{
+    const statement=prepare(sql);if(!sql.includes("FROM tenx_wallet_transactions"))return statement;
+    const first=statement.first.bind(statement);statement.first=(async()=>{const row=await first()as{bytes:number;payload:string|null}|null;if(row)returned.push(row);return row;})as typeof statement.first;return statement;
+  });
+  await expect(gmgnEventSample(db,id,now)).rejects.toThrow("cache_bytes");expect(returned).toHaveLength(2);expect(returned[0]!.payload).not.toBeNull();expect(returned[1]!.payload).toBeNull();expect(returned[0]!.bytes+returned[1]!.bytes).toBeGreaterThan(1_800_000);
 });

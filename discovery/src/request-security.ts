@@ -18,6 +18,13 @@ export function requireAdminBrowser(request: Request) {
   if (site !== null && site !== "same-origin" && site !== "none") throw new RequestSecurityError("admin_cross_site_request", 403);
   // Headerless local CLI/timer calls remain valid with their Bearer token.
 }
+export function requireLocalReadBrowser(request: Request) {
+  const origin=request.headers.get("origin"),site=request.headers.get("sec-fetch-site");
+  if(origin!==null&&!LOCAL_ORIGINS.has(origin))throw new RequestSecurityError("origin_not_allowed",403);
+  // Resource embeds can send GET without Origin. Reject foreign browser work
+  // before any database access, while retaining local CLI and trusted previews.
+  if(site!==null&&!["same-origin","none"].includes(site)&&!(["same-site","cross-site"].includes(site)&&origin!==null&&LOCAL_ORIGINS.has(origin)))throw new RequestSecurityError("local_cross_site_request",403);
+}
 export async function adminJson(request: Request): Promise<unknown> {
   if (request.headers.get("content-type")?.split(";")[0]?.trim().toLowerCase() !== "application/json") throw new RequestSecurityError("json_required", 415);
   const length = request.headers.get("content-length");

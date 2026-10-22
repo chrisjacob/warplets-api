@@ -2,7 +2,7 @@ import { z } from "zod";
 import { GmgnRequestSchema, gmgnCandlePart } from "./gmgn-request";
 import { normalizeGmgn } from "./gmgn-normalize";
 import { reserveSourceFetch, sharedResearchUsage, SOURCE_COLLECTION_LIMITS as L } from "./source-collection-store";
-import { executeReservedSource, readSourceReceipt, type SourceFetcher } from "./source-collection-transport";
+import { executeReservedSource, readSourceReceipt, readSourceReceiptWithRequest, type SourceFetcher } from "./source-collection-transport";
 import { GMGN_USE_AUTHORITY, GmgnPublicSummarySchema } from "./gmgn-model";
 import { Address } from "./model";
 import { GmgnRequest, gmgnDescriptor } from "./gmgn-request";
@@ -121,11 +121,13 @@ export async function runGmgnReview(settings: GmgnSettings, raw: unknown, fetche
 }
 export async function gmgnSavedReview(db: D1Database, id: string, cutoff?: string) {
   GmgnSavedReceiptId.parse(id);
-  const requestRow = await db.prepare("SELECT request FROM tenx_source_reservations WHERE id=?1").bind(id).first<{request:string}>();
-  if (!requestRow) return null;
-  const parsed = GmgnRequestSchema.safeParse(JSON.parse(requestRow.request));
+  // Read the request and its hash-verified receipt together. Pending requests
+  // have no receipt yet and retain their original separate existence check.
+  const saved = await readSourceReceiptWithRequest(db, id);
+  const pending = saved ? null : await db.prepare("SELECT request FROM tenx_source_reservations WHERE id=?1").bind(id).first<{request:string}>();
+  if (!saved&&!pending) return null;
+  const parsed = GmgnRequestSchema.safeParse(saved?saved.request:JSON.parse(pending!.request));
   if (!parsed.success) return null;
-  const saved = await readSourceReceipt(db, id);
   if (!saved) return { state: "pending", provider_requests: 0 };
   const receipt = saved.receipt;
   const traderReplay=parsed.data.kind==="gmgn_token_traders"&&receipt.error===null&&receipt.response!==null?{
@@ -147,9 +149,8 @@ export async function gmgnSavedReview(db: D1Database, id: string, cutoff?: strin
     ...(traderReplay?{trader_replay:traderReplay}:{}),...(activityReplay?{activity_replay:activityReplay}:{}),provider_requests: 0, scoring_effect: "none" };
 }
 async function gmgnTraderSourceRecord(db:D1Database,id:string){
-  const row=await db.prepare("SELECT request FROM tenx_source_reservations WHERE id=?1").bind(id).first<{request:string}>();
-  if(!row)return null;const request=GmgnRequestSchema.parse(JSON.parse(row.request));if(request.kind!=="gmgn_token_traders")return null;
-  const saved=await readSourceReceipt(db,id),receipt=saved?.receipt;if(!receipt||receipt.error!==null||receipt.response===null)return null;
+  const saved=await readSourceReceiptWithRequest(db,id),receipt=saved?.receipt;if(!receipt||receipt.error!==null||receipt.response===null)return null;
+  const request=GmgnRequestSchema.parse(saved.request);if(request.kind!=="gmgn_token_traders")return null;
   return{version:"gmgn-trader-replay-v1",request,receipt,receipt_hash:await hashJson(receipt),report_hash:await hashJson(normalizeGmgn(request,receipt.response,receipt.received_at))};
 }
 export async function gmgnActivityTarget(db:D1Database,id:string,now=new Date()){
