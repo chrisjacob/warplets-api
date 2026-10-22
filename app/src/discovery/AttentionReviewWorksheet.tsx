@@ -71,6 +71,7 @@ export function AttentionReviewWorksheet({context,onClose,onBusyChange}:{context
     </details>
     {selected&&<form aria-label="Personal attention review" onSubmit={event=>{event.preventDefault();void save();}}><fieldset disabled={busy}><legend>{selected.token.symbol??"Unknown token"} · {selected.token.chain}</legend>
       <p className="tenx-address">{selected.token.address}</p><p>Observations saved at {new Date(selected.as_of).toLocaleString()}. This snapshot stays fixed while you write.</p>
+      {selected.trader_review&&<p>Retains GMGN ranked trader sample: {selected.trader_review.sample.returned_rows}/100 returned, saved {new Date(selected.trader_review.received_at).toLocaleString()}. Reporting period and population coverage unknown; this does not verify organic volume or holder growth.</p>}
       <label>My assessment<select value={draft.decision} onChange={e=>set("decision",e.target.value as ReviewLabels["decision"])}><option value="needs_evidence">Needs more evidence</option><option value="follow">Worth following</option><option value="set_aside">Set aside</option></select></label>
       <label>Meme relevance<select value={draft.relevance} onChange={e=>set("relevance",e.target.value as ReviewLabels["relevance"])}><option value="uncertain">Uncertain</option><option value="memecoin">Memecoin</option><option value="not_memecoin">Not a memecoin</option></select></label>
       <label>Current catalyst<textarea rows={2} maxLength={600} value={draft.catalyst} onChange={e=>set("catalyst",e.target.value)}/></label>

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { AttentionQueue, type AttentionQueueResult } from "../../../discovery/src/attention-queue-model";
 import { AttentionCandleReview } from "../../../discovery/src/attention-candle-model";
+import { AttentionTraderReview } from "../../../discovery/src/attention-trader-model";
 import { attentionAddress } from "../../../discovery/src/attention-feed-contract";
 
 export const ATTENTION_REVIEW_KEY="tenx:attention-personal-reviews:v1";
@@ -15,8 +16,11 @@ export const AttentionReviewLabels=z.object({
 export const AttentionReviewContext=z.object({
   as_of:z.iso.datetime(), token:AttentionQueue.shape.rows.element,
   candle_review:AttentionCandleReview.nullable(), history_truncated:z.boolean(), gaps:z.array(z.string().max(100)).max(60),
+  // Optional without a default: archived v1 context hashes must remain stable.
+  trader_review:AttentionTraderReview.optional(),
 }).strict().refine(v=>attentionAddress(v.token.chain,v.token.address)===v.token.address&&
-  v.token.sources.every(s=>Date.parse(s.received_at)<=Date.parse(v.as_of))&&(!v.candle_review||v.candle_review.chain===v.token.chain&&v.candle_review.address===v.token.address&&Date.parse(v.candle_review.received_at)<=Date.parse(v.as_of)),"Review context identity/time mismatch.");
+  v.token.sources.every(s=>Date.parse(s.received_at)<=Date.parse(v.as_of))&&(!v.candle_review||v.candle_review.chain===v.token.chain&&v.candle_review.address===v.token.address&&Date.parse(v.candle_review.received_at)<=Date.parse(v.as_of))&&
+  (!v.trader_review||v.trader_review.chain===v.token.chain&&v.trader_review.address===v.token.address&&Date.parse(v.trader_review.received_at)<=Date.parse(v.as_of)),"Review context identity/time mismatch.");
 const RecordBody=z.object({id:z.uuid(),recorded_at:z.iso.datetime(),review_day:z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   timezone:z.literal("Australia/Sydney"),previous_hash:Hash.nullable(),previous_review_hash:Hash.nullable(),revision:z.number().int().min(1).max(REVIEW_RECORD_LIMIT),
   context:AttentionReviewContext,context_hash:Hash,labels:AttentionReviewLabels}).strict();
@@ -45,7 +49,8 @@ const identity=(context:ReviewContext)=>`${context.token.chain}:${context.token.
 export const reviewHead=(ledger:ReviewLedger)=>ledger.records.at(-1)?.hash??null;
 export function captureAttentionReview(report:AttentionQueueResult,address:string,chain:string):ReviewContext {
   const token=report.rows.find(r=>r.address===address&&r.chain===chain);if(!token)throw Error("review_subject_missing");
-  return AttentionReviewContext.parse(structuredClone({as_of:report.as_of,token,candle_review:report.candle_reviews.find(c=>c.address===address&&c.chain===chain)??null,history_truncated:report.history_truncated,gaps:report.gaps}));
+  const trader=report.trader_reviews.find(t=>t.address===address&&t.chain===chain);
+  return AttentionReviewContext.parse(structuredClone({as_of:report.as_of,token,candle_review:report.candle_reviews.find(c=>c.address===address&&c.chain===chain)??null,...(trader?{trader_review:trader}:{}),history_truncated:report.history_truncated,gaps:report.gaps}));
 }
 export async function parseAttentionReviews(raw:string|null):Promise<ReviewLedger> {
   if(raw===null)return{version:"attention-personal-reviews-v1",records:[]};

@@ -68,6 +68,6 @@ it("caps candle replay separately while preserving attention and market observat
  const{db,sqlite,settings}=await setup();await collectAttentionCandles(settings,{reason:"Synthetic bounded replay"},async()=>Response.json({code:0,data:rows()}),()=>at);
  const seed=sqlite.prepare("SELECT * FROM tenx_source_reservations WHERE id=?").get(id)!;
  for(let n=0;n<10;n++)sqlite.prepare(`INSERT INTO tenx_source_reservations (${Object.keys(seed).join(",")}) VALUES (${Object.keys(seed).map(()=>"?").join(",")})`).run(...Object.values({...seed,id:`attention-candles-20261022${String(n).padStart(2,"0")}`,owner:`synthetic-candle-owner-${n}`,reserved_at:new Date(at.getTime()-n).toISOString()}) as (string|number|null)[]);
- const reader=vi.spyOn(db,"prepare"),queue=await readAttentionQueue(db,at);expect(queue.candle_reviews).toHaveLength(8);expect(queue.snapshot_count).toBe(2);expect(queue.rows).toHaveLength(1);expect(queue.history_truncated).toBe(true);expect(reader).toHaveBeenCalledTimes(11);
- reader.mockClear();const focused=await readAttentionQueue(db,at,"review");expect(focused.candle_reviews).toHaveLength(4);expect(focused.history_truncated).toBe(true);expect(reader).toHaveBeenCalledTimes(7);
+ const reader=vi.spyOn(db,"prepare"),queue=await readAttentionQueue(db,at);expect(queue.candle_reviews).toHaveLength(6);expect(queue.snapshot_count).toBe(2);expect(queue.rows).toHaveLength(1);expect(queue.history_truncated).toBe(true);expect(reader).toHaveBeenCalledTimes(9);
+ reader.mockClear();const focused=await readAttentionQueue(db,at,"review");expect(focused.candle_reviews).toHaveLength(3);expect(focused.history_truncated).toBe(true);expect(reader).toHaveBeenCalledTimes(6);
 });

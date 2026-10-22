@@ -7,21 +7,22 @@ export function attentionOperatorRequest(args) {
   if(args.length===1&&args[0]==="read")return{path:"discovery/attention",method:"GET"};
   if(args.length===1&&args[0]==="review")return{path:"admin/discovery/attention/review",method:"POST",body:{reason:"Founder authorized focused hourly attention market review"}};
   if(args.length===1&&args[0]==="candles")return{path:"admin/discovery/attention/candles",method:"POST",body:{reason:"Founder authorized focused hourly attention candle review"}};
+  if(args.length===1&&args[0]==="traders")return{path:"admin/discovery/attention/traders",method:"POST",body:{reason:"Founder authorized focused hourly attention trader review"}};
   if(args.length===2&&args[0]==="collect"&&["gmgn","geckoterminal"].includes(args[1]))return{path:"admin/discovery/attention/collect",method:"POST",body:{source:args[1],reason:"Founder authorized hourly provider-attention collection"}};
   if(args[0]==="crosscheck"&&["solana","base","bsc","robinhood"].includes(args[1])&&args.length>=3&&args.length<=32){
     const chain=args[1],addresses=args.slice(2),valid=chain==="solana"?/^[1-9A-HJ-NP-Za-km-z]{32,44}$/:/^0x[0-9a-fA-F]{40}$/;
     if(addresses.some(a=>!valid.test(a))||new Set(addresses.map(a=>chain==="solana"?a:a.toLowerCase())).size!==addresses.length)throw Error("Provide distinct contracts for the selected chain");
     return{path:"admin/discovery/shortlist-query",method:"POST",body:{request_id:randomUUID(),reason:"Founder authorized bounded attention market cross-check",request:{kind:"attention_dex_crosscheck",chain,addresses}}};
   }
-  throw Error("Use read | review | candles | collect gmgn|geckoterminal | crosscheck CHAIN ADDRESS [ADDRESS...]");
+  throw Error("Use read | review | candles | traders | collect gmgn|geckoterminal | crosscheck CHAIN ADDRESS [ADDRESS...]");
 }
 // Local timer only. Admission, hourly deduplication and failure backoff remain
 // server-side; never sleep/retry a provider or invent an additional allowance.
 export async function collectAttentionOnTick(base, token, signal, fetcher=fetch) {
   if(base!=="http://127.0.0.1:8794")throw Error("attention_tick_local_only");
   const results=[];
-  for(const source of ["gmgn","geckoterminal","review","candles"]){
-    const followup=source==="review"||source==="candles";
+  for(const source of ["gmgn","geckoterminal","review","candles","traders"]){
+    const followup=source==="review"||source==="candles"||source==="traders";
     const response=await fetcher(`${base}/api/10x/admin/discovery/attention/${followup?source:"collect"}`,{method:"POST",headers:{authorization:`Bearer ${token}`,"content-type":"application/json"},body:JSON.stringify({...(followup?{}:{source}),reason:"Local hourly attention collection and focused trading review before market refresh"}),signal,redirect:"manual"});
     if(!response.ok){await response.body?.cancel();results.push({source,state:"held",http_status:response.status});continue;}
     const result=await response.json();results.push({source,state:result.state,provider_requests:result.provider_requests,reason:result.reason});

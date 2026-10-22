@@ -1,6 +1,7 @@
 import {expect,it,vi} from "vitest";
 import {renderToStaticMarkup} from "react-dom/server";
-import {AttentionCandleDetails,AttentionQueuePanel,AttentionQueueValues} from "./AttentionQueue";
+import {AttentionCandleDetails,AttentionTraderDetails,AttentionQueuePanel,AttentionQueueValues} from "./AttentionQueue";
+import {normalizeAttentionTraders} from "../../../discovery/src/attention-traders";
 import {normalizeAttentionCandles} from "../../../discovery/src/attention-candles";
 import {buildAttentionQueue} from "../../../discovery/src/attention-queue";
 import {normalizeAttention} from "../../../discovery/src/attention-feed-contract";
@@ -25,4 +26,12 @@ it("distinguishes absent, unsupported, incomplete, stale and warning-bearing can
  const request={kind:"gmgn_token_candles",address:"So11111111111111111111111111111111111111112",start_at:new Date(at.getTime()-3600000).toISOString(),end_at:at.toISOString()},review=normalizeAttentionCandles("attention-candles-2026102214",request,{code:0,data:[{time:at.getTime()-60000,open:1,high:2,low:1,close:2,volume:0,amount:0}]},at.toISOString());
  const html=renderToStaticMarkup(<AttentionCandleDetails chain="solana" review={review} asOf={at.toISOString()}/>);for(const text of["1/60 minutes","incomplete","price moves with both flow fields zero","Volume units: unverified","do not establish wash trading"])expect(html).toContain(text);
  expect(renderToStaticMarkup(<AttentionCandleDetails chain="solana" review={review} asOf={new Date(at.getTime()+7200001).toISOString()}/>)).toContain("stale");
+});
+it("labels ranked participation, period, missingness and concentration without certifying organic flow",()=>{
+ expect(renderToStaticMarkup(<AttentionTraderDetails chain="base" review={undefined} asOf={at.toISOString()}/>)).toContain("not connected for this chain");
+ expect(renderToStaticMarkup(<AttentionTraderDetails chain="solana" review={undefined} asOf={at.toISOString()}/>)).toContain("review pending");
+ const mint="So11111111111111111111111111111111111111112",review=normalizeAttentionTraders("attention-traders-2026102214",{kind:"gmgn_token_traders",address:mint},{code:0,data:{list:[{address:mint,addr_type:0,buy_volume_cur:10}]}},at.toISOString());
+ const html=renderToStaticMarkup(<AttentionTraderDetails chain="solana" review={review} asOf={at.toISOString()}/>);
+ for(const text of["1/100 returned","ranked sample saved","Reporting period and population coverage unknown","0 wallet rows with both flow fields","1 missing one or both","Sample buy flow Unknown","largest wallet Unknown","not 24h or organic volume, holder counts or growth","does not establish wash trading"])expect(html).toContain(text);
+ expect(renderToStaticMarkup(<AttentionTraderDetails chain="solana" review={review} asOf={new Date(at.getTime()+7200001).toISOString()}/>)).toContain("stale");
 });

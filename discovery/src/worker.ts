@@ -59,7 +59,7 @@ import { sourcePilotReadiness } from "./source-pilot-readiness";
 import { gmgnPublicSummary, gmgnCandleWindow, gmgnSavedReview, gmgnStatus, runGmgnReview, runGmgnPilot, gmgnPilotHasCapacity,gmgnActivityTarget } from "./gmgn";
 import { GMGN_USE_AUTHORITY } from "./gmgn-model";
 import { runShortlistQuery } from "./shortlist-query";
-import { collectAttention, readAttentionQueue, reviewAttention, collectAttentionCandles } from "./attention-queue";
+import { collectAttention, readAttentionQueue, reviewAttention, collectAttentionCandles, collectAttentionTraders } from "./attention-queue";
 
 import { researchMode } from "./research-limits";
 import { holderHistory } from "./holder-history-store";
@@ -393,6 +393,7 @@ export async function handle(request: Request, env: Env): Promise<Response> {
     if(path==="/api/10x/admin/discovery/attention/collect")return json(await collectAttention(gmgnSettings(env),body,attentionFetcher(env)));
     if(path==="/api/10x/admin/discovery/attention/review")return json(await reviewAttention(gmgnSettings(env),body,attentionFetcher(env)));
     if(path==="/api/10x/admin/discovery/attention/candles")return json(await collectAttentionCandles(gmgnSettings(env),body,gmgnFetcher(env)));
+    if(path==="/api/10x/admin/discovery/attention/traders")return json(await collectAttentionTraders(gmgnSettings(env),body,gmgnFetcher(env)));
     if(path==="/api/10x/admin/score-read-model"){
       z.object({reason:z.string().min(3).max(300)}).strict().parse(body);
       return json(await buildScoreReadModel(env.TENX_DB));
