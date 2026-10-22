@@ -7,6 +7,7 @@ import net from "node:net";
 import { startRelay } from "./discovery-relay.mjs";
 import { discoveryLifecycle } from "./discovery-lifecycle.mjs";
 import { localMigrationsCurrent } from "./discovery-migration-state.mjs";
+import { collectAttentionOnTick } from "./discovery-attention.mjs";
 
 const dir = fileURLToPath(new URL("../discovery/", import.meta.url));
 const base = "http://127.0.0.1:8794";
@@ -68,6 +69,7 @@ async function tick() {
     });
     if (!maintenance.ok) console.warn("Discovery maintenance HTTP", maintenance.status);
     await maintenance.body?.cancel();
+    console.log("Attention cycle:", JSON.stringify(await collectAttentionOnTick(base, token, lifecycle.signal(45000))));
     const market = await fetch(`${base}/api/10x/admin/market-refresh`, {
       method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
       body: JSON.stringify({ reason: "Local batched chart and image refresh" }), signal: lifecycle.signal(60000), redirect: "manual",

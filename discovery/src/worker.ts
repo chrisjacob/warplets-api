@@ -59,6 +59,7 @@ import { sourcePilotReadiness } from "./source-pilot-readiness";
 import { gmgnPublicSummary, gmgnCandleWindow, gmgnSavedReview, gmgnStatus, runGmgnReview, runGmgnPilot, gmgnPilotHasCapacity,gmgnActivityTarget } from "./gmgn";
 import { GMGN_USE_AUTHORITY } from "./gmgn-model";
 import { runShortlistQuery } from "./shortlist-query";
+import { collectAttention, readAttentionQueue } from "./attention-queue";
 
 import { researchMode } from "./research-limits";
 import { holderHistory } from "./holder-history-store";
@@ -89,9 +90,20 @@ function gmgnFetcher(env: Env) {
     if (env.TENX_NODE_RELAY !== "true") return fetch(url, init);
     const target = new URL(url);
     if (target.origin !== "https://openapi.gmgn.ai") throw new Error("gmgn_relay_target_not_allowed");
-    return fetch(`http://127.0.0.1:8795/gmgn${target.pathname}${target.search}`, { method: "GET",
-      headers: { "x-tenx-local-relay": env.TENX_ADMIN_TOKEN, "x-tenx-gmgn-key": new Headers(init.headers).get("X-APIKEY") ?? "" },
+    return fetch(`http://127.0.0.1:8795/gmgn${target.pathname}${target.search}`, { method: init.method ?? "GET", ...(init.body ? {body:init.body}:{}),
+      headers: { "x-tenx-local-relay": env.TENX_ADMIN_TOKEN, "x-tenx-gmgn-key": new Headers(init.headers).get("X-APIKEY") ?? "", ...(init.body ? {"content-type":"application/json"}:{}) },
       signal: init.signal, redirect: "manual", credentials: "omit" });
+  };
+}
+function attentionFetcher(env: Env) {
+  return async (url: string, init: RequestInit) => {
+    const target=new URL(url);
+    if(target.origin==="https://openapi.gmgn.ai")return gmgnFetcher(env)(url,init);
+    if(env.TENX_NODE_RELAY!=="true")return fetch(url,init);
+    const path=target.origin==="https://api.geckoterminal.com" ? `/market/trending/global/${target.searchParams.get("duration")}/${target.searchParams.get("page")}`
+      : target.origin==="https://api.dexscreener.com" ? `/dex/attention/${target.pathname.split("/")[3]}/${target.pathname.split("/")[4]}` : null;
+    if(!path)throw Error("attention_relay_target_not_allowed");
+    return fetch(`http://127.0.0.1:8795${path}`,{...init,headers:{"x-tenx-local-relay":env.TENX_ADMIN_TOKEN},redirect:"manual",credentials:"omit"});
   };
 }
 function settings(env: Env) {
@@ -215,6 +227,7 @@ export async function handle(request: Request, env: Env): Promise<Response> {
   if (method === "GET" && path === "/api/10x/system/operations") return json(await envelope(env,await operations(settings(env))));
   if (method === "GET" && path === "/api/10x/discovery/coverage") return json(await envelope(env, discoveryCoverage(await candidates(env.TENX_DB), DEFAULT_POLICY, new Date())));
   if (method === "GET" && path === "/api/10x/discovery/yield") return json(await discoveryYield(env.TENX_DB));
+  if (method === "GET" && path === "/api/10x/discovery/attention") return json(await readAttentionQueue(env.TENX_DB));
   if (method === "GET" && path === "/api/10x/discovery/rotation-coverage") return json(await envelope(env, await rotationCoverage(env.TENX_DB)));
   if (method === "GET" && path === "/api/10x/discovery/wallet-plan") return json(await envelope(env,await walletPlans(env.TENX_DB)));
   if (method === "GET" && path === "/api/10x/discovery/inbox-recovery") return json(await envelope(env,await inboxRecoveryStatus(env.TENX_DB)));
@@ -377,6 +390,7 @@ export async function handle(request: Request, env: Env): Promise<Response> {
     if(path==="/api/10x/admin/launches/lab")return json({record:await createLaunch(env.TENX_DB,body),replay:"verified"});
     if(path==="/api/10x/admin/launches/recovery-lab")return json({record:await createRecovery(env.TENX_DB,body),replay:"verified"});
     const reason = z.object({ reason: z.string().min(3).max(300) }).passthrough().parse(body).reason;
+    if(path==="/api/10x/admin/discovery/attention/collect")return json(await collectAttention(gmgnSettings(env),body,attentionFetcher(env)));
     if(path==="/api/10x/admin/score-read-model"){
       z.object({reason:z.string().min(3).max(300)}).strict().parse(body);
       return json(await buildScoreReadModel(env.TENX_DB));
@@ -388,6 +402,7 @@ export async function handle(request: Request, env: Env): Promise<Response> {
     if (path === "/api/10x/admin/gmgn/review") return json(await runGmgnReview(gmgnSettings(env), body, gmgnFetcher(env)));
     if (path === "/api/10x/admin/discovery/shortlist-query") return json(await runShortlistQuery(gmgnSettings(env), body, async (url, init) => {
       const target = new URL(url);
+      if(target.pathname==="/v1/market/hot_searches"||target.pathname==="/api/v2/networks/trending_pools"||/^\/tokens\/v1\/(base|bsc|robinhood)\//.test(target.pathname))return attentionFetcher(env)(url,init);
       if (target.origin === "https://openapi.gmgn.ai") return gmgnFetcher(env)(url, init);
       if (env.TENX_NODE_RELAY === "true" && target.origin === "https://api.dexscreener.com") return fetch(`http://127.0.0.1:8795/dex/tokens/${target.pathname.split("/").at(-1)}`, {
         ...init, headers: { "x-tenx-local-relay": env.TENX_ADMIN_TOKEN }, redirect: "manual", credentials: "omit" });

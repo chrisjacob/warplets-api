@@ -2,6 +2,25 @@ import { request as httpsRequest } from "node:https";
 import { Readable } from "node:stream";
 
 const paths = new Set(["/v1/token/info", "/v1/token/security", "/v1/token/pool_info", "/v1/market/token_kline", "/v1/market/token_top_traders", "/v1/user/wallet_activity", "/v1/market/rank"]);
+const hotPath = "/v1/market/hot_searches";
+export function gmgnHotSearchTarget(input, body, now = Date.now()) {
+  const url = new URL(input.slice("/gmgn".length), "https://openapi.gmgn.ai");
+  if (!input.startsWith("/gmgn/v1/") || url.origin !== "https://openapi.gmgn.ai" || url.pathname !== hotPath ||
+    [...url.searchParams.keys()].length !== 2 || ["timestamp", "client_id"].some(k => url.searchParams.getAll(k).length !== 1) ||
+    !/^\d{10}$/.test(url.searchParams.get("timestamp") ?? "") || Math.abs(Number(url.searchParams.get("timestamp")) * 1000 - now) > 10000 ||
+    !/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(url.searchParams.get("client_id") ?? "") || typeof body !== "string" || Buffer.byteLength(body) > 16000) return null;
+  let parsed; try { parsed = JSON.parse(body); } catch { return null; }
+  if (!parsed || Object.keys(parsed).join() !== "params" || !Array.isArray(parsed.params) || parsed.params.length < 1 || parsed.params.length > 8) return null;
+  const seen = new Set();
+  for (const p of parsed.params) {
+    if (!p || typeof p !== "object" || Array.isArray(p) || Object.keys(p).sort().join() !== "chain,filters,interval,label,limit,min_liquidity" ||
+      p.label !== "hot-search" || !["sol", "base", "bsc", "robinhood"].includes(p.chain) || !["1h", "24h"].includes(p.interval) ||
+      !Number.isInteger(p.limit) || p.limit < 1 || p.limit > 30 || typeof p.min_liquidity !== "number" || !Number.isFinite(p.min_liquidity) || p.min_liquidity < 0 || p.min_liquidity > 1000000 ||
+      JSON.stringify(p.filters) !== JSON.stringify(p.chain === "sol" ? ["renounced", "frozen"] : ["not_honeypot", "verified", "renounced"]) || seen.has(`${p.chain}:${p.interval}`)) return null;
+    seen.add(`${p.chain}:${p.interval}`);
+  }
+  return url.href;
+}
 export function gmgnRelayTarget(input, now = Date.now()) {
   if (!input.startsWith("/gmgn/v1/")) return null;
   const url = new URL(input.slice("/gmgn".length), "https://openapi.gmgn.ai");
@@ -44,9 +63,10 @@ export function gmgnRelayTarget(input, now = Date.now()) {
 }
 export function gmgnIpv4Fetch(url, init, request = httpsRequest) {
   const target = new URL(url);
-  if (target.origin !== "https://openapi.gmgn.ai" || !paths.has(target.pathname) || target.username || target.password || init.method && init.method !== "GET") throw new Error("gmgn_relay_target_not_allowed");
+  const hot = target.pathname === hotPath && init.method === "POST" && gmgnHotSearchTarget(`/gmgn${target.pathname}${target.search}`, init.body) === target.href;
+  if (target.origin !== "https://openapi.gmgn.ai" || target.username || target.password || !hot && (!paths.has(target.pathname) || init.method && init.method !== "GET")) throw new Error("gmgn_relay_target_not_allowed");
   return new Promise((resolve, reject) => {
-    const outgoing = request(target, { method: "GET", family: 4, headers: init.headers, signal: init.signal }, incoming => {
+    const outgoing = request(target, { method: hot ? "POST" : "GET", family: 4, headers: init.headers, signal: init.signal }, incoming => {
       const headers = new Headers();
       for (const name of ["content-type", "content-length", "retry-after", "x-ratelimit-reset", "x-ratelimit-remaining", "x-ratelimit-limit"]) {
         const value = incoming.headers[name]; if (typeof value === "string") headers.set(name, value);
@@ -55,6 +75,6 @@ export function gmgnIpv4Fetch(url, init, request = httpsRequest) {
       if ([204, 205, 304].includes(status)) { incoming.resume(); resolve(new Response(null, { status, headers })); }
       else resolve(new Response(Readable.toWeb(incoming), { status, headers }));
     });
-    outgoing.on("error", reject); outgoing.end();
+    outgoing.on("error", reject); outgoing.end(hot ? init.body : undefined);
   });
 }

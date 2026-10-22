@@ -2,10 +2,18 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { Readable } from "node:stream";
 import { EventEmitter } from "node:events";
-import { gmgnIpv4Fetch, gmgnRelayTarget } from "./discovery-gmgn-relay.mjs";
+import { gmgnIpv4Fetch, gmgnRelayTarget, gmgnHotSearchTarget } from "./discovery-gmgn-relay.mjs";
 import { startRelay } from "./discovery-relay.mjs";
 const address = "So11111111111111111111111111111111111111112";
 const query = now => `chain=sol&address=${address}&timestamp=${Math.floor(now / 1000)}&client_id=00000000-0000-4000-8000-000000000001`;
+test("Hot Searches permits only bounded read-only multi-chain POST bodies and fixed source filters",async()=>{
+ const now=Date.now(),route=`/gmgn/v1/market/hot_searches?timestamp=${Math.floor(now/1000)}&client_id=00000000-0000-4000-8000-000000000001`,param={label:"hot-search",chain:"base",interval:"24h",limit:20,min_liquidity:10000,filters:["not_honeypot","verified","renounced"]},body=JSON.stringify({params:[param]});
+ assert.ok(gmgnHotSearchTarget(route,body,now));
+ for(const input of[JSON.stringify({params:[{...param,url:"https://evil.test"}]}),JSON.stringify({params:[{...param,limit:500}]}),JSON.stringify({params:[param,param]}),JSON.stringify({params:[{...param,filters:["frozen"]}]}),"x".repeat(16001)])assert.equal(gmgnHotSearchTarget(route,input,now),null);
+ assert.equal(gmgnHotSearchTarget(route.replace("market/hot_searches","trade/swap"),body,now),null);
+ const token="local-hot-search-".repeat(4),calls=[],server=await startRelay({token,rpcUrl:"https://api.mainnet-beta.solana.com",port:0,gmgnTransport:async(url,init)=>{calls.push({url,init});return Response.json({code:0,data:[]});}});
+ try{const origin=`http://127.0.0.1:${server.address().port}`,options={method:"POST",headers:{"x-tenx-local-relay":token,"x-tenx-gmgn-key":"synthetic-provider-key","content-type":"application/json"},body};assert.equal((await fetch(origin+route,options)).status,200);assert.equal(calls[0].init.method,"POST");assert.equal(calls[0].init.body,body);assert.equal(calls[0].init.headers["x-tenx-local-relay"],undefined);assert.equal((await fetch(origin+route,{...options,body:"x".repeat(16001)})).status,413);assert.equal(calls.length,1);}finally{await new Promise(resolve=>server.close(resolve));}
+});
 
 test("GMGN bridge accepts only fixed exact-mint Solana reads and bounded closed minute windows", () => {
   const now = Date.parse("2026-10-21T01:00:22.000Z"), base = `/gmgn/v1/token/info?${query(now)}`;

@@ -1,6 +1,6 @@
 import { createServer } from "node:http";
 import { timingSafeEqual } from "node:crypto";
-import { gmgnIpv4Fetch, gmgnRelayTarget } from "./discovery-gmgn-relay.mjs";
+import { gmgnIpv4Fetch, gmgnRelayTarget, gmgnHotSearchTarget } from "./discovery-gmgn-relay.mjs";
 
 const methods = new Set(["getGenesisHash", "getSlot", "getBlockTime", "getSignaturesForAddress", "getTransaction", "getMultipleAccounts", "getProgramAccounts"]);
 export async function startRelay({ token, rpcUrl, port = 8795, transport = fetch, gmgnTransport = gmgnIpv4Fetch }) {
@@ -25,12 +25,27 @@ export async function startRelay({ token, rpcUrl, port = 8795, transport = fetch
           if (!["TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA", "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"].includes(program) || config?.commitment !== "finalized" || config?.withContext !== true || config?.encoding !== "base64" || config?.dataSlice?.offset !== 0 || config?.dataSlice?.length !== 166 || config?.filters?.length !== 1 || config?.filters[0]?.memcmp?.offset !== 0 || !/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(config?.filters[0]?.memcmp?.bytes ?? "")) { response.writeHead(400); response.end(); return; }
         }
         target = rpc.href; init = { method: "POST", headers: { "content-type": "application/json" }, body };
-      } else if (request.method === "GET" && request.url?.startsWith("/gmgn/")) {
+      } else if ((request.method === "GET" || request.method === "POST" && request.url?.startsWith("/gmgn/v1/market/hot_searches?")) && request.url?.startsWith("/gmgn/")) {
         const key = request.headers["x-tenx-gmgn-key"];
-        target = gmgnRelayTarget(request.url);
+        let body;
+        if (request.method === "POST") {
+          const chunks = []; let size = 0;
+          for await (const chunk of request) { size += chunk.length; if (size > 16000) { response.writeHead(413); response.end(); return; } chunks.push(chunk); }
+          body = Buffer.concat(chunks).toString("utf8");
+        }
+        target = request.method === "POST" ? gmgnHotSearchTarget(request.url, body) : gmgnRelayTarget(request.url);
         if (!target || typeof key !== "string" || !/^[\x21-\x7e]{8,512}$/.test(key)) { response.writeHead(400); response.end(); return; }
         gmgn = true; limit = 1_000_000;
-        init = { method: "GET", headers: { accept: "application/json", "X-APIKEY": key } };
+        init = { method: request.method, ...(body !== undefined ? { body } : {}), headers: { accept: "application/json", ...(body !== undefined ? { "content-type": "application/json" } : {}), "X-APIKEY": key } };
+      } else if (request.method === "GET" && /^\/market\/trending\/global\/(1h|6h|24h)\/[12]$/.test(request.url ?? "")) {
+        const parts = request.url.split("/");
+        target = `https://api.geckoterminal.com/api/v2/networks/trending_pools?duration=${parts[4]}&page=${parts[5]}&include=base_token,network`;
+        init = { headers: { accept: "application/json" } }; limit = 1_000_000;
+      } else if (request.method === "GET" && /^\/dex\/attention\/(solana|base|bsc|robinhood)\/[^/?]+$/.test(request.url ?? "")) {
+        const parts = request.url.split("/"), chain = parts[3], addresses = parts[4].split(","), valid = chain === "solana" ? /^[1-9A-HJ-NP-Za-km-z]{32,44}$/ : /^0x[0-9a-f]{40}$/;
+        if (addresses.length > 30 || addresses.some(a => !valid.test(a))) { response.writeHead(400); response.end(); return; }
+        target = `https://api.dexscreener.com/tokens/v1/${chain}/${addresses.join(",")}`;
+        init = { headers: { accept: "application/json" } }; limit = 1_000_000;
       } else if (request.method === "GET" && /^\/market\/trending\/(1h|6h|24h)\/[12]$/.test(request.url ?? "")) {
         const parts = request.url.split("/");
         target = `https://api.geckoterminal.com/api/v2/networks/solana/trending_pools?duration=${parts[3]}&page=${parts[4]}&include=base_token`;

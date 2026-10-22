@@ -1,0 +1,10 @@
+.tenx-attention-controls{display:flex;flex-wrap:wrap;gap:1rem;margin:1rem 0;align-items:center}
+.tenx-attention-controls label{display:flex;gap:.5rem;align-items:center}
+.tenx-attention-controls select{background:#191d1a;border:1px solid #3c4e41;border-radius:6px;padding:.5rem;color:#e2ede6;font:inherit}
+.tenx-attention-controls input{accent-color:#00ff00}
+.tenx-attention-table{min-width:640px;width:100%;table-layout:fixed}
+.tenx-attention-table th:first-child{width:31%}.tenx-attention-table th:nth-child(2){width:26%}.tenx-attention-table th:nth-child(3){width:22%}
+.tenx-attention-table td{vertical-align:top;overflow-wrap:anywhere}
+.tenx-attention-table td p{margin:.3rem 0}
+.tenx-attention-token{display:flex;align-items:center;gap:.75rem}
+.tenx-attention-token .tenx-artwork-frame{width:56px!important;height:56px!important;flex-shrink:0}

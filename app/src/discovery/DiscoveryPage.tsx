@@ -10,6 +10,7 @@ import { navigateDiscovery } from "./navigation";
 import {discoveryReturnTo,tokenInspectHref,tokenDiscoveryReturn} from "./discovery-return";
 import {DiscoveryReturnLink} from "./DiscoveryReturnLink";
 import {DiscoveryYieldPanel} from "./DiscoveryYield";
+import {AttentionQueuePanel} from "./AttentionQueue";
 import { DiscoveryNav } from "./DiscoveryNav";
 import { CollectionDetails, isCollectionAnchor } from "./CollectionDetails";
 import { EvidenceDisclosure } from "./EvidenceDisclosure";
@@ -137,6 +138,7 @@ function Discover() {
   const artwork = useTokenArtwork(mode === "live" ? [...(data?.data.candidates.map(c => c.address)??[]),...(savedOpen?shortlist.state.entries.map(entry=>entry.address):[])] : []);
   return <>
     <header className="tenx-heading tenx-heading--discover"><h1>Discover memecoins.</h1><p>V4 ranks structural support in our saved sample. Qualified organic volume and holder growth are not yet ranked; missing evidence is not a pass.</p></header>
+    {mode==="live"&&<AttentionQueuePanel/>}
     <DiscoveryWorkspaceControls key={[view.q,view.min_liquidity,view.min_coverage].join(":")} view={view} onChange={setView}><div className="tenx-browse-tools"><details className="tenx-paging-disclosure"><summary>Page {paging.state.index+1} · paging & refresh</summary><DiscoveryPagination state={paging.state} onNext={()=>void paging.next()} onPrevious={paging.previous} onRefresh={()=>void paging.refresh()}/></details><nav aria-label="Discovery workspace links"><a href="#saved-tokens">Saved ({shortlist.state.entries.length})</a><a href="#compare-tokens">Compare ({view.compare.length}/3)</a></nav></div></DiscoveryWorkspaceControls>
     {mode === "fixture" && <aside className="tenx-notice">SIMULATION — synthetic examples, not live tokens or verified market data. <button className="tenx-button tenx-button--quiet" onClick={() => setMode("live")}>Return to live observations</button></aside>}
     {error && <p className="tenx-notice" role="alert">{error} {data ? "The last response remains visible." : "Start the local discovery service to load data."}</p>}

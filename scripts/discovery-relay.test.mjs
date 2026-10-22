@@ -54,6 +54,14 @@ test("trending list relay fixes host, pagination and duration and requires local
     assert.equal(calls.length, 1);
   } finally { await new Promise(resolve => server.close(resolve)); }
 });
+test("global trending and cross-chain market reads stay on fixed hosts and validate contract format",async()=>{
+ const token="global-attention-".repeat(4),calls=[],server=await startRelay({token,rpcUrl:"https://api.mainnet-beta.solana.com",port:0,transport:async(url)=>{calls.push(url);return Response.json({data:[]});}});
+ const base=`http://127.0.0.1:${server.address().port}`,headers={"x-tenx-local-relay":token};
+ try{assert.equal((await fetch(base+"/market/trending/global/24h/1",{headers})).status,200);assert.equal(calls[0],"https://api.geckoterminal.com/api/v2/networks/trending_pools?duration=24h&page=1&include=base_token,network");
+ const mint="0x0000000000000000000000000000000000001234";assert.equal((await fetch(base+`/dex/attention/base/${mint}`,{headers})).status,200);assert.equal(calls[1],`https://api.dexscreener.com/tokens/v1/base/${mint}`);
+ assert.equal((await fetch(base+"/dex/attention/base/So11111111111111111111111111111111111111112",{headers})).status,400);assert.equal((await fetch(base+"/market/trending/global/24h/1?url=https://evil.test",{headers})).status,404);assert.equal(calls.length,2);
+ }finally{await new Promise(resolve=>server.close(resolve));}
+});
 test("RPC starts are spaced across concurrent requests and a provider 429 is shared",async()=>{
   const token="test-shared-rate-".repeat(4),starts=[];let limited=false;
   const server=await startRelay({token,rpcUrl:"https://api.mainnet-beta.solana.com",port:0,transport:async()=>{starts.push(Date.now());return limited?new Response(null,{status:429,headers:{"retry-after":"1200"}}):Response.json({result:"ok"})}});

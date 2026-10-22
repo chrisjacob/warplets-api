@@ -4,9 +4,11 @@ import { SourcePilotRequestSchema } from "./source-pilot-model";
 import { sourcePilotPlan } from "./source-pilot";
 import { GmgnRequestSchema, gmgnDescriptor } from "./gmgn-request";
 import { ShortlistQueryRequest, shortlistDescriptor } from "./shortlist-query-contract";
+import { AttentionRequest, attentionDescriptor, isAttentionRequest } from "./attention-feed-contract";
 
 // One descriptor is exactly ONE HTTP request. Pool metadata is separately charged.
 export const SourceFetchRequestSchema = z.union([
+  AttentionRequest,
   ShortlistQueryRequest,
   GmgnRequestSchema,
   SourcePilotRequestSchema,
@@ -16,6 +18,7 @@ export const SourceFetchRequestSchema = z.union([
 export type SourceFetchRequest = z.infer<typeof SourceFetchRequestSchema>;
 export function sourceFetchDescriptor(raw: unknown, now: Date) {
   const request = SourceFetchRequestSchema.parse(raw);
+  if (isAttentionRequest(request)) return attentionDescriptor(request);
   if (request.kind === "gmgn_market_rank" || request.kind === "geckoterminal_trending_list" || request.kind === "dexscreener_token_crosscheck") return shortlistDescriptor(request);
   if (request.kind === "gmgn_token_info" || request.kind === "gmgn_token_security" || request.kind === "gmgn_token_pool" || request.kind === "gmgn_token_candles" || request.kind === "gmgn_token_traders" || request.kind === "gmgn_wallet_activity") return gmgnDescriptor(request, now);
   if (request.kind === "geckoterminal_pool_candles" && Date.parse(request.end_at) > Math.floor(now.getTime() / 60_000) * 60_000)

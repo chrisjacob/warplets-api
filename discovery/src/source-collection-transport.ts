@@ -9,6 +9,7 @@ import { GMGN_USE_AUTHORITY } from "./gmgn-model";
 import { GmgnCandleError } from "./gmgn-candles";
 import {GmgnActivityError} from "./gmgn-wallet-activity";
 import { normalizeShortlist } from "./shortlist-query-contract";
+import { isAttentionRequest, normalizeAttention } from "./attention-feed-contract";
 
 const owned = `id=?1 AND owner=?2 AND request_hash=?3 AND reserved_at<=?4 AND lease_until>?4 AND day=substr(?4,1,10)
   AND EXISTS(SELECT 1 FROM tenx_control WHERE id=1 AND paused=0)`;
@@ -55,7 +56,7 @@ export async function executeReservedSource(db: D1Database, reservation: SourceR
   let validationFailure: GmgnCandleError["reason"] | GmgnActivityError["reason"] | null = null;
   let activityValidationFields:string[]=[];
   const shortlistDiagnostics: { value: { stage: string; data_array?: boolean; rank_array?: boolean; list_array?: boolean; application_success?: boolean; rank_rows?: number; failure_kind?: string; data_fields?: string[]; root_fields?: string[] } | null } = { value: null };
-  const shortlist = row ? ["gmgn_market_rank", "geckoterminal_trending_list", "dexscreener_token_crosscheck"].includes(JSON.parse(row.request).kind) : false;
+  const shortlist = row ? ["gmgn_market_rank", "geckoterminal_trending_list", "dexscreener_token_crosscheck"].includes(JSON.parse(row.request).kind) || isAttentionRequest(JSON.parse(row.request)) : false;
   const gmgnBackoff: { until: string | null } = { until: null };
   const controller = new AbortController();
   let timeout: ReturnType<typeof setTimeout> | undefined;
@@ -79,7 +80,7 @@ export async function executeReservedSource(db: D1Database, reservation: SourceR
         url.searchParams.set("client_id", crypto.randomUUID());
       }
       requests = 1;
-      response = await fetcher(url.href, { method: "GET", headers: requestHeaders, redirect: "manual", credentials: "omit", signal: controller.signal });
+      response = await fetcher(url.href, { method: descriptor.method, ...("body" in descriptor ? { body: descriptor.body } : {}), headers: requestHeaders, redirect: "manual", credentials: "omit", signal: controller.signal });
       if (descriptor.provider === "gmgn" && [401, 403].includes(response.status)) gmgnBackoff.until = new Date(clock().getTime() + 86_400_000).toISOString();
       if (descriptor.provider === "gmgn" && !response.ok && /^application\/json(?:\s*;|$)/i.test(response.headers.get("content-type") ?? "")) {
         const failure = await boundedJson(response, L.response_bytes);
@@ -108,12 +109,14 @@ export async function executeReservedSource(db: D1Database, reservation: SourceR
         gmgnEnvelope(body);
         // Validate semantic/identity shape before accepting HTTP 200. Do not
         // persist a body which could not be normalized or an unknown-mint default.
-        if (descriptor.request.kind === "gmgn_market_rank") normalizeShortlist(descriptor.request, body, clock().toISOString());
+        if (isAttentionRequest(descriptor.request)) normalizeAttention(descriptor.request, body, clock().toISOString());
+        else if (descriptor.request.kind === "gmgn_market_rank") normalizeShortlist(descriptor.request, body, clock().toISOString());
         else normalizeGmgn(descriptor.request, body, clock().toISOString());
         accessAccepted = true;
         if (accessProbe) return null; // No token data or token-data hash retained.
       }
       if (descriptor.request.kind === "geckoterminal_trending_list" || descriptor.request.kind === "dexscreener_token_crosscheck") normalizeShortlist(descriptor.request, body, clock().toISOString());
+      if (descriptor.provider !== "gmgn" && isAttentionRequest(descriptor.request)) normalizeAttention(descriptor.request, body, clock().toISOString());
       return body;
     };
     responseBody = await Promise.race([operation(), new Promise<never>((_, reject) => {
@@ -148,7 +151,7 @@ export async function executeReservedSource(db: D1Database, reservation: SourceR
   ]);
   return { state: results[1]!.meta.changes === 1 ? error ? "failed" as const : "retained" as const : "held" as const, provider_requests: requests };
 }
-export async function readSourceReceipt(db: D1Database, id: string) {
+export async function readSourceReceiptWithRequest(db: D1Database, id: string) {
   const row = await db.prepare("SELECT request,request_hash,receipt,receipt_hash,bytes FROM tenx_source_reservations WHERE id=?1 AND state IN ('succeeded','failed')").bind(id)
     .first<{request:string;request_hash:string;receipt:string;receipt_hash:string;bytes:number}>();
   if (!row) return null;
@@ -158,5 +161,11 @@ export async function readSourceReceipt(db: D1Database, id: string) {
   if (await hashJson(JSON.parse(row.request)) !== row.request_hash || receipt.request_hash !== row.request_hash ||
     await hashJson(receipt) !== row.receipt_hash || await hashJson(receipt.response) !== receipt.response_hash)
     throw new Error("source_collection_receipt_mismatch");
-  return { replay: "verified" as const, source_authenticity: "not_independently_verified" as const, provider_requests: 0 as const, receipt };
+  return { replay: "verified" as const, source_authenticity: "not_independently_verified" as const, provider_requests: 0 as const, receipt, request: JSON.parse(row.request) };
+}
+export async function readSourceReceipt(db: D1Database, id: string) {
+  const saved=await readSourceReceiptWithRequest(db,id);
+  if(!saved)return null;
+  const {request: _request,...result}=saved;
+  return result;
 }
