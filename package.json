@@ -23,6 +23,7 @@
     "test:discovery-archives": "node --test scripts/discovery-archive.test.mjs scripts/discovery-archive-pack.test.mjs scripts/discovery-evidence-objects.test.mjs scripts/discovery-evidence-sealed.test.mjs scripts/discovery-evidence-index.test.mjs scripts/discovery-evidence-references.test.mjs",
     "test:discovery-reference-runtime": "node scripts/discovery-reference-runtime-study.mjs",
     "test:discovery-capacity": "node --test scripts/discovery-metadata-capacity.test.mjs",
+    "test:discovery-serving-capacity": "tsx --test scripts/discovery-serving-capacity.test.ts",
     "test:discovery-scratch": "tsx --test scripts/discovery-evidence-scratch-replay.test.ts",
     "test:discovery-recovery": "node --test scripts/discovery-evidence-key-recovery.test.mjs",
     "test:discovery-metadata-sealed": "node --test scripts/discovery-metadata-sealed.test.mjs",

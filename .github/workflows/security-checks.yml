@@ -59,6 +59,12 @@ jobs:
       - name: Private full metadata capacity and chronological growth guards
         run: pnpm test:discovery-capacity
 
+      - name: Free serving arithmetic, unknown usage and admission holds
+        run: pnpm test:discovery-serving-capacity
+
+      - name: Offline Discovery serving assessment types
+        run: pnpm exec tsc --noEmit -p tsconfig.serving-study.json
+
       - name: Private scratch resolver and immutable historical replay
         run: pnpm test:discovery-scratch
 

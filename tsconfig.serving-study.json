@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "discovery/worker-configuration.d.ts",
+    "scripts/discovery-free-serving-study.ts",
+    "scripts/discovery-serving-capacity.test.ts",
+    "scripts/lib/discovery-serving-capacity.ts",
+    "scripts/lib/discovery-serving-study-worker.ts"
+  ]
+}
