@@ -7,6 +7,7 @@ import { attentionTradersFresh, type AttentionTraderResult } from "../../../disc
 import { AttentionReviewWorksheet } from "./AttentionReviewWorksheet";
 import { AttentionActivityDetails } from "./AttentionActivityDetails";
 import { AttentionHolderParticipation } from "./AttentionHolderParticipation";
+import { AttentionIntakeStatus } from "./AttentionIntakeStatus";
 import { captureAttentionReview, type ReviewContext } from "./attention-review-store";
 import "./attention-queue.css";
 import "./attention-detail.css";
@@ -49,6 +50,7 @@ export function AttentionTokenDetails({context,onClose,onReview,reviewBusy=false
     <p>Market source: {r.market_source?sourceName[r.market_source]:"Unknown"}{r.recent_volume_source&&r.recent_volume_source!==r.market_source?` · 1h volume: ${sourceName[r.recent_volume_source]}`:""}. Reported volume is not verified organic activity.</p>
     <h4>Attention sources and timing</h4><p>{r.attention_families} fresh attention provider{r.attention_families===1?"":"s"}; observed in {r.observed_hours} sampled hour{r.observed_hours===1?"":"s"}. Multiple windows from one provider count once.</p><ul>{r.sources.map(s=><li key={`${s.provider}:${s.window}`}>{sourceName[s.provider]} · {s.window}{s.rank!==null?` · #${s.rank}`:""}{s.previous_rank!==null?` · previous observed rank #${s.previous_rank}`:""}{s.search_interest!==null?` · ${s.search_interest.toLocaleString()} reported search/visit heat`:""} · {new Date(s.received_at).toLocaleString()}{!s.fresh?" · stale":""}</li>)}</ul>
     <h4>Quality checks</h4><p>{r.checks==="adverse"?"Adverse flags":"Quality review needed"} · {r.market_crosschecked?"Recent DEX market observation saved":"Market cross-check needed"}. Provider labels and missing checks do not prove safety.</p><ul>{r.reasons.map(reason=><li key={reason}>{reason.replaceAll("_"," ")}</li>)}</ul>
+    <AttentionIntakeStatus chain={r.chain} address={r.address}/>
     <h4>Candles and participation</h4><AttentionCandleDetails chain={r.chain} review={context.candle_review??undefined} asOf={context.as_of}/><AttentionTraderDetails chain={r.chain} review={context.trader_review} asOf={context.as_of}/><AttentionActivityDetails chain={r.chain} issue={context.activity_issue} review={context.activity_review} asOf={context.as_of}/><AttentionHolderParticipation chain={r.chain} address={r.address} cutoff={context.as_of}/>
     {(context.history_truncated||context.gaps.length>0)&&<details><summary>Snapshot coverage gaps</summary>{context.history_truncated&&<p>Saved history reached its read bound. Persistence is based on the observed sample.</p>}<ul>{context.gaps.map(g=><li key={g}>{g.replaceAll("_"," ")}</li>)}</ul></details>}
     <p>Search interest and reported trading do not establish organic participation or safety. Scores and launch checks are unchanged.</p>

@@ -45,6 +45,7 @@ import { operations, OperationsError, recordWatchdog } from "./operations";
 import { WatchdogReportSchema } from "./operations-model";
 import { inboxRecoveryStatus } from "./inbox-recovery";
 import { enqueueMintReview, mintReviews, MintReviewError } from "./mint-review";
+import { mintIntakeStatus } from "./mint-intake-status";
 import { MINT_REVIEW_LIMITS } from "./mint-review-model";
 import { candidateExpiry, expireCandidates, inventoryStatus } from "./candidate-expiry";
 import { marketBatches,marketBatchRecord } from "./market-batch-store";
@@ -254,6 +255,12 @@ export async function handle(request: Request, env: Env): Promise<Response> {
   if (method === "GET" && path === "/api/10x/discovery/coverage") return json(await envelope(env, discoveryCoverage(await candidates(env.TENX_DB), DEFAULT_POLICY, new Date())));
   if (method === "GET" && path === "/api/10x/discovery/yield") return json(await discoveryYield(env.TENX_DB));
   if (method === "GET" && path === "/api/10x/discovery/attention") return json(await readAttentionQueue(env.TENX_DB));
+  const intakeStatus = path.match(/^\/api\/10x\/discovery\/intake\/solana\/([^/]+)$/);
+  if (method === "GET" && intakeStatus) {
+    if (url.search || !Address.safeParse(intakeStatus[1]).success) return json({ error: "intake_status_request_invalid" }, 400);
+    try { return json(await mintIntakeStatus(env.TENX_DB, intakeStatus[1]!)); }
+    catch { return json({ error: "intake_status_unavailable" }, 503); }
+  }
   if (method === "GET" && path === "/api/10x/discovery/rotation-coverage") return json(await envelope(env, await rotationCoverage(env.TENX_DB)));
   if (method === "GET" && path === "/api/10x/discovery/wallet-plan") return json(await envelope(env,await walletPlans(env.TENX_DB)));
   if (method === "GET" && path === "/api/10x/discovery/inbox-recovery") return json(await envelope(env,await inboxRecoveryStatus(env.TENX_DB)));
