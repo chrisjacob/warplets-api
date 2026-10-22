@@ -31,6 +31,7 @@
     "test:discovery-publication": "node --test scripts/discovery-evidence-publication.test.mjs",
     "test:discovery-publication-read": "tsx --test scripts/discovery-evidence-publication-read.test.ts",
     "test:discovery-producer-batches": "tsx --test scripts/discovery-evidence-producer-batches.test.ts",
+    "test:discovery-intents": "node --test scripts/discovery-evidence-intents.test.mjs",
     "security:preflight": "node scripts/security-preflight.mjs",
     "security:test": "node scripts/test-security-blocklist.mjs",
     "security:test:redirects": "node --test scripts/test-http-redirect-security.mjs",

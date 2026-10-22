@@ -98,6 +98,9 @@ jobs:
       - name: Original producer batch and encrypted publication compatibility
         run: pnpm test:discovery-producer-batches
 
+      - name: Encrypted publication intents and process restart reconciliation
+        run: pnpm test:discovery-intents
+
       - name: Install dependencies (app)
         working-directory: app
         run: pnpm install --frozen-lockfile

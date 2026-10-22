@@ -104,10 +104,10 @@ export async function transferEvidencePublicationOwner(options,grant,nextOwner){
   Id.parse(nextOwner);const {db,body}=await opened(options);
   try{db.exec("BEGIN IMMEDIATE");fenced(db,body,grant);const next={generation:grant.generation,owner:nextOwner,epoch:grant.epoch+1};Grant.parse(next);db.prepare("UPDATE tenx_append_control SET owner=?,epoch=? WHERE id=1").run(next.owner,next.epoch);db.exec("COMMIT");return {grant:next,...inactive()};}finally{if(db.isTransaction)db.exec("ROLLBACK");db.close();}
 }
-export async function publishEvidenceAppend(options,grant,input,afterCommit){
-  const plan=normalizedPlan(input),planHash=digest(plan),verified=await readStagedEvidenceAppend(options.stage,plan.ticket),{db,body}=await opened(options);let publication,commitAttempted=false;
+async function executePublication(options,grant,input,afterCommit,allowNew){
+  const plan=normalizedPlan(input),planHash=digest(plan),verified=await readStagedEvidenceAppend(options.stage,plan.ticket),{db,body}=await opened(options,!allowNew);let publication,commitAttempted=false;
   try{
-    db.exec("BEGIN IMMEDIATE");fenced(db,body,grant);
+    db.exec(allowNew?"BEGIN IMMEDIATE":"BEGIN");fenced(db,body,grant);
     const prior=db.prepare("SELECT plan_sha256,results_json FROM tenx_append_publications WHERE publication_id=?").get(plan.publication_id);
     if(prior){
       if(prior.plan_sha256!==planHash)throw Error("publication_identity_conflict");
@@ -116,6 +116,7 @@ export async function publishEvidenceAppend(options,grant,input,afterCommit){
       publication={results,reconciled:true};
     }
     else{
+      if(!allowNew)throw Error("publication_reconciliation_requires_commit");
       const results=plan.operations.map(op=>{
         let changes;if(op.kind==="receipt")changes=append(db,verified,plan.ticket,plan.publication_id);
         else{changes=Number(db.prepare(op.sql).run(...op.bindings).changes);if(op.expect_changes!==undefined&&changes!==op.expect_changes)throw Error("publication_expected_changes_mismatch");}
@@ -129,6 +130,9 @@ export async function publishEvidenceAppend(options,grant,input,afterCommit){
   if(afterCommit){try{await afterCommit(structuredClone(outcome));outcome.post_commit="completed";}catch{outcome.post_commit="failed";outcome.post_commit_error="publication_post_commit_work_failed";}}
   return outcome;
 }
+export async function publishEvidenceAppend(options,grant,input,afterCommit){return executePublication(options,grant,input,afterCommit,true);}
+// Read-only reconciliation can never execute an uncommitted former-owner plan.
+export async function reconcileEvidenceAppend(options,grant,input,afterCommit){return executePublication(options,grant,input,afterCommit,false);}
 export async function readPublishedEvidenceAppend(options,grant,table,hash){
   if(!["tenx_holder_evidence","tenx_wallet_evidence"].includes(table))throw Error("publication_table_unsupported");Hash.parse(hash);
   let ref;const first=await opened(options);
