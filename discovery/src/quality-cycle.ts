@@ -6,6 +6,7 @@ import { analyzeHolders, type HolderEvidence } from "./holders";
 import { compareCollectionPotential, createdWithinWindow } from "./priority";
 import type { Settings } from "./ingest";
 import { collectCanonicalAttentionIntake } from "./canonical-attention-intake";
+import { collectAttentionHistory } from "./attention-history";
 
 export type QualitySettings = Settings & { qualityEnabled: boolean; qualityDailyLimit: number };
 export async function qualityStatus(db: D1Database, limit: number, enabled: boolean) {
@@ -31,6 +32,9 @@ export async function runQualityCycle(s: QualitySettings, now = new Date()): Pro
   const lease = await db.prepare(`UPDATE tenx_quality_control SET lease_owner=?1,lease_until=?2,next_refresh_at=?3 WHERE id=1 AND (lease_until IS NULL OR lease_until<?4) AND (next_refresh_at IS NULL OR next_refresh_at<=?4) RETURNING id`).bind(owner, new Date(now.getTime() + 360000).toISOString(), new Date(now.getTime() + 300000).toISOString(), at).first();
   if (!lease) return { state: "waiting" };
   const rpc = new RpcClient(s.rpcUrl, reserveQualityQuota(db, s, now), s.transport, 18);
+  // Research may begin after legacy work crosses midnight. Charge the day of
+  // each reservation; each collector still holds on its own subsequent day loss.
+  const researchQuota = () => reserveQualityQuota(db, s, clock())();
   try {
     const focus = (await candidates(db)).filter(c => createdWithinWindow(c, now) && c.creation && c.graduation && c.verification !== "rejected" && (c.market?.liquidity_usd ?? 0) >= DEFAULT_POLICY.min_liquidity_usd && (c.market?.market_cap_usd == null || c.market.market_cap_usd >= DEFAULT_POLICY.min_market_cap_usd)).sort((a, b) => compareCollectionPotential(a, b, DEFAULT_POLICY, now)).slice(0, 10);
     const targets: Target[] = [];
@@ -47,10 +51,15 @@ export async function runQualityCycle(s: QualitySettings, now = new Date()): Pro
       targets.push({ candidate, migration, creator });
     }
     if (!targets.length) {
-      const intake = await collectCanonicalAttentionIntake(s, owner, rpc.maxCalls - rpc.calls, clock, reserveQualityQuota(db, s, now));
+      const history = await collectAttentionHistory(s, owner, rpc.maxCalls - rpc.calls, clock, researchQuota);
+      rpc.calls += history.rpc_calls;
+      const intake = await collectCanonicalAttentionIntake(s, owner, rpc.maxCalls - rpc.calls, clock, researchQuota);
       rpc.calls += intake.rpc_calls;
       await db.prepare("UPDATE tenx_quality_control SET lease_owner=NULL,lease_until=NULL,targets=0 WHERE id=1 AND lease_owner=?1").bind(owner).run();
-      return intake.state === "held" ? { state: "empty", rpc_calls: 0 } : { state: intake.state === "collected" ? "succeeded" : "failed", rpc_calls: rpc.calls, targets: 0, canonical_intake: intake };
+      return intake.state === "held" && history.state === "held" ? { state: "empty", rpc_calls: 0 } : {
+        state: intake.state === "failed" || history.state === "failed" ? "failed" : "succeeded", rpc_calls: rpc.calls, targets: 0,
+        ...(intake.state === "held" ? {} : { canonical_intake: intake }), ...(history.state === "held" ? {} : { historical_intake: history }),
+      };
     }
     await rpc.checkCluster();
     const accounts = await rpc.accounts(targets.flatMap(t => [t.candidate.address, t.candidate.pool, t.migration.baseVault, t.migration.quoteVault, t.migration.curve]), Math.max(...targets.map(t => t.candidate.graduation!.slot)));
@@ -97,10 +106,12 @@ export async function runQualityCycle(s: QualitySettings, now = new Date()): Pro
         }
       }
     }
-    const intake = await collectCanonicalAttentionIntake(s, owner, rpc.maxCalls - rpc.calls, clock, reserveQualityQuota(db, s, now));
+    const history = await collectAttentionHistory(s, owner, rpc.maxCalls - rpc.calls, clock, researchQuota);
+    rpc.calls += history.rpc_calls;
+    const intake = await collectCanonicalAttentionIntake(s, owner, rpc.maxCalls - rpc.calls, clock, researchQuota);
     rpc.calls += intake.rpc_calls;
     await db.prepare("UPDATE tenx_quality_control SET lease_owner=NULL,lease_until=NULL,last_success=?1,last_error=NULL,targets=?2 WHERE id=1 AND lease_owner=?3").bind(at, valid.length, owner).run();
-    return { state: "succeeded", targets: valid.length, holder_inventories: holders, rpc_calls: rpc.calls, ...(intake.state === "held" ? {} : { canonical_intake: intake }) };
+    return { state: "succeeded", targets: valid.length, holder_inventories: holders, rpc_calls: rpc.calls, ...(intake.state === "held" ? {} : { canonical_intake: intake }), ...(history.state === "held" ? {} : { historical_intake: history }) };
   } catch (error) {
     await persistRpcBackoff(db, error, now);
     const code = error instanceof SourceError ? error.code : error instanceof Error && /^[a-z0-9_]{1,80}$/.test(error.message) ? error.message : "quality_evidence_invalid";
