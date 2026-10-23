@@ -2,12 +2,12 @@ import { useEffect, useRef } from "react";
 
 const primary = [
   { href: "/trending", label: "Trending", matches: (path: string) => path === "/trending" },
-  { href: "/discover", label: "Discover", matches: (path: string) => path === "/discover" || path.startsWith("/token/") },
   { href: "/attention", label: "Content", matches: (path: string) => path === "/attention" || path === "/submit" || path.startsWith("/campaign/") },
   { href: "/wallets", label: "My wallets", matches: (path: string) => path === "/wallets" },
 ];
 const groups = [
   { label: "Research & information", links: [
+    { href: "/discover", label: "Discover" },
     { href: "/research", label: "Daily review" },
     { href: "/transparency", label: "Rules & methodology" },
     { href: "/status", label: "Data status" },
@@ -33,7 +33,7 @@ export function DiscoveryNav({ path }: { path: string }) {
     document.addEventListener("pointerdown", closeOutside);
     return () => document.removeEventListener("pointerdown", closeOutside);
   }, []);
-  const secondary = groups.flatMap(group => group.links).find(link => path === link.href || (link.href === "/elections" && path.startsWith("/elections/")));
+  const secondary = groups.flatMap(group => group.links).find(link => path === link.href || (link.href === "/elections" && path.startsWith("/elections/")) || (link.href === "/discover" && path.startsWith("/token/")));
   return <nav aria-label="10X discovery navigation" className="tenx-nav tenx-nav--compact">
     {primary.map(link => <a key={link.href} href={link.href} aria-current={link.matches(path) ? "page" : undefined}>{link.label}</a>)}
     <details ref={more} className="tenx-more" data-active={secondary ? true : undefined} onBlur={event => {

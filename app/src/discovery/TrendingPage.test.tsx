@@ -2,7 +2,7 @@ import { expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import { buildAttentionQueue } from "../../../discovery/src/attention-queue";
 import { normalizeAttention } from "../../../discovery/src/attention-feed-contract";
-import { gmgnTokenHref, trendingRows, TrendingLeaderboard } from "./TrendingPage";
+import { gmgnTokenHref, trendingTokenImageHref, trendingRows, TrendingLeaderboard } from "./TrendingPage";
 
 const at = new Date("2026-10-24T00:00:00.000Z"), address = (n: number) => `0x${n.toString(16).padStart(40, "0")}`;
 function report() {
@@ -37,6 +37,13 @@ it("links Solana to GMGN's sol namespace and uses the exact encoded token identi
   const mint = "So11111111111111111111111111111111111111112";
   expect(gmgnTokenHref("solana", mint)).toBe(`https://gmgn.ai/sol/token/${mint}`);
   expect(gmgnTokenHref("base", "a/b?c")).toBe("https://gmgn.ai/base/token/a%2Fb%3Fc");
+});
+it("uses exact-chain public image fallbacks for missing feed artwork and rejects malformed addresses", () => {
+  const html=renderToStaticMarkup(<TrendingLeaderboard report={report()} onRefresh={()=>{}}/>);
+  expect(html).toContain(`src="https://dd.dexscreener.com/ds-data/tokens/base/${address(2)}.png"`);
+  expect(html).toContain(`src="https://dd.dexscreener.com/ds-data/tokens/bsc/${address(1)}.png"`);
+  expect(trendingTokenImageHref("base","../../private")).toBeNull();
+  expect(trendingTokenImageHref("solana","not-a-mint")).toBeNull();
 });
 it("keeps loading, missing coverage and a failed refresh distinct without clearing the last saved list", () => {
   expect(renderToStaticMarkup(<TrendingLeaderboard report={null} busy onRefresh={() => {}}/>)).toContain("Loading trending tokens…");

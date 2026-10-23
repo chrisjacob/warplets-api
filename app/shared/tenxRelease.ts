@@ -5,6 +5,8 @@ export interface TenxReleaseEnv {
 
 export const tenxAppEnabled = (value: unknown): boolean => value === "true";
 
+export const isTrendingPath = (path: string): boolean => ["", "/trending"].includes(path.replace(/\/+$/, ""));
+
 export function isTenxAppPath(path: string): boolean {
   const clean = path.replace(/\/+$/, "");
   return ["/trending", "/discover", "/history", "/attention", "/submit", "/backing", "/rewards", "/launch-lab", "/launch-recovery", "/wallets", "/research", "/transparency", "/status", "/admin/10x"].includes(clean)
@@ -15,7 +17,7 @@ export function isTenxAppPath(path: string): boolean {
 
 export function tenxPage(path: string, enabled: boolean): "home" | "thesis" | "discovery" {
   if (!enabled || path.replace(/\/+$/, "") === "/thesis") return "thesis";
-  return isTenxAppPath(path) ? "discovery" : "home";
+  return isTrendingPath(path) || isTenxAppPath(path) ? "discovery" : "home";
 }
 
 /** Match whole namespaces, including invalid/deeper routes, before downstream IO. */

@@ -12,5 +12,6 @@ it("offers the thesis at the root without any unfinished account-menu entry when
 
 it("retains local discovery and the validated wallet return destination when enabled", () => {
   const html = renderToStaticMarkup(<TenxAppMenuLinks enabled walletHref="/wallets?returnTo=%2Fresearch" onNavigate={() => {}} />);
-  for (const path of ["/trending", "/discover", "/thesis", "/wallets?returnTo=%2Fresearch"]) expect(html).toContain(`href="${path}"`);
+  for (const path of ["/trending", "/thesis", "/wallets?returnTo=%2Fresearch"]) expect(html).toContain(`href="${path}"`);
+  expect(html).not.toContain('href="/discover"');
 });

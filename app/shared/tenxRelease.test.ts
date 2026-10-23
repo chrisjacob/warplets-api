@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { isTenxAppPath, tenxAppEnabled, tenxPage, tenxReleaseSurface } from "./tenxRelease";
+import { isTenxAppPath, isTrendingPath, tenxAppEnabled, tenxPage, tenxReleaseSurface } from "./tenxRelease";
 
 const pages = ["/trending", "/history", "/discover", "/attention", "/submit", "/backing", "/rewards", "/launch-lab", "/launch-recovery", "/wallets", "/research", "/transparency", "/status", "/admin/10x", "/campaign/00000000-0000-4000-8000-000000000001", "/elections", "/elections/saved", "/token/solana/mint"];
 
@@ -8,7 +8,10 @@ it("requires an explicit server opt-in and recovers the root and hidden pages at
   expect(tenxAppEnabled("true")).toBe(true);
   for (const path of ["/", "/thesis", "/thesis/", ...pages, "/unknown"]) expect(tenxPage(path, false)).toBe("thesis");
   expect(tenxPage("/thesis/", true)).toBe("thesis");
-  expect(tenxPage("/", true)).toBe("home");
+  for (const path of ["/", "/trending", "/trending/"]) {
+    expect(tenxPage(path, true)).toBe("discovery"); expect(isTrendingPath(path)).toBe(true);
+  }
+  expect(isTrendingPath("/discover")).toBe(false); expect(tenxPage("/unknown", true)).toBe("home");
 });
 
 it("gates every current product route and whole namespaces while keeping enabled navigation unchanged", () => {

@@ -24,6 +24,7 @@ import {
 } from "./walletController";
 import { WARPLETS_APP_ORIGINS } from "../shared/warpletsApp";
 import { TENX_APP_ENABLED } from "./tenxRelease";
+import { isTrendingPath } from "../shared/tenxRelease";
 import { TenxAppMenuLinks } from "./TenxAppMenuLinks";
 
 const FarcasterSignInControl = lazy(() => import("./FarcasterSignInControl"));
@@ -239,7 +240,7 @@ function HomeAccountControl({
 export default function App({ page: requestedPage = "home" }: { page?: "home" | "thesis" | "discovery" }) {
   const page = TENX_APP_ENABLED ? requestedPage : "thesis";
   const isThesisRoute = page === "thesis";
-  const isTrendingRoute = page === "discovery" && window.location.pathname.replace(/\/+$/, "") === "/trending";
+  const isTrendingRoute = page === "discovery" && isTrendingPath(window.location.pathname);
   const walletController = useWalletController();
   const [showAddAppPrompt, setShowAddAppPrompt] = useState(false);
   const [notificationsOnlyPrompt, setNotificationsOnlyPrompt] = useState(false);

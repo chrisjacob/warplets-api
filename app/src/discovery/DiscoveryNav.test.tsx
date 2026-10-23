@@ -6,9 +6,11 @@ import { CollectionDetails, isCollectionAnchor } from "./CollectionDetails";
 it("keeps Trending alongside the other primary destinations and retains all research and local tools in a closed native disclosure", () => {
   const html = renderToStaticMarkup(<DiscoveryNav path="/discover" />);
   const primary = html.slice(0, html.indexOf("<details"));
-  expect(primary.match(/<a /g)).toHaveLength(4);
+  expect(primary.match(/<a /g)).toHaveLength(3);
   expect(primary).toContain('href="/trending"');
-  expect(primary).toContain('href="/discover" aria-current="page"');
+  expect(primary).not.toContain('href="/discover"');
+  expect(html).toContain('href="/discover" aria-current="page"');
+  expect(html).toContain("More navigation, current section: Discover");
   expect(primary).not.toContain("Admin");
   expect(html).toContain('<details class="tenx-more"');
   expect(html).not.toMatch(/<details[^>]*\bopen[= >]/);
@@ -19,6 +21,7 @@ it("keeps Trending alongside the other primary destinations and retains all rese
 
 it.each([
   ["/trending", "/trending"],
+  ["/discover", "/discover"],
   ["/token/solana/mint", "/discover"],
   ["/campaign/00000000-0000-4000-8000-000000000001", "/attention"],
   ["/submit", "/attention"],
@@ -28,7 +31,7 @@ it.each([
   const html = renderToStaticMarkup(<DiscoveryNav path={path!} />);
   expect(html).toContain(`href="${href}" aria-current="page"`);
   expect(html.match(/aria-current="page"/g)).toHaveLength(1);
-  if (href === "/elections" || href === "/admin/10x") expect(html).toContain("More navigation, current section:");
+  if (href === "/discover" || href === "/elections" || href === "/admin/10x") expect(html).toContain("More navigation, current section:");
 });
 
 it("does not mount diagnostic collectors until expanded and recognizes existing collection anchors exactly", () => {

@@ -1,9 +1,19 @@
 import {useEffect,useRef,useState} from "react";
 import {tokenImageSources} from "../../../discovery/src/images";
 
+export function displayImageSources(values:unknown[],thumbnailSize?:64){
+  return tokenImageSources(...values).map(source=>{
+    const url=new URL(source);
+    if(thumbnailSize===64&&url.hostname==="cdn.dexscreener.com"&&/^\/cms\/images\/[a-zA-Z0-9_-]+$/.test(url.pathname)){
+      url.searchParams.set("width","64");url.searchParams.set("height","64");
+    }
+    return url.href;
+  });
+}
+
 export const ARTWORK_IMAGE_TIMEOUT_MS=8000;
-export function TokenImage({url,metadataUrl,name,symbol,large=false,metadataLoading=false}:{url?:string|null;metadataUrl?:string|null;name:string;symbol:string;large?:boolean;metadataLoading?:boolean}){
-  const sources=tokenImageSources(url,metadataUrl);
+export function TokenImage({url,metadataUrl,fallbackUrl,name,symbol,large=false,metadataLoading=false,thumbnailSize}:{url?:string|null;metadataUrl?:string|null;fallbackUrl?:string|null;name:string;symbol:string;large?:boolean;metadataLoading?:boolean;thumbnailSize?:64}){
+  const sources=displayImageSources([url,metadataUrl,fallbackUrl],thumbnailSize);
   return <ArtworkImage key={JSON.stringify(sources)} sources={sources} name={name} symbol={symbol} large={large} metadataLoading={metadataLoading}/>;
 }
 function ArtworkImage({sources,name,symbol,large,metadataLoading}:{sources:string[];name:string;symbol:string;large:boolean;metadataLoading:boolean}){

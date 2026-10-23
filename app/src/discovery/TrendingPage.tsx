@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { AttentionQueue, type AttentionQueueResult } from "../../../discovery/src/attention-queue-model";
-import { gmgnChain, type AttentionChainId } from "../../../discovery/src/attention-feed-contract";
+import { gmgnChain, attentionAddress, type AttentionChainId } from "../../../discovery/src/attention-feed-contract";
 import { providerAttentionOrder } from "../../../discovery/src/attention-lightweight";
 import { getJson } from "./client";
 import { DiscoveryNav } from "./DiscoveryNav";
@@ -14,6 +14,9 @@ type Chain = keyof typeof chains;
 export const trendingRows = (report: AttentionQueueResult, chain: Chain = "all") =>
   providerAttentionOrder(report).filter(row => row.checks !== "adverse" && (chain === "all" || row.chain === chain));
 export const gmgnTokenHref = (chain: AttentionChainId, address: string) => `https://gmgn.ai/${gmgnChain[chain]}/token/${encodeURIComponent(address)}`;
+// Public static images only: exact chain/contract, no ticker lookup or provider API.
+export const trendingTokenImageHref = (chain: AttentionChainId, address: string) => attentionAddress(chain,address)===address
+  ? `https://dd.dexscreener.com/ds-data/tokens/${chain}/${address}.png` : null;
 const money = (value: number | null) => value === null ? "—" : new Intl.NumberFormat("en-US", {
   style: "currency", currency: "USD", notation: value >= 1000 ? "compact" : "standard", minimumFractionDigits: 0, maximumFractionDigits: value >= 1000 ? 1 : 2,
 }).format(value);
@@ -35,7 +38,7 @@ export function TrendingLeaderboard({ report, busy = false, error = "", onRefres
         <thead><tr><th scope="col">#</th><th scope="col">Token</th><th scope="col">Market cap</th><th scope="col">Volume <span>24h</span></th><th scope="col">Liquidity</th><th scope="col"><span className="sr-only">Token link</span></th></tr></thead>
         <tbody>{rows.map((row, index) => { const href = gmgnTokenHref(row.chain, row.address); return <tr key={`${row.chain}:${row.address}`}>
           <td className="tenx-trending-rank">{index + 1}</td><th scope="row"><a className="tenx-trending-token" href={href} target="_blank" rel="noopener noreferrer" title={`${chains[row.chain]} · ${row.address}`}>
-            <TokenImage url={row.image_url} name={row.name ?? row.symbol ?? "Token"} symbol={row.symbol ?? "?"}/>
+            <TokenImage url={row.image_url} fallbackUrl={trendingTokenImageHref(row.chain,row.address)} thumbnailSize={64} name={row.name ?? row.symbol ?? "Token"} symbol={row.symbol ?? "?"}/>
             <span><strong>{row.symbol ?? row.name ?? `${row.address.slice(0, 6)}…${row.address.slice(-4)}`}</strong><small>{row.name && row.name !== row.symbol ? `${row.name} · ` : ""}{chains[row.chain]}</small></span>
           </a></th><td>{money(row.market_cap_usd)}</td><td>{money(row.volume_24h_usd)}</td><td>{money(row.liquidity_usd)}</td>
           <td><a className="tenx-trending-gmgn" href={href} target="_blank" rel="noopener noreferrer" aria-label={`View ${row.symbol ?? row.name ?? row.address} on GMGN (${chains[row.chain]})`}>View on GMGN <span aria-hidden="true">↗</span></a></td>
