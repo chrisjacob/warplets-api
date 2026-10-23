@@ -1,14 +1,15 @@
 import { useEffect, useMemo, useSyncExternalStore } from "react";
 import { createDiscoveryPager, type DiscoveryPagerState } from "./discovery-pager";
 
-export function useDiscoveryPages(url: string) {
-  const pager = useMemo(() => createDiscoveryPager(url), [url]);
+export function useDiscoveryPages(url: string, enabled = true) {
+  const pager = useMemo(() => createDiscoveryPager(url), [url, enabled]);
   const state = useSyncExternalStore(pager.subscribe, pager.getState, pager.getState);
   useEffect(() => {
+    if (!enabled) return () => pager.dispose();
     void pager.start();
     const interval = window.setInterval(() => { if (document.visibilityState === "visible") void pager.poll(); }, 60_000);
     return () => { window.clearInterval(interval); pager.dispose(); };
-  }, [pager]);
+  }, [pager, enabled]);
   return { state, data: state.pages[state.index] ?? null, next: pager.next, previous: pager.previous, refresh: pager.refresh };
 }
 

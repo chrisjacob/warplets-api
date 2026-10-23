@@ -135,11 +135,13 @@ function Discover() {
   useEffect(()=>{window.history.replaceState(window.history.state,"",`${window.location.pathname}?${discoveryViewParams(view)}${window.location.hash}`);},[view]);
   const returnTo=`/discover?${discoveryViewParams(view)}`;
   const url = discoveryCandidatesUrl(view);
-  const paging=useDiscoveryPages(url),{data}=paging,error=paging.state.error;
+  const [researchOpen,setResearchOpen]=useState(()=>mode==="fixture"||view.compare.length>0||!!view.q||["#saved-tokens","#compare-tokens"].includes(window.location.hash));
+  const paging=useDiscoveryPages(url,researchOpen),{data}=paging,error=paging.state.error;
   const artwork = useTokenArtwork(mode === "live" ? [...(data?.data.candidates.map(c => c.address)??[]),...(savedOpen?shortlist.state.entries.map(entry=>entry.address):[])] : []);
   return <>
-    <header className="tenx-heading tenx-heading--discover"><h1>Discover memecoins.</h1><p>V4 ranks structural support in our saved sample. Qualified organic volume and holder growth are not yet ranked; missing evidence is not a pass.</p></header>
+    <header className="tenx-heading tenx-heading--discover"><h1>Discover memecoins.</h1><p>Trending and Hot lists lead discovery. Check the basics, then review the meme. Deeper scoring is optional research until it demonstrates better selections.</p></header>
     {mode==="live"&&<AttentionQueuePanel/>}
+    <details className="tenx-panel" open={researchOpen} onToggle={event=>setResearchOpen(event.currentTarget.open)}><summary>Optional v4 research rankings & saved candidates</summary><p>V4 is frozen for comparison. Its structural and evidence-coverage score has not demonstrated better meme selection. All launch and voting gates remain separate.</p>
     <DiscoveryWorkspaceControls key={[view.q,view.min_liquidity,view.min_coverage].join(":")} view={view} onChange={setView}><div className="tenx-browse-tools"><details className="tenx-paging-disclosure"><summary>Page {paging.state.index+1} · paging & refresh</summary><DiscoveryPagination state={paging.state} onNext={()=>void paging.next()} onPrevious={paging.previous} onRefresh={()=>void paging.refresh()}/></details><nav aria-label="Discovery workspace links"><a href="#saved-tokens">Saved ({shortlist.state.entries.length})</a><a href="#compare-tokens">Compare ({view.compare.length}/3)</a></nav></div></DiscoveryWorkspaceControls>
     {mode === "fixture" && <aside className="tenx-notice">SIMULATION — synthetic examples, not live tokens or verified market data. <button className="tenx-button tenx-button--quiet" onClick={() => setMode("live")}>Return to live observations</button></aside>}
     {error && <p className="tenx-notice" role="alert">{error} {data ? "The last response remains visible." : "Start the local discovery service to load data."}</p>}
@@ -153,6 +155,7 @@ function Discover() {
     {mode==="live"&&<DiscoveryYieldPanel allCurrentHref={`/discover?${discoveryViewParams({...view,age:"all"})}`}/>}
     <ShortlistPanel returnTo={discoveryReturnTo(returnTo,mode,"saved-tokens")} state={shortlist.state} candidates={data?.data.candidates??[]} artwork={artwork} selected={view.compare} onRemove={shortlist.remove} onClear={shortlist.clear} onCompare={toggle} onOpenChange={setSavedOpen}/><section id="compare-tokens" aria-label="Comparison workspace"><TokenComparison returnTo={discoveryReturnTo(returnTo,mode,"compare-tokens")} selected={view.compare} candidates={data?.data.candidates??[]} mode={mode} onRemove={toggle}/></section>
     <details className="tenx-list-options"><summary>Action-check filters & example data</summary><p>All observed tokens can be scored. Separate eligibility gates still govern future voting and launch decisions; buying links do not count as votes. Names and artwork can be copied.</p><label>Action checks<select value={filter} onChange={e => setFilter(e.target.value as typeof view.status)}><option value="all">All ranked observations</option><option value="eligible">Eligible</option><option value="provisional">Provisional</option><option value="excluded">Excluded</option></select></label><label>Data source<select value={mode} onChange={e => setMode(e.target.value as "live" | "fixture")}><option value="live">Saved live observations</option><option value="fixture">Simulation examples</option></select></label>{data&&<p>Action readiness across observed inputs: {data.data.counts.eligible} eligible · {data.data.counts.provisional} provisional · {data.data.counts.excluded} excluded. This is separate from score ranking.</p>}</details>
+    </details>
   </>;
 }
 function CandidateDetail({ address }: { address: string }) {

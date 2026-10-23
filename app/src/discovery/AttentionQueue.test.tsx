@@ -11,7 +11,7 @@ const at=new Date("2026-10-22T14:00:00.000Z"),address="0x00000000000000000000000
 const snapshot=normalizeAttention({kind:"gmgn_hot_searches",chains:["base"],intervals:["24h"]},{code:0,data:[{chain:"base",interval:"24h",tokens:[{address,name:"Established meme",symbol:"MEME",visiting_count:120,rank:2,open_timestamp:at.getTime()/1000-8640000}]}]},at.toISOString());
 it("shows an older cross-chain token with source provenance and quality unknowns instead of a safety score",()=>{
  const report=buildAttentionQueue([snapshot],at),html=renderToStaticMarkup(<AttentionQueueValues report={report}/>);
- for(const text of["Established meme","base","GMGN","Quality review needed","Token age has no maximum","Launch selection remains unavailable","do not establish organic participation or safety","View evidence"])expect(html).toContain(text);
+ for(const text of["Established meme","base","GMGN","Lightweight checks pending","Token age has no maximum","Launch selection remains unavailable","do not establish organic participation or safety","View evidence"])expect(html).toContain(text);
  expect(html).not.toContain("Score / 100");expect(html).not.toContain("Safe token");
  expect(html).not.toContain("Source ranks &amp; timing");expect(html).not.toContain("Candles and participation");
  const detail=renderToStaticMarkup(<AttentionTokenDetails context={captureAttentionReview(report,address,"base")} onClose={()=>{}}/>);
