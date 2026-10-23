@@ -9,13 +9,14 @@
 .tenx-trending-toolbar select{background:#1a211d;color:#edf3ee;border:1px solid #344039;border-radius:7px;padding:9px 30px 9px 12px;font:600 13px system-ui,sans-serif;min-height:44px}
 .tenx-trending-toolbar p{font-size:12px;color:#90a197;margin:0;text-align:right}
 .tenx-trending-scroll{overflow:auto;border:1px solid #2a362e;border-radius:10px}
-.tenx-trending-table{width:100%;min-width:690px;border-collapse:separate;border-spacing:0;white-space:nowrap}
+.tenx-trending-table{width:100%;min-width:750px;border-collapse:separate;border-spacing:0;white-space:nowrap}
 .tenx-trending-table th,.tenx-trending-table td{padding:13px 18px;border-bottom:1px solid #222e26;text-align:right;font-variant-numeric:tabular-nums;font-size:14px}
 .tenx-trending-table thead th{font-size:11px;font-weight:600;letter-spacing:.035em;color:#92a399;background:#161d18;height:45px}
 .tenx-trending-table thead th span:not(.sr-only){color:#c2cec6}
 .tenx-trending-table tr:last-child>th,.tenx-trending-table tr:last-child>td{border-bottom:0}
 .tenx-trending-table tbody tr{background:#111713}.tenx-trending-table tbody tr:hover{background:#19251d}
 .tenx-trending-table th:nth-child(2){text-align:left;width:32%;min-width:220px}
+.tenx-trending-table .tenx-trending-age{color:#a5b9aa;white-space:nowrap}
 .tenx-trending-table td:first-child,.tenx-trending-table th:first-child{text-align:center;padding-inline:14px;width:40px;color:#82978a}
 .tenx-trending-token{display:flex;align-items:center;gap:12px;text-decoration:none;min-width:0}
 .tenx-trending-token .tenx-artwork-frame{width:36px!important;height:36px!important;flex:none;border-radius:50%}

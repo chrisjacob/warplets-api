@@ -17,6 +17,16 @@ export const gmgnTokenHref = (chain: AttentionChainId, address: string) => `http
 // Public static images only: exact chain/contract, no ticker lookup or provider API.
 export const trendingTokenImageHref = (chain: AttentionChainId, address: string) => attentionAddress(chain,address)===address
   ? `https://dd.dexscreener.com/ds-data/tokens/${chain}/${address}.png` : null;
+export function tokenLaunchAge(row: AttentionQueueResult["rows"][number], asOf: string) {
+  // Only a fresh GMGN base supplies token opening time. Gecko/Dex timestamps are pool ages.
+  const launch = row.reported_open_seconds, cutoff = Date.parse(asOf), started = (launch ?? 0) * 1000;
+  if (!row.sources.some(s => s.provider === "gmgn" && s.fresh) || launch === null || launch <= 0
+    || !Number.isFinite(started) || !Number.isFinite(cutoff) || started > cutoff) return { label: "—", launchedAt: null };
+  const seconds = Math.floor((cutoff - started) / 1000);
+  const label = seconds < 60 ? `${seconds}s` : seconds < 3600 ? `${Math.floor(seconds / 60)}m`
+    : seconds < 86400 ? `${Math.floor(seconds / 3600)}h` : `${Math.floor(seconds / 86400)}d`;
+  return { label, launchedAt: new Date(started).toISOString() };
+}
 const money = (value: number | null) => value === null ? "—" : new Intl.NumberFormat("en-US", {
   style: "currency", currency: "USD", notation: value >= 1000 ? "compact" : "standard", minimumFractionDigits: 0, maximumFractionDigits: value >= 1000 ? 1 : 2,
 }).format(value);
@@ -35,16 +45,16 @@ export function TrendingLeaderboard({ report, busy = false, error = "", onRefres
     {error && <p className="tenx-trending-error" role="alert">{error}</p>}
     {rows.length > 0 ? <div className="tenx-trending-scroll" tabIndex={0} role="region" aria-label="Trending token leaderboard">
       <table className="tenx-trending-table"><caption className="sr-only">Trending tokens ranked by provider attention. All amounts in USD.</caption>
-        <thead><tr><th scope="col">#</th><th scope="col">Token</th><th scope="col">Market cap</th><th scope="col">Volume <span>24h</span></th><th scope="col">Liquidity</th><th scope="col"><span className="sr-only">Token link</span></th></tr></thead>
-        <tbody>{rows.map((row, index) => { const href = gmgnTokenHref(row.chain, row.address); return <tr key={`${row.chain}:${row.address}`}>
+        <thead><tr><th scope="col">#</th><th scope="col">Token</th><th scope="col" title="Time since GMGN's reported token launch/open time, at the saved snapshot.">Age</th><th scope="col">Market cap</th><th scope="col">Volume <span>24h</span></th><th scope="col">Liquidity</th><th scope="col"><span className="sr-only">Token link</span></th></tr></thead>
+        <tbody>{rows.map((row, index) => { const href = gmgnTokenHref(row.chain, row.address), age = tokenLaunchAge(row, report!.as_of); return <tr key={`${row.chain}:${row.address}`}>
           <td className="tenx-trending-rank">{index + 1}</td><th scope="row"><a className="tenx-trending-token" href={href} target="_blank" rel="noopener noreferrer" title={`${chains[row.chain]} · ${row.address}`}>
             <TokenImage url={row.image_url} fallbackUrl={trendingTokenImageHref(row.chain,row.address)} thumbnailSize={64} name={row.name ?? row.symbol ?? "Token"} symbol={row.symbol ?? "?"}/>
             <span><strong>{row.symbol ?? row.name ?? `${row.address.slice(0, 6)}…${row.address.slice(-4)}`}</strong><small>{row.name && row.name !== row.symbol ? `${row.name} · ` : ""}{chains[row.chain]}</small></span>
-          </a></th><td>{money(row.market_cap_usd)}</td><td>{money(row.volume_24h_usd)}</td><td>{money(row.liquidity_usd)}</td>
+          </a></th><td className="tenx-trending-age">{age.launchedAt ? <time dateTime={age.launchedAt} title={`Reported launch/open: ${new Date(age.launchedAt).toLocaleString()}`}>{age.label}</time> : <span title="Token launch time unavailable">—</span>}</td><td>{money(row.market_cap_usd)}</td><td>{money(row.volume_24h_usd)}</td><td>{money(row.liquidity_usd)}</td>
           <td><a className="tenx-trending-gmgn" href={href} target="_blank" rel="noopener noreferrer" aria-label={`View ${row.symbol ?? row.name ?? row.address} on GMGN (${chains[row.chain]})`}>View on GMGN <span aria-hidden="true">↗</span></a></td>
         </tr>; })}</tbody>
       </table></div> : report ? <div className="tenx-trending-empty"><h2>No fresh trending tokens</h2><p>{chain === "all" ? "The saved feeds have no fresh tokens to show. Check back after the next update." : "Try another chain or check back after the next update."}</p></div> : null}
-    <p className="tenx-trending-note">GMGN Hot + GeckoTerminal Trending. Ranked by attention, not a safety rating. Reported figures; — means unavailable.</p>
+    <p className="tenx-trending-note">GMGN Hot + GeckoTerminal Trending. Ranked by attention, not a safety rating. Age uses reported token launch/open time. Reported figures; — means unavailable.</p>
     {report && (report.history_truncated || report.gaps.length > 0) && <p className="tenx-trending-note">Showing the available saved sample; coverage is incomplete.</p>}
   </>;
 }

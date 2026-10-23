@@ -2,7 +2,7 @@ import { expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import { buildAttentionQueue } from "../../../discovery/src/attention-queue";
 import { normalizeAttention } from "../../../discovery/src/attention-feed-contract";
-import { gmgnTokenHref, trendingTokenImageHref, trendingRows, TrendingLeaderboard } from "./TrendingPage";
+import { gmgnTokenHref, trendingTokenImageHref, tokenLaunchAge, trendingRows, TrendingLeaderboard } from "./TrendingPage";
 
 const at = new Date("2026-10-24T00:00:00.000Z"), address = (n: number) => `0x${n.toString(16).padStart(40, "0")}`;
 function report() {
@@ -51,4 +51,20 @@ it("keeps loading, missing coverage and a failed refresh distinct without cleari
   expect(renderToStaticMarkup(<TrendingLeaderboard report={value} onRefresh={() => {}}/>)).toContain("No fresh trending tokens");
   const html = renderToStaticMarkup(<TrendingLeaderboard report={report()} error="Saved snapshot could not refresh" onRefresh={() => {}}/>);
   expect(html).toContain('role="alert"'); expect(html).toContain("Saved snapshot could not refresh"); expect(html).toContain(">HOT<");
+});
+it("shows token age from the reported launch timestamp, without replacing unknown launch time with pool age", () => {
+  const value=report(),row=value.rows.find(r=>r.symbol==="HOT")!;
+  row.reported_open_seconds=at.getTime()/1000-2*86400;
+  expect(tokenLaunchAge(row,value.as_of)).toEqual({label:"2d",launchedAt:"2026-10-22T00:00:00.000Z"});
+  const html=renderToStaticMarkup(<TrendingLeaderboard report={value} onRefresh={()=>{}}/>);
+  expect(html).toContain('>Age</th>');expect(html).toContain('dateTime="2026-10-22T00:00:00.000Z"');expect(html).toContain('>2d</time>');
+  row.sources.forEach(s=>s.fresh=false);
+  expect(tokenLaunchAge(row,value.as_of).label).toBe("—");
+  row.sources=[{provider:"geckoterminal",window:"24h",received_at:value.as_of,rank:1,previous_rank:null,search_interest:null,fresh:true}];
+  expect(tokenLaunchAge(row,value.as_of).label).toBe("—");
+});
+it("keeps missing, zero and future launch timestamps unknown and formats recent launches compactly", () => {
+  const value=report(),row=value.rows.find(r=>r.symbol==="HOT")!;
+  for(const seconds of[null,0,at.getTime()/1000+1]){row.reported_open_seconds=seconds;expect(tokenLaunchAge(row,value.as_of).label).toBe("—");}
+  for(const [elapsed,label]of[[30,"30s"],[90,"1m"],[7200,"2h"]]as const){row.reported_open_seconds=at.getTime()/1000-elapsed;expect(tokenLaunchAge(row,value.as_of).label).toBe(label);}
 });
