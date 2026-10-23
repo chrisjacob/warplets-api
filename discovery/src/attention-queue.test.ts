@@ -72,11 +72,12 @@ it("cross-checks only requested chain/contract and preserves the most liquid ret
  const queue=await readAttentionQueue(db,at);expect(queue.rows).toHaveLength(0);
  const market=normalizeAttention(input.request,response,at.toISOString()),report=buildAttentionQueue([snapshot(),market],at);expect(report.rows.find(r=>r.chain==="base")).toMatchObject({market_crosschecked:true,liquidity_usd:50000});expect(market.rejected).toHaveLength(1);
 });
-it("focuses on at most twenty fresh non-adverse leaders and batches one exact chain",()=>{
+it("batches at most twenty fresh non-adverse tokens from one chain without hiding later rows",()=>{
  const first=snapshot();first.rows=Array.from({length:30},(_,n)=>({...first.rows[0]!,address:key(30+n),provider_rank:n+1,search_interest:100-n}));
  const queue=buildAttentionQueue([first],at),plan=attentionReviewRequest(queue);
  expect(plan).toMatchObject({kind:"attention_dex_crosscheck",chain:"solana"});expect(plan?.kind==="attention_dex_crosscheck"&&plan.addresses).toHaveLength(20);
- queue.rows.slice(0,20).forEach(r=>r.market_crosschecked=true);expect(attentionReviewRequest(queue)).toBeNull();
+ queue.rows.slice(0,20).forEach(r=>r.market_crosschecked=true);const remainder=attentionReviewRequest(queue);expect(remainder?.kind==="attention_dex_crosscheck"&&remainder.addresses).toHaveLength(10);
+ queue.rows.forEach(r=>r.market_crosschecked=true);expect(attentionReviewRequest(queue)).toBeNull();
  expect(attentionReviewRequest(buildAttentionQueue([{...first,received_at:new Date(at.getTime()-7200001).toISOString()}],at))).toBeNull();
  first.rows.forEach(r=>r.wash_flag=true);expect(attentionReviewRequest(buildAttentionQueue([first],at))).toBeNull();
 });

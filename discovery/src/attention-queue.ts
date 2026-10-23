@@ -14,6 +14,7 @@ import { attentionTradersFresh, type AttentionTraderResult } from "./attention-t
 import { normalizeAttentionActivity,attentionActivityIssue } from "./attention-activity";
 import type { AttentionActivityResult,AttentionActivityIssueResult } from "./attention-activity-model";
 import { GmgnRequestSchema } from "./gmgn-request";
+import { ATTENTION_FOLLOWUP_POLICY, fairAttentionReviewRequest, readAttentionReviewAttempts, type AttentionReviewAttempt } from "./attention-scheduling";
 type SourceRow = z.infer<typeof AttentionSource> & { token: z.infer<typeof AttentionToken> };
 // Chain + contract is identity. A symbol is never a join key; pools are not votes.
 export function buildAttentionQueue(rawSnapshots: AttentionSnapshot[], now = new Date(), completedLaunches: {chain: z.infer<typeof AttentionChain>;address:string}[] = []): AttentionQueueResult {
@@ -134,10 +135,8 @@ export async function readAttentionQueue(db: D1Database, now = new Date(), scope
   return AttentionQueue.parse({...result,candle_reviews:candles,trader_reviews:traders,activity_reviews:activities,activity_issues:issues,history_truncated:result.history_truncated||selected.results.some(r=>r.total>(r.bucket===4?activityLimit:r.bucket===3?traderLimit:r.bucket===2?candleLimit:r.bucket===1?marketLimit:attentionLimit))||gaps.includes("receipt_read_byte_bound"),gaps:[...new Set([...gaps,"completed_launch_registry_not_connected"])]});
 }
 
-export function attentionReviewRequest(queue: AttentionQueueResult) {
-  const pending=queue.rows.filter(r=>r.checks!=="adverse"&&r.attention_families>0).slice(0,20).filter(r=>!r.market_crosschecked);
-  const chain=pending[0]?.chain;
-  return chain ? AttentionRequest.parse({kind:"attention_dex_crosscheck",chain,addresses:pending.filter(r=>r.chain===chain).map(r=>r.address)}) : null;
+export function attentionReviewRequest(queue: AttentionQueueResult, attempts: AttentionReviewAttempt[] = []) {
+  return fairAttentionReviewRequest(queue, attempts);
 }
 
 // One bounded batch total per UTC hour, not one per token or one per browser.
@@ -146,16 +145,16 @@ export async function reviewAttention(settings:GmgnSettings, raw:unknown, fetche
   z.object({reason:z.string().min(3).max(300)}).strict().parse(raw);
   const at=clock(),id=`attention-review-${at.toISOString().slice(0,13).replace(/[^0-9]/g,"")}`;
   if(await settings.db.prepare("SELECT id FROM tenx_source_reservations WHERE id=?1").bind(id).first())return{state:"held",reason:"review_hour_already_reserved",provider_requests:0};
-  const queue=await readAttentionQueue(settings.db,at,"review"),request=attentionReviewRequest(queue);
+  const queue=await readAttentionQueue(settings.db,at,"review"),attempts=await readAttentionReviewAttempts(settings.db,at),request=attentionReviewRequest(queue,attempts);
   if(!request)return{state:"held",reason:"no_fresh_shortlist_needing_crosscheck",provider_requests:0};
-  return {...await executeShortlistQuery(settings,id,request,fetcher,clock),selection_history_truncated:queue.history_truncated};
+  return {...await executeShortlistQuery(settings,id,request,fetcher,clock),selection_policy:ATTENTION_FOLLOWUP_POLICY.version,selection_history_truncated:queue.history_truncated};
 }
 
 export function attentionCandleRequest(queue:AttentionQueueResult, now:Date, attempts:{address:string;last_attempt:string}[]=[] ) {
   // Attempt metadata schedules work only; it never supplies quality evidence.
   // Prefer unseen leads, then the oldest attempt, with queue rank as tie-break.
   const lastAttempt=(address:string)=>attempts.find(a=>a.address===address)?.last_attempt??"";
-  const selected=queue.rows.filter(r=>r.checks!=="adverse"&&r.attention_families>0).slice(0,20).filter(r=>r.chain==="solana"&&r.market_crosschecked&&
+  const selected=queue.rows.filter(r=>r.checks!=="adverse"&&r.attention_families>0&&r.chain==="solana"&&r.market_crosschecked&&
     !queue.candle_reviews.some(c=>c.address===r.address&&attentionCandlesFresh(c,now))).sort((a,b)=>lastAttempt(a.address).localeCompare(lastAttempt(b.address)))[0];
   if(!selected)return null;
   const end=Math.floor(now.getTime()/60000)*60000;
@@ -187,7 +186,7 @@ export async function collectAttentionCandles(settings:GmgnSettings,raw:unknown,
 
 export function attentionTraderRequest(queue:AttentionQueueResult,now:Date,attempts:{address:string;last_attempt:string}[]=[]) {
   const lastAttempt=(address:string)=>attempts.find(a=>a.address===address)?.last_attempt??"";
-  const selected=queue.rows.filter(r=>r.checks!=="adverse"&&r.attention_families>0).slice(0,20).filter(r=>r.chain==="solana"&&r.market_crosschecked&&
+  const selected=queue.rows.filter(r=>r.checks!=="adverse"&&r.attention_families>0&&r.chain==="solana"&&r.market_crosschecked&&
     !queue.trader_reviews.some(t=>t.address===r.address&&attentionTradersFresh(t,now))).sort((a,b)=>lastAttempt(a.address).localeCompare(lastAttempt(b.address)))[0];
   return selected?{kind:"gmgn_token_traders" as const,address:selected.address}:null;
 }
