@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 
 const primary = [
+  { href: "/trending", label: "Trending", matches: (path: string) => path === "/trending" },
   { href: "/discover", label: "Discover", matches: (path: string) => path === "/discover" || path.startsWith("/token/") },
   { href: "/attention", label: "Content", matches: (path: string) => path === "/attention" || path === "/submit" || path.startsWith("/campaign/") },
   { href: "/wallets", label: "My wallets", matches: (path: string) => path === "/wallets" },

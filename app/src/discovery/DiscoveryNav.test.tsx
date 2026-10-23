@@ -3,10 +3,11 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { DiscoveryNav } from "./DiscoveryNav";
 import { CollectionDetails, isCollectionAnchor } from "./CollectionDetails";
 
-it("keeps three primary destinations and retains all research and local tools in a closed native disclosure", () => {
+it("keeps Trending alongside the other primary destinations and retains all research and local tools in a closed native disclosure", () => {
   const html = renderToStaticMarkup(<DiscoveryNav path="/discover" />);
   const primary = html.slice(0, html.indexOf("<details"));
-  expect(primary.match(/<a /g)).toHaveLength(3);
+  expect(primary.match(/<a /g)).toHaveLength(4);
+  expect(primary).toContain('href="/trending"');
   expect(primary).toContain('href="/discover" aria-current="page"');
   expect(primary).not.toContain("Admin");
   expect(html).toContain('<details class="tenx-more"');
@@ -17,6 +18,7 @@ it("keeps three primary destinations and retains all research and local tools in
 });
 
 it.each([
+  ["/trending", "/trending"],
   ["/token/solana/mint", "/discover"],
   ["/campaign/00000000-0000-4000-8000-000000000001", "/attention"],
   ["/submit", "/attention"],

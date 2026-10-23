@@ -9,7 +9,7 @@ async function request(path: string, flag?: string, method = "GET", host = "app.
 }
 
 it("redirects hidden page navigation home without forwarding or retaining query overrides", async () => {
-  for (const path of ["/history?enabled=true", "/history/deeper", "/discover?enabled=true", "/wallets?returnTo=https://example.com", "/token/solana/mint", "/research/future", "/admin/10x", "/elections/saved", "/%64iscover"]) {
+  for (const path of ["/trending", "/trending/deeper", "/%74rending?enabled=true", "/history?enabled=true", "/history/deeper", "/discover?enabled=true", "/wallets?returnTo=https://example.com", "/token/solana/mint", "/research/future", "/admin/10x", "/elections/saved", "/%64iscover"]) {
     for (const method of ["GET", "HEAD"]) {
       const { response, next } = await request(path, undefined, method);
       expect(response.status).toBe(302);
@@ -36,7 +36,7 @@ it("rejects all gated API methods and page mutations before downstream IO on eve
 });
 
 it("permits deliberate opt-in and leaves established surfaces working with the gate closed", async () => {
-  for (const path of ["/discover", "/api/10x/discovery"]) {
+  for (const path of ["/trending", "/discover", "/api/10x/discovery"]) {
     const { response, next } = await request(path, "true");
     expect(response.status).toBe(200); expect(next).toHaveBeenCalledOnce();
   }

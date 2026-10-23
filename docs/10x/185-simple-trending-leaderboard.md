@@ -1,0 +1,13 @@
+# Simple Trending leaderboard
+
+24 October 2026, Australia/Sydney. Founder requested a separate simple leaderboard rather than more Discover controls. Continues [184](184-trending-lightweight-prospective-comparison.md). No deploy.
+
+`/trending` has a ranked table: token artwork/name/chain, reported market cap, 24h volume, liquidity and a direct **View on GMGN** link. Token names also link to the exact chain/address on GMGN in a new tab; Solana uses `/sol/token/`. One chain selector and a saved-list refresh are the only page controls. Trending is first in the main product navigation and is also in the app menu. Discover remains available for existing research workflows.
+
+The independently loaded page reuses the existing bounded, saved attention endpoint and provider ordering. It mounts no scoring, review, holder, wallet, comparison or candidate workspace. Chain selection is local; refresh reads saved data without dispatching provider collection. Fresh attention rows with known adverse flags remain excluded. Missing cap is shown as unavailable rather than substituted FDV; zero remains zero. One brief source/qualification note and an incomplete-sample note preserve uncertainty without expanding the primary flow. No new collector, score, model, trial amendment, evidence gate, provider quota, migration or launch action.
+
+The page participates in the existing client/server product exposure gate, including encoded/deeper namespace variants; production remains thesis-only. No release flag was enabled. Mobile scrolling is confined to the table; token links remain accessible in the initial viewport.
+
+Validation: 28 targeted leaderboard/navigation/menu/client-release/shared-release/server-middleware tests pass across seven suites. App typecheck/build and the unchanged startup budget pass; the ordinary production bundle excludes unfinished product code. An isolated headless browser verified the actual local page, provider links, active navigation, a Solana filter, saved refresh and390px mobile layout. Only cached attention GETs were made within the discovery namespace, with no uncaught browser exceptions. At that observed cutoff the all-chain view had100 rows and Solana35; these are bounded returned counts, not quality or coverage-success measurements. Screenshots/results are private under `.tmp/trending-browser-185-001/`.
+
+Desktop browser access approval timed out, so visual QA used a fresh isolated test-browser profile and did not access the user's open tabs. Existing unrelated Network/legal work remains outside this commit. Prior private evidence, hourly budgets, frozen v1–v4 models, the prospective trial, all action/financial/release gates and the serving149 hold remain. No deploy.

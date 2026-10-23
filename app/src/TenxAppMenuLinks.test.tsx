@@ -7,10 +7,10 @@ it("offers the thesis at the root without any unfinished account-menu entry when
   expect(html).toContain('href="/"');
   expect(html).toContain("The 10X Thesis");
   expect(html.match(/<a /g)).toHaveLength(1);
-  expect(html).not.toMatch(/discover|wallets|Solana/);
+  expect(html).not.toMatch(/trending|discover|wallets|Solana/);
 });
 
 it("retains local discovery and the validated wallet return destination when enabled", () => {
   const html = renderToStaticMarkup(<TenxAppMenuLinks enabled walletHref="/wallets?returnTo=%2Fresearch" onNavigate={() => {}} />);
-  for (const path of ["/discover", "/thesis", "/wallets?returnTo=%2Fresearch"]) expect(html).toContain(`href="${path}"`);
+  for (const path of ["/trending", "/discover", "/thesis", "/wallets?returnTo=%2Fresearch"]) expect(html).toContain(`href="${path}"`);
 });

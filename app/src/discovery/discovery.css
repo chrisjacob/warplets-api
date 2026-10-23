@@ -48,7 +48,7 @@
 .tenx-discovery{font-family:system-ui,sans-serif;font-size:14px}
 .tenx-heading>p:last-child,.tenx-panel p,.tenx-evidence p,.tenx-panel ul{font-size:13px}
 .tenx-heading--discover{margin-bottom:18px}.tenx-heading--discover h1{font-size:30px}
-.tenx-nav--compact{position:relative;grid-template-columns:repeat(4,minmax(0,1fr));align-items:start;gap:4px;padding-bottom:12px;margin-bottom:24px;font-size:13px;line-height:1.4}
+.tenx-nav--compact{position:relative;grid-template-columns:repeat(5,minmax(0,1fr));align-items:start;gap:4px;padding-bottom:12px;margin-bottom:24px;font-size:13px;line-height:1.4}
 .tenx-nav--compact>a,.tenx-more>summary{display:flex;align-items:center;justify-content:center;min-height:44px;padding:8px 4px;border-radius:6px;cursor:pointer}
 .tenx-more>summary{color:#a4f89f;list-style:none}.tenx-more>summary::-webkit-details-marker{display:none}.tenx-more>summary::after{content:"⌄";margin-left:6px}
 .tenx-more[open]>summary,.tenx-more[data-active]>summary{background:#203322;color:#00ff00}

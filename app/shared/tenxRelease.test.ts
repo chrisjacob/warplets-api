@@ -1,7 +1,7 @@
 import { expect, it } from "vitest";
 import { isTenxAppPath, tenxAppEnabled, tenxPage, tenxReleaseSurface } from "./tenxRelease";
 
-const pages = ["/history", "/discover", "/attention", "/submit", "/backing", "/rewards", "/launch-lab", "/launch-recovery", "/wallets", "/research", "/transparency", "/status", "/admin/10x", "/campaign/00000000-0000-4000-8000-000000000001", "/elections", "/elections/saved", "/token/solana/mint"];
+const pages = ["/trending", "/history", "/discover", "/attention", "/submit", "/backing", "/rewards", "/launch-lab", "/launch-recovery", "/wallets", "/research", "/transparency", "/status", "/admin/10x", "/campaign/00000000-0000-4000-8000-000000000001", "/elections", "/elections/saved", "/token/solana/mint"];
 
 it("requires an explicit server opt-in and recovers the root and hidden pages at the thesis", () => {
   for (const value of [undefined, null, false, true, "false", "TRUE", "1", "", " true "]) expect(tenxAppEnabled(value)).toBe(false);

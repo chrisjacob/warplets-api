@@ -28,6 +28,7 @@ import { TenxAppMenuLinks } from "./TenxAppMenuLinks";
 
 const FarcasterSignInControl = lazy(() => import("./FarcasterSignInControl"));
 const DiscoveryPage = TENX_APP_ENABLED ? lazy(() => import("./discovery/DiscoveryPage")) : null;
+const TrendingPage = TENX_APP_ENABLED ? lazy(() => import("./discovery/TrendingPage")) : null;
 const WebConnectModal = lazy(() => import("./WebConnectModal").then(module => ({ default: module.WebConnectModal })));
 
 type ViewerProfile = {
@@ -238,6 +239,7 @@ function HomeAccountControl({
 export default function App({ page: requestedPage = "home" }: { page?: "home" | "thesis" | "discovery" }) {
   const page = TENX_APP_ENABLED ? requestedPage : "thesis";
   const isThesisRoute = page === "thesis";
+  const isTrendingRoute = page === "discovery" && window.location.pathname.replace(/\/+$/, "") === "/trending";
   const walletController = useWalletController();
   const [showAddAppPrompt, setShowAddAppPrompt] = useState(false);
   const [notificationsOnlyPrompt, setNotificationsOnlyPrompt] = useState(false);
@@ -410,8 +412,8 @@ export default function App({ page: requestedPage = "home" }: { page?: "home" | 
   }, [applySession]);
 
   useEffect(() => {
-    document.title = isThesisRoute ? "10X.MEME — The 10X Thesis" : page === "discovery" ? "10X.MEME — Solana Discovery" : "10X.MEME";
-  }, [isThesisRoute, page]);
+    document.title = isThesisRoute ? "10X.MEME — The 10X Thesis" : isTrendingRoute ? "10X.MEME — Trending" : page === "discovery" ? "10X.MEME — Solana Discovery" : "10X.MEME";
+  }, [isThesisRoute, isTrendingRoute, page]);
   useEffect(() => {
     if (!actionError) return;
     const id = window.setTimeout(() => setActionError(""), 5_000);
@@ -606,6 +608,8 @@ export default function App({ page: requestedPage = "home" }: { page?: "home" | 
 
         {isMenuRoute ? (
           <MiniAppMenuPage appSlug="app" />
+        ) : isTrendingRoute && TrendingPage ? (
+          <Suspense fallback={<p role="status" className="p-6 text-center text-[#b8d7b8]">Loading trending tokens…</p>}><TrendingPage /></Suspense>
         ) : page === "discovery" && DiscoveryPage ? (
           <Suspense fallback={<p role="status" className="p-6 text-center text-[#b8d7b8]">Loading discovery…</p>}><DiscoveryPage path={window.location.pathname} /></Suspense>
         ) : isThesisRoute ? (
