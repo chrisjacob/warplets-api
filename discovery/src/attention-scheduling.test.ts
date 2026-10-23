@@ -70,10 +70,10 @@ it("counts failed reservations in chain fairness while preserving hourly identit
   expect(await reviewAttention(settings, { reason: "First bounded opportunity" }, failed, () => at)).toMatchObject({ state: "failed", provider_requests: 1 });
   expect(await reviewAttention(settings, { reason: "Duplicate remains spent" }, failed, () => at)).toMatchObject({ state: "held", reason: "review_hour_already_reserved", provider_requests: 0 });
   const before = sqlite.prepare("SELECT total_changes() n").get()!.n, attempts = await readAttentionReviewAttempts(db, at);
-  expect(attempts).toHaveLength(1); expect(attempts[0]!.chain).toBe("bsc"); expect(sqlite.prepare("SELECT total_changes() n").get()!.n).toBe(before);
-  const next = vi.fn(async (url: string) => { expect(url).toContain("/tokens/v1/base/"); return Response.json([]); });
-  expect(await reviewAttention(settings, { reason: "Next regular hourly opportunity" }, next, () => new Date(at.getTime() + 3600000))).toMatchObject({ provider_requests: 1, selection_policy: "attention-fair-followup-v1" });
+  expect(attempts).toHaveLength(1); expect(attempts[0]!.chain).toBe("solana"); expect(sqlite.prepare("SELECT total_changes() n").get()!.n).toBe(before);
+  const next = vi.fn(async (url: string) => { expect(url).toContain("/tokens/v1/bsc/"); return Response.json([]); });
+  expect(await reviewAttention(settings, { reason: "Next regular hourly opportunity" }, next, () => new Date(at.getTime() + 3600000))).toMatchObject({ provider_requests: 1, selection_policy: "attention-solana-allocation-v2" });
   expect(failed).toHaveBeenCalledTimes(1); expect(next).toHaveBeenCalledTimes(1);
   expect(sqlite.prepare("SELECT used FROM tenx_usage WHERE provider='market' AND day=?").get(at.toISOString().slice(0, 10))).toEqual({ used: 3 });
-  expect(AttentionRequest.parse({ kind: "attention_dex_crosscheck", chain: "bsc", addresses: attempts[0]!.addresses }).kind).toBe("attention_dex_crosscheck");
+  expect(AttentionRequest.parse({ kind: "attention_dex_crosscheck", chain: attempts[0]!.chain, addresses: attempts[0]!.addresses }).kind).toBe("attention_dex_crosscheck");
 });

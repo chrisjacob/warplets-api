@@ -84,7 +84,7 @@ it("batches at most twenty fresh non-adverse tokens from one chain without hidin
 it("runs one charged focused batch per hour, including empty results, without granting evidence or launch readiness",async()=>{
  const{db,sqlite}=setup(),settings={db,apiKey:"synthetic-key",permissionReference:GMGN_USE_AUTHORITY,marketDailyLimit:600};
  await collectAttention(settings,{source:"gmgn",reason:"Synthetic source sample"},async()=>Response.json(body),()=>new Date(at.getTime()-60000));
- const fetcher=vi.fn(async(url:string)=>{expect(url).toContain("https://api.dexscreener.com/tokens/v1/base/");return Response.json([]);});
+ const fetcher=vi.fn(async(url:string)=>{expect(url).toContain("https://api.dexscreener.com/tokens/v1/solana/");return Response.json([]);});
  expect(await reviewAttention(settings,{reason:"Focused market follow-up"},fetcher,()=>at)).toMatchObject({state:"retained",provider_requests:1});
  expect(await reviewAttention(settings,{reason:"Duplicate timer"},fetcher,()=>at)).toMatchObject({state:"held",reason:"review_hour_already_reserved",provider_requests:0});
  expect(fetcher).toHaveBeenCalledTimes(1);expect(sqlite.prepare("SELECT used FROM tenx_usage WHERE provider='market'").get()).toEqual({used:2});

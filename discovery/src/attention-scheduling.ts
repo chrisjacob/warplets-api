@@ -9,6 +9,16 @@ export const ATTENTION_FOLLOWUP_POLICY = {
   token_order: "least_recent_attempt_then_original_queue_position",
   failed_attempts_count: true, token_age_max: null, scoring_effect: "none",
 } as const;
+// Keep v1 and its selector unchanged for replay of original saved allocations.
+// This allocation changes only which eligible chain receives the existing hour.
+export const ATTENTION_ALLOCATION_POLICY = {
+  ...ATTENTION_FOLLOWUP_POLICY,
+  version: "attention-solana-allocation-v2",
+  chain_order: "even_utc_hour_solana_odd_utc_hour_other_chains_then_v1_fairness",
+  empty_preferred_group: "use_other_eligible_group",
+  crosscheck_batches_per_hour_max: 1,
+  freshness_seconds: 7200,
+} as const;
 const SavedAttempt = z.object({ request: z.string().max(5000), last_attempt: z.string().datetime() }).strict();
 export type AttentionReviewAttempt = { chain: AttentionChainId; addresses: string[]; last_attempt: string };
 export function decodeAttentionReviewAttempts(raw: unknown): AttentionReviewAttempt[] {
@@ -54,4 +64,16 @@ export function fairAttentionReviewRequest(queue: AttentionQueueResult, attempts
     .sort((a, b) => (byToken.get(identity(a.address)) ?? "").localeCompare(byToken.get(identity(b.address)) ?? ""))
     .slice(0, 20).map(row => row.address);
   return AttentionRequest.parse({ kind: "attention_dex_crosscheck", chain, addresses });
+}
+
+export function allocatedAttentionReviewRequest(queue: AttentionQueueResult, attempts: AttentionReviewAttempt[] = []) {
+  if (queue.rows.length > 100 || attempts.length > 25) throw Error("attention_followup_selection_bound");
+  const hour = new Date(z.string().datetime().parse(queue.as_of)).getUTCHours();
+  const preferSolana = hour % 2 === 0;
+  const preferred = queue.rows.filter(row => (row.chain === "solana") === preferSolana);
+  // v1 still validates exact attempt identities/times and orders chains/tokens.
+  // A failed preferred request stays spent; fallback is only for absent work,
+  // never a replacement after dispatch or an extra request in the same hour.
+  return fairAttentionReviewRequest({ ...queue, rows: preferred }, attempts)
+    ?? fairAttentionReviewRequest(queue, attempts);
 }
