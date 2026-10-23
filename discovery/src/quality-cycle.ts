@@ -5,6 +5,7 @@ import { creationUser, migrations, verifyState, type Migration } from "./pump";
 import { analyzeHolders, type HolderEvidence } from "./holders";
 import { compareCollectionPotential, createdWithinWindow } from "./priority";
 import type { Settings } from "./ingest";
+import { collectCanonicalAttentionIntake } from "./canonical-attention-intake";
 
 export type QualitySettings = Settings & { qualityEnabled: boolean; qualityDailyLimit: number };
 export async function qualityStatus(db: D1Database, limit: number, enabled: boolean) {
@@ -23,6 +24,7 @@ export function reserveQualityQuota(db: D1Database, s: QualitySettings, now: Dat
 type Target = { candidate: Candidate; migration: Migration; creator: string | null };
 export async function runQualityCycle(s: QualitySettings, now = new Date()): Promise<Record<string, unknown>> {
   if (!s.qualityEnabled) return { state: "disabled" };
+  const started = Date.now(), clock = () => new Date(now.getTime() + Date.now() - started);
   const db = s.db, at = now.toISOString(), initial = await control(db), owner = crypto.randomUUID();
   if (initial.paused) return { state: "paused" };
   if (initial.retry_after && initial.retry_after > at && initial.last_error?.startsWith("rpc_")) return { state: "waiting", reason: "shared_rpc_backoff" };
@@ -45,8 +47,10 @@ export async function runQualityCycle(s: QualitySettings, now = new Date()): Pro
       targets.push({ candidate, migration, creator });
     }
     if (!targets.length) {
+      const intake = await collectCanonicalAttentionIntake(s, owner, rpc.maxCalls - rpc.calls, clock, reserveQualityQuota(db, s, now));
+      rpc.calls += intake.rpc_calls;
       await db.prepare("UPDATE tenx_quality_control SET lease_owner=NULL,lease_until=NULL,targets=0 WHERE id=1 AND lease_owner=?1").bind(owner).run();
-      return { state: "empty", rpc_calls: 0 };
+      return intake.state === "held" ? { state: "empty", rpc_calls: 0 } : { state: intake.state === "collected" ? "succeeded" : "failed", rpc_calls: rpc.calls, targets: 0, canonical_intake: intake };
     }
     await rpc.checkCluster();
     const accounts = await rpc.accounts(targets.flatMap(t => [t.candidate.address, t.candidate.pool, t.migration.baseVault, t.migration.quoteVault, t.migration.curve]), Math.max(...targets.map(t => t.candidate.graduation!.slot)));
@@ -93,8 +97,10 @@ export async function runQualityCycle(s: QualitySettings, now = new Date()): Pro
         }
       }
     }
+    const intake = await collectCanonicalAttentionIntake(s, owner, rpc.maxCalls - rpc.calls, clock, reserveQualityQuota(db, s, now));
+    rpc.calls += intake.rpc_calls;
     await db.prepare("UPDATE tenx_quality_control SET lease_owner=NULL,lease_until=NULL,last_success=?1,last_error=NULL,targets=?2 WHERE id=1 AND lease_owner=?3").bind(at, valid.length, owner).run();
-    return { state: "succeeded", targets: valid.length, holder_inventories: holders, rpc_calls: rpc.calls };
+    return { state: "succeeded", targets: valid.length, holder_inventories: holders, rpc_calls: rpc.calls, ...(intake.state === "held" ? {} : { canonical_intake: intake }) };
   } catch (error) {
     await persistRpcBackoff(db, error, now);
     const code = error instanceof SourceError ? error.code : error instanceof Error && /^[a-z0-9_]{1,80}$/.test(error.message) ? error.message : "quality_evidence_invalid";

@@ -120,7 +120,8 @@ function owned(account: Account | null | undefined, owner: string): Uint8Array {
   if (!account || account.owner !== owner || account.executable) throw new Error("wrong_or_missing_account_owner");
   return base64(account.data[0]);
 }
-export async function verifyState(migration: Migration, accounts: Accounts, now: string, minSlot: number): Promise<Candidate["risk"]> {
+export type CanonicalPoolStateIdentity = Pick<Migration, "address" | "pool" | "quote" | "curve" | "baseVault" | "quoteVault" | "baseProgram">;
+export async function verifyState(migration: CanonicalPoolStateIdentity, accounts: Accounts, now: string, minSlot: number): Promise<Candidate["risk"]> {
   if (accounts.context.slot < minSlot || accounts.value.length !== 5) throw new Error("stale_account_context");
   const [mint, pool, baseVault, quoteVault, curve] = accounts.value;
   const data = owned(pool, AMM);

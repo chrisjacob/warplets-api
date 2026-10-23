@@ -73,7 +73,7 @@ export function buildAttentionQueue(rawSnapshots: AttentionSnapshot[], now = new
     rows.push({ ...token, image_url: token.image_url ?? dex?.token.image_url ?? sources.find(s=>s.token.image_url)?.token.image_url ?? null,
       market_cap_usd: market.market_cap_usd, fdv_usd: market.fdv_usd, liquidity_usd: market.liquidity_usd, buys:market.buys, sells:market.sells,
       volume_24h_usd: market.volume_24h_usd, volume_1h_usd: recentSource?.token.volume_1h_usd??null, boost_count: dex?.token.boost_count ?? null,
-      market_source:marketSource.provider,recent_volume_source:recentSource?.provider??null,
+      pool:market.pool,market_source:marketSource.provider,recent_volume_source:recentSource?.provider??null,
       sources: sources.map(({token: _token,...source}) => source), attention_families: families.size, observed_hours: hours.get(identity)?.size ?? 0,
       checks: adverse ? "adverse" : "review", reasons, market_crosschecked: !!dex?.fresh });
   }
