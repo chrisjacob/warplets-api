@@ -27,6 +27,10 @@ The Network handoff manifest SHA-256 is `c56d302cf3ee07ba27854c4893d27b7046b9069
 
 The importer handles UTF-8 CLI logs and Wrangler upload progress before JSON metrics, uses actual index counts as conservative write bounds, checkpoints every successful chunk, and refreshes only the existing OAuth grant if a long operation crosses access-token expiry. It never requests broader scopes. The shared legal revision and its archives were published by the preparation deployment; the publication date in Sydney is 29 October 2026, distinct from the documents' revision date.
 
+Collection activation PR #83 and the edge-runtime correction in #84 are merged and deployed. The first successful production run recorded 20 refreshed profiles and five reconciled acceptance events at `2026-10-29T12:57:02.437Z`. Snapshot publication and production-derived holder indexes were verified before public serving was enabled. The fetch helper uses manual redirects and rejects all non-2xx responses; a real HTTP regression confirms that redirect targets are never followed.
+
+Published privacy, terms and both historical documents return HTTP 200 and match the reviewed source after newline normalization. Both Social fragments and mobile/desktop layouts were verified. A separate unauthenticated Social HTML check does not establish analytics traffic or account configuration; no Social client source or analytics setting was changed.
+
 ## Recovery and observation
 
 Disable `NETWORK_ENABLED` to hide Network and `NETWORK_INGEST_ENABLED` / `NETWORK_WALLETS_ENABLED` to stop its collection. Re-deploy the existing Pages/Worker projects; preserve unrelated settings and secrets. If necessary restore the previous application deployments. Do not reverse additive migrations, drop shared tables, replace the database, or restore a local database to production.

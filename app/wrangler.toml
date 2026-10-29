@@ -14,7 +14,7 @@ preview_bucket_name = "warplets-stats-shares-preview"
 
 [vars]
 TENX_APP_ENABLED = "false"
-NETWORK_ENABLED = "false"
+NETWORK_ENABLED = "true"
 NETWORK_INGEST_ENABLED = "false"
 NETWORK_WALLETS_ENABLED = "false"
 # Farcaster FID of each registered mini-app — used to scope notification tokens
