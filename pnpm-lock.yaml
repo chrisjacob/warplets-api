@@ -84,6 +84,9 @@ importers:
 
   app:
     dependencies:
+      '@10x/connect':
+        specifier: workspace:*
+        version: link:../packages/connect
       '@base-org/account':
         specifier: ^2.5.8
         version: 2.5.8(@types/react@19.2.14)(bufferutil@4.1.0)(react@19.2.5)(typescript@5.9.3)(use-sync-external-store@1.6.0(react@19.2.5))(utf-8-validate@6.0.6)(zod@4.6.6)
@@ -264,6 +267,58 @@ importers:
       wrangler:
         specifier: 4.154.0
         version: 4.154.0(@cloudflare/workers-types@5.20261028.1)(@types/node@24.12.2)(bufferutil@4.1.0)(utf-8-validate@6.0.6)
+
+  packages/connect:
+    dependencies:
+      '@base-org/account':
+        specifier: ^2.5.8
+        version: 2.5.8(@types/react@19.2.14)(bufferutil@4.1.0)(react@19.2.5)(typescript@5.9.3)(use-sync-external-store@1.6.0(react@19.2.5))(utf-8-validate@6.0.6)(zod@4.6.6)
+      '@farcaster/auth-client':
+        specifier: 0.7.1
+        version: 0.7.1(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@4.6.6)
+      '@farcaster/auth-kit':
+        specifier: 0.8.2
+        version: 0.8.2(@types/react@19.2.14)(babel-plugin-macros@3.1.0)(bufferutil@4.1.0)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@4.6.6)
+      '@floating-ui/react':
+        specifier: ^0.27.19
+        version: 0.27.19(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
+      '@tanstack/react-query':
+        specifier: ^5.101.4
+        version: 5.101.4(react@19.2.5)
+      '@trustwallet/connect-eip155-react':
+        specifier: 0.0.0
+        version: 0.0.0(@tanstack/react-query@5.101.4(react@19.2.5))(@trustwallet/connect-headless@0.0.0(react@19.2.5))(react@19.2.5)(viem@2.55.19(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@4.6.6))
+      '@trustwallet/connect-react':
+        specifier: 0.0.0
+        version: 0.0.0(@trustwallet/connect-walletconnect@0.0.0(patch_hash=fa409b6fb19fda60561af2be055b377b88fc50f4b80341bebe3d883f5d67adc8)(bufferutil@4.1.0)(react@19.2.5)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@4.6.6))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(typescript@5.9.3)
+      '@trustwallet/connect-walletconnect':
+        specifier: 0.0.0
+        version: 0.0.0(patch_hash=fa409b6fb19fda60561af2be055b377b88fc50f4b80341bebe3d883f5d67adc8)(bufferutil@4.1.0)(react@19.2.5)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@4.6.6)
+      overlayscrollbars:
+        specifier: ^2.16.0
+        version: 2.16.0
+      overlayscrollbars-react:
+        specifier: ^0.5.6
+        version: 0.5.6(overlayscrollbars@2.16.0)(react@19.2.5)
+      react:
+        specifier: 19.2.5
+        version: 19.2.5
+      react-dom:
+        specifier: 19.2.5
+        version: 19.2.5(react@19.2.5)
+      viem:
+        specifier: ^2.55.19
+        version: 2.55.19(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@4.6.6)
+    devDependencies:
+      '@types/react':
+        specifier: ^19
+        version: 19.2.14
+      '@types/react-dom':
+        specifier: ^19
+        version: 19.2.3(@types/react@19.2.14)
+      vite:
+        specifier: 6.4.3
+        version: 6.4.3(@types/node@24.12.2)(jiti@2.7.0)(less@4.6.7)(lightningcss@1.32.0)(terser@5.49.0)(tsx@4.21.0)
 
   snap:
     dependencies:
