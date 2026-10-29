@@ -20,6 +20,8 @@ import {
 } from "../shared/rules";
 import { canonical } from "../shared/canonical";
 import { decode58 } from "../shared/base58";
+import { cycleAttribute } from "./cycles";
+import { scoreRound } from "./scoring";
 export interface StoredRound {
   id: string;
   opens_at: number;
@@ -30,6 +32,8 @@ export interface StoredRound {
   rules_version: string;
   selected_candidate: string | null;
   outcome_reason: string | null;
+  cycle_id: string | null;
+  cycle_index: number | null;
 }
 export interface OwnershipEvidence {
   source: "warplets";
@@ -109,8 +113,22 @@ export async function createRound(
     400,
     "Round must open in the future and last no more than 24 hours",
   );
+  const cycleId =
+    typeof p.cycleId === "string" ? text(p.cycleId, "cycle ID", 80) : null;
+  const cycle = cycleId ? await cycleAttribute(db, cycleId, closesAt) : null;
   requireThat(
-    ATTRIBUTES.includes(p.attribute as Attribute),
+    cycle || p.simulated === true,
+    400,
+    "A committed cycle is required; manual attributes are simulated only",
+  );
+  const attribute = cycle?.attribute ?? p.attribute;
+  requireThat(
+    !cycle || p.attribute == null || p.attribute === attribute,
+    400,
+    "Attribute conflicts with cycle",
+  );
+  requireThat(
+    ATTRIBUTES.includes(attribute as Attribute),
     400,
     "Unknown attribute",
   );
@@ -124,9 +142,17 @@ export async function createRound(
   const statements = [
     db
       .prepare(
-        "INSERT INTO meme_rounds VALUES(?,?,?,?,'prepared',NULL,?,NULL,NULL)",
+        "INSERT INTO meme_rounds(id,opens_at,closes_at,attribute,state,snapshot_id,rules_version,selected_candidate,outcome_reason,cycle_id,cycle_index) VALUES(?,?,?,?,'prepared',NULL,?,NULL,NULL,?,?)",
       )
-      .bind(id, opensAt, closesAt, p.attribute, RULES_VERSION),
+      .bind(
+        id,
+        opensAt,
+        closesAt,
+        attribute,
+        RULES_VERSION,
+        cycleId,
+        cycle?.index ?? null,
+      ),
   ];
   const ids = new Set<string>();
   for (const raw of p.candidates) {
@@ -540,8 +566,13 @@ export async function state(db: Database, request: Request) {
           identity.farcasterFid,
         )
       : null;
+  const scoring =
+    current.snapshot_id && Date.now() >= current.opens_at
+      ? await scoreRound(db, current, identity.farcasterFid)
+      : null;
   return {
     mode: "local",
+    ...(scoring?.view ?? {}),
     identity,
     round: {
       ...current,
@@ -557,7 +588,10 @@ export async function state(db: Database, request: Request) {
         Date.now() >= current.opens_at && current.snapshot_id
           ? current.attribute
           : null,
-      candidates,
+      candidates: candidates.map((c) => ({
+        ...c,
+        weightedVotes: scoring?.view.weightedVotes[c.id] ?? "0",
+      })),
     },
     myVote,
     history,
@@ -597,6 +631,8 @@ export async function roundsRequest(
           "closesAt",
           "day",
           "attribute",
+          "cycleId",
+          "simulated",
           "candidates",
         ]),
         actor,
