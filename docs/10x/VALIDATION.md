@@ -19,7 +19,7 @@ Preparation, data handoff, collection activation and serving activation are reco
 
 Live browser checks cover desktop/mobile country filtering, map drill-down, member search, directory pagination, Warplet portraits and membership history. The thesis, Warplet, Stonklet, Drop and shared legal pages return HTTP 200. Privacy/terms source parity, August archives and Social anchors are verified. No separate Social client or analytics setting changed.
 
-Network serving is live at `https://app.10x.meme/network`. `network.10x.meme` is registered on the same Pages project and awaits the owner-added proxied CNAME to `10x-app.pages.dev`. A later UTC daily rollover has not yet occurred during this verification window; scheduled collection and multiple new snapshots have succeeded with unchanged provider caps.
+Network serving is live at `https://app.10x.meme/network`. `https://network.10x.meme` also returned HTTP 200 on 29 October 2026 at 22:39 UTC, after the owner added its DNS record. A later UTC daily rollover has not yet occurred during this verification window; scheduled collection and multiple new snapshots have succeeded with unchanged provider caps. Daily refresh and November quota rollover observation remain operational follow-ups.
 
 ## Milestones 1–3 build — 30 October 2026 (Sydney)
 
@@ -32,3 +32,11 @@ The foundation observations above describe its original fixture-only commit. The
 - Desktop and 390×844 browser checks cover Today, Rewards, history, shared Farcaster/Base/wallet Connect and scrollable Solana controls. Financial controls stay disabled. No horizontal overflow was observed. Original design fixtures remain accessible separately. Generated-proof HTTP tests cover allocations; signing with the owner's real accounts and physical mobile wallets was deliberately left for later manual QA.
 
 Source completeness and historical USD quotes are still operator/source-attested. Observed receipt checks do not establish complete history, automated indexing or broad protocol coverage. These limitations, production abuse/economics review, protocol/distributor feasibility and funded claims remain explicit later gates, rather than implied production readiness.
+
+## Evidence and operations integration — 30 October 2026 (Sydney)
+
+The preceding source-attestation paragraph describes the milestone 1–3 stack. This integration adds independent history/oracle adapters and requires a fully verified evidence version for new observed settlements. Provider credentials, entitlement and exact allowances still require approval; Helius/Pyth budgets are zero and no live requests were made. These changes do not establish broad swap/Token-2022 coverage or production readiness.
+
+Migration replay through 0010, paginated source/version verification, immutable corrections, stale leases, lost responses, quota preservation, old/new score agreement and 1,200-account snapshot publication are covered by automated tests. Public projections have a fixed query count and never replay ledger history or initiate collection. The actual local Wrangler runtime also applied the additive migrations and published an empty simulated-round snapshot; browser checks covered Today, Rewards and shared Connect cancellation without real-account signing. The QA instance used separate local state and ports 5294/8897, preserving the existing preview.
+
+All 853 existing app tests, root/app typechecks, security preflight, the production app build and routing-isolation checks passed. Existing app startup remains 235.1 KiB gzip under its 250 KiB budget. Launchpad startup remains below its existing 80 KiB budget. Production rules and physical-phone signing are still unverified; see [RULES-REVIEW.md](RULES-REVIEW.md).

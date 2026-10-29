@@ -18,8 +18,9 @@ export interface Receipt {
   } | null;
   transaction: { message: { accountKeys: ({ pubkey: string } | string)[] } };
 }
-function delta(receipt: Receipt, wallet: string, mint: string) {
-  const meta = receipt.meta!;
+export function receiptDelta(receipt: Receipt, wallet: string, mint: string) {
+  const meta = receipt.meta;
+  requireThat(meta, 409, "Receipt metadata is missing");
   if (mint === "native:SOL") {
     const index = receipt.transaction.message.accountKeys.findIndex(
       (k) => (typeof k === "string" ? k : k.pubkey) === wallet,
@@ -31,15 +32,28 @@ function delta(receipt: Receipt, wallet: string, mint: string) {
       throw Error("Native balance exceeds exact receipt support");
     return BigInt(after) - BigInt(before) + BigInt(index === 0 ? meta.fee : 0);
   }
-  const sum = (items: TokenBalance[] | undefined) =>
-    (items ?? [])
-      .filter((b) => b.owner === wallet && b.mint === mint)
+  const sum = (items: TokenBalance[] | undefined) => {
+    const matching = (items ?? []).filter((b) => b.mint === mint);
+    requireThat(
+      matching.every(
+        (b) =>
+          typeof b.owner === "string" &&
+          b.owner.length > 0 &&
+          /^[0-9]{1,78}$/.test(b.uiTokenAmount.amount),
+      ),
+      409,
+      "Incomplete token owner metadata or imprecise amount",
+    );
+    return matching
+      .filter((b) => b.owner === wallet)
       .reduce((n, b) => n + BigInt(b.uiTokenAmount.amount), 0n);
+  };
   return sum(meta.postTokenBalances) - sum(meta.preTokenBalances);
 }
+const delta = receiptDelta;
 export function verifyReceipt(
   event: LedgerEvent,
-  campaign: Campaign,
+  campaign: Pick<Campaign, "mint">,
   receipt: Receipt,
 ) {
   requireThat(

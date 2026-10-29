@@ -7,3 +7,5 @@ The previous discovery implementation is archived at [`archive/10x-discovery-202
 The first three functional milestones are implemented locally in `meme/`: verified identity and persisted rounds, deterministic boosts and holding credit, and resumable settlement with immutable unfunded entitlements. Existing Connect UI is shared with the other products. [BUILD.md](BUILD.md) defines the versioned local rules, operator procedures and source limitations. The original read-only design fixtures remain available at `?fixture=1`. Launch execution, funding and claims are disabled. These branches do not deploy the new launchpad.
 
 See [VALIDATION.md](VALIDATION.md) for the released branch base, completed checks and remaining hostname/observation follow-up.
+
+The next integration adds [resumable evidence and daily operations](OPERATIONS.md), published score snapshots and an explicit correction workflow. Review the [participation packet and physical-wallet QA](RULES-REVIEW.md) before enabling a production rules version. Provider allowances for new sources remain zero until approved. The integration/review base is documented in [INTEGRATION.md](INTEGRATION.md).

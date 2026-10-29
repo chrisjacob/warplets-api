@@ -35,6 +35,7 @@ export interface LocalState {
   } | null;
   round: RoundView | null;
   holdingComplete?: boolean;
+  scoreSnapshot?: { state: string; asOf: number | null };
   myVote?: {
     candidate_id: string;
     first_valid_at: number;
@@ -243,10 +244,17 @@ export function LocalRounds({
           </button>
         </div>
       )}
-      {data?.holdingComplete === false && !final && (
+      {data?.scoreSnapshot?.state === "pending" && !final ? (
         <p className="fine" role="status">
-          Holding data pending. Scores may change.
+          Scores updating.
         </p>
+      ) : (
+        data?.holdingComplete === false &&
+        !final && (
+          <p className="fine" role="status">
+            Holding data pending. Scores may change.
+          </p>
+        )
       )}
       <div className="candidates">
         {r.candidates.map((c) => (

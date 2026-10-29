@@ -12,6 +12,7 @@ import {
 } from "../shared/settlement";
 import { RULES_VERSION, DAY_MS } from "../shared/rules";
 import { decimal } from "../shared/scoring";
+import { requireDependableSources } from "./sources";
 
 interface Job {
   round_id: string;
@@ -102,6 +103,19 @@ async function prepare(db: Database, r: StoredRound) {
         cp.every((c) => c.mode === "observed"),
         409,
         "Observed settlement cannot use simulated ledger evidence",
+      );
+    const walletScope = new Set(
+      [...ledger.walletScopes.values()].flatMap((scope) => [...scope]),
+    );
+    for (const campaign of relevant)
+      await requireDependableSources(
+        db,
+        campaign.id,
+        campaign.mint,
+        campaign.launchedAt,
+        r.closes_at,
+        walletScope,
+        true,
       );
   }
   const scored = await scoreRound(db, r, null, ledger.units, ledger);

@@ -3,7 +3,7 @@ import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { randomBytes, createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
-import { DatabaseSync } from "node:sqlite";
+import { readOwnership } from "./ownership-source.mjs";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), ".."),
   state = resolve(root, ".wrangler");
 mkdirSync(state, { recursive: true });
@@ -22,6 +22,8 @@ async function send(path, body) {
       authorization: "Bearer " + readFileSync(tokenFile, "utf8").trim(),
     },
     body: JSON.stringify(body),
+    signal: AbortSignal.timeout(60000),
+    redirect: "manual",
   });
   const result = await r.json();
   if (!r.ok) throw Error(result.error ?? "Operator request failed");
@@ -123,71 +125,63 @@ if (command === "init") {
       "Simulated round opens in ten seconds; no financial actions are enabled.",
     );
   }
-} else if (command === "ownership-export") {
-  if (!args[0]) throw Error("Provide the existing Warplets SQLite path");
-  const db = new DatabaseSync(resolve(args[0]), { readOnly: true });
-  db.exec("BEGIN");
-  const attributes = [
-    "cast",
-    "fid",
-    "follower",
-    "holder",
-    "luck",
-    "minter",
-    "neynar",
-    "nft",
-    "token",
-    "volume",
-  ];
-  const rows = db
-    .prepare(
-      `SELECT m.token_id,m.owner_wallet,m.owner_checked_at,${attributes.map((a) => "n." + a + "_level").join(",")} FROM warplet_market_state m JOIN warplets_metadata n ON n.token_id=m.token_id ORDER BY m.token_id`,
-    )
-    .all();
-  db.exec("COMMIT");
-  db.close();
-  if (rows.length !== 10000)
-    throw Error("Full 10K ownership/metadata coverage required");
-  let sourceAt = Date.now();
-  const ownership = rows.map((row) => {
-    if (!/^0x[0-9a-f]{40}$/i.test(String(row.owner_wallet)))
-      throw Error("Unresolved owner for " + row.token_id);
-    const checked = Date.parse(String(row.owner_checked_at));
-    if (!Number.isSafeInteger(checked) || checked > Date.now())
-      throw Error("Invalid ownership observation time");
-    sourceAt = Math.min(sourceAt, checked);
-    const levels = {};
-    for (const attribute of attributes) {
-      const level = Number(String(row[attribute + "_level"]).match(/\d+/)?.[0]);
-      if (!Number.isInteger(level) || level < 1 || level > 10)
-        throw Error("Unresolved attribute: " + row.token_id);
-      levels[attribute] = level;
+} else if (command === "ownership-export" || command === "ownership-freeze") {
+  if (!args[0]) throw Error("Provide the authoritative Warplets SQLite path");
+  const evidence = readOwnership(resolve(args[0]));
+  if (command === "ownership-freeze") {
+    if (!args[1]) throw Error("Provide the prepared round ID");
+    console.log(
+      await send(
+        "/api/meme/operator/rounds/" + encodeURIComponent(args[1]) + "/freeze",
+        evidence,
+      ),
+    );
+  } else {
+    const output = resolve(state, "ownership-source.json");
+    writeFileSync(output, JSON.stringify(evidence));
+    console.log(
+      JSON.stringify({
+        file: output,
+        tokens: evidence.ownership.length,
+        sourceAt: evidence.sourceAt,
+        sha256: hash(JSON.stringify(evidence)),
+      }),
+    );
+  }
+} else if (command === "tick" || command === "run") {
+  const once = command === "tick";
+  do {
+    const result = await send("/api/meme/operator/operations/tick", {});
+    console.log(JSON.stringify(result));
+    if (args[0]) {
+      const response = await fetch("http://127.0.0.1:8797/api/meme/state", {
+        signal: AbortSignal.timeout(15000),
+      });
+      if (!response.ok) throw Error("Local round state unavailable");
+      const { round } = await response.json();
+      if (round?.state === "prepared" && Date.now() < round.opens_at) {
+        try {
+          console.log(
+            await send(
+              "/api/meme/operator/rounds/" +
+                encodeURIComponent(round.id) +
+                "/freeze",
+              readOwnership(resolve(args[0])),
+            ),
+          );
+        } catch {
+          console.error(
+            "Ownership freeze blocked; inspect source freshness and job status.",
+          );
+        }
+      }
     }
-    return {
-      tokenId: Number(row.token_id),
-      wallet: String(row.owner_wallet).toLowerCase(),
-      levels,
-    };
-  });
-  const evidence = {
-    source: "warplets",
-    mode: "observed",
-    sourceAt,
-    checkpoint: hash(JSON.stringify(rows)),
-    complete: true,
-    ownership,
-  };
-  const output = resolve(state, "ownership-source.json");
-  writeFileSync(output, JSON.stringify(evidence));
-  console.log(
-    JSON.stringify({
-      file: output,
-      tokens: ownership.length,
-      sourceAt,
-      sha256: hash(JSON.stringify(evidence)),
-    }),
-  );
+    if (!once)
+      await new Promise((resolve) =>
+        setTimeout(resolve, result.state === "queued" ? 25 : 1000),
+      );
+  } while (!once);
 } else
   throw Error(
-    "Commands: init | demo | settle <round-id> | request <operator-route> <json-file> | ownership-export <warplets-sqlite-path>",
+    "Commands: init | demo | settle <round-id> | request <operator-route> <json-file> | ownership-export <warplets-sqlite-path> | ownership-freeze <sqlite> <round> | tick | run [authoritative-sqlite]",
   );

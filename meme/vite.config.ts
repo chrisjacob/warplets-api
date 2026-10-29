@@ -1,6 +1,9 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { securityHeaders } from "./src/shared/securityHeaders";
+const workerPort = Number(process.env.MEME_LOCAL_WORKER_PORT ?? 8797);
+if (!Number.isInteger(workerPort) || workerPort < 1024 || workerPort > 65535)
+  throw new Error("Invalid local Worker port");
 export default defineConfig({
   plugins: [react()],
   define: {
@@ -14,7 +17,9 @@ export default defineConfig({
     host: "127.0.0.1",
     port: 5194,
     strictPort: true,
-    proxy: { "/api": { target: "http://127.0.0.1:8797", changeOrigin: false } },
+    proxy: {
+      "/api": { target: `http://127.0.0.1:${workerPort}`, changeOrigin: false },
+    },
     fs: {
       strict: true,
       deny: [

@@ -4,6 +4,9 @@ import { roundsRequest } from "./rounds";
 import { cycleRequest } from "./cycles";
 import { holdingRequest } from "./holding";
 import { settlementRequest } from "./settlement";
+import { operationsRequest, tick } from "./operations";
+import { sourceRequest } from "./sources";
+import { versionRequest } from "./evidenceVersions";
 import { Problem, json as reply } from "./db";
 import { securityHeaders } from "../shared/securityHeaders";
 const json = (data: unknown, status = 200) =>
@@ -63,6 +66,12 @@ export default {
           return reply({ error: "Origin mismatch" }, 403);
         return (
           (await authRequest(env.MEME_DB, request)) ??
+          (await operationsRequest(env.MEME_DB, request)) ??
+          (await sourceRequest(env.MEME_DB, request, {
+            helius: env.HELIUS_API_KEY ?? "",
+            pyth: env.PYTH_API_KEY ?? "",
+          })) ??
+          (await versionRequest(env.MEME_DB, request)) ??
           (await cycleRequest(env.MEME_DB, request)) ??
           (await holdingRequest(env.MEME_DB, request)) ??
           (await settlementRequest(env.MEME_DB, request)) ??
@@ -82,5 +91,12 @@ export default {
       }
     }
     return handleRequest(request);
+  },
+  async scheduled(_event, env): Promise<void> {
+    if (
+      env.LOCAL_PREVIEW_ONLY === "true" &&
+      String(env.LOCAL_OPERATIONS_ENABLED) === "true"
+    )
+      await tick(env.MEME_DB);
   },
 } satisfies ExportedHandler<Env>;
