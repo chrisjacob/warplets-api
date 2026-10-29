@@ -213,12 +213,14 @@ export default function TrustConnectBridge({ onConnected, onDismiss = () => unde
         icons: [`${window.location.origin}${getRuntimeAppIconPath()}`],
       },
     })] : [];
+    return { namespaces, services };
+  }, []);
+  useEffect(() => {
     appendWalletConnectDiagnostic("trustconnect.config_created", {
-      hasProjectId: Boolean(projectId),
-      chains: chains.map((chain) => chain.id),
+      hasProjectId: Boolean(import.meta.env.VITE_WALLETCONNECT_PROJECT_ID?.trim()),
+      chains: (import.meta.env.DEV ? [base, baseSepolia] : [base]).map((chain) => chain.id),
       origin: window.location.origin,
     });
-    return { namespaces, services };
   }, []);
 
   return (

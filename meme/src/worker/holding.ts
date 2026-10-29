@@ -337,7 +337,13 @@ export async function holdingForRound(
   const eventMap = new Map<string, LedgerEvent[]>(),
     checkpointMap = new Map<
       string,
-      { scope: string[]; throughAt: number; hash: string; mode: string }[]
+      {
+        scope: string[];
+        scopeSet: Set<string>;
+        throughAt: number;
+        hash: string;
+        mode: string;
+      }[]
     >();
   for (const c of active) {
     eventMap.set(
@@ -361,12 +367,13 @@ export async function holdingForRound(
           mode: string;
         }>(
           db,
-          "SELECT scope_wallets,through_at,evidence_hash,mode FROM meme_ledger_seals WHERE campaign_id=? AND through_at>=?",
+          "SELECT scope_wallets,through_at,evidence_hash,mode FROM meme_ledger_seals WHERE campaign_id=? AND through_at>=? ORDER BY rowid",
           c.id,
           cutoff,
         )
       ).map((p) => ({
         scope: JSON.parse(p.scope_wallets),
+        scopeSet: new Set<string>(JSON.parse(p.scope_wallets)),
         throughAt: p.through_at,
         hash: p.evidence_hash,
         mode: p.mode,
@@ -376,15 +383,31 @@ export async function holdingForRound(
   const units = new Map<number, bigint>(),
     details = new Map<number, ReturnType<typeof normalizedHolding>>(),
     pending: number[] = [];
+  const walletScopes = new Map<number, Set<string>>();
+  for (const s of scopes) {
+    if (!walletScopes.has(s.fid)) walletScopes.set(s.fid, new Set());
+    walletScopes.get(s.fid)!.add(s.address);
+  }
+  const eventIndex = new Map<string, Map<string, LedgerEvent[]>>();
+  for (const [campaign, events] of eventMap) {
+    const index = new Map<string, LedgerEvent[]>();
+    for (const event of events)
+      for (const address of new Set(
+        [event.wallet, event.from, event.to].filter((a): a is string => !!a),
+      )) {
+        if (!index.has(address)) index.set(address, []);
+        index.get(address)!.push(event);
+      }
+    eventIndex.set(campaign, index);
+  }
+  const scopeEvents = new Map<number, Map<string, LedgerEvent[]>>();
   for (const fid of fids) {
-    const wallets = new Set(
-      scopes.filter((s) => s.fid === fid).map((s) => s.address),
-    );
+    const wallets = walletScopes.get(fid) ?? new Set<string>();
     const complete = active.every(
       (c) =>
         wallets.size === 0 ||
         (checkpointMap.get(c.id) ?? []).some((cp) =>
-          [...wallets].every((w) => cp.scope.includes(w)),
+          [...wallets].every((w) => cp.scopeSet.has(w)),
         ),
     );
     if (!complete) {
@@ -392,7 +415,27 @@ export async function holdingForRound(
       continue;
     }
     try {
-      const value = normalizedHolding(active, eventMap, wallets, cutoff);
+      const scoped = new Map<string, LedgerEvent[]>();
+      for (const [campaign, index] of eventIndex) {
+        const found = new Set<LedgerEvent>();
+        for (const address of wallets)
+          for (const event of index.get(address) ?? []) found.add(event);
+        scoped.set(
+          campaign,
+          [...found].sort(
+            (a, b) =>
+              a.slot - b.slot ||
+              (a.signature < b.signature
+                ? -1
+                : a.signature > b.signature
+                  ? 1
+                  : 0) ||
+              a.index - b.index,
+          ),
+        );
+      }
+      scopeEvents.set(fid, scoped);
+      const value = normalizedHolding(active, scoped, wallets, cutoff);
       units.set(fid, value.units);
       details.set(fid, value);
     } catch {
@@ -407,6 +450,8 @@ export async function holdingForRound(
     campaigns: active,
     events: eventMap,
     checkpoints: checkpointMap,
+    scopeEvents,
+    walletScopes,
   };
 }
 export async function holdingRequest(

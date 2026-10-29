@@ -613,6 +613,11 @@ export async function authRequest(
       p = await payload(request, ["address", "role"]),
       address = text(p.address, "address");
     decode58(address, 32);
+    requireThat(
+      p.role === undefined || p.role === "holding" || p.role === "reward",
+      400,
+      "Invalid Solana wallet role",
+    );
     const role = p.role === "holding" ? "holding" : "reward";
     const c = await createChallenge(
       db,

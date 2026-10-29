@@ -22,6 +22,7 @@ import { canonical } from "../shared/canonical";
 import { decode58 } from "../shared/base58";
 import { cycleAttribute } from "./cycles";
 import { scoreRound } from "./scoring";
+import { settlementView, ownEntitlements, ownSettledScore } from "./settlement";
 export interface StoredRound {
   id: string;
   opens_at: number;
@@ -574,7 +575,9 @@ export async function state(db: Database, request: Request) {
     db,
     "SELECT * FROM meme_rounds WHERE state IN('closed','selected','skipped') ORDER BY closes_at DESC LIMIT 30",
   );
-  if (!current) return { mode: "local", identity, round: null, history };
+  const entitlements = await ownEntitlements(db, identity.farcasterFid);
+  if (!current)
+    return { mode: "local", identity, round: null, history, entitlements };
   const candidates = await rows<{
       id: string;
       name: string;
@@ -599,9 +602,20 @@ export async function state(db: Database, request: Request) {
     current.snapshot_id && Date.now() >= current.opens_at
       ? await scoreRound(db, current, identity.farcasterFid)
       : null;
+  const settlement = await settlementView(db, current.id);
+  const finalBoost =
+    settlement?.state === "finalized"
+      ? await ownSettledScore(db, current.id, identity.farcasterFid)
+      : null;
   return {
     mode: "local",
     ...(scoring?.view ?? {}),
+    ...(settlement?.state === "finalized"
+      ? { leaderboard: settlement.leaderboard }
+      : {}),
+    ...(finalBoost ? { boost: finalBoost } : {}),
+    settlement,
+    entitlements,
     identity,
     round: {
       ...current,
