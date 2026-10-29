@@ -1,7 +1,7 @@
 import { spawn, spawnSync } from 'node:child_process';
 import { createServer, request as proxyRequest } from 'node:http';
 import { randomUUID } from 'node:crypto';
-import { readdirSync } from 'node:fs';
+import { readdirSync, writeFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..'), app = resolve(root, 'app');
@@ -14,18 +14,46 @@ function run(args, cwd = root) {
 }
 run([resolve(root, 'node_modules/tsx/dist/cli.mjs'), 'scripts/network/local.ts', '--status']);
 run([resolve(app, 'node_modules/vite/bin/vite.js'), 'build', '--config', resolve(app, 'vite.network.config.ts')]);
-const api = spawn(node, [resolve(app, 'node_modules/wrangler/bin/wrangler.js'), 'pages', 'dev', resolve(root, '.tmp/network-dist'), '--ip', '127.0.0.1', '--port', String(apiPort), '--persist-to', '.wrangler/state', '--binding', 'NETWORK_ENABLED=true', '--binding', 'NETWORK_INGEST_ENABLED=false'], { cwd: app, env: baseEnv, stdio: 'inherit', windowsHide: true });
-children.push(api);
+let stopping = false, apiRestart;
+function startApi() {
+  if (stopping) return;
+  const api = spawn(node, [resolve(app, 'node_modules/wrangler/bin/wrangler.js'), 'pages', 'dev', resolve(root, '.tmp/network-dist'), '--ip', '127.0.0.1', '--port', String(apiPort), '--persist-to', '.wrangler/state', '--binding', 'NETWORK_ENABLED=true', '--binding', 'NETWORK_INGEST_ENABLED=false'], { cwd: app, env: baseEnv, stdio: 'inherit', windowsHide: true });
+  children.push(api);
+  let ended = false;
+  const recover = () => {
+    if (ended) return;
+    ended = true;
+    const index = children.indexOf(api);
+    if (index >= 0) children.splice(index, 1);
+    if (!stopping) {
+      console.warn('Network preview exited; restarting in 3 seconds.');
+      apiRestart = setTimeout(startApi, 3000);
+    }
+  };
+  api.once('exit', recover);
+  api.once('error', recover);
+}
+startApi();
+const readLeasePath=resolve(root,'.tmp/network-public-read-lease');
+let activeReads=0;
+writeFileSync(readLeasePath,'0');
 const allowed = new Set(['/', '/network', '/network/', '/network/countries.json', '/network/icon.svg', '/api/network/dashboard', '/api/network/history', '/api/network/members']);
 const preview = createServer((req, res) => {
   const url = new URL(req.url ?? '/', 'http://localhost');
-  const asset = /^\/assets\/[a-zA-Z0-9._-]+\.(js|css)$/.test(url.pathname) && readdirSync(resolve(root, '.tmp/network-dist/assets')).includes(url.pathname.slice(8));
-  if (!['GET', 'HEAD'].includes(req.method ?? '') || !allowed.has(url.pathname) && !asset) { res.writeHead(404, { 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' }); res.end('Not found'); return; }
+  const stateMap = /^\/network\/states\/[A-Z]{2}\.json$/.test(url.pathname);
+  const asset = /^\/assets\/[a-zA-Z0-9._-]+\.(js|css|png)$/.test(url.pathname) && readdirSync(resolve(root, '.tmp/network-dist/assets')).includes(url.pathname.slice(8));
+  if (!['GET', 'HEAD'].includes(req.method ?? '') || !allowed.has(url.pathname) && !asset && !stateMap) { res.writeHead(404, { 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' }); res.end('Not found'); return; }
+  const guarded=url.pathname.startsWith('/api/network/');
+  let released=false;
+  if(guarded){activeReads++;writeFileSync(readLeasePath,String(Date.now()+30_000));}
+  const release=()=>{if(!guarded||released)return;released=true;if(--activeReads===0)writeFileSync(readLeasePath,'0');};
+  res.once('close',release);
   const upstream = proxyRequest({ hostname: '127.0.0.1', port: apiPort, path: url.pathname + url.search, method: req.method,
     headers: { host: 'network-local.10x.meme', 'x-10x-public-origin': 'https://network-local.10x.meme', accept: req.headers.accept ?? '*/*' } }, response => {
+    response.once('end',release);
     res.writeHead(response.statusCode ?? 502, { ...response.headers, 'x-network-preview': nonce, 'x-robots-tag': 'noindex, nofollow' }); response.pipe(res);
   });
-  upstream.on('error', () => { if (!res.headersSent) res.writeHead(503); res.end('Network preview is starting'); });
+  upstream.on('error', () => { release(); if (!res.headersSent) res.writeHead(503); res.end('Network preview is starting'); });
   upstream.end();
 });
 await new Promise((ok, reject) => { preview.once('error', reject); preview.listen(publicPort, '127.0.0.1', ok); });
@@ -38,12 +66,11 @@ const refreshTimer = setInterval(() => {
   child.once('exit', () => { refreshing = false; const index = children.indexOf(child); if (index >= 0) children.splice(index, 1); });
   child.once('error', () => { refreshing = false; });
 }, 300_000);
-const stop = () => { clearInterval(refreshTimer); for (const child of children) child.kill(); preview.close(); };
+const stop = () => { stopping = true; clearTimeout(apiRestart); clearInterval(refreshTimer); for (const child of children) child.kill(); preview.close(); };
 process.on('SIGINT', stop); process.on('SIGTERM', stop);
-api.once('exit', () => { stop(); process.exitCode = 1; });
 let ready = false;
-for (let i = 0; i < 60; i++) {
-  try { const r = await fetch(`http://127.0.0.1:${publicPort}/api/network/dashboard`); if (r.ok) { ready = true; break; } } catch {}
+for (let i = 0; i < 120; i++) {
+  try { const r = await fetch(`http://127.0.0.1:${publicPort}/api/network/dashboard`, { signal: AbortSignal.timeout(3000) }); await r.body?.cancel(); if (r.ok) { ready = true; break; } } catch {}
   await new Promise(r => setTimeout(r, 1000));
 }
 if (!ready) { stop(); throw Error('Network Pages Functions did not become ready'); }

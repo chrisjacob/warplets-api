@@ -148,19 +148,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
   const requestUrl = new URL(context.request.url);
   const sessionToken = asNonEmptyString(body.sessionToken);
-  const bodyFid = asPositiveInteger(body.fid);
   const session = await verifyActionSessionToken(context.env.ACTION_SESSION_SECRET, sessionToken);
-  const isLocalDevHost =
-    requestUrl.hostname.includes("-local.") ||
-    requestUrl.hostname.includes("-dev.") ||
-    requestUrl.hostname.endsWith(".pages.dev") ||
-    requestUrl.hostname === "127.0.0.1" ||
-    requestUrl.hostname === "localhost" ||
-    requestUrl.hostname === "::1";
-  const allowInsecureFallback =
-    isLocalDevHost &&
-    (context.env.ALLOW_INSECURE_ACTION_FID_FALLBACK === "1" || isLocalDevHost);
-  const fid = session.valid ? session.fid : (allowInsecureFallback ? bodyFid : null);
+  const fid = session.valid ? session.fid : null;
   if (!fid) {
     const authOutcome = session.valid ? "missing_fid_fallback" : session.reason;
     await logSecurityEvent(context.env.WARPLETS, { logSalt: context.env.SECURITY_LOG_SALT }, {

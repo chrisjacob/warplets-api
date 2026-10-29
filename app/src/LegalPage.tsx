@@ -163,7 +163,8 @@ function LegalArticle({ blocks }: { blocks: MarkdownBlock[] }) {
         }
         if (block.type === "heading") {
           const content = renderInline(block.text);
-          if (block.level === 1) return <h1 key={key} className="mb-5 mt-2 text-xl font-black leading-tight text-[#00FF00] first:mt-0">{content}</h1>;
+          const id = /^\d+\. 10X\.Social$/.test(block.text) ? "10x-social" : undefined;
+          if (block.level === 1) return <h1 key={key} id={id} className="mb-5 mt-2 scroll-mt-24 text-xl font-black leading-tight text-[#00FF00] first:mt-0">{content}</h1>;
           if (block.level === 2) return <h2 key={key} className="mb-3 mt-7 text-lg font-black leading-tight text-[#E0E3FF]">{content}</h2>;
           return <h3 key={key} className="mb-2 mt-6 text-base font-black leading-tight text-[#E0E3FF]">{content}</h3>;
         }
@@ -200,6 +201,22 @@ export default function LegalPage({ document: legalDocument }: { document: Legal
     return () => controller.abort();
   }, [config.source, config.title]);
 
+  useEffect(() => {
+    if (markdown == null) return;
+    // The document arrives after initial navigation, so native fragment scrolling
+    // has already run. Reapply it once the target heading has been rendered.
+    const scrollToSection = () => {
+      if (window.location.hash !== "#10x-social") return;
+      document.getElementById("10x-social")?.scrollIntoView({ block: "start" });
+    };
+    const frame = window.requestAnimationFrame(scrollToSection);
+    window.addEventListener("hashchange", scrollToSection);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener("hashchange", scrollToSection);
+    };
+  }, [markdown]);
+
   const handleBack = () => {
     if (isMenuRoute) {
       actions.goBack();
@@ -223,7 +240,7 @@ export default function LegalPage({ document: legalDocument }: { document: Legal
         {isMenuRoute ? (
           <MiniAppMenuPage appSlug="app" />
         ) : (
-          <main className="mx-auto w-full max-w-md px-4 pb-4 pt-5">
+          <main className="mx-auto w-full max-w-md break-words px-4 pb-4 pt-5">
             {markdown != null && <LegalArticle blocks={blocks} />}
             {markdown == null && !loadError && (
               <div className="rounded-2xl border border-[#00FF00]/25 bg-black/80 px-5 py-12 text-center text-sm font-bold text-[#8bbf8b]" role="status">

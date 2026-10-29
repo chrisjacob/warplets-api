@@ -10,8 +10,6 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const appDir = path.resolve(__dirname, "../app");
 
 const PUBLIC_URL = "https://stonklet-local.10x.meme";
-const LOCAL_APP_SESSION_SECRET = "stonklet-local-only-session-secret-do-not-use-live-v1";
-const LOCAL_ACTION_SESSION_SECRET = "stonklet-local-only-action-secret-do-not-use-live-v1";
 const STONKLETS_TUNNEL = process.env.STONKLETS_TUNNEL_ID?.trim() || "stonklet-local";
 const STONKLETS_TUNNEL_CREDENTIALS_FILE =
   process.env.STONKLETS_TUNNEL_CREDENTIALS_FILE?.trim() || "";
@@ -70,10 +68,6 @@ function spawnApiWorker() {
     "--port",
     String(API_PORT),
     "--binding",
-    `APP_SESSION_SECRET=${LOCAL_APP_SESSION_SECRET}`,
-    "--binding",
-    `ACTION_SESSION_SECRET=${LOCAL_ACTION_SESSION_SECRET}`,
-    "--binding",
     "BASE_NOTIFICATIONS_ENABLED=false",
     "--binding",
     "EMAIL_AUDIENCE_MUTATIONS_ENABLED=false",
@@ -84,10 +78,7 @@ function spawnApiWorker() {
   if (accountAssociation) {
     args.push("--binding", `STONKLETS_ACCOUNT_ASSOCIATION_JSON=${accountAssociation}`);
   }
-  for (const name of ["VAPID_PUBLIC_KEY", "VAPID_PRIVATE_KEY", "VAPID_SUBJECT"]) {
-    const value = process.env[name]?.trim();
-    if (value) args.push("--binding", `${name}=${value}`);
-  }
+  // Private session/VAPID keys belong in ignored app/.dev.vars, not CLI flags.
   return spawn("pnpm", args, {
     cwd: appDir,
     shell: process.platform === "win32",

@@ -1,6 +1,7 @@
 import { isRetiredAppRoute } from "./shared/retiredApps";
 import { isNetworkRoute, networkHtml } from "./shared/network/metadata";
 import { defineConfig } from "vite";
+import { LOCAL_PRIVATE_FILES, localPreviewSecurity } from "./localPreviewSecurity";
 import { localStonkletsMarket } from "./localStonkletsMarket";
 import { localSpotlightPreview } from "./localSpotlightPreview";
 import { stonkletFromSharePath, stonkletShare } from "./shared/stonkletsShare";
@@ -444,6 +445,7 @@ const MINIAPP_FRAME_ANCESTORS = [
 
 export default defineConfig({
   build: {
+    manifest: true,
     chunkSizeWarningLimit: 700,
   },
   optimizeDeps: {
@@ -453,6 +455,7 @@ export default defineConfig({
     exclude: ["@sqlite.org/sqlite-wasm"],
   },
   plugins: [
+    localPreviewSecurity(),
     localStonkletsMarket(),
     localSpotlightPreview(),
     react(),
@@ -637,6 +640,7 @@ export default defineConfig({
     },
   ],
   server: {
+    fs: { strict: true, deny: LOCAL_PRIVATE_FILES },
     allowedHosts: [
       "network-local.10x.meme",
       "app-local.10x.meme",

@@ -4,21 +4,27 @@ import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 
-const VITE_PORT = 5173;
+const VITE_PORT = Number(process.env.APP_LOCAL_VITE_PORT || 5173);
+if (!Number.isInteger(VITE_PORT) || VITE_PORT < 1 || VITE_PORT > 65535) {
+  throw new Error("APP_LOCAL_VITE_PORT must be an integer from 1 to 65535");
+}
 const API_PORT = 8788;
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const appDir = path.resolve(__dirname, "../app");
+// An isolated store lets a preview start without repairing or resetting other
+// local apps' data. Migrations and the API must always use the same store.
+const localPersistArgs = process.env.APP_LOCAL_PERSIST_TO?.trim()
+  ? ["--persist-to", process.env.APP_LOCAL_PERSIST_TO.trim()]
+  : [];
 
 const PUBLIC_URL = "https://app-local.10x.meme";
 const LOCAL_MINIAPP_BASE_URL = PUBLIC_URL;
-const LOCAL_APP_SESSION_SECRET = "app-local-only-session-secret-do-not-use-live-v1";
-const LOCAL_ACTION_SESSION_SECRET = "app-local-only-action-secret-do-not-use-live-v1";
 
 function applyLocalMigrations() {
   console.log("Applying pending local D1 migrations...");
   const result = spawnSync(
     "pnpm",
-    ["wrangler", "d1", "migrations", "apply", "warplets", "--local"],
+    ["wrangler", "d1", "migrations", "apply", "warplets", "--local", ...localPersistArgs],
     {
       cwd: appDir,
       shell: process.platform === "win32",
@@ -72,15 +78,10 @@ function spawnApiWorker(port) {
     ".",
     "--port",
     String(port),
-    "--binding",
-    `APP_SESSION_SECRET=${LOCAL_APP_SESSION_SECRET}`,
-    "--binding",
-    `ACTION_SESSION_SECRET=${LOCAL_ACTION_SESSION_SECRET}`,
+    ...localPersistArgs,
   ];
-  for (const name of ["VAPID_PUBLIC_KEY", "VAPID_PRIVATE_KEY", "VAPID_SUBJECT"]) {
-    const value = process.env[name]?.trim();
-    if (value) args.push("--binding", `${name}=${value}`);
-  }
+  // Wrangler loads secrets from ignored app/.dev.vars; never override them
+  // with public placeholders or expose private keys in process arguments.
   return spawn(command, args, {
     cwd: appDir,
     shell: process.platform === "win32",
@@ -142,9 +143,9 @@ async function waitForApi(port) {
 }
 
 async function main() {
-  applyLocalMigrations();
   await ensurePortAvailable(VITE_PORT, "Vite");
   await ensurePortAvailable(API_PORT, "API");
+  applyLocalMigrations();
 
   console.log(`Stable dev URL: ${PUBLIC_URL}`);
   console.log(`Local dev URL:  http://localhost:${VITE_PORT}`);

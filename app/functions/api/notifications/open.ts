@@ -5,7 +5,7 @@
  * Called fire-and-forget from App.tsx when `sdk.context.location.type === "notification"`.
  *
  * Body: { notificationId: string; fid?: number }
- * No auth required — source is trusted miniapp context.
+ * Anonymous metrics are allowed; attributing an FID requires a signed session.
  */
 
 import { normalizeAppSlug, resolveAppSlugFromUrl } from "../../_lib/appSlug.js";
@@ -74,27 +74,19 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     return jsonSecure({ error: "notificationId is required" }, { status: 400 });
   }
 
-  const requestUrl = new URL(context.request.url);
-  const allowInsecureFallback =
-    context.env.ALLOW_INSECURE_ACTION_FID_FALLBACK === "1" &&
-    (
-      requestUrl.hostname.includes("-local.") ||
-      requestUrl.hostname.includes("-dev.") ||
-      requestUrl.hostname.endsWith(".pages.dev")
-    );
   const sessionToken = typeof body.sessionToken === "string" && body.sessionToken.trim().length > 0
     ? body.sessionToken.trim()
     : null;
   const session = await verifyActionSessionToken(context.env.ACTION_SESSION_SECRET, sessionToken);
+  const fid = session.valid ? session.fid : null;
   const bodyFid = typeof body.fid === "number" && Number.isInteger(body.fid) && body.fid > 0 ? body.fid : null;
-  const fid = session.valid ? session.fid : (allowInsecureFallback ? bodyFid : null);
-  if (!session.valid && bodyFid && !allowInsecureFallback) {
+  if (!session.valid && bodyFid) {
     await logSecurityEvent(context.env.WARPLETS, { logSalt: context.env.SECURITY_LOG_SALT }, {
       eventType: "notification_open_auth",
       outcome: session.reason,
       actorType: "ip",
       ipAddress: ip,
-      route: requestUrl.pathname,
+      route: new URL(context.request.url).pathname,
       details: "fid_rejected_without_valid_session",
     });
   }

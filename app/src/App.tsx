@@ -14,7 +14,6 @@ import { PwaControls } from "./PwaControls";
 import SiteFooter from "./SiteFooter";
 import { isEmbeddedWebView, isLikelyBaseAppBrowser, isStandaloneDisplay, subscribeToWebPush } from "./pwa";
 import { FARCASTER_NOTIFICATIONS_MANUAL_ENABLE_MESSAGE, getEmbeddedWalletProvider } from "./surfaceAdapter";
-import { WebConnectModal } from "./WebConnectModal";
 import {
   configureFarcasterWallet,
   disconnectWallet,
@@ -26,6 +25,7 @@ import {
 import { WARPLETS_APP_ORIGINS } from "../shared/warpletsApp";
 
 const FarcasterSignInControl = lazy(() => import("./FarcasterSignInControl"));
+const WebConnectModal = lazy(() => import("./WebConnectModal").then(module => ({ default: module.WebConnectModal })));
 
 type ViewerProfile = {
   fid: number;
@@ -515,8 +515,8 @@ export default function App() {
           onMessage={(kind, message) => setHomeToast({ kind, message })}
         />
       )}
-      {!isInMiniAppContext && (
-        <WebConnectModal
+      {!isInMiniAppContext && webConnectOpen && (
+        <Suspense fallback={<p role="status">Loading connection options…</p>}><WebConnectModal
           open={webConnectOpen}
           onClose={() => { setWebConnectOpen(false); setWebConnectIdentityError(null); }}
           identityError={webConnectIdentityError}
@@ -536,7 +536,7 @@ export default function App() {
               />
             </Suspense>
           )}
-        />
+        /></Suspense>
       )}
 
       {homeToast && (

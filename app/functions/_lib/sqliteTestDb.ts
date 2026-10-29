@@ -24,6 +24,9 @@ export function sqliteD1(sqlite: DatabaseSync) {
         };
       },
       async run() {
+        const prepared = sqlite.prepare(sql);
+        // D1 batch() returns rows for SELECT statements as well as write results.
+        if (prepared.columns().length) return { success: true, results: prepared.all(...(values as (string | number | null)[])), meta: {} };
         const result = sqlite
           .prepare(sql)
           .run(...(values as (string | number | null)[]));
