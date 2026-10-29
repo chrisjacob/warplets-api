@@ -6,6 +6,9 @@ on:
     paths:
       - 'meme/**'
       - 'packages/connect/**'
+      - 'packages/meme-protocol/**'
+      - 'patches/bigint-buffer@1.1.5.patch'
+      - 'package.json'
       - 'docs/10x/**'
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
@@ -31,5 +34,7 @@ jobs:
         run: pnpm --dir meme check
       - name: Shared Connect regressions
         run: pnpm --dir app test
+      - name: Offline protocol feasibility and dependency regressions
+        run: pnpm --dir packages/meme-protocol check
       - name: Verify existing production app stays separate
         run: pnpm --dir app build && pnpm --dir app release:check

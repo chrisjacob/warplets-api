@@ -2,6 +2,7 @@ packages:
   - app
   - meme
   - packages/connect
+  - packages/meme-protocol
   - web
   - snap
   - bots

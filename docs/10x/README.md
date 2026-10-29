@@ -9,3 +9,5 @@ The first three functional milestones are implemented locally in `meme/`: verifi
 See [VALIDATION.md](VALIDATION.md) for the released branch base, completed checks and remaining hostname/observation follow-up.
 
 The next integration adds [resumable evidence and daily operations](OPERATIONS.md), published score snapshots and an explicit correction workflow. Review the [participation packet and physical-wallet QA](RULES-REVIEW.md) before enabling a production rules version. Provider allowances for new sources remain zero until approved. The integration/review base is documented in [INTEGRATION.md](INTEGRATION.md).
+
+The separate [protocol feasibility lab](PROTOCOL-FEASIBILITY.md) pins the published Meteora SDK, constructs unsigned instructions offline, and records distributor compatibility gaps. It is excluded from application runtime imports. Successful program execution and an approved authority/distribution policy remain prerequisites for a complete funded cycle.

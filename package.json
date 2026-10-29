@@ -56,7 +56,8 @@
     },
     "patchedDependencies": {
       "@trustwallet/connect-walletconnect@0.0.0": "patches/@trustwallet__connect-walletconnect@0.0.0.patch",
-      "cuer@0.0.3": "patches/cuer@0.0.3.patch"
+      "cuer@0.0.3": "patches/cuer@0.0.3.patch",
+      "bigint-buffer@1.1.5": "patches/bigint-buffer@1.1.5.patch"
     }
   },
   "dependencies": {
