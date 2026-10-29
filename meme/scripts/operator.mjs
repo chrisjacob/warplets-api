@@ -78,6 +78,7 @@ if (command === "init") {
         opensAt: now + 10000,
         closesAt: now + 3600000,
         attribute: "cast",
+        simulated:true,
         candidates: [
           {
             id: "orbit",
