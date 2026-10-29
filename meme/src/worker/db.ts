@@ -1,3 +1,4 @@
+import { securityHeaders } from "../shared/securityHeaders";
 export type Database = Pick<D1Database, "prepare" | "batch">;
 export async function one<T>(
   db: Database,
@@ -46,6 +47,7 @@ export const json = (body: unknown, status = 200, headers: HeadersInit = {}) =>
   Response.json(body, {
     status,
     headers: {
+      ...securityHeaders,
       "cache-control": "no-store",
       "x-content-type-options": "nosniff",
       "x-robots-tag": "noindex, nofollow",

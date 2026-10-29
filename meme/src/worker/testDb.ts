@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 /** Real SQLite, transactional batches; only the D1 transport is substituted. */
 export function testDb() {
   const raw = new DatabaseSync(":memory:");
+  const queries: string[] = [];
   let interrupt = false;
   let batchTail = Promise.resolve();
   raw.exec("PRAGMA foreign_keys=ON");
@@ -52,7 +53,10 @@ export function testDb() {
     }
   }
   const transport = {
-    prepare: (sql: string) => new Statement(sql),
+    prepare: (sql: string) => {
+      queries.push(sql);
+      return new Statement(sql);
+    },
     batch: (statements: Statement[]) => {
       const task = batchTail.then(async () => {
         raw.exec("BEGIN IMMEDIATE");
@@ -85,6 +89,7 @@ export function testDb() {
   return {
     db,
     raw,
+    queries,
     close: () => raw.close(),
     interruptNextBatch: () => {
       interrupt = true;

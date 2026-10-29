@@ -407,3 +407,237 @@ footer span:first-child {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+.launchpad-wallet-section h3,
+.launchpad-wallet-section p {
+  margin: 0;
+}
+.launchpad-wallet-section label {
+  display: grid;
+  gap: 6px;
+}
+.launchpad-wallet-section details {
+  margin-top: 4px;
+}
+.launchpad-wallet-section details label {
+  margin: 10px 0;
+}
+.launchpad-wallet-section summary {
+  cursor: pointer;
+  font-size: 13px;
+  color: #acbcad;
+}
+.identity-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.connect-feedback {
+  position: fixed;
+  left: 50%;
+  bottom: 20px;
+  transform: translateX(-50%);
+  max-width: calc(100vw - 32px);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border: 1px solid #4e6551;
+  background: #172019;
+  border-radius: 12px;
+  z-index: 100000;
+  font-size: 14px;
+  box-shadow: 0 10px 30px #0008;
+}
+.connect-feedback span {
+  min-width: 100px;
+}
+.connect-feedback button {
+  padding: 8px 12px;
+}
+.local-app .page-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-top: 28px;
+  flex-wrap: wrap;
+}
+.local-app h1 {
+  font-size: clamp(28px, 5vw, 38px);
+  margin: 6px 0;
+  letter-spacing: -1.2px;
+}
+.local-app .page-heading .eyebrow {
+  margin-bottom: 4px;
+}
+.local-app .preview-notice {
+  margin: 4px 0 20px;
+}
+.local-app .fine {
+  font-size: 13px;
+  color: #acbcad;
+}
+.round-content {
+  display: grid;
+  gap: 16px;
+}
+.round-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+.round-heading h2 {
+  font-size: 32px;
+  margin: 0;
+}
+.round-heading .eyebrow {
+  margin-bottom: 6px;
+}
+.round-content > p {
+  margin: 0;
+}
+.local-app .card {
+  padding: 22px;
+}
+.local-app .candidate {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.local-app .candidate h3 {
+  margin: 0;
+}
+.local-app .candidate p {
+  margin: 0;
+}
+.local-app .candidate button {
+  margin-top: auto;
+  min-height: 44px;
+}
+.candidate-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.token-symbol {
+  color: #a8b9a9;
+  font-size: 13px;
+}
+.selected-vote {
+  border-color: #bafa86;
+  background: #29452c;
+}
+.compact-boost {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 10px;
+}
+.compact-boost strong {
+  display: block;
+  font-size: 40px;
+  line-height: 1.2;
+  color: #bafa86;
+}
+.compact-boost details {
+  grid-column: 1/-1;
+}
+.connect-prompt {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 0;
+  flex-wrap: wrap;
+}
+.connect-prompt p {
+  margin: 0;
+}
+.connect-prompt .primary {
+  margin: 0;
+  min-width: 150px;
+}
+.local-app details summary {
+  cursor: pointer;
+  color: #c7d8c7;
+  font-size: 14px;
+}
+.local-app details p {
+  overflow-wrap: anywhere;
+}
+.local-app .leaderboard {
+  padding-left: 24px;
+}
+.local-app .leaderboard li {
+  padding: 8px 0;
+}
+.leaderboard li span {
+  display: inline-block;
+  min-width: 45%;
+}
+.leaderboard li strong {
+  font-size: 14px;
+}
+.receipt-details {
+  padding: 4px 0;
+}
+.error-notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 18px;
+  background: #392820;
+  border: 1px solid #795342;
+  border-radius: 10px;
+  margin-bottom: 18px;
+}
+.local-app .text-button {
+  background: transparent;
+  border: 0;
+  padding: 8px;
+  color: #acbcad;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.local-app .history-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid #344137;
+  padding: 14px 0;
+}
+.history-row h3 {
+  margin: 0;
+}
+.local-app footer {
+  margin-top: 32px;
+}
+@media (max-width: 700px) {
+  .shell.local-app {
+    padding: 0 20px;
+  }
+  .local-app header {
+    min-height: 72px;
+    flex-wrap: nowrap;
+  }
+  .local-app .preview-label {
+    padding: 4px 8px;
+    font-size: 11px;
+  }
+  .local-app .page-heading {
+    padding-top: 20px;
+    gap: 10px;
+  }
+  .local-app .card {
+    padding: 20px;
+  }
+  .local-app .candidates {
+    gap: 12px;
+  }
+  .local-app .history-row {
+    flex-wrap: wrap;
+  }
+}

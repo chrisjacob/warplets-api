@@ -11,6 +11,7 @@ import {
   type Recipient,
 } from "../shared/settlement";
 import { RULES_VERSION, DAY_MS } from "../shared/rules";
+import { decimal } from "../shared/scoring";
 
 interface Job {
   round_id: string;
@@ -458,26 +459,43 @@ export async function settlementView(db: Database, id: string) {
     id,
   );
   if (!job) return null;
-  const inputs = await rows<{ payload: string }>(
-    db,
-    "SELECT payload FROM meme_settlement_inputs WHERE round_id=? ORDER BY rank LIMIT 100",
-    id,
-  );
-  const allocations = await rows(
-    db,
-    "SELECT id,campaign_id,release_index,release_at,total,allocated,reserve,reason FROM meme_allocations WHERE round_id=? ORDER BY release_at,id",
-    id,
-  );
-  const count = await one<{ n: number }>(
-    db,
-    "SELECT COUNT(*) n FROM meme_settlement_inputs WHERE round_id=?",
-    id,
-  );
-  const entitlements = await one<{ n: number }>(
-    db,
-    "SELECT COUNT(*) n FROM meme_entitlements e JOIN meme_allocations a ON a.id=e.allocation_id WHERE a.round_id=?",
-    id,
-  );
+  const inputs =
+    job.state === "finalized"
+      ? await rows<{
+          fid: number;
+          rank: number;
+          points: string;
+          firstValidAt: number;
+        }>(
+          db,
+          "SELECT fid,rank,json_extract(payload,'$.boost.points') points,json_extract(payload,'$.firstValidAt') firstValidAt FROM meme_settlement_inputs WHERE round_id=? ORDER BY rank LIMIT 100",
+          id,
+        )
+      : [];
+  const allocations =
+    job.state === "finalized"
+      ? await rows(
+          db,
+          "SELECT id,campaign_id,release_index,release_at,total,allocated,reserve,reason FROM meme_allocations WHERE round_id=? ORDER BY release_at,id",
+          id,
+        )
+      : [];
+  const count =
+    job.state === "finalized"
+      ? { n: job.voter_count }
+      : await one<{ n: number }>(
+          db,
+          "SELECT COUNT(*) n FROM meme_settlement_inputs WHERE round_id=?",
+          id,
+        );
+  const entitlements =
+    job.state === "finalized"
+      ? { n: job.entitlement_count }
+      : await one<{ n: number }>(
+          db,
+          "SELECT COUNT(*) n FROM meme_entitlements e JOIN meme_allocations a ON a.id=e.allocation_id WHERE a.round_id=?",
+          id,
+        );
   return {
     roundId: id,
     state: job.state,
@@ -493,21 +511,20 @@ export async function settlementView(db: Database, id: string) {
       entitlements: entitlements?.n ?? 0,
       expectedEntitlements: job.entitlement_count,
     },
-    leaderboard:
-      job.state === "finalized"
-        ? inputs.map((v) => {
-            const input = JSON.parse(v.payload) as FrozenInput;
-            return {
-              fid: input.fid,
-              rank: input.rank,
-              points: input.boost.points,
-              firstValidAt: input.firstValidAt,
-            };
-          })
-        : [],
+    leaderboard: inputs,
     allocations: job.state === "finalized" ? allocations : [],
     claimable: false,
   };
+}
+export async function settledWeights(db: Database, id: string) {
+  const weights = await rows<{ candidate: string; points: number }>(
+    db,
+    "SELECT json_extract(payload,'$.candidateId') candidate,SUM(CAST(json_extract(payload,'$.pointUnits') AS INTEGER)) points FROM meme_settlement_inputs WHERE round_id=? GROUP BY 1",
+    id,
+  );
+  return Object.fromEntries(
+    weights.map((v) => [v.candidate, decimal(BigInt(v.points) / 10n)]),
+  );
 }
 export async function ownEntitlements(db: Database, fid: number | null) {
   if (!fid) return [];
