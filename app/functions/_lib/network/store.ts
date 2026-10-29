@@ -17,7 +17,7 @@ export async function syncSet(db: D1Database, key: string, value: unknown) {
 }
 export async function reserveRequest(env: NetworkEnv, provider: string) {
   const day = new Date().toISOString().slice(0, 10), month = day.slice(0, 7);
-  const daily = bounded(env.NETWORK_REQUESTS_PER_DAY, 100_000, 250_000), monthly = bounded(env.NETWORK_REQUESTS_PER_MONTH, 600_000, 1_000_000);
+  const daily = bounded(env.NETWORK_REQUESTS_PER_DAY, 100_000, 100_000), monthly = bounded(env.NETWORK_REQUESTS_PER_MONTH, 600_000, 1_000_000);
   const row = await env.WARPLETS.prepare(`INSERT INTO network_budgets(day,provider,attempts)
     SELECT ?,?,1 WHERE COALESCE((SELECT SUM(attempts) FROM network_budgets WHERE day=?),0)<? AND COALESCE((SELECT SUM(attempts) FROM network_budgets WHERE substr(day,1,7)=?),0)<?
     ON CONFLICT(day,provider) DO UPDATE SET attempts=network_budgets.attempts+1

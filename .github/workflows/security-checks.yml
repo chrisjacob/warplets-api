@@ -41,6 +41,16 @@ jobs:
       - name: Root security preflight
         run: pnpm security:preflight
 
+      - name: Shared dependency regressions
+        run: pnpm security:test:redirects && pnpm security:test:solana-rpc && node --test scripts/test-cdp-schema-dependency.mjs
+
+      - name: Network data handoff regressions
+        run: python3 scripts/network/handoff_test.py
+
+      - name: Network regressions
+        working-directory: app
+        run: pnpm test:network
+
       - name: Install dependencies (app)
         working-directory: app
         run: pnpm install --frozen-lockfile

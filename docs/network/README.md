@@ -1,5 +1,7 @@
 # Network feasibility and implementation status
 
+The current production release scope and prepare → bootstrap → activate procedure are in [RELEASE.md](RELEASE.md). The older feasibility and original-MVP gates below are historical context; release targets the latest local feature set with its existing coverage disclosures.
+
 Status: **signer-only next-stage preview implemented at https://network-local.10x.meme**.
 
 The user narrowed the population to accounts that accepted the Network School

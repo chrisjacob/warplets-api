@@ -52,6 +52,11 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: pnpm exec wrangler d1 migrations apply warplets --remote
 
+      - name: Verify Network release stage
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: node scripts/network/check-release.mjs
+
       - name: Deploy to Cloudflare Workers
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -107,7 +112,12 @@ jobs:
           VITE_BASE_BUILDER_CODE: ${{ vars.VITE_BASE_BUILDER_CODE }}
         run: pnpm build
 
+      - name: Verify thesis-only release
+        working-directory: app
+        run: pnpm release:check
+
       - name: Deploy to Cloudflare Pages
+        # Network activation is controlled separately from shipping compatible code.
         working-directory: app
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

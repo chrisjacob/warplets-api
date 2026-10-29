@@ -71,12 +71,12 @@ describe('durable storage and bounded ingestion', () => {
     await advanceNetwork(env,{profilesOnly:true});
     expect(requested).toEqual([2,3,1]);
   });
-  it('caps the higher combined daily allowance without weakening the monthly budget',async()=>{
+  it('caps the combined daily allowance without weakening the monthly budget',async()=>{
     const {env,db}=database();env.NETWORK_REQUESTS_PER_DAY='9999999';
-    db.prepare('INSERT INTO network_budgets VALUES(?,?,?)').run(new Date().toISOString().slice(0,10),'official-client',249999);
+    db.prepare('INSERT INTO network_budgets VALUES(?,?,?)').run(new Date().toISOString().slice(0,10),'official-client',99999);
     await reserveRequest(env,'alchemy-base');
     await expect(reserveRequest(env,'official-client')).rejects.toThrow('budget');
-    expect(db.prepare('SELECT SUM(attempts) n FROM network_budgets').get()?.n).toBe(250000);
+    expect(db.prepare('SELECT SUM(attempts) n FROM network_budgets').get()?.n).toBe(100000);
   });
   it('does not publish duplicate snapshots while location backfill has no work',async()=>{
     const {env,db}=database();
