@@ -28,5 +28,10 @@ class HandoffTest(unittest.TestCase):
  def test_sql_literals_cannot_escape_and_binary_values_are_rejected(self):
   self.assertEqual(handoff.literal("x'); DROP TABLE users;--"),"'x''); DROP TABLE users;--'")
   with self.assertRaises(ValueError):handoff.literal('x\x00y')
+ def test_bulk_import_progress_does_not_hide_actual_write_metrics(self):
+  output='Uploading complete.\n[\n {"success":true,"meta":{"rows_written":123}}\n]\n'
+  self.assertEqual(handoff.wrangler_rows_written(output,999),123)
+  self.assertEqual(handoff.wrangler_rows_written('no valid JSON',999),999)
+  self.assertEqual(handoff.wrangler_rows_written('[\n {"meta":{"rows_written":0}}\n]',999),0)
 
 if __name__=='__main__':unittest.main()
