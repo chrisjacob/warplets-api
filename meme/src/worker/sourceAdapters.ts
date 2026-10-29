@@ -75,7 +75,9 @@ export function heliusAdapter(db: Database, key: string): HistoryAdapter {
       requireThat(key.length > 0, 409, "Helius credentials are not configured");
       decode58(q.wallet, 32);
       // Reserve worst-case request credits before attempting network I/O. Retries consume allowance too.
-      await reserveSource(db, "helius", 110);
+      // Current published metering: 10 credits per 100 full transactions, rounded up.
+      // This adapter requests at most 20; retain the full reservation even on failure.
+      await reserveSource(db, "helius", 10);
       let result: unknown;
       try {
         result = await boundedJSON(

@@ -72,6 +72,60 @@ test("real source adapters make no request without a specifically approved allow
     t.close();
   }
 });
+
+test("history requests preserve the finalized token-account scope and never reset reserved provider credits", async () => {
+  const t = setup(),
+    original = globalThis.fetch;
+  let calls = 0;
+  try {
+    t.raw
+      .prepare(
+        "UPDATE meme_source_budgets SET ceiling=20 WHERE provider='helius'",
+      )
+      .run();
+    globalThis.fetch = async (input, init) => {
+      calls++;
+      const url = new URL(String(input));
+      assert.equal(url.origin, "https://mainnet.helius-rpc.com");
+      const request = JSON.parse(String(init?.body)),
+        options = request.params[1];
+      assert.equal(options.commitment, "finalized");
+      assert.equal(options.filters.tokenAccounts, "all");
+      assert.equal(options.sortOrder, "asc");
+      assert.equal(options.limit, 20);
+      assert.equal(options.maxSupportedTransactionVersion, 0);
+      assert.equal(init?.redirect, "manual");
+      return calls === 1
+        ? Response.json({ result: { data: [], paginationToken: null } })
+        : new Response(null, { status: 503 });
+    };
+    const adapter = heliusAdapter(t.db, "test-key"),
+      query = { wallet, fromAt: t.launch, throughAt: t.cutoff, cursor: null };
+    await adapter.page(query);
+    await assert.rejects(adapter.page(query), /failed/);
+    assert.equal(
+      t.raw
+        .prepare("SELECT used FROM meme_source_budgets WHERE provider='helius'")
+        .get()?.used,
+      20,
+    );
+    await assert.rejects(adapter.page(query), /allowance/);
+    assert.equal(calls, 2);
+    const ancient = Date.UTC(2022, 0, 1);
+    t.raw
+      .prepare(
+        "INSERT INTO meme_campaigns VALUES('ancient',?,'OLD',?,?, '10000',0,'observed','test')",
+      )
+      .run(encode58(new Uint8Array(32).fill(9)), ancient, ancient + 864000000);
+    await assert.rejects(
+      beginSource(t.db, "ancient", wallet, t.cutoff),
+      /archival adapter/,
+    );
+  } finally {
+    globalThis.fetch = original;
+    t.close();
+  }
+});
 test("history pagination is immutable, resumable after a lost response and cannot falsely cover unclassified movements", async () => {
   const t = setup();
   try {

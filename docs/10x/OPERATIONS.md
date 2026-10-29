@@ -30,6 +30,8 @@ Manual movement classifications must reconcile to independently fetched finalize
 
 **No live Helius or Pyth collection has been run.** No corresponding credentials were found in the existing configuration. Both new provider budgets start at zero; there is no API to raise them and no automatic quota reset. An attempted call first reserves its worst-case allowance; failed requests/retries retain that charge. Approving a provider, credentials, price-feed mappings and its exact allowance is a separate operating decision. Existing Network Alchemy, Neynar and request caps are unchanged. Copy the empty `meme/dev.vars.example` to ignored `.dev.vars` only when authorized; secrets stay server-side and outside Git.
 
+The current 20-transaction Helius profile reserves 10 credits per attempt, matching its published rounded-up minimum, and conservatively retains reservations on failures. Its zero ceiling is unchanged. The adapter rejects pre-2023 campaign history because token-account discovery cannot establish older ownership coverage without an additional archival adapter.
+
 ## Correction versions
 
 Legacy events, source pages and seals are immutable. Corrections create a new evidence version; they never edit those rows or settled entitlements.

@@ -32,6 +32,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Check isolated local foundation
         run: pnpm --dir meme check
+      - name: Root security and production dependency gate
+        run: pnpm typecheck && pnpm security:preflight && pnpm security:test:redirects && pnpm security:test:solana-rpc && pnpm audit --prod --audit-level high
       - name: Shared Connect regressions
         run: pnpm --dir app test
       - name: Offline protocol feasibility and dependency regressions

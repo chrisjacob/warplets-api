@@ -55,6 +55,11 @@ export async function beginSource(
     409,
     "History must cover the campaign from launch",
   );
+  requireThat(
+    campaign.launched_at >= Date.UTC(2023, 0, 1),
+    409,
+    "Pre-owner-metadata campaign history needs a separate archival adapter",
+  );
   const id = await sha(
     canonical({ campaignId, wallet, throughAt, provider: "helius-history-v1" }),
   );

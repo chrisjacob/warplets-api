@@ -18,7 +18,7 @@ The ten-campaign test verifies accounting and durable recovery only. It does not
 - [#93 — Reviewed stack on released main](https://github.com/chrisjacob/warplets-api/pull/93)
 - [#94 — Evidence, daily jobs and score snapshots](https://github.com/chrisjacob/warplets-api/pull/94), based on #93
 - [#95 — Offline protocol feasibility](https://github.com/chrisjacob/warplets-api/pull/95), based on #94
-- Recovery/readiness branch follows #95; no automatic merge or deployment.
+- [#96 — Ten-campaign accounting recovery and production-readiness gates](https://github.com/chrisjacob/warplets-api/pull/96), based on #95
 
 Review [OPERATIONS.md](OPERATIONS.md), [RULES-REVIEW.md](RULES-REVIEW.md), [PROTOCOL-FEASIBILITY.md](PROTOCOL-FEASIBILITY.md) and [PRODUCTION-READINESS.md](PRODUCTION-READINESS.md). The pending questions concern distributor requirements and the participation packet; no response is treated as approval.
 
