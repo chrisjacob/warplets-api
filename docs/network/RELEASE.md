@@ -33,6 +33,14 @@ Published privacy, terms and both historical documents return HTTP 200 and match
 
 ## Recovery and observation
 
+Post-activation verification on 30 October Sydney recorded Pages deployment `555ed602-dc47-492d-a247-0cf2bd29864b` and root Worker deployment `70023bf6-fe46-4921-9287-5ee83b99d3c9` (version `d952ccac-bbe2-413e-92ba-953bc28a6c0a`). GitHub deployment run `40878507895` passed both jobs. Multiple scheduled runs have subsequently refreshed profiles and published snapshots; the 13:21 UTC snapshot is 1,043,466 stored bytes, below the 1.8 MB storage limit. Production foreign-key checks return no violations. The historical redirect failure predates the successful corrected runs.
+
+The additional private-state archive verified nine further files from the other packages' local state/environment selection. Its SHA-256 is `c5130cb686c22b9dbfa1c7ca42b0fdefba2c8cf799b544d95a7b74c50373b407`. Both preservation manifests, restoration instructions and private production/import records remain under the original worktree's ignored `.tmp/` directory, outside Git.
+
+If code rollback is necessary, run `pnpm exec wrangler rollback 526b29d1-f8a8-4099-b9e4-10cb07b04f25 --name api` from the released root to restore the pre-release Worker version. Pages rollback is available through the existing project's deployment dashboard or Cloudflare's `POST /accounts/{account_id}/pages/projects/10x-app/deployments/{prior_production_deployment_id}/rollback` endpoint. Select a verified prior production deployment from the saved release record; do not guess its identity. These commands are recovery instructions, not steps performed during a successful release. Disable the independent Network flags first and retain additive data/migrations.
+
+The custom hostname is registered but still awaiting DNS validation at this record's publication. The owner is adding its proxied CNAME. The fallback app URL is publicly verified. A subsequent UTC daily rollover remains to be observed; no budget-reset or full-cohort freshness claim is made here.
+
 Disable `NETWORK_ENABLED` to hide Network and `NETWORK_INGEST_ENABLED` / `NETWORK_WALLETS_ENABLED` to stop its collection. Re-deploy the existing Pages/Worker projects; preserve unrelated settings and secrets. If necessary restore the previous application deployments. Do not reverse additive migrations, drop shared tables, replace the database, or restore a local database to production.
 
 Verify the first scheduled collection, snapshot publication, quota handling and daily refresh. Preserve a private release record with deployment IDs, manifest/checksums, migration state, aggregate counts and smoke-test results. Coverage gaps remain visible through the existing UI. Provider failures retain the last accepted observations.
