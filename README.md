@@ -2,6 +2,8 @@
 
 A Farcaster [Snap](https://docs.farcaster.xyz/snap) hosted on Cloudflare Workers at [api.10x.meme](https://api.10x.meme), deployed via GitHub Actions.
 
+The new daily launchpad specification starts at [docs/10x/README.md](docs/10x/README.md). Its isolated, fixture-only local package is documented in [meme/README.md](meme/README.md).
+
 ## What it does
 
 **Favourite Colour Poll** - an interactive Farcaster snap that:
