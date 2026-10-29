@@ -1,6 +1,17 @@
 # Decisions required before functional delivery
 
-All entries are unresolved unless an explicit owner decision and implementation evidence are recorded. The local skeleton does not supply production defaults.
+The owner authorized building milestones 1–3 on 30 October 2026 with commits/PRs and no deployment. The working defaults below are implemented as `local-v1` for local verification; they require explicit economic, abuse and operating review before production. They do not resolve the later protocol/distribution decisions.
+
+| Local-v1 policy | Implementation evidence | Remaining production gate |
+|---|---|---|
+| UTC timetable: previous-day 20:00 open, 19:30 close; ownership before reveal; links at freeze, Solana scope at first vote | Round, cycle and HTTP journey tests; BUILD.md | Final timetable, late ownership and launch operations review |
+| Valid Farcaster vote plus verified Solana reward wallet qualifies; Base optional; shared wallet/NFT conflicts excluded/reserved | Proof, ambiguity and wallet-conflict tests | Sybil/dispute policy; manual real-account and mobile QA |
+| Retained acquisition lots, proportional disposals, active-campaign opportunity normalization, floor once to +5x units | Rational ledger and replay examples | Approve normalization; independent historical prices and complete-history source integration |
+| Integer score units; earliest valid vote then FID; top 100 share the full 1% release; largest remainders tie by rank | Pure allocation, 101-voter and overlap tests | Approve allocation/qualification policy |
+| Zero qualifiers reserve the release; no offered round needs an explicit reasoned reserve; no silent reassignment | Empty/unoffered reserve tests | Treasury handling/disclosure of reserves |
+| Closing round serves releases in `(close, close +24h]`; actual launch starts ten releases at +24h through +240h | Boundary/delay and HTTP journey tests | Final delays/overlap operations and distributor feasibility |
+
+The remaining register is reviewed against those local rules; nothing below silently adopts an archived economic setting.
 
 | Decision | Required resolution | Blocks |
 |---|---|---|

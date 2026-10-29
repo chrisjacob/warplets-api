@@ -1,4 +1,4 @@
-# 10X daily launchpad — local foundation
+# 10X daily launchpad — local milestones 1–3
 
 Read `../docs/10x/README.md` and `../docs/10x/BUILD.md` first. This package is isolated local development. Its fixture preview is read-only; its separate loopback-only identity APIs support verified participation. Launch execution, funding and claims remain disabled.
 
@@ -8,7 +8,7 @@ From the repository root, install with `pnpm install --frozen-lockfile`, then:
 pnpm --dir meme dev
 ```
 
-Open `http://127.0.0.1:5194`. Today, Rewards and Launches use the same typed fixtures; no backend, wallet or external service is needed to explore the shell.
+Open `http://127.0.0.1:5194`. Today, Rewards and Launches read persisted local rounds, final entitlements and selection history. `?fixture=1` opens the original read-only design fixtures without an identity or backend. Shared Connect supports Farcaster, Base and wallet verification; the local operator records ownership/holding evidence and resumes settlement. Financial transactions remain disabled.
 
 The independent Worker and database can be exercised in a second terminal:
 

@@ -13,13 +13,16 @@ export async function scoreRound(
   round: StoredRound,
   viewer: number | null,
   holding = new Map<number, bigint>(),
+  suppliedLedger?: Awaited<ReturnType<typeof holdingForRound>>,
 ) {
-  const ledger = await holdingForRound(
-    db,
-    round.id,
-    Math.min(Date.now(), round.closes_at),
-    viewer,
-  );
+  const ledger =
+    suppliedLedger ??
+    (await holdingForRound(
+      db,
+      round.id,
+      Math.min(Date.now(), round.closes_at),
+      viewer,
+    ));
   if (holding.size === 0) holding = ledger.units;
   const current = await rows<{
     fid: number;
@@ -34,12 +37,12 @@ export async function scoreRound(
   );
   const previous = await rows<{ id: string }>(
     db,
-    "SELECT id FROM meme_rounds WHERE closes_at<? AND snapshot_id IS NOT NULL ORDER BY closes_at DESC LIMIT 9",
+    "SELECT id FROM meme_rounds WHERE closes_at<? AND snapshot_id IN(SELECT id FROM meme_ownership_snapshots WHERE state='ready') ORDER BY closes_at DESC LIMIT 9",
     round.closes_at,
   );
   const past = await rows<{ round_id: string; fid: number }>(
     db,
-    "SELECT v.round_id,v.fid FROM meme_votes v WHERE v.round_id IN(SELECT id FROM meme_rounds WHERE closes_at<? AND snapshot_id IS NOT NULL ORDER BY closes_at DESC LIMIT 9) AND (v.fid IN(SELECT fid FROM meme_votes WHERE round_id=?) OR v.fid=?)",
+    "SELECT v.round_id,v.fid FROM meme_votes v WHERE v.round_id IN(SELECT id FROM meme_rounds WHERE closes_at<? AND snapshot_id IN(SELECT id FROM meme_ownership_snapshots WHERE state='ready') ORDER BY closes_at DESC LIMIT 9) AND (v.fid IN(SELECT fid FROM meme_votes WHERE round_id=?) OR v.fid=?)",
     round.closes_at,
     round.id,
     viewer ?? -1,

@@ -1,29 +1,31 @@
-# Foundation and delivery milestones
+# Local implementation and delivery milestones
 
 ## Boundaries
 
 `meme/` is an independent workspace package with React UI, Worker API, shared domain contracts and a separate local D1 migration directory. It imports neither the archived discovery package nor Network internals. Production routing, the shared production database, deployed Workers and Pages builds remain independent of this skeleton.
 
-The local UI reads typed fixtures. The local Worker exposes only GET/HEAD `/health` and `/api/meme/preview`, returns no-store responses, identifies the fixture mode explicitly, and rejects every mutation method. It constructs no production adapters or signing clients. It needs no credentials, public hostname, RPC service, bridge, transaction signer, scheduled trigger or remote resource.
+The default UI reads persisted local state; `?fixture=1` retains the typed read-only design preview. Worker APIs return no-store responses and require both local-mode configuration and a loopback request hostname. Mutations require a matching Origin. Opaque sessions bind verified Farcaster assertions to host-scoped HttpOnly cookies. Single-use challenges verify Base SIWE and Solana Ed25519 wallet proofs. Local operator bearer tokens are hashed in the isolated database. There is no production hostname, scheduled trigger, transaction signer or remote resource.
 
-Shared contracts cover participants, candidates/rounds, votes, boost breakdowns, editions/campaigns, entitlements and claims. They distinguish provisional and final records. Amounts are decimal strings and timestamps are UTC ISO 8601. Fixture identifiers are deliberately invalid onchain addresses. These are initial internal contracts, not a versioned public trading API or a complete accounting schema.
+`packages/connect` contains the existing reviewed Connect UI and authentication primitives; compatibility exports preserve the other products. Launchpad domain code imports no app, discovery or Network runtime. Database rows and live API timestamps use integer UTC milliseconds; fixture contracts retain ISO strings. Token amounts are integer decimal strings; multipliers use fixed integer units and holding credit uses BigInt fractions. These are internal local contracts, not a public trading API.
 
 Adapters isolate verified identity, frozen Base ownership, supporting screening evidence, Solana launch execution and distribution. Future adapters may extract small reviewed security/arithmetic components with their relevant tests. Reuse never brings the archived discovery Worker or its research machinery into the runtime graph. Ownership uses the confirmed Warplets source behind its activity feed, through a read interface; Network materialized analytics are insufficient for reward authority.
 
-## Future data flow
+## Implemented data flow
 
-Verified participant → round vote with preserved first-valid timestamp → close-time holding/streak calculation plus pre-reveal ownership snapshot → immutable ranked settlement → funded campaign allocations → distributor adapter → claim reconciliation. Selection/skip and actual launch timestamp are explicit operator outcomes. Candidate feeds suggest candidates but do not gate rounds, settlement or claim reads.
+Verified participant → pre-reveal ownership freeze → vote with frozen reward/holding wallets and first-valid timestamp → close-time holding/streak calculation → frozen ranked settlement → immutable **unfunded** entitlements. Attribute cycles commit a seed before opening and reveal their complete order after the cycle. Operator selection or skip is independent of reward allocation. Actual launch metadata starts ten release times; no API here executes a launch.
 
-The future ledger must replay acquisition lots, top-ups, airdrops, proportional disposals, same-account transfers and rebuys with provenance. Settlement, launch and distribution require persisted idempotency keys and recoverable states before enabling mutations. Their schemas and protocol settings follow the decision gates, rather than being guessed in the skeleton.
+The holding ledger replays acquisition lots, top-ups, airdrops, proportional disposals, scoped transfers and rebuys with immutable provenance. Finalized receipts can be reconciled through a bounded public Solana RPC adapter. History completeness and historical price evidence remain source-attested, and supported receipt coverage is deliberately narrow. Unknown coverage blocks settlement. A missing live indexer or independent price source must never become an implicit zero balance.
+
+Settlement stores a versioned context hash and one immutable input row per voter. Each request writes at most 40 input or entitlement rows; repeated calls resume from durable counts. A finalized job returns its existing proof without recomputing old rewards. SQL constraints prevent double allocations, immutable source-prefix triggers reject late observations, and manifests reject input drift during recovery. Missing offered rounds require an explicit audited reserve record. See BUILD.md for arithmetic, release windows, operator recovery and the separation between finalized, funded and claimable states.
 
 ## Delivery gates
 
 | Milestone | Deliverable and acceptance |
 |---|---|
-| Foundation — this branch | Authoritative docs, decision register, isolated local database marker, typed fixtures, disabled daily-flow shell, independent builds/tests, no production exposure. |
-| Identity and rounds | Verified Farcaster identity and wallet linking; one changeable vote per round; frozen ownership before reveal; duplicate wallet/NFT prevention; operator selection or skip. Resolve eligibility/abuse and timetable decisions first. |
-| Boost and holding ledger | Replayable acquisition-value accounting and finalized 10× boosts. Resolve normalization, valuation inputs, disposal/top-up timing, transfer verification and exact rounding before implementation. |
-| Settlement | Deterministic top 100, earliest-vote ties, proportional allocations, empty rounds, immutable entitlements, overlapping campaign simulation and retries. Resolve qualification, empty-round and remainder rules first. |
+| Foundation — complete locally | Authoritative docs, isolated database, typed fixtures, independent builds/tests, no production exposure. |
+| Identity and rounds — complete locally, PRs #86–88 | Shared Connect, verified identity/wallets, frozen ownership, changeable votes, wallet/NFT reservations and operator selection/skip. Local working timetable and duplicate controls are versioned; production abuse review remains. |
+| Boost and holding ledger — complete locally, PRs #89–90 | Committed attribute cycles, streaks, exact additive 10× cap and replayable acquisition credit with sealed evidence. Live indexing/quote verification and production economics remain gates. |
+| Settlement — complete locally, PR #91 | Deterministic top 100, earliest-vote/FID ties, exact proportional allocations, empty/unoffered reserves, frozen inputs, immutable unfunded entitlements and bounded resumable jobs. |
 | Protocol/distributor feasibility | Pin supported integrations and prove single-sided OG pairing, fee collection, decay, lock authority, recovery and distributor costs. Resolve liquidity, fees, lock and treasury decisions. No mainnet funds in this milestone. |
 | One complete cycle | Shortlist → vote → selection/skip → launch → allocation no earlier than +24h → funded claim, initially in a controlled non-production environment. |
 | Overlap and recovery | Ten overlapping campaigns; +240h final release; skipped launches; delayed/failed launches; unavailable providers; replayed jobs; partial and duplicate claims; ownership changes. |
@@ -31,4 +33,4 @@ The future ledger must replay acquisition lots, top-ups, airdrops, proportional 
 
 ## Verification
 
-Run the package check command for frontend/Worker typechecks, request-boundary regressions, frontend build and Worker dry-run bundle. Apply local migrations and verify the schema in the package's isolated state directory. Inspect the shell at mobile and desktop widths, including each tab and disabled controls. Validate that the shared app production manifest contains no `meme/` entry. CI runs the skeleton independently; it does not deploy it.
+Run the package check command for frontend/Worker typechecks, real SQLite migration replay, cryptographic proof tests, request-boundary regressions, exact arithmetic/replay/recovery tests, frontend build and Worker dry-run bundle. Apply only local migrations to the isolated state directory. Inspect mobile and desktop, each tab, shared Connect and disabled financial controls. CI also runs the existing app regressions and production manifest checks. It does not deploy.
