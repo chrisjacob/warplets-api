@@ -52,7 +52,11 @@ export const json = (body: unknown, status = 200, headers: HeadersInit = {}) =>
       ...Object.fromEntries(new Headers(headers)),
     },
   });
-export async function payload(request: Request, keys: string[]) {
+export async function payload(
+  request: Request,
+  keys: string[],
+  maxBytes = 65536,
+) {
   requireThat(
     request.headers.get("content-type")?.split(";")[0] === "application/json",
     415,
@@ -68,7 +72,7 @@ export async function payload(request: Request, keys: string[]) {
       const { done, value } = await reader.read();
       if (done) break;
       size += value.byteLength;
-      if (size > 65536) {
+      if (size > maxBytes) {
         await reader.cancel();
         throw new Problem(413, "Body too large");
       }
