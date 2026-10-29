@@ -130,9 +130,26 @@ def token():
  raise ValueError('Run wrangler login or provide CLOUDFLARE_API_TOKEN')
 def remote_query(account,database,sql,params=None):
  request=urllib.request.Request(f'https://api.cloudflare.com/client/v4/accounts/{account}/d1/database/{database}/query',data=json.dumps({'sql':sql,'params':params or []}).encode(),headers={'Authorization':'Bearer '+token(),'Content-Type':'application/json'})
- with urllib.request.urlopen(request,timeout=90) as response:data=json.load(response)
+ try:
+  with urllib.request.urlopen(request,timeout=90) as response:data=json.load(response)
+ except urllib.error.HTTPError as error:
+  if error.code not in (401,403) or os.environ.get('CLOUDFLARE_API_TOKEN'):raise
+  # Equivalent refresh of the existing Wrangler OAuth grant; never run login
+  # or request broader scopes. Long imports can cross its access-token expiry.
+  refreshed=subprocess.run(['node',str(ROOT/'app/node_modules/wrangler/bin/wrangler.js'),'whoami'],cwd=ROOT,capture_output=True,text=True,encoding='utf8')
+  if refreshed.returncode:raise RuntimeError('Existing Wrangler login could not refresh') from error
+  request.remove_header('Authorization');request.add_header('Authorization','Bearer '+token())
+  with urllib.request.urlopen(request,timeout=90) as response:data=json.load(response)
  if not data.get('success') or any(not r.get('success') for r in data['result']):raise RuntimeError('D1 query failed')
  return data['result']
+def wrangler_rows_written(output,fallback):
+ # Wrangler's bulk import emits upload progress before its JSON result.
+ for match in re.finditer(r'(?m)^\[\s*$',output):
+  try:
+   records=json.JSONDecoder().raw_decode(output[match.start():])[0]
+   return sum(r['meta']['rows_written'] for r in records) if all('rows_written' in r.get('meta',{}) for r in records) else fallback
+  except (ValueError,TypeError):continue
+ return fallback
 def import_remote(bundle,args):
  manifest=verify(bundle)
  proof=bundle/'restore-verification.json'
@@ -144,20 +161,33 @@ def import_remote(bundle,args):
  statepath=bundle/'remote-progress.json';state=json.loads(statepath.read_text()) if statepath.exists() else {'chunks':[],'snapshots':[],'rowsWritten':0,'day':time.strftime('%Y-%m-%d',time.gmtime())}
  today=time.strftime('%Y-%m-%d',time.gmtime())
  if state['day']!=today:state['day']=today;state['rowsWritten']=0
+ multipliers={table:1+len(remote_query(args.account,args.database,f'PRAGMA index_list("{table}")')[0]['results']) for table in TABLES}
+ if state.get('accounting')!='index-upper-bound-v1':
+  # Earlier runs used a blanket four-write estimate when progress prefixed JSON.
+  # Reconcile conservatively from durable checkpoints and actual target indexes;
+  # partial indexes count for every row here, so this remains an upper bound.
+  state['previousAccountingEstimate']=state['rowsWritten'];state['rowsWritten']=0
+  checkpoints=remote_query(args.account,args.database,"SELECT key,updated_at FROM network_sync WHERE key GLOB 'bootstrap:*'")[0]['results']
+  completed={r['key'] for r in checkpoints if time.strftime('%Y-%m-%d',time.gmtime(r['updated_at']/1000))==today}
+  for chunk in manifest['chunks']:
+   if 'bootstrap:'+chunk['sha256'] in completed:state['rowsWritten']+=chunk['rows']*multipliers[chunk['table']]+2
+  state['accounting']='index-upper-bound-v1'
  def save():statepath.write_text(json.dumps(state,indent=2))
+ save()
  for chunk in manifest['chunks']:
   key='bootstrap:'+chunk['sha256']
   existing=remote_query(args.account,args.database,'SELECT value FROM network_sync WHERE key=?',[key])[0]['results']
   if existing:continue
-  if state['rowsWritten']+chunk['rows']*4>args.write_budget:save();raise RuntimeError('Configured daily bootstrap write budget reached; resume next UTC day')
+  estimated=chunk['rows']*multipliers[chunk['table']]
+  if state['rowsWritten']+estimated+2>args.write_budget:save();raise RuntimeError('Configured daily bootstrap write budget reached; resume next UTC day')
   command=['node',str(args.wrangler),'d1','execute','warplets','--remote','--file',str(bundle/chunk['file']),'--json','--yes']
-  result=subprocess.run(command,cwd=ROOT,capture_output=True,text=True)
-  (bundle/'last-import.log').write_text(result.stdout+result.stderr)
+  result=subprocess.run(command,cwd=ROOT,capture_output=True,text=True,encoding='utf8')
+  (bundle/'last-import.log').write_text(result.stdout+result.stderr,encoding='utf8')
   if result.returncode:raise RuntimeError('Wrangler import failed; inspect private last-import.log')
-  try:reported=sum(r.get('meta',{}).get('rows_written',0) for r in json.loads(result.stdout))
-  except (ValueError,TypeError):reported=chunk['rows']*4
+  reported=wrangler_rows_written(result.stdout,estimated)
   state['rowsWritten']+=max(reported,chunk['rows'])
-  remote_query(args.account,args.database,'INSERT INTO network_sync(key,value,updated_at) VALUES(?,?,?) ON CONFLICT(key) DO NOTHING',[key,json.dumps({'file':chunk['file'],'rows':chunk['rows']}),int(time.time()*1000)])
+  remote_query(args.account,args.database,'INSERT INTO network_sync(key,value,updated_at) VALUES(?,?,?) ON CONFLICT(key) DO NOTHING',[key,json.dumps({'file':chunk['file'],'rows':chunk['rows'],'rowsWritten':reported}),int(time.time()*1000)])
+  state['rowsWritten']+=2
   state['chunks'].append(chunk['file']);save();print(json.dumps({'imported':chunk['file'],'rowsWrittenToday':state['rowsWritten']}),flush=True)
  with gzip.open(bundle/manifest['snapshots']['file'],'rt',encoding='utf8') as stream:
   for line in stream:

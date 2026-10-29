@@ -19,6 +19,14 @@ The production schema retains migration history through `0103_network_warplet_im
 
 The repository workspace lockfile is authoritative. The stale standalone `app/pnpm-lock.yaml` is retired; app installs and CI run inside the existing pnpm workspace and use the root lockfile. The shared dependency remediation pins patched Zod, with scoped CDP/Quick Auth overrides and an aligned CDP ABI schema version. Real SDK schema and authentication request regressions run in CI. Unused Pigment CSS is removed, eliminating its vulnerable DOM transformer dependency. Existing narrow browser-installer audit exceptions remain unchanged.
 
+## Verified handoff and preparation record
+
+Preparation PRs #81 and #82 are merged; the corrected existing deployment pipeline completed successfully. Production migrations through 0103 are applied. The private preservation archive restored all 15,645 files and SQLite snapshots; its SHA-256 is `db6a42579d7788b3094a22c2ef5d99ac909e2b56e63e55ac4cf6008805b0d15f`. Archive tag `archive/10x-discovery-2026-10-29` and the separate safety branch are also preserved on origin.
+
+The Network handoff manifest SHA-256 is `c56d302cf3ee07ba27854c4893d27b7046b906996b3efc972f15aa6fd9b064c5`. Restoration, replay and production table counts are verified: 29,143 saved profiles, 29,167 acceptance events, 61,623 wallet observations, the required canonical geography, and 11 daily historical snapshots. Imported quotas preserve all prior usage. Root collection activation uses the unchanged explicit caps above; public serving remains independently gated. The owner explicitly authorized reuse of the existing Alchemy key on the existing root Worker; it remains server-side.
+
+The importer handles UTF-8 CLI logs and Wrangler upload progress before JSON metrics, uses actual index counts as conservative write bounds, checkpoints every successful chunk, and refreshes only the existing OAuth grant if a long operation crosses access-token expiry. It never requests broader scopes. The shared legal revision and its archives were published by the preparation deployment; the publication date in Sydney is 29 October 2026, distinct from the documents' revision date.
+
 ## Recovery and observation
 
 Disable `NETWORK_ENABLED` to hide Network and `NETWORK_INGEST_ENABLED` / `NETWORK_WALLETS_ENABLED` to stop its collection. Re-deploy the existing Pages/Worker projects; preserve unrelated settings and secrets. If necessary restore the previous application deployments. Do not reverse additive migrations, drop shared tables, replace the database, or restore a local database to production.
