@@ -220,3 +220,72 @@ test("job leases fence stale workers; interrupted commits resume; payloads canno
     t.close();
   }
 });
+
+test("prepared rounds resume a lost creation response and never adopt an unrelated operator round", async () => {
+  const t = testDb(),
+    now = Date.now();
+  const plan = (id: string, name: string) => ({
+    id,
+    opensAt: now + (id==='manual'?86400000:0) + 3600000,
+    closesAt: now + (id==='manual'?86400000:0) + 7200000,
+    attribute: "cast",
+    simulated: true,
+    candidates: [
+      {
+        id: "a",
+        name,
+        symbol: "A",
+        ogMint: "1".repeat(32),
+        evidence: "simulated",
+      },
+    ],
+  });
+  try {
+    await enqueue(
+      t.db,
+      "prepare:r",
+      "prepare",
+      "r",
+      plan("r", "Scheduled"),
+      now,
+    );
+    const first = await claimJob(t.db, now);
+    assert(first);
+    t.interruptNextBatch();
+    assert.equal((await runJob(t.db, first, now)).state, "retry");
+    assert.equal(
+      t.raw.prepare("SELECT COUNT(*) n FROM meme_round_preparations").get()?.n,
+      1,
+    );
+    const next = await claimJob(t.db, now + 10000);
+    assert(next);
+    assert.equal((await runJob(t.db, next, now + 10000)).state, "done");
+    assert.equal(
+      t.raw.prepare("SELECT COUNT(*) n FROM meme_candidates").get()?.n,
+      1,
+    );
+    await createRound(t.db, plan("manual", "Operator choice"), "operator");
+    await enqueue(
+      t.db,
+      "prepare:manual",
+      "prepare",
+      "manual",
+      plan("manual", "Different plan"),
+      now,
+    );
+    const conflicting = await claimJob(t.db, now + 10000);
+    assert(conflicting);
+    assert.equal(
+      (await runJob(t.db, conflicting, now + 10000)).state,
+      "blocked",
+    );
+    assert.equal(
+      t.raw
+        .prepare("SELECT name FROM meme_candidates WHERE round_id='manual'")
+        .get()?.name,
+      "Operator choice",
+    );
+  } finally {
+    t.close();
+  }
+});

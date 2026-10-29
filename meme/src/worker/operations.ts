@@ -8,10 +8,11 @@ import {
   text,
   integer,
   random,
+  sha,
   type Database,
   Problem,
 } from "./db";
-import { advance, createRound, operator } from "./rounds";
+import { advance, createRound, operator, audit } from "./rounds";
 import { settle } from "./settlement";
 import { startSnapshot, stepSnapshot } from "./snapshots";
 import { canonical } from "../shared/canonical";
@@ -101,7 +102,24 @@ export async function runJob(db: Database, job: Job, now = Date.now()) {
         "SELECT id FROM meme_rounds WHERE id=?",
         job.subject,
       );
-      if (!existing) await createRound(db, p, "scheduled operator plan");
+      const planHash = await sha(job.payload);
+      if (!existing)
+        await createRound(db, p, "scheduled operator plan", {
+          jobId: job.id,
+          planHash,
+        });
+      else
+        requireThat(
+          await one(
+            db,
+            "SELECT round_id FROM meme_round_preparations WHERE round_id=? AND job_id=? AND plan_hash=?",
+            job.subject,
+            job.id,
+            planHash,
+          ),
+          409,
+          "Existing round differs from the scheduled preparation",
+        );
       done = true;
     }
     await run(
@@ -202,6 +220,10 @@ export async function operationsRequest(
     const id = text((body as Record<string, unknown>).id, "round ID", 80),
       at = integer(p.at, "preparation time");
     await enqueue(db, "prepare:" + id, "prepare", id, body, at);
+    await audit(db, actor, "queue-round-preparation", id, {
+      jobId: "prepare:" + id,
+      planHash: await sha(canonical(body)),
+    });
     return json({ id, actor });
   }
   throw new Problem(404, "Unknown operations route");

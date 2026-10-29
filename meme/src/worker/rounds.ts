@@ -107,6 +107,7 @@ export async function createRound(
   db: Database,
   p: Record<string, unknown>,
   actor: string,
+  preparation?: { jobId: string; planHash: string },
 ) {
   const scheduled = typeof p.day === "string" ? dailyTimes(p.day) : null;
   const id = text(p.id, "round id", 80),
@@ -183,6 +184,12 @@ export async function createRound(
         ),
     );
   }
+  if (preparation)
+    statements.push(
+      db
+        .prepare("INSERT INTO meme_round_preparations VALUES(?,?,?)")
+        .bind(id, preparation.jobId, preparation.planHash),
+    );
   await db.batch(statements);
   await audit(db, actor, "create-round", id, { opensAt, closesAt });
   return { id };

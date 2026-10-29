@@ -1,6 +1,9 @@
 -- Additive only. Existing local-v1 settlements and evidence remain immutable.
 CREATE TABLE meme_jobs(id TEXT PRIMARY KEY,kind TEXT NOT NULL CHECK(kind IN('score','settle','prepare')),subject TEXT NOT NULL,payload TEXT NOT NULL,due_at INTEGER NOT NULL,state TEXT NOT NULL CHECK(state IN('queued','running','done','blocked')),attempts INTEGER NOT NULL DEFAULT 0,lease_token TEXT,lease_until INTEGER,retry_at INTEGER NOT NULL DEFAULT 0,last_error TEXT,created_at INTEGER NOT NULL,completed_at INTEGER);
 CREATE INDEX meme_jobs_due ON meme_jobs(state,retry_at,due_at);
+CREATE TABLE meme_round_preparations(round_id TEXT PRIMARY KEY REFERENCES meme_rounds(id),job_id TEXT NOT NULL UNIQUE REFERENCES meme_jobs(id),plan_hash TEXT NOT NULL);
+CREATE TRIGGER meme_preparation_immutable BEFORE UPDATE ON meme_round_preparations BEGIN SELECT RAISE(ABORT,'Preparation receipts are immutable'); END;
+CREATE TRIGGER meme_preparation_no_delete BEFORE DELETE ON meme_round_preparations BEGIN SELECT RAISE(ABORT,'Preparation receipts are immutable'); END;
 CREATE TABLE meme_score_snapshots(id TEXT PRIMARY KEY,round_id TEXT NOT NULL REFERENCES meme_rounds(id),as_of INTEGER NOT NULL,context TEXT NOT NULL,state TEXT NOT NULL CHECK(state IN('building','ready')),input_count INTEGER NOT NULL,result_hash TEXT,created_at INTEGER NOT NULL);
 CREATE INDEX meme_score_round ON meme_score_snapshots(round_id,as_of DESC);
 CREATE TABLE meme_score_inputs(snapshot_id TEXT NOT NULL REFERENCES meme_score_snapshots(id),fid INTEGER NOT NULL,payload TEXT NOT NULL,PRIMARY KEY(snapshot_id,fid));
