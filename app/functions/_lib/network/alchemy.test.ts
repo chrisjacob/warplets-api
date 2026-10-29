@@ -77,7 +77,7 @@ describe('Alchemy free-tier guardrails',()=>{
  });
  it('collects all token pages and native balance, caching paid metadata',async()=>{
   const{db,env}=fixture();const calls:string[]=[];vi.stubGlobal('fetch',vi.fn(async(url:string,init:RequestInit)=>{
-   expect(url).toBe('https://base-mainnet.g.alchemy.com/v2/'+env.ALCHEMY_API_KEY);expect(init.redirect).toBe('error');
+   expect(url).toBe('https://base-mainnet.g.alchemy.com/v2/'+env.ALCHEMY_API_KEY);expect(init.redirect).toBe('manual');
    const request=JSON.parse(String(init.body));calls.push(request.method);
    if(request.method==='alchemy_getTokenMetadata')return rpc({name:'Dollar',symbol:'USD',decimals:6});
    if(request.method==='eth_getBalance')return rpc('0x10');
