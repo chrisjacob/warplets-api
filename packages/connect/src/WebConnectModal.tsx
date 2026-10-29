@@ -1,5 +1,5 @@
 import { AppViewport } from "./AppViewport";
-import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
+import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from "react";
 import { OverlayScrollbarsComponent } from "overlayscrollbars-react";
 import { trackAppEvent } from "./host";
 import { linkCurrentWalletAndIdentity, loadAppSession, unlinkCurrentWalletAndIdentity } from "./appSession";
@@ -42,8 +42,9 @@ function BrowserWalletIcon() {
   </svg>;
 }
 
-export function WebConnectModal({ open, onClose, farcasterControl, identityConnected = false, identityError = null, onClearIdentityError, onWalletConnected, farcasterMiniAppUrl = FARCASTER_WARPLETS_MINI_APP_URL, socialRequired=false, extraWalletControls }: {
+export function WebConnectModal({ open, onClose, farcasterControl, identityConnected = false, identityError = null, onClearIdentityError, onWalletConnected, farcasterMiniAppUrl = FARCASTER_WARPLETS_MINI_APP_URL, socialRequired=false, showPromotions=true, extraWalletControls }: {
   socialRequired?: boolean;
+  showPromotions?: boolean;
   extraWalletControls?: ReactNode;
   farcasterMiniAppUrl?: string;
   open: boolean;
@@ -55,6 +56,7 @@ export function WebConnectModal({ open, onClose, farcasterControl, identityConne
   onWalletConnected?: (address: string) => void;
 }) {
   const wallet = useWalletController();
+  const dialogRef=useRef<HTMLElement>(null),closeRequest=useRef(onClose);closeRequest.current=onClose;
   const [showOtherWallets, setShowOtherWallets] = useState(false);
   const [disconnectingWallet, setDisconnectingWallet] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
@@ -204,6 +206,30 @@ export function WebConnectModal({ open, onClose, farcasterControl, identityConne
     </div>
   ) : null;
 
+  useEffect(()=>{
+    if(!open||showOtherWallets||wallet.connecting)return;
+    const dialog=dialogRef.current,previous=document.activeElement instanceof HTMLElement?document.activeElement:null;
+    if(!dialog)return;
+    const focusable=()=>Array.from(dialog.querySelectorAll<HTMLElement>('button:not(:disabled),a[href],input:not(:disabled),select:not(:disabled),textarea:not(:disabled),summary,[tabindex]:not([tabindex="-1"])')).filter(el=>{
+      if(!el.getClientRects().length||getComputedStyle(el).visibility==='hidden'||el.closest('[hidden],[inert],[aria-hidden="true"]'))return false;
+      const closed=Array.from(dialog.querySelectorAll('details:not([open])'));
+      if(closed.some(details=>details.contains(el)&&!details.querySelector('summary')?.contains(el)))return false;
+      return true;
+    });
+    dialog.querySelector<HTMLButtonElement>('.web-connect-close')?.focus();
+    const keydown=(event:KeyboardEvent)=>{
+      if(event.defaultPrevented)return;
+      const other=Array.from(document.querySelectorAll<HTMLElement>('[role="dialog"]')).filter(el=>el!==dialog&&el.getClientRects().length>0&&getComputedStyle(el).visibility!=='hidden'&&!el.closest('[hidden],[inert],[aria-hidden="true"]'));
+      if(other.length)return;
+      if(event.key==='Escape'){event.preventDefault();closeRequest.current();return;}
+      if(event.key!=='Tab')return;
+      const items=focusable(),first=items[0],last=items.at(-1);if(!first)return;
+      if(event.shiftKey&&(document.activeElement===first||!dialog.contains(document.activeElement))){event.preventDefault();last?.focus();}
+      else if(!event.shiftKey&&(document.activeElement===last||!dialog.contains(document.activeElement))){event.preventDefault();first.focus();}
+    };
+    document.addEventListener('keydown',keydown);
+    return ()=>{document.removeEventListener('keydown',keydown);if(previous?.isConnected)previous.focus();};
+  },[open,showOtherWallets,wallet.connecting]);
   if (!open) return <>{persistentTrustConnect}</>;
 
   const connectedConnector = wallet.session?.connectorId ?? null;
@@ -262,28 +288,9 @@ export function WebConnectModal({ open, onClose, farcasterControl, identityConne
     }
   };
 
-  return (
-    <>
-      {persistentTrustConnect}
-      <AppViewport className="web-connect-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
-      <section className="web-connect-modal" role="dialog" aria-modal="true" aria-labelledby="web-connect-title">
-        <div className="web-connect-heading">
-          <h2 id="web-connect-title"><span>Connect</span> Wallet &amp; Social</h2>
-          <button type="button" className="web-connect-close" onClick={onClose} aria-label="Close connect modal" title="Close">
-            <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
-              <path d="M6 6l12 12" /><path d="M18 6L6 18" />
-            </svg>
-          </button>
-        </div>
-        <OverlayScrollbarsComponent
-          className="web-connect-scroll"
-          options={{ scrollbars: { theme: "os-theme-10x", autoHide: "scroll", clickScroll: true } }}
-          defer
-        >
-          <div className="web-connect-content">
-            <section className="web-connect-section" aria-labelledby="web-connect-wallet-heading">
+  const walletSection=(<section className="web-connect-section" aria-labelledby="web-connect-wallet-heading">
               <div className="web-connect-section-heading">
-                <h3 id="web-connect-wallet-heading">Wallet</h3>
+                <h3 id="web-connect-wallet-heading">{socialRequired?"Warplet boost · optional":"Wallet"}</h3>
                 <p>{socialRequired ? 'Link Base wallets for Warplet ownership boosts.' : 'Connect to trade, verify ownership and save favourites.'}</p>
               </div>
               <div className="web-connect-options">
@@ -337,9 +344,8 @@ export function WebConnectModal({ open, onClose, farcasterControl, identityConne
                   </button>
                 </div>
               </div>
-            </section>
-
-            <section className="web-connect-section" aria-labelledby="web-connect-identity-heading">
+            </section>);
+  const socialSection=(<section className="web-connect-section" aria-labelledby="web-connect-identity-heading">
               <div className="web-connect-section-heading">
                 <h3 id="web-connect-identity-heading">Social <span className="web-connect-optional-chip">{socialRequired?'Required':'Optional'}</span></h3>
                 <p>{socialRequired?'Connect Farcaster to participate in daily rounds.':'Connect Farcaster for your profile, friends and social features.'}</p>
@@ -374,10 +380,29 @@ export function WebConnectModal({ open, onClose, farcasterControl, identityConne
                   </a>
                 ) : null}
               </div>
-            </section>
+            </section>);
+  return (
+    <>
+      {persistentTrustConnect}
+      <AppViewport className="web-connect-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
+      <section ref={dialogRef} className="web-connect-modal" role="dialog" aria-modal="true" aria-labelledby="web-connect-title">
+        <div className="web-connect-heading">
+          <h2 id="web-connect-title"><span>Connect</span> Wallet &amp; Social</h2>
+          <button type="button" className="web-connect-close" onClick={onClose} aria-label="Close connect modal" title="Close">
+            <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
+              <path d="M6 6l12 12" /><path d="M18 6L6 18" />
+            </svg>
+          </button>
+        </div>
+        <OverlayScrollbarsComponent
+          className="web-connect-scroll"
+          options={{ scrollbars: { theme: "os-theme-10x", autoHide: "scroll", clickScroll: true } }}
+          defer
+        >
+          <div className="web-connect-content">
+            {socialRequired?<>{socialSection}{extraWalletControls}{walletSection}</>:<>{walletSection}{socialSection}{extraWalletControls}</>}
 
-            {extraWalletControls}
-            <div className="web-connect-farcaster-footer">
+            {showPromotions&&<div className="web-connect-farcaster-footer">
               <p>For the best experience, use the Farcaster Mini App.</p>
               <a className="web-connect-farcaster-cta" href={farcasterMiniAppUrl} target="_blank" rel="noreferrer">
                 Open in Farcaster
@@ -390,7 +415,7 @@ export function WebConnectModal({ open, onClose, farcasterControl, identityConne
               >
                 Bonus: 20% off trading fees (click here)
               </a>
-            </div>
+            </div>}
             {import.meta.env.DEV ? (
               <details className="wallet-connect-diagnostics">
                 <summary>WalletConnect diagnostics ({walletDiagnostics.length})</summary>

@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { preview } from "../shared/fixtures";
 import { LocalRounds, OperatorPanel, useLocalState } from "./LocalRounds";
-import { type Identity, IdentityPanel } from "./IdentityPanel";
+import { IdentityPanel } from "./IdentityPanel";
+import { Tabs, type Tab as LaunchTab } from "./Tabs";
+import { rewardTotals, tokenAmount } from "./rewards";
 type Tab = "Today" | "Rewards" | "Launches";
 function FixtureApp() {
   const [tab, setTab] = useState<Tab>("Today");
@@ -197,117 +199,157 @@ function FixtureApp() {
 
 export function App() {
   const [fixture, setFixture] = useState(
-    new URLSearchParams(location.search).has("fixture"),
-  );
-  const [identity, setIdentity] = useState<Identity | null>(null),
-    [tab, setTab] = useState<Tab>("Today");
-  const { data, error, refresh } = useLocalState(identity);
+      new URLSearchParams(location.search).has("fixture"),
+    ),
+    [tab, setTab] = useState<LaunchTab>("Today"),
+    [connectOpen, setConnectOpen] = useState(false);
+  const { data, identity, error, refresh, onIdentity } =
+    useLocalState(!fixture);
   if (fixture)
     return (
       <>
         <button className="mode-toggle" onClick={() => setFixture(false)}>
-          Open local participation app
+          Back to app
         </button>
         <FixtureApp />
       </>
     );
+  const totals = rewardTotals(data?.entitlements ?? []);
   return (
-    <div className="shell">
+    <div className="shell local-app">
       <header>
         <a className="brand" href="#">
           10X<span>.meme</span>
         </a>
-        <IdentityPanel onIdentity={setIdentity} />
+        <IdentityPanel
+          identity={identity}
+          onIdentity={onIdentity}
+          open={connectOpen}
+          onOpenChange={setConnectOpen}
+        />
       </header>
       <main>
-        <div className="intro">
-          <p className="eyebrow">One launch. Every day. Or skip.</p>
-          <h1>
-            A daily ritual.
-            <br />
-            <em>A new possibility.</em>
-          </h1>
-          <p>
-            Claim your rewards, discover today’s attribute, and help shape the
-            next OG-paired launch.
-          </p>
-        </div>
-        <aside className="fixture-note" role="note">
-          Local participation · onchain launches, funding and claims remain
-          disabled.
-        </aside>
-        <button onClick={() => setFixture(true)}>View design fixtures</button>
-        <nav aria-label="Launchpad">
-          <div role="tablist">
-            {(["Today", "Rewards", "Launches"] as Tab[]).map((name) => (
-              <button
-                key={name}
-                role="tab"
-                aria-selected={tab === name}
-                onClick={() => setTab(name)}
-              >
-                {name}
-              </button>
-            ))}
+        <div className="page-heading">
+          <div>
+            <p className="eyebrow">Daily launchpad</p>
+            <h1>One launch. Or skip.</h1>
           </div>
-        </nav>
+          <span className="preview-label">Local preview</span>
+        </div>
+        <p className="fine preview-notice">
+          No funds move. Launches and claims are disabled.
+        </p>
+        <Tabs value={tab} onChange={setTab} />
         {error && (
-          <p role="alert">
-            {error}. Start the local Worker to use participation.
-          </p>
+          <div className="error-notice" role="alert">
+            <span>{error}</span>
+            <button onClick={() => void refresh()}>Retry</button>
+          </div>
         )}
-        {tab === "Today" && (
-          <LocalRounds data={data} identity={identity} refresh={refresh} />
-        )}{" "}
-        {tab === "Rewards" && (
-          <section className="card" aria-label="Rewards">
-            <h2>Your allocations</h2>
-            {data?.entitlements?.length ? (
-              data.entitlements.map((e, i) => (
-                <p key={i}>
-                  {e.symbol} · {e.amount} smallest units ({e.decimals} decimals)
-                  · {e.state} · {e.mode} evidence · earliest release{" "}
-                  {new Date(e.release_at).toUTCString()} · destination{" "}
-                  {e.reward_wallet.slice(0, 6)}…{e.reward_wallet.slice(-4)}
+        <div
+          id="launchpad-panel"
+          role="tabpanel"
+          aria-labelledby={"tab-" + tab}
+        >
+          {tab === "Today" && (
+            <LocalRounds
+              data={data}
+              identity={identity}
+              refresh={refresh}
+              onConnect={() => setConnectOpen(true)}
+              stale={!!error}
+            />
+          )}
+          {tab === "Rewards" && (
+            <section className="card" aria-label="Rewards">
+              <h2>Your rewards</h2>
+              {totals.length ? (
+                totals.map((e) => (
+                  <article
+                    className="reward-row"
+                    key={JSON.stringify([
+                      e.edition_id,
+                      e.reward_wallet,
+                      e.mode,
+                    ])}
+                  >
+                    <div>
+                      <strong>
+                        {tokenAmount(e.amount, e.decimals)} {e.symbol}
+                      </strong>
+                      <p>
+                        Unfunded{e.mode === "simulated" ? " · Simulated" : ""}
+                      </p>
+                      <details>
+                        <summary>Details</summary>
+                        <p>Destination: {e.reward_wallet}</p>
+                        <p>
+                          Scheduled through{" "}
+                          {new Date(e.release_at).toLocaleDateString()}
+                        </p>
+                      </details>
+                    </div>
+                  </article>
+                ))
+              ) : (
+                <p>
+                  {identity?.farcasterFid
+                    ? "No rewards yet. Vote in the next round."
+                    : "Connect to see your rewards."}
                 </p>
-              ))
-            ) : (
-              <p>No finalized allocations yet.</p>
-            )}
-            <p>
-              Final allocations accumulate. Funding and claims follow in a later
-              milestone.
-            </p>
-            <button disabled>Claim all rewards</button>
-          </section>
-        )}
-        {tab === "Launches" && (
-          <section className="card" aria-label="Round history">
-            <h2>Selection history</h2>
-            {data?.history.length ? (
-              data.history.map((r) => (
-                <article key={r.id}>
-                  <h3>{r.id}</h3>
-                  <p>
-                    {r.state}:{" "}
-                    {r.selected_candidate ??
-                      r.outcome_reason ??
-                      "Awaiting operator decision"}
-                  </p>
-                </article>
-              ))
-            ) : (
-              <p>No closed rounds yet.</p>
-            )}
-          </section>
-        )}
+              )}
+              {!identity?.farcasterFid ? (
+                <button
+                  className="primary"
+                  onClick={() => setConnectOpen(true)}
+                >
+                  Connect
+                </button>
+              ) : (
+                <button disabled>Claims coming later</button>
+              )}
+            </section>
+          )}
+          {tab === "History" && (
+            <section className="card" aria-label="Round history">
+              <h2>Past rounds</h2>
+              {data?.history.length ? (
+                data.history.map((r) => (
+                  <article className="history-row" key={r.id}>
+                    <div>
+                      <h3>
+                        {new Date(r.closes_at).toLocaleDateString(undefined, {
+                          month: "short",
+                          day: "numeric",
+                        })}
+                      </h3>
+                      <p>
+                        {r.state === "skipped"
+                          ? "Skipped"
+                          : r.selected_candidate
+                            ? "Selected: " +
+                              (r.selected_name ?? r.selected_candidate)
+                            : "Selection pending"}
+                      </p>
+                    </div>
+                    {r.outcome_reason && <p>{r.outcome_reason}</p>}
+                  </article>
+                ))
+              ) : (
+                <p>No past rounds yet.</p>
+              )}
+            </section>
+          )}
+        </div>
         {new URLSearchParams(location.search).get("operator") === "1" && (
           <OperatorPanel />
         )}
       </main>
       <footer>
-        <span>10X.meme</span>
-        <span>Solana launches · Base Warplets · Farcaster participation</span>
+        <span>Solana · Warplets · Farcaster</span>
+        <button className="text-button" onClick={() => setFixture(true)}>
+          Design preview
+        </button>
       </footer>
     </div>
   );

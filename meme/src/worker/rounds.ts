@@ -22,7 +22,12 @@ import { canonical } from "../shared/canonical";
 import { decode58 } from "../shared/base58";
 import { cycleAttribute } from "./cycles";
 import { scoreRound } from "./scoring";
-import { settlementView, ownEntitlements, ownSettledScore } from "./settlement";
+import {
+  settlementView,
+  ownEntitlements,
+  ownSettledScore,
+  settledWeights,
+} from "./settlement";
 export interface StoredRound {
   id: string;
   opens_at: number;
@@ -571,9 +576,9 @@ export async function state(db: Database, request: Request) {
       Date.now(),
       Date.now(),
     );
-  const history = await rows<StoredRound>(
+  const history = await rows<StoredRound & { selected_name: string | null }>(
     db,
-    "SELECT * FROM meme_rounds WHERE state IN('closed','selected','skipped') ORDER BY closes_at DESC LIMIT 30",
+    "SELECT r.*,c.name selected_name FROM meme_rounds r LEFT JOIN meme_candidates c ON c.round_id=r.id AND c.id=r.selected_candidate WHERE r.state IN('closed','selected','skipped') ORDER BY r.closes_at DESC LIMIT 30",
   );
   const entitlements = await ownEntitlements(db, identity.farcasterFid);
   if (!current)
@@ -598,15 +603,31 @@ export async function state(db: Database, request: Request) {
           identity.farcasterFid,
         )
       : null;
-  const scoring =
-    current.snapshot_id && Date.now() >= current.opens_at
-      ? await scoreRound(db, current, identity.farcasterFid)
-      : null;
+  const snapshot = await one<{ mode: string; state: string }>(
+    db,
+    "SELECT mode,state FROM meme_ownership_snapshots WHERE id=?",
+    current.snapshot_id,
+  );
+  const revealed =
+    snapshot?.state === "ready" && Date.now() >= current.opens_at;
   const settlement = await settlementView(db, current.id);
   const finalBoost =
     settlement?.state === "finalized"
       ? await ownSettledScore(db, current.id, identity.farcasterFid)
       : null;
+  const scoring =
+    settlement?.state === "finalized"
+      ? {
+          view: {
+            boost: finalBoost,
+            leaderboard: settlement.leaderboard,
+            holdingComplete: true,
+            weightedVotes: await settledWeights(db, current.id),
+          },
+        }
+      : revealed
+        ? await scoreRound(db, current, identity.farcasterFid)
+        : null;
   return {
     mode: "local",
     ...(scoring?.view ?? {}),
@@ -619,18 +640,8 @@ export async function state(db: Database, request: Request) {
     identity,
     round: {
       ...current,
-      ownershipMode:
-        (
-          await one<{ mode: string }>(
-            db,
-            "SELECT mode FROM meme_ownership_snapshots WHERE id=?",
-            current.snapshot_id,
-          )
-        )?.mode ?? null,
-      attribute:
-        Date.now() >= current.opens_at && current.snapshot_id
-          ? current.attribute
-          : null,
+      ownershipMode: snapshot?.mode ?? null,
+      attribute: revealed ? current.attribute : null,
       candidates: candidates.map((c) => ({
         ...c,
         weightedVotes: scoring?.view.weightedVotes[c.id] ?? "0",
