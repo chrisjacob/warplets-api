@@ -83,6 +83,17 @@ if (command === "init") {
     if (result.state === "finalized") break;
     if (page === 999) throw Error("Page limit reached; rerun to resume");
   }
+} else if (command === "collect") {
+  if (!args[0]) throw Error("Provide the persisted source run ID");
+  for (let page = 0; page < 10000; page++) {
+    const result = await send("/api/meme/operator/sources/step", {
+      id: args[0],
+    });
+    console.log(JSON.stringify(result));
+    if (result.state === "ready") break;
+    if (page === 9999) throw Error("Page limit reached; rerun to resume");
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+  }
 } else if (command === "demo") {
   const current = await (
     await fetch("http://127.0.0.1:8797/api/meme/state")
@@ -183,5 +194,5 @@ if (command === "init") {
   } while (!once);
 } else
   throw Error(
-    "Commands: init | demo | settle <round-id> | request <operator-route> <json-file> | ownership-export <warplets-sqlite-path> | ownership-freeze <sqlite> <round> | tick | run [authoritative-sqlite]",
+    "Commands: init | demo | settle <round-id> | collect <source-run-id> | request <operator-route> <json-file> | ownership-export <warplets-sqlite-path> | ownership-freeze <sqlite> <round> | tick | run [authoritative-sqlite]",
   );

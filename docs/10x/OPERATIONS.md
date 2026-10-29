@@ -32,6 +32,8 @@ Manual movement classifications must reconcile to independently fetched finalize
 
 The current 20-transaction Helius profile reserves 10 credits per attempt, matching its published rounded-up minimum, and conservatively retains reservations on failures. Its zero ceiling is unchanged. The adapter rejects pre-2023 campaign history because token-account discovery cannot establish older ownership coverage without an additional archival adapter.
 
+After an authorized source run has been created, `pnpm --dir meme operator collect <run-id>` advances its persisted pages at one request per second. Restart the same command to resume. Exhausted/unapproved allowances stop the command; it never raises a ceiling, resets usage or retries indefinitely.
+
 ## Correction versions
 
 Legacy events, source pages and seals are immutable. Corrections create a new evidence version; they never edit those rows or settled entitlements.
