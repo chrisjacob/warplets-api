@@ -59,6 +59,10 @@ jobs:
         working-directory: app
         run: pnpm typecheck
 
+      - name: App regressions
+        working-directory: app
+        run: pnpm test
+
       - name: App security preflight
         working-directory: app
         run: pnpm security:preflight
