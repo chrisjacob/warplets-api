@@ -18,6 +18,11 @@ describe('Man-Months',()=>{
   expect(result.months.map(m=>[m.month,m.active,m.joined,m.retained,m.unresolved])).toEqual([['2026-10',2,2,0,0],['2026-11',2,0,2,0],['2026-12',0,0,0,2]]);
   expect(result.partial).toBe(true);
  });
+ it('partitions OG and new joiners, retaining either group in later active months',()=>{
+  const result=networkManMonths([{...base,ogMember:true,count:3,activityMonths:['2026-11']},{...base,ogMember:false,count:2,acceptedDay:'2026-11-01',activityMonths:['2026-12']}],now);
+  expect(result.months.map(m=>[m.og,m.newMembers,m.continuing,m.active])).toEqual([[3,0,0,3],[0,2,3,5],[0,0,2,2]]);
+  expect(result.months.every(m=>m.og+m.newMembers+m.continuing===m.active)).toBe(true);
+ });
  it('handles UTC month boundaries and December/January correctly',()=>{
   expect(previousMonth('2027-01')).toBe('2026-12');
   const result=networkManMonths([{...base,acceptedDay:'2026-10-31',activityMonths:['2026-11']}],Date.parse('2026-10-31T23:59:59Z'));
@@ -44,8 +49,9 @@ describe('Man-Months',()=>{
  it('saves one positive month, skips signing-month API reads, and respects the shared cap',async()=>{
   const db=new DatabaseSync(':memory:');
   try{
-   for(const file of ['0095_network.sql','0096_network_members.sql','0097_network_wallets.sql','0098_network_activity.sql','0099_network_alchemy.sql','0100_network_geography.sql','0101_network_geography_matching.sql','0102_network_warplet_holders.sql'])db.exec(readFileSync(new URL(`../../../../migrations/${file}`,import.meta.url),'utf8'));
+   for(const file of ['0095_network.sql','0096_network_members.sql','0097_network_wallets.sql','0098_network_activity.sql','0099_network_alchemy.sql','0100_network_geography.sql','0101_network_geography_matching.sql','0102_network_warplet_holders.sql','0103_network_warplet_images.sql'])db.exec(readFileSync(new URL(`../../../../migrations/${file}`,import.meta.url),'utf8'));
    db.prepare('INSERT INTO network_events VALUES(?,?,?,?,?,?,?,?)').run('tx',1,1,'block',Date.parse('2026-10-17'),7,'address',now);
+   db.exec("INSERT INTO network_profiles(fid,location_status,token_status,opt_in_status,observed_at) VALUES(7,'unknown','none','opted_in',1)");
    const env={WARPLETS:sqliteD1(db),NEYNAR_API_KEY:'test',NETWORK_WALLET_CREDITS:'200'};
    vi.useFakeTimers();vi.setSystemTime(new Date('2026-10-20'));
    const fetcher=vi.fn(async()=>Response.json({messages:[msg('2026-11-01')],nextPageToken:''}));vi.stubGlobal('fetch',fetcher);

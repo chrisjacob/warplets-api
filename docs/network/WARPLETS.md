@@ -26,3 +26,15 @@ ownership and cannot detect transfers absent from Warplets' saved data.
 Migration: `0102_network_warplet_holders.sql`. Empty optional snapshot fields are
 omitted to accommodate the new grouping without increasing the storage budget.
 Historical snapshots and default aggregate interpretations remain unchanged.
+
+## Holder portraits
+
+Migration `0103_network_warplet_images.sql` adds a representative token ID to the
+Network holder index. Refresh it from the same saved ownership records; choose
+the original allocation if still held, otherwise the lowest current token ID.
+The existing paged member-details query joins this FID index, without another
+query or provider call. Member responses include `warpletTokenId`. Only with
+the holder filter selected does the browser use
+`https://warplets.10x.meme/{id}.avif`; native AVIF animation loops normally.
+Image failure falls back to the Farcaster image, then initials. Transfer refreshes
+replace the cached token reference; Farcaster profile pictures stay unchanged.

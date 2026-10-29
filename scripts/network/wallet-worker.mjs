@@ -11,7 +11,7 @@ process.on('SIGINT',()=>{stopping=true;child?.kill();wake?.();});
 await writeFile(resolve(root,'.tmp/network-wallet-worker.pid'),String(process.pid));
 while(!stopping){
  let lastStatus='',failure='';
- log({event:'batch_started',wallets:1000,provider:'alchemy'});
+ log({event:'batch_started',wallets:1000,provider:'alchemy',concurrency:4,maxRequestsPerSecond:10});
  const code=await new Promise((resolveExit,reject)=>{
   child=spawn(process.execPath,[resolve(root,'node_modules/tsx/dist/cli.mjs'),resolve(root,'scripts/network/local.ts'),'--wallet-values','--alchemy','--steps=1000'],{cwd:root,env:{...process.env,WRANGLER_SEND_METRICS:'false'},windowsHide:true,stdio:['ignore','pipe','pipe']});
   let stdout='';
@@ -27,8 +27,8 @@ while(!stopping){
   log({event:'daily_budget_pause',resumeAt:new Date(Date.now()+delay).toISOString()});
  }else if(/Alchemy HTTP (429|402|403)|Alchemy RPC request rejected/.test(failure)||['cooldown','waiting'].includes(lastStatus)){
   delay=3_600_000;log({event:'source_pause',minutes:60});
- }else if(code!==0){log({event:'stopped',reason:'Importer failed; inspect the local error log'});process.exitCode=1;break;}
+ }else if(code!==0){delay=900_000;log({event:'import_retry_pause',minutes:15,reason:'Importer failed; previous values retained; inspect the local error log'});}
  else if(lastStatus==='complete'){delay=86_400_000;log({event:'caught_up',nextCheckHours:24});}
- else if(lastStatus==='busy'){log({event:'stopped',reason:'Another wallet importer is running'});break;}
+ else if(lastStatus==='busy'){delay=60_000;log({event:'lease_pause',minutes:1});}
  await sleep(delay);
 }

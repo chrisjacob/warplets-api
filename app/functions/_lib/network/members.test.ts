@@ -9,7 +9,7 @@ const databases: DatabaseSync[] = [];
 afterEach(() => { for (const db of databases.splice(0)) db.close(); });
 function fixture() {
   const db = new DatabaseSync(':memory:'); databases.push(db);
-  for (const file of ['0095_network.sql', '0096_network_members.sql','0097_network_wallets.sql','0098_network_activity.sql','0099_network_alchemy.sql','0100_network_geography.sql','0101_network_geography_matching.sql','0102_network_warplet_holders.sql']) db.exec(readFileSync(new URL(`../../../../migrations/${file}`, import.meta.url), 'utf8'));
+  for (const file of ['0095_network.sql', '0096_network_members.sql','0097_network_wallets.sql','0098_network_activity.sql','0099_network_alchemy.sql','0100_network_geography.sql','0101_network_geography_matching.sql','0102_network_warplet_holders.sql','0103_network_warplet_images.sql']) db.exec(readFileSync(new URL(`../../../../migrations/${file}`, import.meta.url), 'utf8'));
   for (let fid = 1; fid <= 30; fid++) {
     db.prepare('INSERT INTO network_candidates VALUES(?,?,?)').run(fid, 100, 'tracker');
     db.prepare('INSERT INTO network_member_profiles VALUES(?,?,?,?,?,?)').run(fid, `user${fid}`, `Member ${fid}`, 'https://example.com/avatar.png', 100, 'nft-contract-tracker');
@@ -29,6 +29,15 @@ describe('public signer directory', () => {
     expect(first.members[0].profileUrl).toBe('https://farcaster.xyz/~/profiles/1');
     expect(first.members[0].wallet).toMatchObject({status:'pending',usd:null});
     expect(first.members[0].location).toBe('Australia');
+  });
+  it('excludes former and unobserved members across counts, snapshots and wallet coverage',async()=>{
+    const {db,d1}=fixture();
+    db.exec("UPDATE network_profiles SET opt_in_status='opted_out' WHERE fid=1; UPDATE network_profiles SET opt_in_status='moderated_out' WHERE fid=2; UPDATE network_profiles SET opt_in_status='unavailable' WHERE fid=3");
+    const {publishSnapshot}=await import('./store');const snapshot=await publishSnapshot(d1,true);
+    expect(snapshot?.population).toBe(26);expect(snapshot?.cells.every(c=>c.vote==='opted_in')).toBe(true);
+    expect((await readNetworkMembers(d1,new URLSearchParams())).total).toBe(26);
+    expect((await readNetworkMembers(d1,new URLSearchParams('q=1'))).members).toEqual([]);
+    expect(snapshot?.wallet?.associationsObserved).toBe(0);
   });
   it('filters small public groups without hiding profiles and searches usernames, display names and FIDs', async () => {
     const { d1 } = fixture();

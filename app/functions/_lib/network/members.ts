@@ -1,8 +1,9 @@
+import { NETWORK_CURRENT_COHORT } from './cohort';
 import { parseNetworkFilters, validateNetworkParams } from '../../../shared/network/model';
 import { acceptedQuote, decimalScale, NATIVE_ASSET, type PricedPosition } from './wallets';
 import { networkIdentity } from '../../../shared/network/normalize';
 
-export interface NetworkMember { fid: number; username: string | null; displayName: string | null; avatarUrl: string | null; profileUrl: string; observedAt: number | null; source: string | null; location: string | null; wallet: { status: 'measured' | 'partial' | 'pending' | 'shared' | 'no-wallet'; usd: string | null; measured: number; expected: number; observedAt: number | null; stale: boolean } }
+export interface NetworkMember { fid: number; username: string | null; displayName: string | null; avatarUrl: string | null; warpletTokenId: number | null; profileUrl: string; observedAt: number | null; source: string | null; location: string | null; wallet: { status: 'measured' | 'partial' | 'pending' | 'shared' | 'no-wallet'; usd: string | null; measured: number; expected: number; observedAt: number | null; stale: boolean } }
 export interface NetworkMembers { members: NetworkMember[]; total: number; next: number | null }
 
 export function memberQuery(params: URLSearchParams) {
@@ -26,7 +27,7 @@ export function memberQuery(params: URLSearchParams) {
   if (filters.held && filters.held!=='all') add("COALESCE(h.asset,h.status,'unavailable')=?",filters.held);
   if (/^\d+$/.test(search)) add('CAST(c.fid AS TEXT)=?', search);
   else if (search) { clauses.push(`(instr(lower(COALESCE(m.username,'')),lower(?))>0 OR instr(lower(COALESCE(m.display_name,'')),lower(?))>0)`); values.push(search.replace(/^@/, ''), search); }
-  const cohort='(SELECT fid FROM network_confirmed UNION ALL SELECT DISTINCT e.fid FROM network_events e WHERE NOT EXISTS(SELECT 1 FROM network_confirmed c WHERE c.fid=e.fid)) c';
+  const cohort=`(${NETWORK_CURRENT_COHORT}) c`;
   const profileJoin=' LEFT JOIN network_profiles p ON p.fid=c.fid',geoJoin=' LEFT JOIN network_profile_locations g ON g.fid=c.fid AND g.country=p.country',identityJoin=' LEFT JOIN network_member_profiles m ON m.fid=c.fid',holdingJoin=' LEFT JOIN network_holdings h ON h.fid=c.fid';
   const where=` WHERE ${clauses.join(' AND ') || '1=1'}`;
   const from=`FROM ${cohort}${profileJoin}${geoJoin}${identityJoin}${holdingJoin}${where}`;
@@ -41,10 +42,11 @@ export async function readNetworkMembers(db: D1Database, params: URLSearchParams
   const ids=await db.prepare(`SELECT c.fid ${query.from} AND c.fid>? ORDER BY c.fid LIMIT 25`).bind(...query.values,query.after).all<{fid:number}>();
   // Page before joining geographic names; large global joins needlessly sort
   // the entire cohort and can exhaust the local runtime's query resources.
-  const result=await db.prepare(`SELECT c.fid,m.username,m.display_name AS displayName,m.avatar_url AS avatarUrl,m.observed_at AS observedAt,m.source,p.country,gs.name AS stateName,gc.name AS cityName
+  const result=await db.prepare(`SELECT c.fid,m.username,m.display_name AS displayName,m.avatar_url AS avatarUrl,w.token_id AS warpletTokenId,m.observed_at AS observedAt,m.source,p.country,gs.name AS stateName,gc.name AS cityName
     FROM (SELECT value AS fid FROM json_each(?)) c LEFT JOIN network_profiles p ON p.fid=c.fid
     LEFT JOIN network_profile_locations g ON g.fid=c.fid AND g.country=p.country
     LEFT JOIN network_member_profiles m ON m.fid=c.fid
+    LEFT JOIN network_warplet_holders w ON w.fid=c.fid
     LEFT JOIN network_geo_states gs ON gs.id=g.state LEFT JOIN network_geo_cities gc ON gc.id=g.city ORDER BY c.fid`)
     .bind(JSON.stringify(ids.results.slice(0,24).map(row=>row.fid))).all<NetworkMember & {country:string|null;stateName:string|null;cityName:string|null}>();
   const page = result.results;
@@ -69,7 +71,7 @@ async function memberWallets(db:D1Database,fids:number[]) {
   const addresses=[...new Set(links.results.map(row=>row.linkedAddress))],owners=new Map<string,number>();
   for(let i=0;i<addresses.length;i+=90){
     const batch=addresses.slice(i,i+90);
-    const rows=await db.prepare(`SELECT l.address,COUNT(*) AS owners FROM network_wallet_links l WHERE l.address IN (${batch.map(()=>'?').join(',')}) AND (EXISTS(SELECT 1 FROM network_events e WHERE e.fid=l.fid) OR EXISTS(SELECT 1 FROM network_confirmed c WHERE c.fid=l.fid)) GROUP BY l.address`).bind(...batch).all<{address:string;owners:number}>();
+    const rows=await db.prepare(`SELECT l.address,COUNT(*) AS owners FROM network_wallet_links l WHERE l.address IN (${batch.map(()=>'?').join(',')}) AND l.fid IN (${NETWORK_CURRENT_COHORT}) GROUP BY l.address`).bind(...batch).all<{address:string;owners:number}>();
     for(const row of rows.results)owners.set(row.address,row.owners);
   }
   const assets=[...new Set(links.results.flatMap(row=>(JSON.parse(row.positions??'[]') as PricedPosition[]).map(p=>p.id)))];

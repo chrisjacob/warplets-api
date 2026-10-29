@@ -1,8 +1,9 @@
+import { decodeNetworkSnapshot } from './snapshot';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DatabaseSync } from 'node:sqlite';
 import { readFileSync } from 'node:fs';
 import { sqliteD1 } from '../sqliteTestDb';
-import { acceptedQuote, decimalScale, importWalletValue, NATIVE_ASSET, priceBalances, type WalletEnv } from './wallets';
+import { acceptedQuote, decimalScale, importWalletValue, neynarRead, NATIVE_ASSET, priceBalances, type WalletEnv } from './wallets';
 import { publishSnapshot } from './store';
 import { buildNetworkDashboard } from './aggregate';
 import { parseNetworkFilters } from '../../../shared/network/model';
@@ -14,7 +15,7 @@ const token=`eip155:8453/erc20:${address(999)}`;
 const units=(dollars:number)=>(BigInt(dollars)*100_000_000n).toString();
 function fixture(){
   const db=new DatabaseSync(':memory:');databases.push(db);
-  for(const file of ['0095_network.sql','0096_network_members.sql','0097_network_wallets.sql','0098_network_activity.sql','0099_network_alchemy.sql','0100_network_geography.sql','0101_network_geography_matching.sql','0102_network_warplet_holders.sql'])db.exec(readFileSync(new URL(`../../../../migrations/${file}`,import.meta.url),'utf8'));
+  for(const file of ['0095_network.sql','0096_network_members.sql','0097_network_wallets.sql','0098_network_activity.sql','0099_network_alchemy.sql','0100_network_geography.sql','0101_network_geography_matching.sql','0102_network_warplet_holders.sql','0103_network_warplet_images.sql'])db.exec(readFileSync(new URL(`../../../../migrations/${file}`,import.meta.url),'utf8'));
   for(let fid=1;fid<=5;fid++){
     db.prepare('INSERT INTO network_confirmed(fid,observed_at) VALUES(?,?)').run(fid,Date.now());
     db.prepare('INSERT INTO network_wallet_associations(fid,observed_at) VALUES(?,?)').run(fid,Date.now());
@@ -51,6 +52,18 @@ describe('wallet valuation and top holdings',()=>{
     expect(au.economics.totalUsd).toBe('130.00000000');expect(au.economics.unallocatedUsd).toBe('0.00000000');
     expect((await readNetworkMembers(env.WARPLETS,new URLSearchParams({held:NATIVE_ASSET}))).members.map(m=>m.fid)).toEqual([1]);
   });
+  it('never spends on excluded members and keeps the last OG FID distinct from the first new FID',async()=>{
+    const {db,env}=fixture();const {NETWORK_OG_LAST_FID}=await import('../../../shared/network/model');
+    db.exec("UPDATE network_profiles SET opt_in_status='opted_out'");
+    const fetcher=vi.fn();vi.stubGlobal('fetch',fetcher);
+    expect((await importWalletValue(env)).status).toBe('complete');expect(fetcher).not.toHaveBeenCalled();
+    for(const fid of [NETWORK_OG_LAST_FID,NETWORK_OG_LAST_FID+1]){
+      db.prepare('INSERT INTO network_confirmed(fid,observed_at) VALUES(?,1)').run(fid);
+      db.prepare("INSERT INTO network_profiles(fid,location_status,token_status,opt_in_status,observed_at) VALUES(?,'unknown','none','opted_in',1)").run(fid);
+    }
+    const snapshot=await publishSnapshot(env.WARPLETS,true);
+    expect(snapshot?.population).toBe(2);expect(snapshot?.cells.map(c=>c.ogMember).sort()).toEqual([false,true]);
+  });
   it('keeps pending wallets, ambiguous wallets and accounts without wallets distinct',async()=>{
     const {env}=fixture();const snapshot=await publishSnapshot(env.WARPLETS,true);
     for(const [held,fids] of [['unavailable',[4]],['ambiguous',[2,3]],['none',[5]]] as const){
@@ -78,6 +91,14 @@ describe('wallet valuation and top holdings',()=>{
     expect(db.prepare('SELECT COUNT(*) n FROM network_wallet_retries').get()?.n).toBe(0);
     expect(db.prepare("SELECT COUNT(*) n FROM network_leases WHERE name='wallet-values'").get()?.n).toBe(0);
   });
+  it('cannot raise the confirmed 250,000-credit Network cap through configuration',async()=>{
+    const {env,db}=fixture();env.NETWORK_WALLET_CREDITS='10000000';
+    db.prepare('INSERT INTO network_credit_budgets(month,reserved) VALUES(?,?)').run(new Date().toISOString().slice(0,7),249999);
+    const fetcher=vi.fn();vi.stubGlobal('fetch',fetcher);
+    await expect(neynarRead(env,'/v2/farcaster/user/bulk?fids=1',2)).rejects.toThrow('credit cap');
+    expect(fetcher).not.toHaveBeenCalled();
+    expect(db.prepare('SELECT reserved FROM network_credit_budgets').get()?.reserved).toBe(249999);
+  });
   it('refreshes prices without rewriting balances or changing older published snapshots',async()=>{
     const {env,db}=fixture();
     const initial=await publishSnapshot(env.WARPLETS,true);const before=db.prepare('SELECT positions,observed_at FROM network_wallet_values WHERE address=?').get(address(1));
@@ -86,7 +107,7 @@ describe('wallet valuation and top holdings',()=>{
     db.prepare('INSERT INTO network_asset_prices VALUES(?,?,?)').run(NATIVE_ASSET,JSON.stringify({price:50,confidence:.99,timestamp:Math.floor(Date.now()/1000)}),Date.now());
     const newer=await publishSnapshot(env.WARPLETS,true);
     expect(buildNetworkDashboard(newer,parseNetworkFilters(new URLSearchParams())).economics.totalUsd).toBe('170.00000000');
-    expect(buildNetworkDashboard(JSON.parse(String(db.prepare('SELECT payload FROM network_snapshots WHERE id=?').get(initial!.id)?.payload)),parseNetworkFilters(new URLSearchParams())).economics.totalUsd).toBe('220.00000000');
+    expect(buildNetworkDashboard(await decodeNetworkSnapshot(String(db.prepare('SELECT payload FROM network_snapshots WHERE id=?').get(initial!.id)?.payload)),parseNetworkFilters(new URLSearchParams())).economics.totalUsd).toBe('220.00000000');
     expect(db.prepare('SELECT observed_at FROM network_wallet_values WHERE address=?').get(address(1))?.observed_at).toBe(before?.observed_at);
     expect(db.prepare('SELECT usd_units FROM network_wallet_values WHERE address=?').get(address(1))?.usd_units).toBe(units(40));
   });

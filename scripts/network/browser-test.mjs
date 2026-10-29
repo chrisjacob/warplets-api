@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 const root = resolve(import.meta.dirname, '../..'), output = resolve(root, '.tmp/network-qa');
 await mkdir(output, { recursive: true });
 const origin = process.env.NETWORK_TEST_ORIGIN || 'http://127.0.0.1:8799';
-for (const path of ['/api/admin/network', '/api/social/config', '/src/network/NetworkApp.tsx', '/.dev.vars', '/migrations/0095_network.sql']) assert.equal((await fetch(origin + path)).status, 404, `Must block ${path}`);
+for (const path of ['/_worker.js', '/api/admin/network', '/api/social/config', '/src/network/NetworkApp.tsx', '/.dev.vars', '/migrations/0095_network.sql']) assert.equal((await fetch(origin + path)).status, 404, `Must block ${path}`);
 assert.equal((await fetch(origin + '/api/network/dashboard?country=invalid')).status, 400);
 assert.equal((await fetch(origin + '/api/network/dashboard', { method: 'POST' })).status, 404);
 assert.equal((await fetch(origin + '/api/network/dashboard?random=1')).status, 400);
@@ -48,19 +48,46 @@ try {
   await until(`document.querySelectorAll('.network-country').length > 100 && !document.querySelector('[aria-busy="true"]')`);
   assert.equal(await evaluate('document.documentElement.scrollWidth <= innerWidth'), true, 'Desktop overflow');
   const screenshot = async name => { const r = await send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false }); await writeFile(resolve(output, name), Buffer.from(r.data, 'base64')); };
-  assert.equal(await evaluate("document.querySelector('.network-filters').open"),false,'Desktop filters start collapsed');
-  assert.equal(await evaluate("document.querySelector('.network-about').open"),false,'Methodology starts collapsed');
-  assert.equal(await evaluate("document.querySelector('h1').textContent.includes('in one image')"),false);
-  assert.ok(await evaluate("document.querySelectorAll('.network-month').length>0"),'Monthly participation');
-  assert.equal(await evaluate(`Array.from(document.querySelectorAll('.network-app summary')).every(s=>s.querySelector(':scope > .network-disclosure-chevron'))`),true,'Every expandable section uses a chevron');
-  assert.equal(await evaluate(`document.querySelector('.network-member .network-external-icon')?.tagName.toLowerCase()`),'svg','Member profiles use standard external-link icons');
-  assert.equal(await evaluate(`document.querySelector('.network-app').textContent.includes('↗')`),false,'No text external arrows remain');
-  await evaluate(`document.querySelector('.network-filters summary').click()`);
-  await until(`document.querySelector('.network-filters').open`);
-  await evaluate(`new Promise(r=>setTimeout(r,180))`);
-  await screenshot('filters-desktop.png');
-  await evaluate(`document.querySelector('.network-filters summary').click()`);
-  await evaluate(`new Promise(r=>setTimeout(r,180))`);
+  assert.equal(await evaluate("document.querySelector('.network-filters').tagName"),'SECTION','Filters always visible');
+  assert.equal(await evaluate("document.querySelector('h1').textContent"),'The Network State Protocol.');
+  assert.equal(await evaluate("document.querySelector('.network-intro p').textContent"),'People, places, and progress on Farcaster.');
+  assert.equal(await evaluate("!!document.querySelector('.network-filters summary, .network-reset, [aria-label=\"Ranking size\"]')"),false,'Redundant controls removed');
+  assert.equal(await evaluate("document.querySelector('.network-brand img').naturalWidth>0"),true,'Shared 10X logo loads');
+  assert.equal(await evaluate("document.querySelector('.network-about').open"),false);
+  assert.equal(await evaluate("!!(document.querySelector('#network-members').compareDocumentPosition(document.querySelector('.network-progress'))&Node.DOCUMENT_POSITION_FOLLOWING)"),true,'Members precede progress');
+  assert.equal(await evaluate("document.querySelector('.network-map-toolbar').getBoundingClientRect().height===document.querySelector('.network-leaderboard>.network-panel-head').getBoundingClientRect().height"),true,'Map and tab headers align');
+  assert.ok(await evaluate("document.querySelectorAll('.network-month').length>0"));
+  assert.equal(await evaluate(`Array.from(document.querySelectorAll('.network-app summary')).every(s=>s.querySelector(':scope > .network-disclosure-chevron'))`),true,'Expandable sections use chevrons');
+  assert.equal(await evaluate(`document.querySelector('.network-app').textContent.includes('↗')`),false,'No text external-link arrows');
+  const choose=async(label,text)=>{
+    await evaluate(`document.querySelector('button[aria-label="${label}"]').click()`);
+    await until(`!!document.querySelector('.network-select-popup input')`);
+    await evaluate(`{const input=document.querySelector('.network-select-popup input');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(input,${JSON.stringify(text)});input.dispatchEvent(new Event('input',{bubbles:true}));}`);
+    await until(`Array.from(document.querySelectorAll('[role="option"]')).some(o=>o.textContent===${JSON.stringify(text)})`);
+    await evaluate(`Array.from(document.querySelectorAll('[role="option"]')).find(o=>o.textContent===${JSON.stringify(text)}).click()`);
+  };
+  const clear=()=>evaluate(`Array.from(document.querySelectorAll('.network-chips button')).find(b=>b.textContent==='Clear all').click()`);
+  await evaluate(`document.querySelector('[aria-label="Country"]').click()`);
+  assert.equal(await evaluate(`document.querySelector('[role="option"]').textContent`),'Unknown location','Unknown precedes World');
+  await send('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
+  assert.equal(await evaluate(`document.activeElement.getAttribute('aria-label')`),'Country','Escape restores dropdown focus');
+  await evaluate(`document.querySelector('.network-location-cta').click()`);
+  assert.equal(await evaluate(`document.querySelector('dialog').open`),true,'Location CTA opens modal');
+  assert.equal(await evaluate(`document.activeElement.id`),'network-location-title','Initial focus reads the modal heading');
+  assert.equal(await evaluate(`getComputedStyle(document.querySelector('[aria-label="Close location instructions"]')).outlineStyle`),'none','Close control has no opening focus ring');
+  assert.equal(await evaluate(`Array.from(document.querySelectorAll('.network-flat-cta')).every(b=>getComputedStyle(b).backgroundColor==='rgb(0, 255, 0)'&&getComputedStyle(b).borderRadius==='8px'&&getComputedStyle(b).boxShadow==='none')`),true,'Both CTAs match Warplets flat styling');
+  await screenshot('location-modal-desktop.png');
+  await send('Input.dispatchKeyEvent',{type:'keyDown',key:'Tab',code:'Tab',windowsVirtualKeyCode:9});
+  assert.equal(await evaluate(`document.activeElement.getAttribute('aria-label')`),'Close location instructions','Keyboard users can focus the close control');
+  await send('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
+  await send('Input.dispatchKeyEvent',{type:'keyUp',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
+  await until(`!document.querySelector('dialog').open`);
+  await until(`document.activeElement.classList.contains('network-location-cta')`);
+  const initialRows=await evaluate(`document.querySelectorAll('.network-rank-list>button').length`);
+  assert.equal(initialRows,25,'Starts with 25 rankings');
+  await evaluate(`document.querySelector('.network-rank-list').scrollTop=100000`);
+  await until(`document.querySelectorAll('.network-rank-list>button').length>25`);
+  assert.equal(await evaluate(`document.querySelectorAll('.network-rank-list>button').length`),50,'Scroll loads next 25');
   await screenshot('desktop.png');
   assert.equal(await evaluate(`document.querySelectorAll('.network-member').length`), 24, 'Member cards');
   const firstFid = await evaluate(`document.querySelector('.network-member').href.split('/').pop()`);
@@ -74,25 +101,32 @@ try {
   assert.equal(await evaluate(`document.querySelector('.network-member').href.split('/').pop()`), String(directory.members[0].fid), 'Search by FID');
   await evaluate(`document.querySelector('#network-members').scrollIntoView({behavior:'instant'}); new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))`);
   await screenshot('members-desktop.png');
-  await evaluate(`document.querySelectorAll('.network-filter-fields select')[1].value='known'; document.querySelectorAll('.network-filter-fields select')[1].dispatchEvent(new Event('change',{bubbles:true}))`);
-  await until(`location.search.includes('location=known') && !document.querySelector('[aria-busy="true"]')`);
-  const shown = await evaluate(`document.querySelector('.network-kpis strong').textContent`);
-  const response = await (await fetch(origin + '/api/network/dashboard?location=known')).json();
-  assert.equal(shown, response.population == null ? '—' : response.population.toLocaleString('en-US'));
-  const knownMembers = await (await fetch(origin + '/api/network/members?location=known')).json();
-  assert.equal(knownMembers.total, response.population, 'Member and dashboard filters reconcile');
-  await evaluate(`document.querySelector('.network-reset').click()`);
-  await until(`!location.search && !document.querySelector('[aria-busy="true"]')`);
+  await choose('Country','Unknown location');
+  await until(`location.search.includes('country=UNKNOWN') && !document.querySelector('[aria-busy="true"]')`);
+  const unknown=await(await fetch(origin+'/api/network/dashboard?country=UNKNOWN')).json();
+  assert.equal((await(await fetch(origin+'/api/network/members?country=UNKNOWN')).json()).total,unknown.population,'Unknown directory reconciles');
+  await clear();await until(`!location.search&&!document.querySelector('[aria-busy="true"]')`);
   const holders=await(await fetch(origin+'/api/network/dashboard?warplet=holders')).json();
   const holderMembers=await(await fetch(origin+'/api/network/members?warplet=holders')).json();
   assert.equal(holderMembers.total,holders.population,'Holder dashboard and directory reconcile');
-  await evaluate(`{const select=document.querySelector('[aria-label="NFT holders"]');select.value='holders';select.dispatchEvent(new Event('change',{bubbles:true}));}`);
+  await choose('NFT holders','10X Warplet holders');
   await until(`location.search.includes('warplet=holders')&&!document.querySelector('[aria-busy="true"]')`);
   assert.equal(await evaluate(`document.querySelector('.network-kpis strong').textContent`),holders.population.toLocaleString('en-US'));
   assert.equal(await evaluate(`document.querySelector('.network-member-tools p').textContent`),holderMembers.total.toLocaleString('en-US')+' members');
-  await evaluate(`document.querySelector('.network-filters summary').click()`);
+
+  assert.ok(holderMembers.members.every(m=>Number.isSafeInteger(m.warpletTokenId)),'Cached portraits accompany holder member data');
+  const portraitUrls=holderMembers.members.map(m=>`https://warplets.10x.meme/${m.warpletTokenId}.avif`);
+  assert.deepEqual(await evaluate(`Array.from(document.querySelectorAll('.network-member img')).map(img=>img.src)`),portraitUrls,'Holder filter uses mapped Warplet AVIF portraits');
+  await evaluate(`document.querySelector('#network-members').scrollIntoView({block:'start'})`);
+  await until(`document.querySelector('.network-member img')?.naturalWidth>0`);
   await screenshot('warplet-holders-desktop.png');
-  await evaluate(`document.querySelector('.network-filters summary').click();document.querySelector('.network-reset').click()`);
+  const originalAvatar=holderMembers.members[0].avatarUrl;
+  if(originalAvatar){
+    await evaluate(`document.querySelector('.network-member img').dispatchEvent(new Event('error'))`);
+    await until(`document.querySelector('.network-member img')?.src===${JSON.stringify(originalAvatar)}`);
+  }
+
+  await clear();
   await until(`!location.search&&!document.querySelector('[aria-busy="true"]')`);
   const walletData = await (await fetch(origin + '/api/network/dashboard')).json();
   if(walletData.economics.status!=='unavailable') {
@@ -100,16 +134,17 @@ try {
     assert.ok(walletData.economics.coverage.measuredWallets<=walletData.economics.coverage.expectedWallets);
     const top=walletData.heldTokens.find(row=>row.id.startsWith('eip155:')&&row.population>0);
     if(top){
-      await evaluate(`{const select=document.querySelector('[aria-label="Top token held"]');select.value=${JSON.stringify(top.id)};select.dispatchEvent(new Event('change',{bubbles:true}));}`);
+      await choose('Top token held',walletData.heldCatalog.find(t=>t.id===top.id).symbol+' · '+walletData.heldCatalog.find(t=>t.id===top.id).name);
       await until(`location.search.includes('held=') && !document.querySelector('[aria-busy="true"]')`);
       const selected=await(await fetch(origin+'/api/network/dashboard?held='+encodeURIComponent(top.id))).json();
       const people=await(await fetch(origin+'/api/network/members?held='+encodeURIComponent(top.id))).json();
       assert.equal(selected.population,people.total,'Top-held filter reconciles with members');
       assert.equal(await evaluate(`document.querySelector('.network-kpis strong').textContent`),selected.population.toLocaleString('en-US'));
-      await evaluate(`document.querySelector('.network-reset').click()`);
+      await clear();
       await until(`!location.search && !document.querySelector('[aria-busy="true"]')`);
     }
-    await evaluate(`{const select=document.querySelector('[aria-label="Map metric"]');select.value='wallet';select.dispatchEvent(new Event('change',{bubbles:true}));}`);
+    await choose('Map metric','Wallet value');
+    await choose('Map style','Shading');
     assert.ok(await evaluate(`document.querySelector('.network-map-key').textContent.includes('wallet USD')`));
     await evaluate(`document.querySelector('.network-about').open=true;document.querySelector('.network-wallet-coverage').scrollIntoView({behavior:'instant'});new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))`);
     await screenshot('wallets-desktop.png');
@@ -155,7 +190,7 @@ try {
   assert.ok((await evaluate('location.search')).includes('city='),'Manual zoom-out keeps the city until its fitted view');
   await evaluate(`document.querySelector('[aria-label="Zoom out"]').click()`);
   await until(`!location.search.includes('city=') && location.search.includes('state=US.CA') && !document.querySelector('[aria-busy="true"]')`);
-  assert.equal(await evaluate(`document.querySelector('.network-map-panel h2').textContent`),'California');
+  assert.equal(await evaluate(`Array.from(document.querySelectorAll('.network-geo-breadcrumb button')).at(-1).textContent`),'California');
   await evaluate(`document.querySelector('[aria-label="Zoom out"]').click()`);
   await until(`!location.search.includes('state=') && location.search.includes('country=US') && !document.querySelector('[aria-busy="true"]')`);
   await evaluate(`document.querySelector('[aria-label="Zoom out"]').click()`);
@@ -174,7 +209,8 @@ try {
   assert.equal(await evaluate(`document.querySelector('.network-map-footer strong').textContent`),australia.geography.mapped.toLocaleString('en-US'));
   await evaluate(`document.querySelector('.network-map-panel').scrollIntoView({behavior:'instant'});new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))`);
   await screenshot('australia-states-desktop.png');
-  assert.equal(await evaluate(`!!document.querySelector('.network-filter-fields select option[value="US"]')`),true,'Country menu retains other countries while Australia is selected');
+  await choose('Country','United States');
+  await until(`location.search.includes('country=US')&&!document.querySelector('[aria-busy="true"]')`);
   for(const country of ['US','FR','IT','KR','DE','AE','UA','BR','PH','VN']){
     const view=await(await fetch(origin+'/api/network/dashboard?country='+country)).json();
     assert.equal(view.geography.mapped+view.geography.unmapped,view.population,`${country} location coverage reconciles`);
@@ -205,22 +241,28 @@ try {
   await send('Page.navigate', { url: origin });
   await until(`document.querySelectorAll('.network-country').length > 100 && !document.querySelector('[aria-busy="true"]')`);
   assert.equal(await evaluate('document.documentElement.scrollWidth <= innerWidth'), true, 'Mobile overflow');
-  assert.equal(await evaluate(`document.querySelector('.network-filters').open`), false, 'Mobile filters start collapsed');
+  assert.equal(await evaluate(`document.querySelector('.network-filters').tagName`),'SECTION');
   await screenshot('mobile.png');
+  await evaluate(`document.querySelector('.network-location-cta').click()`);
+  assert.equal(await evaluate(`document.activeElement.id`),'network-location-title','Mobile modal focuses its heading');
+  assert.equal(await evaluate(`getComputedStyle(document.querySelector('[aria-label="Close location instructions"]')).outlineStyle`),'none','Mobile close control starts without focus decoration');
+  await screenshot('location-modal-mobile.png');
+  await evaluate(`document.querySelector('[aria-label="Close location instructions"]').click()`);
+  await until(`!document.querySelector('dialog').open`);
   assert.ok(await evaluate(`document.querySelector('[aria-label="Zoom in"]').getBoundingClientRect().height>=44`),'Map touch controls have 44px targets');
   assert.equal(await evaluate(`getComputedStyle(document.querySelector('.network-member .network-external-icon')).display==='none'`),false,'External profile icons remain visible on mobile');
-  await evaluate(`document.querySelector('.network-filters summary').click()`);
-  await until(`document.querySelector('.network-filters').open`);
+
+
   assert.equal(await evaluate('document.documentElement.scrollWidth <= innerWidth'),true,'Expanded filters mobile overflow');
   await evaluate(`new Promise(r=>setTimeout(r,180))`);
   await screenshot('filters-mobile.png');
-  await evaluate(`{const select=document.querySelector('[aria-label="NFT holders"]');select.value='holders';select.dispatchEvent(new Event('change',{bubbles:true}));}`);
+  await choose('NFT holders','10X Warplet holders');
   await until(`location.search.includes('warplet=holders')&&!document.querySelector('[aria-busy="true"]')`);
   assert.equal(await evaluate('document.documentElement.scrollWidth <= innerWidth'),true,'Holder filter mobile overflow');
   await screenshot('warplet-holders-mobile.png');
-  await evaluate(`document.querySelector('.network-reset').click()`);
+  await clear();
   await until(`!location.search&&!document.querySelector('[aria-busy="true"]')`);
-  await evaluate(`document.querySelector('.network-filters summary').click()`);
+
 
   await evaluate(`document.querySelector('#network-members').scrollIntoView({behavior:'instant'}); new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))`);
   await screenshot('members-mobile.png');
@@ -238,5 +280,5 @@ try {
   assert.equal((await fetch(origin+'/network/states/not-a-country.json')).status,404);
   assert.equal((await fetch(origin+'/api/network/dashboard?country=AU&state=US.CA')).status,400);
   assert.deepEqual(errors, [], 'Browser runtime errors');
-  console.log(JSON.stringify({ status: 'passed', checks: ['restricted public routes', 'invalid filters', 'desktop layout', 'standard external-link icons', 'consistent disclosure chevrons', 'mobile control targets', 'expanded filters desktop/mobile', 'member cards and FID links', 'member pagination', 'exact FID search', 'cross-filtered KPI and members', 'country-state-city drill-down', 'city member reconciliation', 'Australian state/city postcode and alias matching', 'global country and member reconciliation', 'point-only canonical state selection', 'level-specific geographic coverage', 'geographic breadcrumbs', 'minus returns through geographic parents on desktop and mobile', 'mobile city map', 'reset', 'mobile layout', 'collapsed mobile filters', 'no browser exceptions'], output }));
+  console.log(JSON.stringify({ status: 'passed', checks: ['restricted public routes', 'invalid filters', 'desktop layout', 'standard external-link icons', 'consistent disclosure chevrons', 'mobile control targets', 'member cards and FID links', 'member pagination', 'exact FID search', 'cross-filtered KPI and members', 'country-state-city drill-down', 'city member reconciliation', 'Australian state/city postcode and alias matching', 'global country and member reconciliation', 'point-only canonical state selection', 'level-specific geographic coverage', 'geographic breadcrumbs', 'minus returns through geographic parents on desktop and mobile', 'mobile city map', 'clear all', 'mobile layout', 'always-visible searchable filters', 'location modal', 'infinite rankings', 'no browser exceptions'], output }));
 } finally { socket?.close(); chrome.kill(); }

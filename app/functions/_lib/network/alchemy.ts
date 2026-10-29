@@ -12,20 +12,21 @@ export async function alchemyRead(env:AlchemyEnv,method:Method,params:unknown[])
   if(!cost)throw Error('Unsupported Alchemy method');
   const now=Date.now(),day=new Date(now).toISOString().slice(0,10),month=day.slice(0,7);
   const limit=bounded(env.NETWORK_ALCHEMY_CU,10_000_000,10_000_000);
+  const dailyLimit=bounded(env.NETWORK_ALCHEMY_CU_PER_DAY,1_500_000,4_000_000);
   // Reserve before every attempt, including failures. One conditional write
   // prevents concurrent callers from exceeding either the daily or monthly cap.
   const budget=await env.WARPLETS.prepare(`INSERT INTO network_alchemy_budgets(period,reserved)
     SELECT ?,? WHERE COALESCE((SELECT reserved FROM network_alchemy_budgets WHERE period=?),0)+?<=? AND COALESCE((SELECT SUM(reserved) FROM network_alchemy_budgets WHERE substr(period,1,7)=?),0)+?<=?
     ON CONFLICT(period) DO UPDATE SET reserved=network_alchemy_budgets.reserved+excluded.reserved RETURNING reserved`)
-    .bind(day,cost,day,cost,1_500_000,month,cost,limit).first();
+    .bind(day,cost,day,cost,dailyLimit,month,cost,limit).first();
   if(!budget)throw Error('Alchemy CU budget exhausted');
   await reserveRequest(env,'alchemy-base');
   let acquired=false;
-  for(let i=0;i<20;i++) {
+  for(let i=0;i<40;i++) {
     const at=Date.now();
-    const row=await env.WARPLETS.prepare(`INSERT INTO network_alchemy_rate(name,next_at) VALUES('base',?) ON CONFLICT(name) DO UPDATE SET next_at=excluded.next_at WHERE network_alchemy_rate.next_at<=? RETURNING next_at`).bind(at+250,at).first();
+    const row=await env.WARPLETS.prepare(`INSERT INTO network_alchemy_rate(name,next_at) VALUES('base',?) ON CONFLICT(name) DO UPDATE SET next_at=excluded.next_at WHERE network_alchemy_rate.next_at<=? RETURNING next_at`).bind(at+100,at).first();
     if(row){acquired=true;break;}
-    await new Promise(resolve=>setTimeout(resolve,250));
+    await new Promise(resolve=>setTimeout(resolve,100));
   }
   if(!acquired)throw Error('Alchemy rate pause');
   let payload:unknown;
@@ -47,7 +48,10 @@ export async function alchemyWalletBalances(env:AlchemyEnv,address:string) {
   if(!ADDRESS.test(address))throw Error('Invalid wallet address');
   const tokens:{address:string;balance:string}[]=[];const unavailable:string[]=[];
   const seen=new Set<string>(),cursors=new Set<string>();let pageKey='';let done=false;
-  for(let page=0;page<100;page++) {
+  // Large public wallets can contain over 10,000 token records, including spam.
+  // Still bounded: at most 100,000 records / 20,000 CU in balance pages per scan.
+  // Every page uses the same atomic daily/monthly reservations and RPC gate.
+  for(let page=0;page<1000;page++) {
     const result=await alchemyRead(env,'alchemy_getTokenBalances',[address,'erc20',{maxCount:100,...(pageKey?{pageKey}:{})}]) as {address:string;tokenBalances:{contractAddress:string;tokenBalance:string;error?:unknown}[];pageKey?:string};
     if(result?.address?.toLowerCase()!==address.toLowerCase()||!Array.isArray(result.tokenBalances)||result.tokenBalances.length>100)throw Error('Invalid Alchemy wallet page');
     for(const row of result.tokenBalances) {

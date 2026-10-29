@@ -11,7 +11,7 @@ const databases: DatabaseSync[] = [];
 afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); for (const db of databases.splice(0)) db.close(); });
 function fixture() {
   const db = new DatabaseSync(':memory:'); databases.push(db);
-  for (const file of ['0095_network.sql', '0096_network_members.sql','0097_network_wallets.sql','0098_network_activity.sql','0099_network_alchemy.sql','0100_network_geography.sql','0101_network_geography_matching.sql','0102_network_warplet_holders.sql']) db.exec(readFileSync(new URL(`../../../../migrations/${file}`, import.meta.url), 'utf8'));
+  for (const file of ['0095_network.sql', '0096_network_members.sql','0097_network_wallets.sql','0098_network_activity.sql','0099_network_alchemy.sql','0100_network_geography.sql','0101_network_geography_matching.sql','0102_network_warplet_holders.sql','0103_network_warplet_images.sql']) db.exec(readFileSync(new URL(`../../../../migrations/${file}`, import.meta.url), 'utf8'));
   return { db, env: { WARPLETS: sqliteD1(db), NETWORK_INGEST_ENABLED: 'true' } as NetworkEnv };
 }
 describe('Network request cost and security', () => {

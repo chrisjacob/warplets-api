@@ -1,3 +1,4 @@
+import { NETWORK_CURRENT_COHORT } from './cohort';
 import { nextMonth, utcMonth } from '../../../shared/network/activity';
 import { neynarRead, type WalletEnv } from './wallets';
 import { syncGet, syncSet } from './store';
@@ -27,7 +28,7 @@ async function readNextActivity(env:WalletEnv) {
   if(!env.NEYNAR_API_KEY)return {status:'unavailable'};
   if(await syncGet(env.WARPLETS,'activity_cooldown',0)>Date.now())return {status:'cooldown'};
   const now=Date.now(),current=utcMonth(now);
-  const rows=await env.WARPLETS.prepare(`SELECT fid,MIN(event_at) acceptedAt FROM network_events GROUP BY fid`).all<{fid:number;acceptedAt:number}>();
+  const rows=await env.WARPLETS.prepare(`SELECT fid,MIN(event_at) acceptedAt FROM network_events WHERE fid IN (${NETWORK_CURRENT_COHORT}) GROUP BY fid`).all<{fid:number;acceptedAt:number}>();
   const recorded=new Set((await env.WARPLETS.prepare('SELECT fid,month FROM network_activity_months').all<{fid:number;month:string}>()).results.map(r=>`${r.fid}:${r.month}`));
   const checks=new Map((await env.WARPLETS.prepare('SELECT fid,month,checked_at FROM network_activity_checks').all<{fid:number;month:string;checked_at:number}>()).results.map(r=>[`${r.fid}:${r.month}`,r.checked_at]));
   let candidate:{fid:number;acceptedAt:number;month:string;checked:number}|null=null;

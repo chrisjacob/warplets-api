@@ -1,8 +1,9 @@
+import { NETWORK_CURRENT_COHORT } from './cohort';
 import type { NetworkCell, WalletSnapshot, NetworkToken } from '../../../shared/network/model';
 import { acceptedQuote, decimalScale, NATIVE_ASSET, type PricedPosition } from './wallets';
 type Account = { known: boolean; expected: number; ambiguous: number; measured: number; usd: bigint; excluded: number; assets: Map<string,bigint> };
 export async function walletSnapshot(db: D1Database) {
-  const cohort = 'SELECT fid FROM network_events UNION SELECT fid FROM network_confirmed';
+  const cohort = NETWORK_CURRENT_COHORT;
   const links = `SELECT l.fid,l.address FROM network_wallet_links l JOIN (${cohort}) c ON c.fid=l.fid`;
   const seeds=await db.prepare(`WITH links AS (${links}), owners AS (SELECT address,COUNT(*) n FROM links GROUP BY address)
     SELECT c.fid,a.fid IS NOT NULL AS known,COUNT(l.address) expected,COALESCE(SUM(CASE WHEN o.n>1 THEN 1 ELSE 0 END),0) ambiguous FROM (${cohort}) c LEFT JOIN network_wallet_associations a ON a.fid=c.fid LEFT JOIN links l ON l.fid=c.fid LEFT JOIN owners o ON o.address=l.address GROUP BY c.fid`).all<{fid:number;known:number;expected:number;ambiguous:number}>();
@@ -53,7 +54,7 @@ export async function walletSnapshot(db: D1Database) {
 }
 export function mergeWalletCells(rows:(NetworkCell&{fid:number})[], presentation:Awaited<ReturnType<typeof walletSnapshot>>['presentation']) {
   const cells=new Map<string,NetworkCell>();
-  for(const row of rows){const {fid,...profile}=row;const wallet=presentation.get(fid)??{held:'unavailable',walletUsdUnits:'0',portfolioValues:[]};const key=JSON.stringify([profile.country,profile.state??null,profile.city??null,profile.location,profile.token,profile.tokenStatus,profile.vote,profile.acceptedDay,wallet.held,profile.activityMonths??[],profile.warpletHolder??false]);const previous=cells.get(key);
+  for(const row of rows){const {fid,...profile}=row;const wallet=presentation.get(fid)??{held:'unavailable',walletUsdUnits:'0',portfolioValues:[]};const key=JSON.stringify([profile.country,profile.state??null,profile.city??null,profile.location,profile.token,profile.tokenStatus,profile.vote,profile.acceptedDay,wallet.held,profile.activityMonths??[],profile.warpletHolder??false,profile.ogMember??null]);const previous=cells.get(key);
     if(previous){previous.count++;previous.walletUsdUnits=(BigInt(previous.walletUsdUnits??'0')+BigInt(wallet.walletUsdUnits)).toString();previous.portfolioValues!.push(...wallet.portfolioValues);}
     else cells.set(key,{...profile,count:1,...wallet,portfolioValues:[...wallet.portfolioValues]});
   }
