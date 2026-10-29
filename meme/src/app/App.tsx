@@ -1,10 +1,11 @@
 import {useState} from 'react';
 import {preview} from '../shared/fixtures';
+import {IdentityPanel} from './IdentityPanel';
 type Tab='Today'|'Rewards'|'Launches';
 export function App(){
  const [tab,setTab]=useState<Tab>('Today');const {round,boost}=preview;
  return <div className="shell">
-  <header><a className="brand" href="#">10X<span>.meme</span></a><span className="preview-label">Local design preview</span></header>
+  <header><a className="brand" href="#">10X<span>.meme</span></a><IdentityPanel onIdentity={()=>undefined}/></header>
   <main>
    <div className="intro"><p className="eyebrow">One launch. Every day. Or skip.</p><h1>A daily ritual.<br/><em>A new possibility.</em></h1><p>Claim your rewards, discover today’s attribute, and help shape the next OG-paired launch.</p></div>
    <aside className="fixture-note" role="note">Simulated data · voting, wallet connections, launches and claims are disabled.</aside>

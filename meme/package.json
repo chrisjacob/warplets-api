@@ -11,13 +11,18 @@
     "typecheck": "tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.worker.json",
     "build": "vite build",
     "build:worker": "wrangler deploy --dry-run --outdir .tmp/worker",
-    "test": "tsx --test src/worker/index.test.ts",
+    "test": "tsx --test src/worker/*.test.ts src/shared/*.test.ts",
     "check": "pnpm boundary && pnpm typecheck && pnpm test && pnpm build && pnpm build:worker",
     "boundary": "node scripts/check-boundaries.mjs"
   },
   "dependencies": {
     "react": "19.2.5",
-    "react-dom": "19.2.5"
+    "react-dom": "19.2.5",
+    "@10x/connect": "workspace:*",
+    "@farcaster/quick-auth": "0.0.6",
+    "@farcaster/auth-client": "0.7.1",
+    "viem": "^2.55.19",
+    "@wallet-standard/app": "1.1.0"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "5.20261028.1",

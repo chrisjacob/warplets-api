@@ -8,7 +8,8 @@
     "./WebConnectModal": "./src/WebConnectModal.tsx",
     "./FarcasterSignInControl": "./src/FarcasterSignInControl.tsx",
     "./TrustConnectBridge": "./src/TrustConnectBridge.tsx",
-    "./AppViewport": "./src/AppViewport.tsx"
+    "./AppViewport": "./src/AppViewport.tsx",
+    "./connect.css": "./src/connect.css"
   },
   "dependencies": {
     "react": "19.2.5",
