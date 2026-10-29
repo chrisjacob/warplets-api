@@ -16,6 +16,9 @@ test("HTTP journey verifies a Solana proof, votes, seals evidence, settles and r
     MEME_DB: t.db,
     LOCAL_PREVIEW_ONLY: "true",
     LOCAL_PARTICIPATION_ENABLED: "true",
+    LOCAL_OPERATIONS_ENABLED: "false",
+    HELIUS_API_KEY: "",
+    PYTH_API_KEY: "",
   };
   async function call(path: string, body?: unknown, privileged = false) {
     const response = await worker.fetch(
@@ -177,6 +180,9 @@ test("runtime rejects remote hosts, cross-origin mutations, missing principals, 
       MEME_DB: t.db,
       LOCAL_PREVIEW_ONLY: "true",
       LOCAL_PARTICIPATION_ENABLED: "true",
+      LOCAL_OPERATIONS_ENABLED: "false",
+      HELIUS_API_KEY: "",
+      PYTH_API_KEY: "",
     };
   try {
     const fetch = (

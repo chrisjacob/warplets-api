@@ -11,7 +11,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.worker.json",
     "build": "vite build && node scripts/check-performance.mjs",
     "build:worker": "wrangler deploy --dry-run --outdir .tmp/worker",
-    "test": "tsx --test src/worker/*.test.ts src/shared/*.test.ts src/app/*.test.ts",
+    "test": "tsx --test src/worker/*.test.ts src/shared/*.test.ts src/app/*.test.ts && node --test scripts/*.test.mjs",
     "check": "pnpm boundary && pnpm typecheck && pnpm test && pnpm build && pnpm build:worker",
     "boundary": "node scripts/check-boundaries.mjs",
     "operator": "node scripts/operator.mjs"

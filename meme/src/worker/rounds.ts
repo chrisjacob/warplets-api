@@ -21,7 +21,7 @@ import {
 import { canonical } from "../shared/canonical";
 import { decode58 } from "../shared/base58";
 import { cycleAttribute } from "./cycles";
-import { scoreRound } from "./scoring";
+import { snapshotView } from "./snapshots";
 import {
   settlementView,
   ownEntitlements,
@@ -566,7 +566,6 @@ export async function outcome(
   return { selectedCandidate: candidate, skipped: skip };
 }
 export async function state(db: Database, request: Request) {
-  await advance(db);
   const identity = await sessionView(db, request),
     current = await one<StoredRound>(
       db,
@@ -626,7 +625,7 @@ export async function state(db: Database, request: Request) {
           },
         }
       : revealed
-        ? await scoreRound(db, current, identity.farcasterFid)
+        ? { view: await snapshotView(db, current.id, identity.farcasterFid) }
         : null;
   return {
     mode: "local",
@@ -644,6 +643,12 @@ export async function state(db: Database, request: Request) {
       attribute: revealed ? current.attribute : null,
       candidates: candidates.map((c) => ({
         ...c,
+        ...(scoring &&
+        "voterCounts" in scoring.view &&
+        "scoreSnapshot" in scoring.view &&
+        scoring.view.scoreSnapshot.state === "ready"
+          ? { uniqueVoters: scoring.view.voterCounts[c.id] ?? 0 }
+          : {}),
         weightedVotes: scoring?.view.weightedVotes[c.id] ?? "0",
       })),
     },

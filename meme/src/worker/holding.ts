@@ -247,7 +247,11 @@ export async function importLedger(db: Database, p: Record<string, unknown>) {
     );
     importedEvents++;
     if (p.mode === "observed")
-      verifyReceipt(e, campaign, await fetchFinalizedReceipt(db, e.signature));
+      {
+        const { requireIndependentQuote } = await import("./sources");
+        await requireIndependentQuote(db, e);
+        verifyReceipt(e, campaign, await fetchFinalizedReceipt(db, e.signature));
+      }
     statements.push(
       db
         .prepare("INSERT INTO meme_ledger_events VALUES(?,?,?,?,?,?,?,?)")
@@ -346,6 +350,14 @@ export async function holdingForRound(
       }[]
     >();
   for (const c of active) {
+    const {chosenVersion}=await import('./evidenceVersions');
+    const version=await chosenVersion(db,c.id,cutoff);
+    if(version){
+      eventMap.set(c.id,(await rows<{payload:string}>(db,'SELECT payload FROM meme_version_events WHERE version_id=? AND event_at<=? ORDER BY slot,signature,event_index',version.id,cutoff)).map(e=>JSON.parse(e.payload) as LedgerEvent));
+      const scope=JSON.parse(version.scope_wallets) as string[];
+      checkpointMap.set(c.id,version.through_at>=cutoff?[{scope,scopeSet:new Set(scope),throughAt:version.through_at,hash:version.manifest_hash!,mode:version.mode}]:[]);
+      continue;
+    }
     eventMap.set(
       c.id,
       (
