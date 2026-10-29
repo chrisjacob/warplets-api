@@ -182,6 +182,17 @@ export function IdentityPanel({
               funds are requested.
             </p>
             <p>{identity?.solanaWallet ?? "No verified reward wallet"}</p>
+            {identity?.wallets
+              .filter((w) => w.chain === "solana")
+              .map((w) => (
+                <p className="fine" key={w.address}>
+                  Verified {w.role}: {w.address}
+                </p>
+              ))}
+            <p className="fine">
+              Reward wallets also count for holding. Your first vote freezes the
+              wallet scope for that round.
+            </p>
             <label>
               Solana wallet{" "}
               <select
