@@ -1,5 +1,7 @@
 packages:
   - app
+  - meme
+  - packages/connect
   - web
   - snap
   - bots

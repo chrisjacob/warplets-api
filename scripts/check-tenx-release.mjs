@@ -7,6 +7,7 @@ const root = fileURLToPath(new URL("../", import.meta.url));
 
 export function assertClosedTenxRelease(manifest, assets, appSource, config) {
   assert(manifest["src/App.tsx"], "Missing home app build; build app/dist first");
+  assert(!JSON.stringify(manifest).match(/(?:^|[\\/"'])meme[\\/]/), "Local launchpad code is present in the production app manifest");
   assert(!Object.entries(manifest).some(([key, value]) => key.includes("src/discovery/") || /DiscoveryPage|AttentionContent|LaunchCurveLab|LaunchRecoveryLab/.test(value.name ?? "")), "Unfinished 10X code is present in the release manifest");
   assert(!assets.some(name => /^(?:DiscoveryPage|AttentionContent|LaunchCurveLab|LaunchRecoveryLab)-/.test(name)), "Unfinished 10X assets remain in app/dist");
   assert(appSource.includes("P8tnl7sodII") && appSource.includes("The 10X Thesis"), "The working thesis page must remain in the home build");
