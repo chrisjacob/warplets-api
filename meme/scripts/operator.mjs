@@ -63,6 +63,24 @@ if (command === "init") {
       2,
     ),
   );
+} else if (command === "settle") {
+  if (!args[0]) throw Error("Provide the closed round ID");
+  for (let page = 0; page < 1000; page++) {
+    const result = await send(
+      `/api/meme/operator/rounds/${encodeURIComponent(args[0])}/settle`,
+      {},
+    );
+    console.log(
+      JSON.stringify({
+        state: result.state,
+        progress: result.progress,
+        inputHash: result.inputHash,
+        resultHash: result.resultHash,
+      }),
+    );
+    if (result.state === "finalized") break;
+    if (page === 999) throw Error("Page limit reached; rerun to resume");
+  }
 } else if (command === "demo") {
   const current = await (
     await fetch("http://127.0.0.1:8797/api/meme/state")
@@ -78,7 +96,7 @@ if (command === "init") {
         opensAt: now + 10000,
         closesAt: now + 3600000,
         attribute: "cast",
-        simulated:true,
+        simulated: true,
         candidates: [
           {
             id: "orbit",
@@ -171,5 +189,5 @@ if (command === "init") {
   );
 } else
   throw Error(
-    "Commands: init | demo | request <operator-route> <json-file> | ownership-export <warplets-sqlite-path>",
+    "Commands: init | demo | settle <round-id> | request <operator-route> <json-file> | ownership-export <warplets-sqlite-path>",
   );

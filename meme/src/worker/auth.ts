@@ -613,6 +613,11 @@ export async function authRequest(
       p = await payload(request, ["address", "role"]),
       address = text(p.address, "address");
     decode58(address, 32);
+    requireThat(
+      p.role === undefined || p.role === "holding" || p.role === "reward",
+      400,
+      "Invalid Solana wallet role",
+    );
     const role = p.role === "holding" ? "holding" : "reward";
     const c = await createChallenge(
       db,
@@ -678,7 +683,7 @@ export async function authRequest(
     statements.push(
       db
         .prepare(
-          "INSERT INTO meme_wallet_links VALUES(?,'solana',?,?,?,NULL,?) ON CONFLICT(fid,chain,address) DO UPDATE SET role=excluded.role,verified_at=excluded.verified_at,revoked_at=NULL,proof_hash=excluded.proof_hash",
+          "INSERT INTO meme_wallet_links VALUES(?,'solana',?,?,?,NULL,?) ON CONFLICT(fid,chain,address) DO UPDATE SET role=CASE WHEN meme_wallet_links.role='reward' AND meme_wallet_links.revoked_at IS NULL AND excluded.role='holding' THEN 'reward' ELSE excluded.role END,verified_at=excluded.verified_at,revoked_at=NULL,proof_hash=excluded.proof_hash",
         )
         .bind(s.fid, c.address, c.role, Date.now(), await sha(c.message)),
     );

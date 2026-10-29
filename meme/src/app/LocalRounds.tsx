@@ -18,6 +18,18 @@ export interface RoundView {
   }[];
 }
 export interface LocalState {
+  settlement?: {
+    state: string;
+    inputHash: string;
+    resultHash: string;
+    mode: string;
+    progress: {
+      frozen: number;
+      voters: number;
+      entitlements: number;
+      expectedEntitlements: number;
+    };
+  } | null;
   round: RoundView | null;
   holdingComplete?: boolean;
   myVote?: {
@@ -41,6 +53,10 @@ export interface LocalState {
     amount: string;
     release_at: number;
     state: string;
+    reward_wallet: string;
+    mode: string;
+    symbol: string;
+    decimals: number;
   }[];
 }
 export function useLocalState(identity: Identity | null) {
@@ -92,8 +108,12 @@ export function LocalRounds({
   if (!r)
     return (
       <article className="card">
-        <h2>No round available.</h2>
-        <p>Come back for the next daily vote.</p>
+        <h2>{data ? "No round available." : "Loading local round…"}</h2>
+        <p>
+          {data
+            ? "Come back for the next daily vote."
+            : "Connecting to the local application."}
+        </p>
       </article>
     );
   const eligible = !!identity?.farcasterFid && !!identity.solanaWallet;
@@ -179,9 +199,31 @@ export function LocalRounds({
               : "Awaiting operator selection after voting closes."}
         </p>
       </article>
+      {data?.settlement && (
+        <article className="card">
+          <h3>Settlement: {data.settlement.state}</h3>
+          <p>
+            {data.settlement.mode} evidence · {data.settlement.progress.frozen}/
+            {data.settlement.progress.voters} frozen scores ·{" "}
+            {data.settlement.progress.entitlements}/
+            {data.settlement.progress.expectedEntitlements} entitlements
+          </p>
+          <p>Final allocations are unfunded. Claiming remains disabled.</p>
+          <a
+            href={`/api/meme/settlements/${encodeURIComponent(r.id)}`}
+            target="_blank"
+            rel="noreferrer"
+          >
+            Inspect settlement proof
+          </a>
+        </article>
+      )}
       {data?.leaderboard && (
         <article className="card">
-          <h3>Leaderboard</h3>
+          <h3>
+            {data.settlement?.state === "finalized" ? "Final" : "Provisional"}{" "}
+            leaderboard
+          </h3>
           {data.leaderboard.map((row) => (
             <p key={row.fid}>
               #{row.rank} · FID {row.fid} · {row.points} points

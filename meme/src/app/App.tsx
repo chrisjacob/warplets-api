@@ -12,7 +12,7 @@ function FixtureApp() {
         <a className="brand" href="#">
           10X<span>.meme</span>
         </a>
-        <IdentityPanel onIdentity={() => undefined} />
+        <button disabled>Connect · fixture</button>
       </header>
       <main>
         <div className="intro">
@@ -23,8 +23,8 @@ function FixtureApp() {
             <em>A new possibility.</em>
           </h1>
           <p>
-            Claim your rewards, discover today’s attribute, and help shape
-            the next OG-paired launch.
+            Claim your rewards, discover today’s attribute, and help shape the
+            next OG-paired launch.
           </p>
         </div>
         <aside className="fixture-note" role="note">
@@ -265,8 +265,10 @@ export function App() {
             {data?.entitlements?.length ? (
               data.entitlements.map((e, i) => (
                 <p key={i}>
-                  {e.edition_id}: {e.amount} token units · {e.state} · earliest
-                  release {new Date(e.release_at).toUTCString()}
+                  {e.symbol} · {e.amount} smallest units ({e.decimals} decimals)
+                  · {e.state} · {e.mode} evidence · earliest release{" "}
+                  {new Date(e.release_at).toUTCString()} · destination{" "}
+                  {e.reward_wallet.slice(0, 6)}…{e.reward_wallet.slice(-4)}
                 </p>
               ))
             ) : (

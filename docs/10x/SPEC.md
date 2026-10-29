@@ -43,7 +43,7 @@ Use USD acquisition value of purchased units still held, not current market valu
 - A disposal proportionally reduces acquisition credit against the combined purchased and airdropped position. Buying 1,000 units for $100, receiving 1,000 by airdrop, then disposing of 500 leaves $75 credit.
 - Retained purchased lots preserve acquisition dates. Rebuys start new clocks. Verified transfers between the same account's wallets preserve credit. Final rewards are never clawed back.
 
-Normalization to +0–5× across active campaigns remains unresolved. No accounting formula is implemented or implied by the skeleton's illustrative holding bonus.
+A versioned local normalization now integrates retained acquisition credit over elapsed active-campaign opportunities; see [BUILD.md](BUILD.md) for the exact formula and worked examples. This implementation supports functional testing. Production approval of its economic policy and source evidence remains a gate in [DECISIONS.md](DECISIONS.md).
 
 ## Identity and claims
 
@@ -53,7 +53,7 @@ Final allocations become claimable after processing, subject to each token's min
 
 ## Working assumptions, not settled protocol settings
 
-- Working launch time: 20:00 UTC, 7am Sydney/Melbourne during daylight saving and 6am during standard time. Round-open, close and delay rules remain undecided.
+- Working launch time: 20:00 UTC, 7am Sydney/Melbourne during daylight saving and 6am during standard time. Local-v1 opens at the previous day's 20:00 UTC and closes at 19:30 UTC; actual launch time determines releases. Production timetable and delay handling still require review.
 - Approximately $10k initial FDV, converted using the OG/USD price at launch. Upper price boundary unresolved.
 - Ten-minute declining opening fee; initial rate and exact settings unresolved. Do not inherit a 100% opening fee from older material.
 - Working ongoing fee: 1% on buys and sells, collected in OG. Protocol feasibility must be demonstrated.
