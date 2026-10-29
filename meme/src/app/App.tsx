@@ -12,7 +12,7 @@ function FixtureApp() {
         <a className="brand" href="#">
           10X<span>.meme</span>
         </a>
-        <IdentityPanel onIdentity={() => undefined} />
+        <button disabled>Connect · fixture</button>
       </header>
       <main>
         <div className="intro">
