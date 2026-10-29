@@ -2,14 +2,17 @@ import { afterEach, expect, it } from "vitest";
 import { createServer, type ViteDevServer } from "vite";
 import { mkdirSync, mkdtempSync, writeFileSync, realpathSync, rmSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
-import { tmpdir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { LOCAL_PRIVATE_FILES, localPreviewSecurity, privatePreviewRequest } from "./localPreviewSecurity";
 
 let server: ViteDevServer | undefined, fixture: string | undefined;
+// /tmp is intentionally private to the preview guard. Use a public fixture
+// location on Linux rather than weakening that guard to make the test pass.
+const fixtureParent = process.env.RUNNER_TEMP ?? (/(?:^|[\\/])(?:tmp|\.tmp)(?:[\\/]|$)/i.test(tmpdir()) ? homedir() : tmpdir());
 afterEach(async () => {
   await server?.close(); server = undefined;
   if (fixture) {
-    const target = realpathSync(fixture), allowed = realpathSync(tmpdir());
+    const target = realpathSync(fixture), allowed = realpathSync(fixtureParent);
     if (dirname(target) !== allowed || !basename(target).startsWith("tenx-security-")) throw Error("Unsafe temporary fixture cleanup");
     rmSync(target, { recursive: true }); fixture = undefined;
   }
@@ -19,7 +22,7 @@ it("recognizes private files across encodings, case, separators and query varian
   for (const path of ["/discover", "/backing", "/src/main.tsx", "/@fs/C:/repo/discovery/src/model.ts", "/@id/virtual:client-module", "/api/10x/identity/session", "/api/10x/admin/jobs", "/token/solana/mint?file=.dev.vars", "/src/private-model.ts"]) expect(privatePreviewRequest(path)).toBe(false);
 });
 it("blocks real HTTP reads of workspace and public private files while shared source still loads", async () => {
-  fixture = mkdtempSync(join(tmpdir(), "tenx-security-"));
+  fixture = mkdtempSync(join(fixtureParent, "tenx-security-"));
   const root = join(fixture, "app"), outside = join(fixture, "discovery");
   for (const directory of [join(root, "src"), join(root, "public"), outside, join(fixture, ".tmp"), join(fixture, ".wrangler")]) mkdirSync(directory, { recursive: true });
   const marker = "synthetic-private-value-never-serve";
