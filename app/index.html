@@ -16,12 +16,18 @@
     <meta name="base:app_id" content="6a8e3af7164a4b20f8b98f3a" />
     <title>10X</title>
     <!-- Google Analytics -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-9YW8LVZKWJ"></script>
     <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-      gtag('config', 'G-9YW8LVZKWJ');
+      // Direct public legal links must be readable without starting analytics.
+      if (!/^\/(terms|privacy)\/?$/.test(window.location.pathname)) {
+        window.dataLayer = window.dataLayer || [];
+        window.gtag = function () { window.dataLayer.push(arguments); };
+        window.gtag('js', new Date());
+        window.gtag('config', 'G-9YW8LVZKWJ');
+        const analyticsScript = document.createElement('script');
+        analyticsScript.async = true;
+        analyticsScript.src = 'https://www.googletagmanager.com/gtag/js?id=G-9YW8LVZKWJ';
+        document.head.appendChild(analyticsScript);
+      }
     </script>
     <!--
       fc:miniapp embed metatag.

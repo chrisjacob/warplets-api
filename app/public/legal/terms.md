@@ -1,6 +1,10 @@
 # 10X TERMS OF SERVICE
 
-**Effective Date:** 22 August 2026<br>**Last Updated:** 22 August 2026
+**Effective Date:** On publication of this revision<br>**Last Updated:** 21 October 2026
+
+This revision applies prospectively from publication, subject to any notice or acceptance required by law. The [previous terms (22 August 2026)](/legal/archive/terms-2026-08-22.md) remain available for reference.
+
+For the standalone social client, see [10X.Social](#10x-social). See also our [Privacy Policy](/privacy).
 
 ---
 
@@ -30,7 +34,7 @@ If it is unlawful for you to access, acquire, sell, trade, receive or otherwise 
 
 10X.MEME is operated by **Code Hunt Pty Ltd, trading as 10X Meme** (“10X”, “10X.MEME”, “we”, “us” or “our”), an Australian company.
 
-10X develops and operates crypto-related websites, applications, Farcaster Mini Apps, Discord and Telegram communities, bots, APIs, NFT experiences, token experiences, social features, analytics, community programs and related products and services (collectively, the **“Services”**).
+10X develops and operates crypto-related websites, applications, the standalone **10X.Social** web client at [10x.social](https://10x.social), Farcaster Mini Apps, Discord and Telegram communities, bots, APIs, NFT experiences, token experiences, social features, analytics, community programs and related products and services (collectively, the **“Services”**).
 
 Our Services may interact with public blockchains, cryptocurrency wallets, NFT marketplaces, token launchpads, decentralized exchanges, social networks, APIs, artificial intelligence systems and other third-party services.
 
@@ -51,6 +55,8 @@ You also agree to comply with:
 * applicable terms of third-party platforms you choose to use.
 
 Where specific additional terms are provided for a particular 10X product, launch, NFT collection, token, airdrop, auction or promotion, those additional terms will apply to that activity and will prevail over these general Terms to the extent of a direct inconsistency.
+
+The [10X.Social section](#10x-social) forms part of these Terms and prevails over other general provisions only to the extent of a direct inconsistency concerning Social. No product-specific terms remove mandatory rights or reduce the protections in section 50.
 
 ---
 
@@ -100,6 +106,7 @@ The absence of a technical restriction or geoblock does not constitute permissio
 Depending on the product, the Services may allow users to:
 
 * access public social and blockchain information;
+* use supported Farcaster-connected account, publishing and social features through 10X.Social;
 * discover digital assets;
 * view rankings, scores, analytics and market activity;
 * participate in community discussions;
@@ -930,6 +937,8 @@ You retain ownership of content you create and submit to 10X to the extent you o
 
 By intentionally submitting content for publication, display, promotion or inclusion in a 10X product, you grant 10X a non-exclusive, worldwide, royalty-free licence to host, reproduce, display, format, distribute and promote that content as reasonably necessary to operate and promote the Services.
 
+Private communications are not submitted for public promotion merely because they use a 10X product. This licence does not authorize promotional reuse of private messages or account credentials. The more specific content permissions in [10X.Social](#10x-social) apply to Social content.
+
 This may include displaying community content:
 
 * in feeds;
@@ -1007,6 +1016,8 @@ Unless permitted by law or authorized by us, you may not:
 * commercially exploit our intellectual property without permission.
 
 Nothing prevents lawful use of public blockchain data that 10X itself does not own.
+
+These restrictions do not override rights granted by applicable open-source or third-party licences. Social uses upstream open-source code, including code made available under the MIT licence. Applicable copyright, attribution, permission and licence notices must be preserved as required by those licences. Open-source permissions do not transfer third-party trademarks or imply that 10X operates the upstream services.
 
 ---
 
@@ -1285,7 +1296,7 @@ This indemnity does not require you to indemnify 10X for loss caused by 10X's ow
 
 # 52. Privacy
 
-Our collection and use of personal information is governed by the **10X.MEME Privacy Policy**.
+Our collection and use of personal information, including through Social, is described in the [10X Privacy Policy](/privacy) and its [10X.Social section](/privacy#10x-social).
 
 By using the Services, you acknowledge that blockchain transactions are generally public and may remain permanently accessible even if you stop using 10X.
 
@@ -1304,6 +1315,8 @@ We will update the **Last Updated** date when changes are made.
 Where reasonably practicable, we may provide additional notice of material changes.
 
 Your continued use of the Services after updated Terms take effect constitutes acceptance of the updated Terms.
+
+Where applicable law requires additional notice or affirmative acceptance, we will meet that requirement; publishing revised wording alone does not satisfy it.
 
 If you do not agree with an update, you must stop using the affected Services.
 
@@ -1394,3 +1407,55 @@ Privacy enquiries:
 **[privacy@10x.meme](mailto:privacy@10x.meme)**
 
 Other legal or support contact details may be published through 10X.MEME from time to time.
+
+---
+
+# 61. 10X.Social
+
+### Product & Independent Operation
+
+**10X.Social**, at [10x.social](https://10x.social), is a web interface operated by **Code Hunt Pty Ltd, trading as 10X Meme**, for supported Farcaster-connected social features. It is a standalone client, distinct from a 10X Mini App opened within somebody else's client. We operate the 10X interface and related infrastructure; independent providers operate the upstream application services and protocol infrastructure used by particular features.
+
+The client uses Farcaster technology/services and upstream open-source software. These technical references do not imply ownership of the Farcaster protocol, official-client status, sponsorship, partnership or endorsement. For upstream application services, review the current [Farcaster terms](https://farcaster.xyz/~/terms-of-use) and [privacy notice](https://farcaster.xyz/~/privacy-policy). Those policies govern the relevant provider's services; their inclusion does not import their governing-law, arbitration or age provisions into your agreement with Code Hunt.
+
+### Accounts, Sessions & Permissions
+
+You may use a Farcaster identity/account through supported login flows. Access depends on successful authentication, the permissions granted, upstream availability and applicable provider requirements. Using Social does not promise a separate independent social identity or transfer an upstream account to Code Hunt.
+
+Email magic-link or mobile/QR login may establish an ongoing authenticated session able to perform supported account actions. It does not necessarily require a fresh mobile approval for each post, reaction or other ordinary authenticated action. Protect session credentials and review the permissions presented by the selected login flow.
+
+Social-session authorization, protocol signing permissions, wallet connection and transaction signing are different permissions. A wallet connection alone is not approval of every transaction. The intended Social wallet mode uses external wallets, but supported integrations and flows can differ by network/provider. Never give 10X a wallet private key or seed phrase. Use a verified official upstream origin for any upstream wallet export or migration.
+
+You can stop using Social and use available sign-out controls. Clearing browser storage or disconnecting a wallet does not necessarily revoke an upstream session, protocol signer or other authorization. Use the relevant provider's available revocation controls for the permission concerned. Leaving Social does not automatically delete your upstream account, public content or blockchain records.
+
+### Publication & Content Permissions
+
+Depending on enabled features, Social may let you view feeds/profiles, publish casts/posts, replies and media, react, follow, receive notifications or use messaging. Availability of a feature is not guaranteed merely because upstream software supports it.
+
+You retain the rights you hold in your content. For content you submit through Social, you grant us a non-exclusive, worldwide, royalty-free licence to host, reproduce, format, transmit and display it only as reasonably necessary to provide the requested feature, operate and secure the client, and meet applicable legal obligations. We may permit infrastructure providers to perform those functions for us. This Social licence does not authorize unrelated promotional reuse; separate permission is needed for that use. Private communications are not licensed for public display or promotion by these Terms.
+
+When you publish public content or public social actions, you instruct us to submit them to the relevant service/protocol for public distribution. Farcaster's public social records may reach independent clients, nodes and indexers, including Snapchain social-data infrastructure. Public social publication is distinct from a blockchain transaction. Relevant blockchain identity/authorization events and wallet transactions have their own public-record characteristics.
+
+You must have the rights needed to submit content and comply with section 34 and applicable law. Do not publish unlawful material, infringe others' rights, harass people, disclose private information without authority, impersonate others, distribute malware or manipulate engagement.
+
+### Moderation, Reports & Removal
+
+We may hide or remove content from our interface or restrict Social access where reasonably necessary under sections 34 and 46, including for abuse, legal or security reasons. Interface moderation does not guarantee network-wide removal, and restricting Social access does not disable a protocol identity everywhere.
+
+Use reporting tools where available, or report abuse, infringement or a moderation concern to [privacy@10x.meme](mailto:privacy@10x.meme), identifying Social and providing the relevant content link/account and reason. Do not send credentials or unnecessary private information. You may use that route to ask us to review a moderation decision affecting you.
+
+Supported removal tools may request removal from cooperating services, but cannot guarantee erasure of independent archives, screenshots, indexer records or recipient copies. Account deletion and blockchain records have separate limits explained in the [Social privacy section](/privacy#10x-social).
+
+### Mini Apps, Media & Wallet Features
+
+Mini Apps and external media/services accessed through Social can be independently operated under separate terms and policies. Launching a Mini App does not establish our endorsement. A feature can disclose context or make direct requests to its provider; review its notice, permissions and destination before use.
+
+Review wallet prompts, network, destination, fees and permissions before authorizing an action. Mini App access, a social session or a media interaction should not be treated as a substitute for understanding a transaction or authorization. Sections 8, 25–29 and 42 apply where relevant. Independent operation does not remove responsibilities or liability that applicable law imposes on Code Hunt.
+
+### Availability, Fees & Continuing Rights
+
+API changes, upstream account restrictions, provider outages, protocol changes, moderation and discontinued features may affect Social functionality. Sections 44–47 apply subject to mandatory rights. We do not promise to preserve every upstream feature or access route.
+
+Any 10X charge or subscription must be described in the relevant offer, identifying the charging party and applicable payment terms before you commit. Wallet/network and other third-party fees can apply to the actions you choose. Using Social does not automatically transfer upstream subscriptions, purchases, referral rewards, storage subsidies or other benefits to 10X.
+
+The **18+ eligibility requirement**, **New South Wales/Australian-law framework** and **non-excludable consumer rights** in these Terms continue to apply to Social. This section takes precedence only for a direct inconsistency about Social and does not override mandatory law.
