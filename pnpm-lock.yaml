@@ -339,7 +339,7 @@ importers:
         version: 6.4.5(@types/node@26.6.6)(jiti@2.7.0)(less@4.6.7)(lightningcss@1.32.0)(terser@5.51.2)(tsx@4.21.0)
 
   packages/meme-protocol:
-    dependencies:
+    devDependencies:
       '@meteora-ag/cp-amm-sdk':
         specifier: 1.5.1
         version: 1.5.1(bufferutil@4.1.0)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)(utf-8-validate@6.0.6)

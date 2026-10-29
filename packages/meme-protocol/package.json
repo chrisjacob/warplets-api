@@ -8,7 +8,7 @@
     "proof": "node src/proof.mjs",
     "check": "pnpm test && pnpm proof"
   },
-  "dependencies": {
+  "devDependencies": {
     "@meteora-ag/cp-amm-sdk": "1.5.1",
     "@solana/web3.js": "1.98.4",
     "@solana/spl-token": "0.4.14",
