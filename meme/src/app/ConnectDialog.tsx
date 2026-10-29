@@ -15,11 +15,13 @@ type SolanaAccount = { address: string; chains: readonly string[] };
 type SolanaWallet = { name: string; features: Record<string, unknown> };
 export default function ConnectDialog({
   onIdentity,
+  onReady,
   open,
   onClose,
   identity: initialIdentity,
 }: {
   onIdentity: (identity: Identity) => void;
+  onReady: () => void;
   open: boolean;
   onClose: () => void;
   identity: Identity | null;
@@ -41,6 +43,7 @@ export default function ConnectDialog({
     }
   };
   useEffect(() => {
+    onReady();
     void refresh();
     void restoreWebWallet().catch(() => undefined);
     const registry = getWallets();
