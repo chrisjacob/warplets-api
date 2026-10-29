@@ -10,6 +10,7 @@ import {
 } from "./settlement";
 import { encode58 } from "../shared/base58";
 import { DAY_MS } from "../shared/rules";
+import { state } from "./rounds";
 const address = (i: number) => {
   const bytes = new Uint8Array(32);
   new DataView(bytes.buffer).setUint32(0, i + 1);
@@ -90,6 +91,21 @@ test("closed/skip round settles existing campaigns; fewer than 100 share the ful
     const done = await finish(t, 1);
     assert.equal(done.progress.frozen, 3);
     assert.equal(done.claimable, false);
+    t.queries.length = 0;
+    const dashboard = await state(
+      t.db,
+      new Request("http://localhost/api/meme/state"),
+    );
+    assert.equal(dashboard.round?.candidates[0].weightedVotes, "3.3");
+    assert.equal(
+      t.queries.some((sql) => /meme_ledger|meme_round_eligibility/.test(sql)),
+      false,
+      "Final dashboards must not replay mutable ledgers",
+    );
+    assert(
+      t.queries.length <= 12,
+      `Final dashboard used ${t.queries.length} statements`,
+    );
     const mine = (await ownEntitlements(t.db, 1)) as {
       amount: string;
       reward_wallet: string;

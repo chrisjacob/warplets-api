@@ -9,9 +9,9 @@
     "db:migrate": "wrangler d1 migrations apply meme-local --local --persist-to .wrangler/state",
     "types": "wrangler types worker-configuration.d.ts --include-runtime false",
     "typecheck": "tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.worker.json",
-    "build": "vite build",
+    "build": "vite build && node scripts/check-performance.mjs",
     "build:worker": "wrangler deploy --dry-run --outdir .tmp/worker",
-    "test": "tsx --test src/worker/*.test.ts src/shared/*.test.ts",
+    "test": "tsx --test src/worker/*.test.ts src/shared/*.test.ts src/app/*.test.ts",
     "check": "pnpm boundary && pnpm typecheck && pnpm test && pnpm build && pnpm build:worker",
     "boundary": "node scripts/check-boundaries.mjs",
     "operator": "node scripts/operator.mjs"
@@ -32,7 +32,7 @@
     "@vitejs/plugin-react": "^4",
     "tsx": "4.21.0",
     "typescript": "5.9.3",
-    "vite": "6.4.3",
+    "vite": "6.4.5",
     "wrangler": "4.154.0"
   },
   "engines": {

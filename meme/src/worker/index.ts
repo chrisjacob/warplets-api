@@ -5,10 +5,12 @@ import { cycleRequest } from "./cycles";
 import { holdingRequest } from "./holding";
 import { settlementRequest } from "./settlement";
 import { Problem, json as reply } from "./db";
+import { securityHeaders } from "../shared/securityHeaders";
 const json = (data: unknown, status = 200) =>
   Response.json(data, {
     status,
     headers: {
+      ...securityHeaders,
       "cache-control": "no-store",
       "x-content-type-options": "nosniff",
       "x-robots-tag": "noindex, nofollow",
@@ -47,6 +49,13 @@ export default {
       new URL(request.url).pathname.startsWith("/api/")
     ) {
       try {
+        const origin = request.headers.get("origin"),
+          site = request.headers.get("sec-fetch-site");
+        if (
+          (origin && origin !== new URL(request.url).origin) ||
+          (site && site !== "same-origin" && site !== "none")
+        )
+          return reply({ error: "Origin mismatch" }, 403);
         if (
           !["GET", "HEAD"].includes(request.method) &&
           request.headers.get("origin") !== new URL(request.url).origin

@@ -196,6 +196,29 @@ test("runtime rejects remote hosts, cross-origin mutations, missing principals, 
       (await fetch("https://meme.example/api/meme/state")).status,
       404,
     );
+    const framed = await fetch(origin + "/api/meme/state");
+    assert.equal(
+      framed.headers.get("content-security-policy"),
+      "frame-ancestors 'none'",
+    );
+    assert.equal(framed.headers.get("x-frame-options"), "DENY");
+    assert.equal(framed.headers.get("referrer-policy"), "no-referrer");
+    assert.equal(
+      (
+        await fetch(origin + "/api/meme/state", undefined, {
+          "sec-fetch-site": "cross-site",
+        })
+      ).status,
+      403,
+    );
+    assert.equal(
+      (
+        await fetch(origin + "/api/auth/session", undefined, {
+          origin: "http://localhost:4444",
+        })
+      ).status,
+      403,
+    );
     assert.equal(
       (
         await fetch(

@@ -1,5 +1,6 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import { securityHeaders } from "./src/shared/securityHeaders";
 export default defineConfig({
   plugins: [react()],
   define: {
@@ -8,6 +9,8 @@ export default defineConfig({
     "import.meta.env.VITE_TRUSTCONNECT_ENABLED": JSON.stringify("true"),
   },
   server: {
+    headers: securityHeaders,
+    cors: false,
     host: "127.0.0.1",
     port: 5194,
     strictPort: true,
@@ -23,6 +26,12 @@ export default defineConfig({
         "**/.git/**",
       ],
     },
+  },
+  preview: {
+    host: "127.0.0.1",
+    port: 5195,
+    strictPort: true,
+    headers: securityHeaders,
   },
   build: { manifest: true },
 });

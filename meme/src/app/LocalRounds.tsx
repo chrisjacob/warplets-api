@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
-import { api, type Identity } from "./IdentityPanel";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { api, type Identity } from "./client";
+import { latestRequest } from "./latestRequest";
 export interface RoundView {
   id: string;
   state: string;
@@ -8,6 +9,7 @@ export interface RoundView {
   opens_at: number;
   closes_at: number;
   selected_candidate: string | null;
+  selected_name?: string | null;
   outcome_reason: string | null;
   candidates: {
     id: string;
@@ -18,6 +20,7 @@ export interface RoundView {
   }[];
 }
 export interface LocalState {
+  identity: Identity;
   settlement?: {
     state: string;
     inputHash: string;
@@ -59,177 +62,269 @@ export interface LocalState {
     decimals: number;
   }[];
 }
-export function useLocalState(identity: Identity | null) {
+const isVisible = () => document.visibilityState !== "hidden";
+export function useLocalState(enabled = true) {
   const [data, setData] = useState<LocalState | null>(null),
+    [identity, setIdentity] = useState<Identity | null>(null),
     [error, setError] = useState<string | null>(null);
-  const refresh = async () => {
-    try {
-      setData((await api("/api/meme/state")) as LocalState);
+  const requests = useRef(latestRequest()),
+    timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined),
+    mounted = useRef(false),
+    refreshId = useRef(0);
+  const refresh = useCallback(async () => {
+    const current = ++refreshId.current;
+    clearTimeout(timer.current);
+    if (!enabled || !mounted.current || !isVisible()) return;
+    await requests.current.run(
+      (signal) =>
+        api("/api/meme/state", undefined, "GET", signal) as Promise<
+          LocalState & { identity: Identity }
+        >,
+      (next) => {
+        setData(next);
+        setIdentity(next.identity);
+        setError(null);
+      },
+      () => setError("Couldn’t refresh. Try again."),
+    );
+    if (
+      current === refreshId.current &&
+      mounted.current &&
+      enabled &&
+      isVisible()
+    )
+      timer.current = setTimeout(() => void refresh(), 15000);
+  }, [enabled]);
+  const onIdentity = useCallback(
+    (next: Identity) => {
+      requests.current.cancel();
+      setData((previous) =>
+        previous?.identity.farcasterFid === next.farcasterFid ? previous : null,
+      );
+      setIdentity(next);
       setError(null);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Local API unavailable");
-    }
-  };
+      void refresh();
+    },
+    [refresh],
+  );
   useEffect(() => {
+    mounted.current = true;
+    const visibility = () => {
+      refreshId.current++;
+      clearTimeout(timer.current);
+      requests.current.cancel();
+      if (document.visibilityState !== "hidden") void refresh();
+    };
     void refresh();
-    const id = setInterval(() => void refresh(), 15000);
-    return () => clearInterval(id);
-  }, [identity?.farcasterFid, identity?.solanaWallet]);
-  return { data, error, refresh };
+    document.addEventListener("visibilitychange", visibility);
+    return () => {
+      mounted.current = false;
+      refreshId.current++;
+      clearTimeout(timer.current);
+      requests.current.cancel();
+      document.removeEventListener("visibilitychange", visibility);
+    };
+  }, [refresh]);
+  return { data, identity, error, refresh, onIdentity };
 }
 export function LocalRounds({
   data,
   identity,
   refresh,
+  onConnect,
+  stale = false,
 }: {
   data: LocalState | null;
   identity: Identity | null;
   refresh: () => Promise<void>;
+  onConnect: () => void;
+  stale?: boolean;
 }) {
   const [error, setError] = useState<string | null>(null),
     [busy, setBusy] = useState(false);
-  const r = data?.round;
+  const r = data?.round,
+    eligible = !!identity?.farcasterFid && !!identity.solanaWallet;
   async function cast(candidateId: string) {
-    if (!r) return;
+    if (!r || busy || stale) return;
     setBusy(true);
     setError(null);
     try {
-      await api(`/api/meme/rounds/${r.id}/vote`, {
+      await api("/api/meme/rounds/" + encodeURIComponent(r.id) + "/vote", {
         candidateId,
         key: crypto.randomUUID(),
       });
       await refresh();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Vote failed");
+      setError(e instanceof Error ? e.message : "Vote failed. Try again.");
     } finally {
       setBusy(false);
     }
   }
   if (!r)
     return (
-      <article className="card">
-        <h2>{data ? "No round available." : "Loading local round…"}</h2>
-        <p>
-          {data
-            ? "Come back for the next daily vote."
-            : "Connecting to the local application."}
-        </p>
-      </article>
+      <section className="card" aria-live="polite">
+        <h2>{data ? "No round today" : "Loading today’s round…"}</h2>
+        {data && <p>Check back for the next vote.</p>}
+      </section>
     );
-  const eligible = !!identity?.farcasterFid && !!identity.solanaWallet;
+  const upcoming = r.state === "prepared" || r.state === "frozen";
+  const boundary = upcoming ? r.opens_at : r.closes_at;
+  const live = r.state === "open",
+    final = data?.settlement?.state === "finalized";
+  const label =
+    (
+      {
+        prepared: "Upcoming",
+        frozen: "Upcoming",
+        open: "Voting open",
+        closed: "Voting closed",
+        selected: "Selected",
+        skipped: "Skipped",
+      } as Record<string, string>
+    )[r.state] ?? r.state;
   return (
-    <section aria-label="Today's round">
-      <p className="eyebrow">
-        {r.id} · {r.state} ·{" "}
-        {r.ownershipMode === "simulated"
-          ? "simulated ownership"
-          : "observed ownership"}
+    <section aria-label="Today’s round" className="round-content">
+      <div className="round-heading">
+        <div>
+          <p className="eyebrow">Today’s attribute</p>
+          <h2>
+            {r.attribute
+              ? r.attribute.charAt(0).toUpperCase() + r.attribute.slice(1)
+              : "Reveals at opening"}
+          </h2>
+        </div>
+        <span className="pill">{label}</span>
+      </div>
+      <p className="fine">
+        {upcoming ? "Opens " : live ? "Closes " : "Closed "}
+        <time
+          dateTime={new Date(boundary).toISOString()}
+          title={new Date(boundary).toUTCString()}
+        >
+          {new Date(boundary).toLocaleString(undefined, {
+            month: "short",
+            day: "numeric",
+            hour: "numeric",
+            minute: "2-digit",
+          })}
+        </time>
+        {r.ownershipMode === "simulated" ? " · Simulated round" : ""}
       </p>
-      <h2>
-        {r.attribute
-          ? `Today's attribute: ${r.attribute}`
-          : "Attribute not revealed"}
-      </h2>
-      <p>
-        Voting closes {new Date(r.closes_at).toUTCString()}. Community voting is
-        advisory.
-      </p>
-      {data?.boost ? (
-        <article className="card">
-          <h3>
-            Your {data.boost.finality} boost: {data.boost.total}×
-          </h3>
-          <p>
-            Warplet +{data.boost.warplet} · Holding +{data.boost.holding} ·
-            Streak +{data.boost.streak}
-          </p>
-          <p>{data.boost.points} reward points</p>
+      {data?.boost && (
+        <article className="card compact-boost">
+          <div>
+            <span className="eyebrow">
+              Your {final ? "final" : "estimated"} boost
+            </span>
+            <strong>{data.boost.total}×</strong>
+          </div>
+          <p>{data.boost.points} points</p>
+          <details>
+            <summary>Boost breakdown</summary>
+            <p>
+              Base 1× · Warplet +{data.boost.warplet} · Holding{" "}
+              {data.boost.holding === "pending"
+                ? "pending"
+                : "+" + data.boost.holding}{" "}
+              · Streak +{data.boost.streak}
+            </p>
+          </details>
         </article>
-      ) : (
-        <p>Your score becomes available after the ownership reveal.</p>
       )}
-      {!eligible && (
-        <p>
-          Connect Farcaster and verify a Solana reward wallet to vote. Base
-          wallets are optional for Warplet boosts.
-        </p>
+      {!eligible && live && (
+        <div className="connect-prompt">
+          <p>
+            {identity?.farcasterFid
+              ? "Add your Solana reward wallet."
+              : "Connect Farcaster to vote."}
+          </p>
+          <button className="primary" onClick={onConnect}>
+            {identity?.farcasterFid ? "Verify wallet" : "Connect to vote"}
+          </button>
+        </div>
       )}
-      {data?.holdingComplete === false && (
-        <p role="status">
-          Holding evidence is incomplete. Scores are provisional and settlement
-          is blocked.
+      {data?.holdingComplete === false && !final && (
+        <p className="fine" role="status">
+          Holding data pending. Scores may change.
         </p>
       )}
       <div className="candidates">
         {r.candidates.map((c) => (
           <article className="card candidate" key={c.id}>
-            <h3>
-              {c.name} · ${c.symbol}
-            </h3>
+            <div className="candidate-title">
+              <h3>{c.name}</h3>
+              <span className="token-symbol">$ {c.symbol}</span>
+            </div>
             <p>
-              {c.uniqueVoters} unique voters ·{" "}
-              {c.weightedVotes ?? String(c.uniqueVoters)} weighted votes
+              {c.uniqueVoters} voters · {c.weightedVotes ?? "0"} weighted
             </p>
             <button
-              disabled={!eligible || busy || r.state !== "open"}
+              className={
+                data?.myVote?.candidate_id === c.id ? "selected-vote" : ""
+              }
+              disabled={!eligible || busy || !live || stale}
+              aria-pressed={data?.myVote?.candidate_id === c.id}
               onClick={() => void cast(c.id)}
             >
-              {data?.myVote?.candidate_id === c.id
-                ? "Voted for " + c.symbol
-                : "Vote for " + c.symbol}
+              {busy
+                ? "Saving…"
+                : data?.myVote?.candidate_id === c.id
+                  ? "✓ Voted"
+                  : "Vote"}
             </button>
           </article>
         ))}
       </div>
       {error && <p role="alert">{error}</p>}
-      {data?.myVote && (
-        <p className="fine">
-          First valid vote: {new Date(data.myVote.first_valid_at).toUTCString()}
-          . Changing candidates keeps this tie-break time and your frozen reward
-          destination.
-        </p>
-      )}
-      <article className="card">
-        <h3>Operator selection</h3>
-        <p>
-          {r.state === "skipped"
-            ? `Skipped: ${r.outcome_reason}`
-            : r.selected_candidate
-              ? `Selected: ${r.selected_candidate}. Launch execution is a later milestone.`
-              : "Awaiting operator selection after voting closes."}
-        </p>
-      </article>
-      {data?.settlement && (
-        <article className="card">
-          <h3>Settlement: {data.settlement.state}</h3>
-          <p>
-            {data.settlement.mode} evidence · {data.settlement.progress.frozen}/
-            {data.settlement.progress.voters} frozen scores ·{" "}
-            {data.settlement.progress.entitlements}/
-            {data.settlement.progress.expectedEntitlements} entitlements
-          </p>
-          <p>Final allocations are unfunded. Claiming remains disabled.</p>
-          <a
-            href={`/api/meme/settlements/${encodeURIComponent(r.id)}`}
-            target="_blank"
-            rel="noreferrer"
-          >
-            Inspect settlement proof
-          </a>
-        </article>
-      )}
-      {data?.leaderboard && (
+      <p className="fine">
+        {data?.myVote
+          ? live
+            ? "Vote saved. You can change it until close."
+            : "Vote recorded."
+          : "One vote per account. 10X makes the final pick."}
+      </p>
+      {(r.state === "selected" ||
+        r.state === "skipped" ||
+        r.state === "closed") && (
         <article className="card">
           <h3>
-            {data.settlement?.state === "finalized" ? "Final" : "Provisional"}{" "}
-            leaderboard
+            {r.state === "skipped"
+              ? "No launch today"
+              : r.selected_candidate
+                ? "Selected: " +
+                  (r.candidates.find((c) => c.id === r.selected_candidate)
+                    ?.name ?? r.selected_candidate)
+                : "Selection pending"}
           </h3>
-          {data.leaderboard.map((row) => (
-            <p key={row.fid}>
-              #{row.rank} · FID {row.fid} · {row.points} points
-            </p>
-          ))}
+          {r.outcome_reason && <p>{r.outcome_reason}</p>}
         </article>
+      )}
+      {!!data?.leaderboard?.length && (
+        <details className="card">
+          <summary>{final ? "Final" : "Estimated"} leaderboard</summary>
+          <ol className="leaderboard">
+            {data.leaderboard.map((row) => (
+              <li key={row.fid}>
+                <span>FID {row.fid}</span>
+                <strong>{row.points} points</strong>
+              </li>
+            ))}
+          </ol>
+        </details>
+      )}
+      {data?.settlement && (
+        <details className="receipt-details">
+          <summary>{final ? "Scores finalized" : "Finalizing scores…"}</summary>
+          <p>
+            <a
+              href={"/api/meme/settlements/" + encodeURIComponent(r.id)}
+              target="_blank"
+              rel="noreferrer"
+            >
+              View settlement receipt ↗
+            </a>
+          </p>
+        </details>
       )}
     </section>
   );
