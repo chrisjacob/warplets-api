@@ -11,8 +11,6 @@ const appDir = path.resolve(__dirname, "../app");
 
 const PUBLIC_URL = "https://warplet-local.10x.meme";
 const LOCAL_MINIAPP_BASE_URL = PUBLIC_URL;
-const LOCAL_APP_SESSION_SECRET = "warplet-local-only-session-secret-do-not-use-live-v1";
-const LOCAL_ACTION_SESSION_SECRET = "warplet-local-only-action-secret-do-not-use-live-v1";
 const LOCAL_EMAIL_AUDIENCE_MUTATIONS_ENABLED = /^(1|true|yes)$/i.test(
   process.env.LOCAL_EMAIL_AUDIENCE_MUTATIONS?.trim() || "",
 );
@@ -79,20 +77,13 @@ function spawnApiWorker(port) {
     "--port",
     String(port),
     "--binding",
-    `APP_SESSION_SECRET=${LOCAL_APP_SESSION_SECRET}`,
-    "--binding",
-    `ACTION_SESSION_SECRET=${LOCAL_ACTION_SESSION_SECRET}`,
-    "--binding",
     `EMAIL_AUDIENCE_MUTATIONS_ENABLED=${LOCAL_EMAIL_AUDIENCE_MUTATIONS_ENABLED}`,
   ];
   const accountAssociation = process.env.WARPLETS_ACCOUNT_ASSOCIATION_JSON?.trim();
   if (accountAssociation) {
     args.push("--binding", `WARPLETS_ACCOUNT_ASSOCIATION_JSON=${accountAssociation}`);
   }
-  for (const name of ["VAPID_PUBLIC_KEY", "VAPID_PRIVATE_KEY", "VAPID_SUBJECT"]) {
-    const value = process.env[name]?.trim();
-    if (value) args.push("--binding", `${name}=${value}`);
-  }
+  // Private session/VAPID keys belong in ignored app/.dev.vars, not CLI flags.
   return spawn(command, args, {
     cwd: appDir,
     shell: process.platform === "win32",

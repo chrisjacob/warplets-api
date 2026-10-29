@@ -39,12 +39,6 @@ type WaitlistCompletion = {
   verification: string | null;
 };
 
-function asPositiveInt(value: string | null): number | null {
-  if (!value) return null;
-  const parsed = Number(value);
-  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
-}
-
 function parseEmbeds(raw: string | null): string[] {
   if (!raw) return [];
   try {
@@ -112,19 +106,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   const url = new URL(context.request.url);
   const appSlug = (url.searchParams.get("appSlug") || "").trim().toLowerCase();
   const sessionToken = (url.searchParams.get("sessionToken") || "").trim() || null;
-  const bodyFid = asPositiveInt(url.searchParams.get("fid"));
   const session = await verifyActionSessionToken(context.env.ACTION_SESSION_SECRET, sessionToken);
-  const isLocalDevHost =
-    url.hostname.includes("-local.") ||
-    url.hostname.includes("-dev.") ||
-    url.hostname.endsWith(".pages.dev") ||
-    url.hostname === "127.0.0.1" ||
-    url.hostname === "localhost" ||
-    url.hostname === "::1";
-  const allowInsecureFallback =
-    isLocalDevHost &&
-    (context.env.ALLOW_INSECURE_ACTION_FID_FALLBACK === "1" || isLocalDevHost);
-  const fid = session.valid ? session.fid : (allowInsecureFallback ? bodyFid : null);
+  const fid = session.valid ? session.fid : null;
 
   if (!appSlug) {
     return jsonSecure({ error: "appSlug is required" }, { status: 400 });

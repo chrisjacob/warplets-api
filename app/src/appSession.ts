@@ -1,6 +1,5 @@
-import { signMessage, type EthereumProvider } from "./walletTrade";
+import type { EthereumProvider } from "./walletTrade";
 import { dismissBaseAccountPopup } from "./baseAccountHandoff";
-import { stringToHex } from "viem";
 
 export interface AppSessionState {
   authenticated: boolean;
@@ -204,6 +203,7 @@ export async function authenticateBaseWallet(provider: EthereumProvider, chainId
 }
 
 export async function authenticateWallet(provider: EthereumProvider, address: `0x${string}`, chainId: number): Promise<void> {
+  const [{ signMessage }, { stringToHex }] = await Promise.all([import("./walletTrade"), import("viem")]);
   const challenge = await requireOk(await fetch("/api/auth/wallet/challenge", {
     method: "POST",
     credentials: "same-origin",

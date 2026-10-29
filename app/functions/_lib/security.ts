@@ -365,12 +365,13 @@ export async function verifyAdminSessionToken(
   const trimmed = secret?.trim();
   if (!trimmed) return { valid: false, reason: "missing_secret" };
   if (!token) return { valid: false, reason: "missing_token" };
-  const [payloadEncoded, sigEncoded] = token.split(".");
-  if (!payloadEncoded || !sigEncoded) return { valid: false, reason: "invalid_format" };
+  const parts = token.match(/^([A-Za-z0-9_-]{1,2048})\.([A-Za-z0-9_-]{43})$/);
+  if (!parts) return { valid: false, reason: "invalid_format" };
+  const [, payloadEncoded, sigEncoded] = parts;
 
   const key = await importActionKey(trimmed);
   const signatureBytes = base64UrlToBytes(sigEncoded);
-  if (!signatureBytes) return { valid: false, reason: "invalid_signature" };
+  if (!signatureBytes || arrayBufferToBase64Url(signatureBytes.buffer as ArrayBuffer) !== sigEncoded) return { valid: false, reason: "invalid_signature" };
   const verified = await crypto.subtle.verify(
     "HMAC",
     key,
@@ -387,7 +388,7 @@ export async function verifyAdminSessionToken(
     if (!payload || payload.purpose !== "admin_2fa" || typeof payload.keyId !== "string" || !payload.keyId.trim()) {
       return { valid: false, reason: "invalid_payload" };
     }
-    if (typeof payload.exp !== "number" || Math.floor(Date.now() / 1000) > payload.exp) {
+    if (typeof payload.exp !== "number" || !Number.isSafeInteger(payload.exp) || Math.floor(Date.now() / 1000) >= payload.exp) {
       return { valid: false, reason: "expired" };
     }
     return { valid: true, keyId: payload.keyId };
@@ -418,10 +419,28 @@ export async function readJsonBodyWithLimit<T>(
   }
 
   try {
-    const raw = await request.text();
-    if (new TextEncoder().encode(raw).length > maxBytes) {
-      return { ok: false, response: jsonSecure({ error: "Payload too large" }, { status: 413 }) };
+    if (!request.body) throw new Error("Missing body");
+    const reader = request.body.getReader();
+    const chunks: Uint8Array[] = [];
+    let size = 0;
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        size += value.byteLength;
+        if (size > maxBytes) {
+          await reader.cancel().catch(() => undefined);
+          return { ok: false, response: jsonSecure({ error: "Payload too large" }, { status: 413 }) };
+        }
+        chunks.push(value);
+      }
+    } finally {
+      reader.releaseLock();
     }
+    const bytes = new Uint8Array(size);
+    let offset = 0;
+    for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
+    const raw = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
     const parsed = JSON.parse(raw) as T;
     return { ok: true, value: parsed };
   } catch {
@@ -502,12 +521,13 @@ export async function verifyActionSessionToken(
   const trimmed = secret?.trim();
   if (!trimmed) return { valid: false, reason: "missing_secret" };
   if (!token) return { valid: false, reason: "missing_token" };
-  const [payloadEncoded, sigEncoded] = token.split(".");
-  if (!payloadEncoded || !sigEncoded) return { valid: false, reason: "invalid_format" };
+  const parts = token.match(/^([A-Za-z0-9_-]{1,2048})\.([A-Za-z0-9_-]{43})$/);
+  if (!parts) return { valid: false, reason: "invalid_format" };
+  const [, payloadEncoded, sigEncoded] = parts;
 
   const key = await importActionKey(trimmed);
   const signatureBytes = base64UrlToBytes(sigEncoded);
-  if (!signatureBytes) return { valid: false, reason: "invalid_signature" };
+  if (!signatureBytes || arrayBufferToBase64Url(signatureBytes.buffer as ArrayBuffer) !== sigEncoded) return { valid: false, reason: "invalid_signature" };
   const verified = await crypto.subtle.verify(
     "HMAC",
     key,
@@ -521,10 +541,10 @@ export async function verifyActionSessionToken(
 
   try {
     const payload = JSON.parse(new TextDecoder().decode(payloadBytes)) as ActionSessionTokenPayload;
-    if (!payload || typeof payload.fid !== "number" || !Number.isInteger(payload.fid) || payload.fid <= 0) {
+    if (!payload || typeof payload.fid !== "number" || !Number.isSafeInteger(payload.fid) || payload.fid <= 0) {
       return { valid: false, reason: "invalid_payload" };
     }
-    if (typeof payload.exp !== "number" || Math.floor(Date.now() / 1000) > payload.exp) {
+    if (typeof payload.exp !== "number" || !Number.isSafeInteger(payload.exp) || Math.floor(Date.now() / 1000) >= payload.exp) {
       return { valid: false, reason: "expired" };
     }
     return { valid: true, fid: payload.fid };

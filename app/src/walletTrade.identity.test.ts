@@ -71,7 +71,7 @@ describe("wallet signer identity", () => {
     const suffix = builderCodeSuffix("bc_warplets");
     expect(request).toHaveBeenCalledWith({
       method: "eth_sendTransaction",
-      params: [expect.objectContaining({ data: `0x1234${suffix?.slice(2)}` })],
+      params: [expect.objectContaining({ chainId: "0x2105", data: `0x1234${suffix?.slice(2)}` })],
     });
   });
 
@@ -98,6 +98,7 @@ describe("wallet signer identity", () => {
     expect(request).toHaveBeenCalledWith({
       method: "wallet_sendCalls",
       params: [expect.objectContaining({
+        chainId: "0x2105",
         capabilities: {
           dataSuffix: {
             value: builderCodeSuffix("bc_warplets"),
