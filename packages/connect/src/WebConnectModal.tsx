@@ -42,7 +42,9 @@ function BrowserWalletIcon() {
   </svg>;
 }
 
-export function WebConnectModal({ open, onClose, farcasterControl, identityConnected = false, identityError = null, onClearIdentityError, onWalletConnected, farcasterMiniAppUrl = FARCASTER_WARPLETS_MINI_APP_URL }: {
+export function WebConnectModal({ open, onClose, farcasterControl, identityConnected = false, identityError = null, onClearIdentityError, onWalletConnected, farcasterMiniAppUrl = FARCASTER_WARPLETS_MINI_APP_URL, socialRequired=false, extraWalletControls }: {
+  socialRequired?: boolean;
+  extraWalletControls?: ReactNode;
   farcasterMiniAppUrl?: string;
   open: boolean;
   onClose: () => void;
@@ -282,7 +284,7 @@ export function WebConnectModal({ open, onClose, farcasterControl, identityConne
             <section className="web-connect-section" aria-labelledby="web-connect-wallet-heading">
               <div className="web-connect-section-heading">
                 <h3 id="web-connect-wallet-heading">Wallet</h3>
-                <p>Connect to trade, verify ownership and save favourites.</p>
+                <p>{socialRequired ? 'Link Base wallets for Warplet ownership boosts.' : 'Connect to trade, verify ownership and save favourites.'}</p>
               </div>
               <div className="web-connect-options">
                 {import.meta.env.VITE_BASE_ACCOUNT_ENABLED === "true" ? (
@@ -339,8 +341,8 @@ export function WebConnectModal({ open, onClose, farcasterControl, identityConne
 
             <section className="web-connect-section" aria-labelledby="web-connect-identity-heading">
               <div className="web-connect-section-heading">
-                <h3 id="web-connect-identity-heading">Social <span className="web-connect-optional-chip">Optional</span></h3>
-                <p>Connect Farcaster for your profile, friends and social features.</p>
+                <h3 id="web-connect-identity-heading">Social <span className="web-connect-optional-chip">{socialRequired?'Required':'Optional'}</span></h3>
+                <p>{socialRequired?'Connect Farcaster to participate in daily rounds.':'Connect Farcaster for your profile, friends and social features.'}</p>
               </div>
               <div className="web-connect-options">
                 <div className="web-connect-farcaster">
@@ -374,6 +376,7 @@ export function WebConnectModal({ open, onClose, farcasterControl, identityConne
               </div>
             </section>
 
+            {extraWalletControls}
             <div className="web-connect-farcaster-footer">
               <p>For the best experience, use the Farcaster Mini App.</p>
               <a className="web-connect-farcaster-cta" href={farcasterMiniAppUrl} target="_blank" rel="noreferrer">
