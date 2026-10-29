@@ -123,9 +123,7 @@ export async function collectSource(
         receipt.blockTime * 1000 <= r.through_at &&
         receipt.meta &&
         receipt.meta.err === null &&
-        (receipt.version == null ||
-          receipt.version === "legacy" ||
-          receipt.version === 0),
+        (receipt.version === "legacy" || receipt.version === 0),
       409,
       "History has unsupported, out-of-order or incomplete receipts",
     );

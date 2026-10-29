@@ -96,7 +96,9 @@ export function heliusAdapter(db: Database, key: string): HistoryAdapter {
                   {
                     transactionDetails: "full",
                     encoding: "jsonParsed",
-                    maxSupportedTransactionVersion: 0,
+                    // Retrieve the provider's complete documented version set; the collector
+                    // rejects unsupported versions instead of asking the provider to omit them.
+                    maxSupportedTransactionVersion: 1,
                     commitment: "finalized",
                     sortOrder: "asc",
                     limit: 20,

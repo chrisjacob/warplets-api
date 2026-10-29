@@ -93,7 +93,7 @@ test("history requests preserve the finalized token-account scope and never rese
       assert.equal(options.filters.tokenAccounts, "all");
       assert.equal(options.sortOrder, "asc");
       assert.equal(options.limit, 20);
-      assert.equal(options.maxSupportedTransactionVersion, 0);
+      assert.equal(options.maxSupportedTransactionVersion, 1);
       assert.equal(init?.redirect, "manual");
       return calls === 1
         ? Response.json({ result: { data: [], paginationToken: null } })
@@ -204,7 +204,12 @@ test("looping cursors, unsupported versions, ancient owner metadata and contradi
   const t = setup();
   try {
     const { id } = await beginSource(t.db, "c", wallet, t.cutoff);
-    for (const changed of [{ slot: 1 }, { version: 1 }, { blockTime: null }])
+    for (const changed of [
+      { slot: 1 },
+      { version: 1 },
+      { version: undefined },
+      { blockTime: null },
+    ])
       await assert.rejects(
         collectSource(t.db, id, {
           provider: "helius",
