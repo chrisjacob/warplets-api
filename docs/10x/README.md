@@ -11,3 +11,5 @@ See [VALIDATION.md](VALIDATION.md) for the released branch base, completed check
 The next integration adds [resumable evidence and daily operations](OPERATIONS.md), published score snapshots and an explicit correction workflow. Review the [participation packet and physical-wallet QA](RULES-REVIEW.md) before enabling a production rules version. Provider allowances for new sources remain zero until approved. The integration/review base is documented in [INTEGRATION.md](INTEGRATION.md).
 
 The separate [protocol feasibility lab](PROTOCOL-FEASIBILITY.md) pins the published Meteora SDK, constructs unsigned instructions offline, and records distributor compatibility gaps. It is excluded from application runtime imports. Successful program execution and an approved authority/distribution policy remain prerequisites for a complete funded cycle.
+
+See [DELIVERY-STATUS.md](DELIVERY-STATUS.md) for what is built versus the remaining gates, and the [production preparation/recovery draft](PRODUCTION-READINESS.md) for the later controlled activation sequence.
