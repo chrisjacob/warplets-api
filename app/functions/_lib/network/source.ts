@@ -27,7 +27,7 @@ export function decodeAcceptanceLogs(input: unknown): { events: AcceptanceEvent[
 }
 
 export async function networkFetchJson(url: string, init: RequestInit = {}, maxBytes = 2_000_000): Promise<unknown> {
-  const response = await fetch(url, { ...init, redirect: 'error', signal: AbortSignal.timeout(15_000),
+  const response = await fetch(url, { ...init, redirect: 'manual', signal: AbortSignal.timeout(15_000),
     headers: { 'user-agent': 'Mozilla/5.0', ...init.headers } });
   if (!response.ok) { await response.body?.cancel(); throw new Error(`Network source HTTP ${response.status}`); }
   if (!response.body) throw new Error('Empty source response');
