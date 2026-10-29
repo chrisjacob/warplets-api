@@ -13,7 +13,8 @@
     "build:worker": "wrangler deploy --dry-run --outdir .tmp/worker",
     "test": "tsx --test src/worker/*.test.ts src/shared/*.test.ts",
     "check": "pnpm boundary && pnpm typecheck && pnpm test && pnpm build && pnpm build:worker",
-    "boundary": "node scripts/check-boundaries.mjs"
+    "boundary": "node scripts/check-boundaries.mjs",
+    "operator": "node scripts/operator.mjs"
   },
   "dependencies": {
     "react": "19.2.5",
