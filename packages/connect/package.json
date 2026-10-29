@@ -1,0 +1,33 @@
+{
+  "name": "@10x/connect",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./*": "./src/*.ts",
+    "./WebConnectModal": "./src/WebConnectModal.tsx",
+    "./FarcasterSignInControl": "./src/FarcasterSignInControl.tsx",
+    "./TrustConnectBridge": "./src/TrustConnectBridge.tsx",
+    "./AppViewport": "./src/AppViewport.tsx"
+  },
+  "dependencies": {
+    "react": "19.2.5",
+    "react-dom": "19.2.5",
+    "@farcaster/auth-kit": "0.8.2",
+    "@farcaster/auth-client": "0.7.1",
+    "@base-org/account": "^2.5.8",
+    "viem": "^2.55.19",
+    "overlayscrollbars-react": "^0.5.6",
+    "overlayscrollbars": "^2.16.0",
+    "@floating-ui/react": "^0.27.19",
+    "@tanstack/react-query": "^5.101.4",
+    "@trustwallet/connect-eip155-react": "0.0.0",
+    "@trustwallet/connect-react": "0.0.0",
+    "@trustwallet/connect-walletconnect": "0.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "vite": "6.4.3"
+  }
+}

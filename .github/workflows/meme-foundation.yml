@@ -1,10 +1,11 @@
 name: Meme foundation
 on:
   push:
-    branches: [codex/10x-daily-launchpad]
+    branches: [codex/10x-daily-launchpad, 'codex/10x-*']
   pull_request:
     paths:
       - 'meme/**'
+      - 'packages/connect/**'
       - 'docs/10x/**'
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
@@ -28,5 +29,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Check isolated local foundation
         run: pnpm --dir meme check
+      - name: Shared Connect regressions
+        run: pnpm --dir app test
       - name: Verify existing production app stays separate
         run: pnpm --dir app build && pnpm --dir app release:check
