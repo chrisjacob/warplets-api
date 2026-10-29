@@ -19,6 +19,7 @@ export interface RoundView {
 }
 export interface LocalState {
   round: RoundView | null;
+  holdingComplete?: boolean;
   myVote?: {
     candidate_id: string;
     first_valid_at: number;
@@ -32,6 +33,7 @@ export interface LocalState {
     streak: string;
     points: string;
     finality: string;
+    holdingStatus?: string;
   };
   leaderboard?: { fid: number; points: string; rank: number }[];
   entitlements?: {
@@ -130,6 +132,12 @@ export function LocalRounds({
         <p>
           Connect Farcaster and verify a Solana reward wallet to vote. Base
           wallets are optional for Warplet boosts.
+        </p>
+      )}
+      {data?.holdingComplete === false && (
+        <p role="status">
+          Holding evidence is incomplete. Scores are provisional and settlement
+          is blocked.
         </p>
       )}
       <div className="candidates">
