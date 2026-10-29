@@ -42,6 +42,7 @@ export function IdentityPanel({
 }: {
   onIdentity: (identity: Identity | null) => void;
 }) {
+  const [role, setRole] = useState("reward");
   const [open, setOpen] = useState(false),
     [identity, setIdentity] = useState<Identity | null>(null),
     [error, setError] = useState<string | null>(null),
@@ -104,7 +105,7 @@ export function IdentityPanel({
       if (!account) throw Error("No Solana account returned");
       const challenge = await api("/api/auth/solana/challenge", {
         address: account.address,
-        role: "reward",
+        role,
       });
       const result = await signer.signMessage({
         account,
@@ -164,7 +165,18 @@ export function IdentityPanel({
         }
         extraWalletControls={
           <section className="web-connect-section">
-            <h3>Solana reward wallet</h3>
+            <h3>Solana wallets</h3>
+            <label>
+              Purpose{" "}
+              <select
+                aria-label="Solana wallet purpose"
+                value={role}
+                onChange={(e) => setRole(e.target.value)}
+              >
+                <option value="reward">Reward destination</option>
+                <option value="holding">Additional holding wallet</option>
+              </select>
+            </label>
             <p>
               A signed message verifies your destination. No transaction or
               funds are requested.
@@ -187,7 +199,11 @@ export function IdentityPanel({
               disabled={!identity?.farcasterFid || busy}
               onClick={() => void solana()}
             >
-              {busy ? "Verifying…" : "Verify reward wallet"}
+              {busy
+                ? "Verifying…"
+                : role === "reward"
+                  ? "Verify reward wallet"
+                  : "Verify holding wallet"}
             </button>
             <p>
               Base boosts: {identity?.baseWallets.length ?? 0} verified linked

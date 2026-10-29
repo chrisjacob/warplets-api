@@ -2,6 +2,7 @@ import { preview } from "../shared/fixtures";
 import { authRequest } from "./auth";
 import { roundsRequest } from "./rounds";
 import {cycleRequest} from './cycles';
+import {holdingRequest} from './holding';
 import { Problem, json as reply } from "./db";
 const json = (data: unknown, status = 200) =>
   Response.json(data, {
@@ -53,6 +54,7 @@ export default {
         return (
           (await authRequest(env.MEME_DB, request)) ??
           (await cycleRequest(env.MEME_DB, request)) ??
+          (await holdingRequest(env.MEME_DB, request)) ??
           (await roundsRequest(env.MEME_DB, request)) ??
           handleRequest(request)
         );

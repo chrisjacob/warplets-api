@@ -434,9 +434,12 @@ export async function vote(
     fid,
   );
   requireThat(wallet, 409, "Verify a Solana reward wallet first");
-  const existing = await one<{ reward_wallet: string }>(
+  const existing = await one<{
+      reward_wallet: string;
+      wallet_scope_hash: string;
+    }>(
       db,
-      "SELECT reward_wallet FROM meme_votes WHERE round_id=? AND fid=?",
+      "SELECT reward_wallet,wallet_scope_hash FROM meme_votes WHERE round_id=? AND fid=?",
       id,
       fid,
     ),
@@ -448,25 +451,51 @@ export async function vote(
     fid,
   );
   const baseWallets = JSON.parse(eligible?.wallets ?? "[]") as string[];
+  const holdingRows = existing
+    ? await rows<{ address: string }>(
+        db,
+        "SELECT address FROM meme_vote_wallets WHERE round_id=? AND fid=?",
+        id,
+        fid,
+      )
+    : await rows<{ address: string }>(
+        db,
+        "SELECT address FROM meme_wallet_links WHERE fid=? AND chain='solana' AND revoked_at IS NULL",
+        fid,
+      );
+  const holdingWallets = [
+    ...new Set([...holdingRows.map((w) => w.address), rewardWallet]),
+  ].sort();
+  const walletScopeHash =
+    existing?.wallet_scope_hash ?? (await sha(canonical(holdingWallets)));
   const statements = [
     db
       .prepare(
         "INSERT INTO meme_operations VALUES(?,(SELECT id FROM meme_rounds WHERE id=? AND state='open' AND opens_at<=? AND closes_at>?),?)",
       )
       .bind(op, id, now, now, hash),
-    ...[["solana", rewardWallet], ...baseWallets.map((w) => ["base", w])].map(
-      ([chain, address]) =>
-        db
-          .prepare(
-            "INSERT INTO meme_round_wallets VALUES(?,?,?,?) ON CONFLICT(round_id,chain,address) DO UPDATE SET fid=CASE WHEN fid=excluded.fid THEN fid ELSE NULL END",
-          )
-          .bind(id, chain, address, fid),
+    ...[
+      ...holdingWallets.map((w) => ["solana", w]),
+      ...baseWallets.map((w) => ["base", w]),
+    ].map(([chain, address]) =>
+      db
+        .prepare(
+          "INSERT INTO meme_round_wallets VALUES(?,?,?,?) ON CONFLICT(round_id,chain,address) DO UPDATE SET fid=CASE WHEN fid=excluded.fid THEN fid ELSE NULL END",
+        )
+        .bind(id, chain, address, fid),
     ),
     db
       .prepare(
-        "INSERT INTO meme_votes VALUES(?,?,?,?,?,?) ON CONFLICT(round_id,fid) DO UPDATE SET candidate_id=excluded.candidate_id,updated_at=MAX(updated_at,excluded.updated_at)",
+        "INSERT INTO meme_votes(round_id,fid,candidate_id,first_valid_at,updated_at,reward_wallet,wallet_scope_hash) VALUES(?,?,?,?,?,?,?) ON CONFLICT(round_id,fid) DO UPDATE SET candidate_id=excluded.candidate_id,updated_at=MAX(updated_at,excluded.updated_at)",
       )
-      .bind(id, fid, candidate, now, now, rewardWallet),
+      .bind(id, fid, candidate, now, now, rewardWallet, walletScopeHash),
+    ...holdingWallets.map((address) =>
+      db
+        .prepare(
+          "INSERT INTO meme_vote_wallets SELECT ?,?,? WHERE EXISTS(SELECT 1 FROM meme_votes WHERE round_id=? AND fid=? AND wallet_scope_hash=?) ON CONFLICT(round_id,fid,address) DO NOTHING",
+        )
+        .bind(id, fid, address, id, fid, walletScopeHash),
+    ),
     db
       .prepare(
         "INSERT INTO meme_audit(at,actor,action,subject,detail) VALUES(?,?,'vote',?,?)",

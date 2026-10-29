@@ -1,5 +1,6 @@
 import { one, rows, type Database } from "./db";
 import type { StoredRound } from "./rounds";
+import { holdingForRound } from "./holding";
 import {
   boost,
   streakLength,
@@ -13,6 +14,13 @@ export async function scoreRound(
   viewer: number | null,
   holding = new Map<number, bigint>(),
 ) {
+  const ledger = await holdingForRound(
+    db,
+    round.id,
+    Math.min(Date.now(), round.closes_at),
+    viewer,
+  );
+  if (holding.size === 0) holding = ledger.units;
   const current = await rows<{
     fid: number;
     candidate_id: string;
@@ -82,24 +90,27 @@ export async function scoreRound(
             base: own.base,
             total: own.total,
             warplet: own.warplet,
-            holding: own.holding,
+            holding:
+              viewer && ledger.pending.includes(viewer)
+                ? "pending"
+                : own.holding,
             streak: own.streak,
             points: own.points,
             finality: "provisional",
-            holdingStatus: "pending-ledger",
+            holdingStatus:
+              viewer && ledger.pending.includes(viewer) ? "pending" : "ready",
           }
         : null,
-      leaderboard: ranked
-        .slice(0, 100)
-        .map((r, i) => ({
-          fid: r.fid,
-          rank: i + 1,
-          points: r.score.points,
-          firstValidAt: r.firstValidAt,
-        })),
+      leaderboard: ranked.slice(0, 100).map((r, i) => ({
+        fid: r.fid,
+        rank: i + 1,
+        points: r.score.points,
+        firstValidAt: r.firstValidAt,
+      })),
       weightedVotes: Object.fromEntries(
         [...weights].map(([id, units]) => [id, decimal(units)]),
       ),
+      holdingComplete: ledger.complete,
     },
   };
 }
