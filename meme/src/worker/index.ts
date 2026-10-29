@@ -1,4 +1,6 @@
 import {preview} from '../shared/fixtures';
+import {authRequest} from './auth';
+import {Problem,json as reply} from './db';
 const json=(data:unknown,status=200)=>Response.json(data,{status,headers:{'cache-control':'no-store','x-content-type-options':'nosniff','x-robots-tag':'noindex, nofollow'}});
 export async function handleRequest(request:Request):Promise<Response>{
  const path=new URL(request.url).pathname;
@@ -8,5 +10,9 @@ export async function handleRequest(request:Request):Promise<Response>{
 }
 export default {async fetch(request:Request,env:Env):Promise<Response>{
  if(env.LOCAL_PREVIEW_ONLY!=='true')return json({error:'Local fixture preview is disabled'},404);
+ if(!['localhost','127.0.0.1','[::1]'].includes(new URL(request.url).hostname))return json({error:'Local application only'},404);
+ if(env.LOCAL_PARTICIPATION_ENABLED==='true'&&new URL(request.url).pathname.startsWith('/api/auth/')){
+  try{if(!['GET','HEAD'].includes(request.method)&&request.headers.get('origin')!==new URL(request.url).origin)return reply({error:'Origin mismatch'},403);return await authRequest(env.MEME_DB,request)??reply({error:'Not found'},404)}catch(error){return reply({error:error instanceof Problem?error.message:'Authentication could not complete'},error instanceof Problem?error.status:400)}
+ }
  return handleRequest(request);
 }} satisfies ExportedHandler<Env>;
