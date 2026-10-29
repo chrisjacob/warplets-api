@@ -21,8 +21,9 @@ for profile retries it checks every 15 minutes, rather than every minute; it
 still respects source cooldowns and daily/monthly request budgets. The wallet
 worker retries unexpected importer errors after 15 minutes and busy leases after
 one minute instead of permanently stopping. Failed balances keep their prior
-value. Alchemy remains capped at 1.5M CU/day, 10M CU/month and four RPC/s;
-Neynar's 100,000-credit monthly cap and shared request limits are unchanged.
+value. Alchemy remains capped at 1.5M CU/day, 10M CU/month and ten RPC/s;
+Neynar is now capped at 250,000 credits/month following confirmation of the
+account's 10M free allowance; shared request limits are unchanged.
 
 Local production deployment remains disabled. Native and preview-runtime checks
 cover the new format, historical reads, aggregate filters and live publication.

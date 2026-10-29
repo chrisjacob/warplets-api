@@ -5,12 +5,12 @@ interface CacheContext { request: Request; waitUntil(promise: Promise<unknown>):
 // Callers must check the serving flag and validate inputs before entering here.
 export async function cachedNetworkResponse(context: CacheContext, resource: string, selection: unknown, load: () => Promise<Response>, ttl = 60): Promise<Response> {
   const url = new URL(context.request.url);
-  url.pathname = `/__network_cache/v10/${resource}/${await sha256Hex(JSON.stringify(selection))}`;
+  url.pathname = `/__network_cache/v11/${resource}/${await sha256Hex(JSON.stringify(selection))}`;
   url.search = '';
   const key = new Request(url, { method: 'GET' });
   let cache: Cache | null = null;
   try {
-    cache = await caches.open('network-public-v10');
+    cache = await caches.open('network-public-v11');
     const hit = await cache.match(key);
     if (hit) { const response = new Response(hit.body, hit); response.headers.set('x-network-cache', 'HIT'); return response; }
   } catch { console.warn('network_cache_read_failed'); }

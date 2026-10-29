@@ -6,7 +6,7 @@ import { resolve } from 'node:path';
 import { advanceNetwork } from '../../app/functions/_lib/network/ingest';
 import { refreshNetworkCandidates } from '../../app/functions/_lib/network/ingest';
 import { publishSnapshot, type NetworkEnv } from '../../app/functions/_lib/network/store';
-import { importWalletAssociations, importWalletValue, type WalletEnv } from '../../app/functions/_lib/network/wallets';
+import { importWalletAssociations, importWalletBatch, type WalletEnv } from '../../app/functions/_lib/network/wallets';
 import { importNetworkActivity } from '../../app/functions/_lib/network/activity';
 const root = resolve(import.meta.dirname, '../..');
 const directory = resolve(root, 'app/.wrangler/state/v3/d1/miniflare-D1DatabaseObject');
@@ -22,9 +22,10 @@ db.exec(readFileSync(resolve(root, 'migrations/0099_network_alchemy.sql'), 'utf8
 db.exec(readFileSync(resolve(root, 'migrations/0100_network_geography.sql'), 'utf8'));
 db.exec(readFileSync(resolve(root, 'migrations/0101_network_geography_matching.sql'), 'utf8'));
 db.exec(readFileSync(resolve(root, 'migrations/0102_network_warplet_holders.sql'), 'utf8'));
+if(!(db.prepare('PRAGMA table_info(network_warplet_holders)').all() as {name:string}[]).some(c=>c.name==='token_id'))db.exec(readFileSync(resolve(root,'migrations/0103_network_warplet_images.sql'),'utf8'));
 // Local counterpart of D1's prepared statements and atomic batch. All changes
 // are restricted to network_* tables; unrelated migration state is untouched.
-let inBatch=false;
+let writeTail=Promise.resolve();
 async function waitForPublicRead(){
   // Workerd's emulator and Node SQLite share this file locally. Give a public
   // read a bounded window before the next write; no provider or production change.
@@ -34,19 +35,28 @@ async function waitForPublicRead(){
     await new Promise(resolve=>setTimeout(resolve,20));
   }
 }
+async function withLocalWrite<T>(work:()=>T):Promise<T>{
+  const previous=writeTail;let release!:()=>void;
+  writeTail=new Promise<void>(resolve=>{release=resolve;});
+  await previous;
+  try{await waitForPublicRead();return work();}finally{release();}
+}
 function prepare(sql: string) {
   let values: (string | number | null)[] = [];
+  const mutates=/^\s*(INSERT|UPDATE|DELETE|REPLACE)\b/i.test(sql);
+  const runSync=()=>{const r=db.prepare(sql).run(...values);return {success:true,results:[],meta:{changes:Number(r.changes)}};};
   return {
     bind(...args: (string | number | null)[]) { values = args; return this; },
-    async first(column?: string) { if(!inBatch&&/^\s*(INSERT|UPDATE|DELETE|REPLACE)\b/i.test(sql))await waitForPublicRead(); const row = db.prepare(sql).get(...values); return row ? column ? row[column] : row : null; },
-    async all() { if(!inBatch&&/^\s*(INSERT|UPDATE|DELETE|REPLACE)\b/i.test(sql))await waitForPublicRead(); return { success: true, results: db.prepare(sql).all(...values), meta: {} }; },
-    async run() { if(!inBatch)await waitForPublicRead(); const r = db.prepare(sql).run(...values); return { success: true, results: [], meta: { changes: Number(r.changes) } }; },
+    async first(column?: string) { const read=()=>{const row=db.prepare(sql).get(...values);return row?column?row[column]:row:null;};return mutates?withLocalWrite(read):read(); },
+    async all() { const read=()=>({success:true,results:db.prepare(sql).all(...values),meta:{}});return mutates?withLocalWrite(read):read(); },
+    async run() { return withLocalWrite(runSync); },
+    runSync,
   };
 }
-const d1 = { prepare, async batch(statements: ReturnType<typeof prepare>[]) { await waitForPublicRead(); db.exec('BEGIN IMMEDIATE'); inBatch=true; try { const results = []; for (const s of statements) results.push(await s.run()); db.exec('COMMIT'); return results; } catch (e) { db.exec('ROLLBACK'); throw e; } finally {inBatch=false;} } } as unknown as D1Database;
+const d1 = { prepare, async batch(statements: ReturnType<typeof prepare>[]) { return withLocalWrite(()=>{db.exec('BEGIN IMMEDIATE');try{const results=statements.map(s=>s.runSync());db.exec('COMMIT');return results;}catch(error){db.exec('ROLLBACK');throw error;}}); } } as unknown as D1Database;
 const secrets = { ...process.env };
 for (const file of ['.dev.vars','app/.dev.vars']) { try { for (const line of readFileSync(resolve(root,file),'utf8').split(/\r?\n/)) { const match=line.match(/^([A-Z][A-Z0-9_]*)\s*=\s*(.*)$/); if(match&&!secrets[match[1]]) secrets[match[1]]=match[2].trim().replace(/^(["'])(.*)\1$/,'$2'); } } catch {} }
-const env: WalletEnv = { WARPLETS: d1, NETWORK_INGEST_ENABLED: 'true', NETWORK_RPC_URL: process.env.NETWORK_RPC_URL ?? 'https://1rpc.io/base', ALCHEMY_API_KEY: secrets.ALCHEMY_API_KEY, NETWORK_ALCHEMY_CU: secrets.NETWORK_ALCHEMY_CU, NEYNAR_API_KEY: secrets.NEYNAR_API_KEY, NETWORK_WALLET_CREDITS: secrets.NETWORK_WALLET_CREDITS, NETWORK_WALLETS_ENABLED: secrets.NETWORK_WALLETS_ENABLED,
+const env: WalletEnv = { WARPLETS: d1, NETWORK_INGEST_ENABLED: 'true', NETWORK_RPC_URL: process.env.NETWORK_RPC_URL ?? 'https://1rpc.io/base', ALCHEMY_API_KEY: secrets.ALCHEMY_API_KEY, NETWORK_ALCHEMY_CU: secrets.NETWORK_ALCHEMY_CU, NETWORK_ALCHEMY_CU_PER_DAY: secrets.NETWORK_ALCHEMY_CU_PER_DAY, NEYNAR_API_KEY: secrets.NEYNAR_API_KEY, NETWORK_WALLET_CREDITS: secrets.NETWORK_WALLET_CREDITS, NETWORK_WALLETS_ENABLED: secrets.NETWORK_WALLETS_ENABLED,
   NETWORK_REQUESTS_PER_DAY: secrets.NETWORK_REQUESTS_PER_DAY, NETWORK_REQUESTS_PER_MONTH: secrets.NETWORK_REQUESTS_PER_MONTH, NETWORK_SCAN_BATCH: '50', NETWORK_PROFILE_BATCH: '100' };
 const flag = (name: string) => process.argv.includes(name);
 const count = Number(process.argv.find(a => a.startsWith('--steps='))?.split('=')[1] ?? 1);
@@ -56,12 +66,13 @@ try {
   if (flag('--wallet-addresses')) { for (let i=0;i<count;i++) { const saved=await importWalletAssociations(env); console.log(JSON.stringify({step:i+1,associationFids:saved})); if (!saved) break; await new Promise(r=>setTimeout(r,250)); } console.log(JSON.stringify(db.prepare('SELECT COUNT(*) AS links,COUNT(DISTINCT address) AS uniqueWallets,COUNT(DISTINCT fid) AS withWallets FROM network_wallet_links').get())); }
   else if (flag('--wallet-values')) {
     try {
-      for(let i=0;i<count;i++) {
-        const result=await importWalletValue(env);
-        if(i%10===0 || ['complete','cooldown','busy','waiting'].includes(result.status)) console.log(JSON.stringify({step:i+1,...result}));
-        if(['complete','cooldown','busy','waiting'].includes(result.status)) break;
-        if(i%100===99) await publishSnapshot(d1);
-        await new Promise(r=>setTimeout(r,300));
+      let processed=0;
+      while(processed<count){
+        const batch=await importWalletBatch(env,Math.min(25,count-processed),4);
+        if(!('results' in batch)||!batch.results.length){console.log(JSON.stringify({step:processed+1,status:batch.status}));break;}
+        for(const result of batch.results){processed++;if(processed%10===1||result.status!=='valued')console.log(JSON.stringify({step:processed,...result}));}
+        await publishSnapshot(d1);
+        if(batch.status!=='advanced')break;
       }
     } finally { await publishSnapshot(d1,true); }
     console.log(JSON.stringify(db.prepare('SELECT COUNT(*) AS measuredWallets,SUM(excluded) AS excludedBalances FROM network_wallet_values').get()));

@@ -114,7 +114,18 @@ try {
   assert.equal(await evaluate(`document.querySelector('.network-kpis strong').textContent`),holders.population.toLocaleString('en-US'));
   assert.equal(await evaluate(`document.querySelector('.network-member-tools p').textContent`),holderMembers.total.toLocaleString('en-US')+' members');
 
+  assert.ok(holderMembers.members.every(m=>Number.isSafeInteger(m.warpletTokenId)),'Cached portraits accompany holder member data');
+  const portraitUrls=holderMembers.members.map(m=>`https://warplets.10x.meme/${m.warpletTokenId}.avif`);
+  assert.deepEqual(await evaluate(`Array.from(document.querySelectorAll('.network-member img')).map(img=>img.src)`),portraitUrls,'Holder filter uses mapped Warplet AVIF portraits');
+  await evaluate(`document.querySelector('#network-members').scrollIntoView({block:'start'})`);
+  await until(`document.querySelector('.network-member img')?.naturalWidth>0`);
   await screenshot('warplet-holders-desktop.png');
+  const originalAvatar=holderMembers.members[0].avatarUrl;
+  if(originalAvatar){
+    await evaluate(`document.querySelector('.network-member img').dispatchEvent(new Event('error'))`);
+    await until(`document.querySelector('.network-member img')?.src===${JSON.stringify(originalAvatar)}`);
+  }
+
   await clear();
   await until(`!location.search&&!document.querySelector('[aria-busy="true"]')`);
   const walletData = await (await fetch(origin + '/api/network/dashboard')).json();

@@ -93,3 +93,57 @@ body:has(.network-location-modal[open]){overflow:hidden}
 @media(max-width:760px),(pointer:coarse){
   .network-app .network-select-popup input,.network-app .network-member-tools input{font-size:16px}
 }
+
+.network-header .network-location-cta{min-height:32px;height:32px;padding:0 12px}
+
+.network-header{height:80px}
+.network-brand img{width:64px;height:64px}
+@media(min-width:761px){
+  .network-app{font-size:16px}
+  .network-intro p{font-size:16px}
+  .network-kpis label{font-size:12px}
+  .network-kpis article>small{font-size:13px}
+  .network-filter-fields>label{font-size:13px}
+  .network-select,.network-map-options .network-select{font-size:14px}
+  .network-select-popup input{font-size:16px}
+  .network-map-options .network-select{width:135px}
+  .network-main-grid{grid-template-columns:360px minmax(0,1fr);align-items:stretch}
+  .network-leaderboard{contain:size;display:flex;flex-direction:column;min-height:0}
+  .network-leaderboard>.network-panel-head,.network-rank-controls{flex-shrink:0}
+  .network-rank-list{height:0;min-height:0;max-height:none;flex:1;overflow-y:auto}
+  .network-tabs{gap:14px}
+  .network-tabs button{font-size:13px}
+  .network-rank-name{font-size:14px}
+  .network-rank-number{font-size:12px}
+  .network-rank-value{font-size:16px}
+  .network-rank-value small{font-size:12px}
+  .network-geo-breadcrumb,.network-map-key{font-size:13px}
+  .network-map-footer span{font-size:11px}
+  .network-map-footer strong{font-size:24px}
+  .network-map-tooltip strong,.network-map-tooltip span{font-size:13px}
+  .network-map-tools button{font-size:13px}
+  .network-chips button{font-size:13px}
+  .network-panel-head h2{font-size:20px}
+  .network-panel-head>span,.network-about>summary>span{font-size:12px}
+  .network-member-tools input{font-size:16px}
+  .network-member-tools p,.network-member-pagination{font-size:13px}
+  .network-member-name strong{font-size:15px}
+  .network-member-name>span,.network-member-name>.network-member-meta{font-size:13px}
+  .network-month{font-size:14px}
+  .network-month small{font-size:12px}
+  .network-progress-legend{font-size:13px}
+  .network-progress details,.network-about,.network-methodology p,.network-note{font-size:14px}
+  .network-trend text{font-size:12px}
+  .network-footer{font-size:13px}
+  .network-wallet-metrics small{font-size:12px}
+  .network-header .network-location-cta{font-size:13px}
+}
+@media(min-width:761px) and (max-width:1100px){
+  .network-main-grid{grid-template-columns:340px minmax(0,1fr)}
+  .network-tabs{gap:10px}
+  .network-map-options .network-select{width:120px}
+}
+@media(max-width:760px){
+  .network-header{height:64px}
+  .network-brand img{width:52px;height:52px}
+}

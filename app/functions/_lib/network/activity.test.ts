@@ -49,7 +49,7 @@ describe('Man-Months',()=>{
  it('saves one positive month, skips signing-month API reads, and respects the shared cap',async()=>{
   const db=new DatabaseSync(':memory:');
   try{
-   for(const file of ['0095_network.sql','0096_network_members.sql','0097_network_wallets.sql','0098_network_activity.sql','0099_network_alchemy.sql','0100_network_geography.sql','0101_network_geography_matching.sql','0102_network_warplet_holders.sql'])db.exec(readFileSync(new URL(`../../../../migrations/${file}`,import.meta.url),'utf8'));
+   for(const file of ['0095_network.sql','0096_network_members.sql','0097_network_wallets.sql','0098_network_activity.sql','0099_network_alchemy.sql','0100_network_geography.sql','0101_network_geography_matching.sql','0102_network_warplet_holders.sql','0103_network_warplet_images.sql'])db.exec(readFileSync(new URL(`../../../../migrations/${file}`,import.meta.url),'utf8'));
    db.prepare('INSERT INTO network_events VALUES(?,?,?,?,?,?,?,?)').run('tx',1,1,'block',Date.parse('2026-10-17'),7,'address',now);
    db.exec("INSERT INTO network_profiles(fid,location_status,token_status,opt_in_status,observed_at) VALUES(7,'unknown','none','opted_in',1)");
    const env={WARPLETS:sqliteD1(db),NEYNAR_API_KEY:'test',NETWORK_WALLET_CREDITS:'200'};

@@ -11,7 +11,7 @@ process.on('SIGINT',()=>{stopping=true;child?.kill();wake?.();});
 await writeFile(resolve(root,'.tmp/network-wallet-worker.pid'),String(process.pid));
 while(!stopping){
  let lastStatus='',failure='';
- log({event:'batch_started',wallets:1000,provider:'alchemy'});
+ log({event:'batch_started',wallets:1000,provider:'alchemy',concurrency:4,maxRequestsPerSecond:10});
  const code=await new Promise((resolveExit,reject)=>{
   child=spawn(process.execPath,[resolve(root,'node_modules/tsx/dist/cli.mjs'),resolve(root,'scripts/network/local.ts'),'--wallet-values','--alchemy','--steps=1000'],{cwd:root,env:{...process.env,WRANGLER_SEND_METRICS:'false'},windowsHide:true,stdio:['ignore','pipe','pipe']});
   let stdout='';

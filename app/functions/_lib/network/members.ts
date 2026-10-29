@@ -3,7 +3,7 @@ import { parseNetworkFilters, validateNetworkParams } from '../../../shared/netw
 import { acceptedQuote, decimalScale, NATIVE_ASSET, type PricedPosition } from './wallets';
 import { networkIdentity } from '../../../shared/network/normalize';
 
-export interface NetworkMember { fid: number; username: string | null; displayName: string | null; avatarUrl: string | null; profileUrl: string; observedAt: number | null; source: string | null; location: string | null; wallet: { status: 'measured' | 'partial' | 'pending' | 'shared' | 'no-wallet'; usd: string | null; measured: number; expected: number; observedAt: number | null; stale: boolean } }
+export interface NetworkMember { fid: number; username: string | null; displayName: string | null; avatarUrl: string | null; warpletTokenId: number | null; profileUrl: string; observedAt: number | null; source: string | null; location: string | null; wallet: { status: 'measured' | 'partial' | 'pending' | 'shared' | 'no-wallet'; usd: string | null; measured: number; expected: number; observedAt: number | null; stale: boolean } }
 export interface NetworkMembers { members: NetworkMember[]; total: number; next: number | null }
 
 export function memberQuery(params: URLSearchParams) {
@@ -42,10 +42,11 @@ export async function readNetworkMembers(db: D1Database, params: URLSearchParams
   const ids=await db.prepare(`SELECT c.fid ${query.from} AND c.fid>? ORDER BY c.fid LIMIT 25`).bind(...query.values,query.after).all<{fid:number}>();
   // Page before joining geographic names; large global joins needlessly sort
   // the entire cohort and can exhaust the local runtime's query resources.
-  const result=await db.prepare(`SELECT c.fid,m.username,m.display_name AS displayName,m.avatar_url AS avatarUrl,m.observed_at AS observedAt,m.source,p.country,gs.name AS stateName,gc.name AS cityName
+  const result=await db.prepare(`SELECT c.fid,m.username,m.display_name AS displayName,m.avatar_url AS avatarUrl,w.token_id AS warpletTokenId,m.observed_at AS observedAt,m.source,p.country,gs.name AS stateName,gc.name AS cityName
     FROM (SELECT value AS fid FROM json_each(?)) c LEFT JOIN network_profiles p ON p.fid=c.fid
     LEFT JOIN network_profile_locations g ON g.fid=c.fid AND g.country=p.country
     LEFT JOIN network_member_profiles m ON m.fid=c.fid
+    LEFT JOIN network_warplet_holders w ON w.fid=c.fid
     LEFT JOIN network_geo_states gs ON gs.id=g.state LEFT JOIN network_geo_cities gc ON gc.id=g.city ORDER BY c.fid`)
     .bind(JSON.stringify(ids.results.slice(0,24).map(row=>row.fid))).all<NetworkMember & {country:string|null;stateName:string|null;cityName:string|null}>();
   const page = result.results;

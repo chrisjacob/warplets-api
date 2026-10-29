@@ -12,8 +12,9 @@ export async function refreshNetworkWarplets(db:D1Database):Promise<{summary:Net
   const identities=new Map<string,Set<number>>();
   for(const row of [...cached,...verified.results]){const wallet=address(row.wallet),id=fid(row.fid);if(wallet&&id){const ids=identities.get(wallet)??new Set<number>();ids.add(id);identities.set(wallet,ids);}}
   const market=new Map(current.results.map(row=>[row.token_id,row]));
-  const counts=new Map<number,number>();let resolved=0,updated:number|null=null;
+  const counts=new Map<number,number>(),images=new Map<number,{token:number;original:boolean}>();let resolved=0,updated:number|null=null;
   for(const token of metadata.results){
+    if(!Number.isSafeInteger(token.token_id)||token.token_id<0)continue;
     const row=market.get(token.token_id),originalWallet=address(token.warplet_wallet);
     // An observed transfer/burn/unknown current owner must never resurrect the
     // original recipient. Only untouched allocation rows can use that fallback.
@@ -27,11 +28,13 @@ export async function refreshNetworkWarplets(db:D1Database):Promise<{summary:Net
     if(wallet===originalWallet){const originalFid=fid(token.fid_value);if(originalFid)ids.add(originalFid);}
     if(ids.size!==1)continue;
     const id=[...ids][0];counts.set(id,(counts.get(id)??0)+1);resolved++;
+    const original=fid(token.fid_value)===id,previous=images.get(id);
+    if(!previous||original&&!previous.original||original===previous.original&&token.token_id<previous.token)images.set(id,{token:token.token_id,original});
   }
   // Publish a derived index atomically; never mutate or refresh Warplets data.
   await db.batch([
     db.prepare('DELETE FROM network_warplet_holders'),
-    db.prepare("INSERT INTO network_warplet_holders(fid,token_count,calculated_at) SELECT json_extract(value,'$[0]'),json_extract(value,'$[1]'),? FROM json_each(?)").bind(at,JSON.stringify([...counts])),
+    db.prepare("INSERT INTO network_warplet_holders(fid,token_count,calculated_at,token_id) SELECT json_extract(value,'$[0]'),json_extract(value,'$[1]'),?,json_extract(value,'$[2]') FROM json_each(?)").bind(at,JSON.stringify([...counts].map(([id,count])=>[id,count,images.get(id)!.token]))),
   ]);
   return {holders:new Set(counts.keys()),summary:{status:'ready',calculatedAt:at,sourceUpdatedAt:updated,tokens:metadata.results.length,resolvedTokens:resolved,unresolvedTokens:metadata.results.length-resolved,holderFids:counts.size}};
 }

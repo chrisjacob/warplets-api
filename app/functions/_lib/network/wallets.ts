@@ -24,7 +24,7 @@ export function acceptedQuote(value: unknown, asset: string, now = Date.now()): 
 }
 export async function neynarRead(env: WalletEnv, path: string, maximumCredits: number, target: 'api' | 'snapchain' = 'api') {
   if (!env.NEYNAR_API_KEY) throw Error('Existing Neynar key is required');
-  const limit = bounded(env.NETWORK_WALLET_CREDITS, 100_000, 10_000_000);
+  const limit = bounded(env.NETWORK_WALLET_CREDITS, 250_000, 250_000);
   const month = new Date().toISOString().slice(0, 7);
   const reserved = await env.WARPLETS.prepare(`INSERT INTO network_credit_budgets(month,reserved) SELECT ?,? WHERE ?<=?
     ON CONFLICT(month) DO UPDATE SET reserved=network_credit_budgets.reserved+excluded.reserved WHERE network_credit_budgets.reserved+excluded.reserved<=? RETURNING reserved`)
@@ -83,11 +83,16 @@ export function priceBalances(rows: Balance[], quotes: Map<string,unknown>, now 
   }
   return {positions,excluded,usdUnits:positions.reduce((sum,p)=>sum+BigInt(p.usdUnits),0n).toString()};
 }
-async function valueNextWallet(env: WalletEnv) {
+async function walletCandidates(env:WalletEnv,limit:number){
+  const legacy=env.ALCHEMY_API_KEY?"v.address IS NOT NULL AND v.source<>'alchemy-base+defillama'":'0';
+  const rows=await env.WARPLETS.prepare(`SELECT l.address FROM network_wallet_links l JOIN (${NETWORK_CURRENT_COHORT}) c ON c.fid=l.fid LEFT JOIN network_wallet_values v ON v.address=l.address LEFT JOIN network_wallet_retries r ON r.address=l.address
+    WHERE (v.address IS NULL OR v.observed_at<? OR (${legacy})) AND (r.address IS NULL OR r.retry_after<?) GROUP BY l.address ORDER BY CASE WHEN (${legacy}) THEN 0 ELSE 1 END,(v.address IS NULL) DESC,COALESCE(v.observed_at,0),MIN(l.fid),l.address LIMIT ?`).bind(Date.now()-(env.ALCHEMY_API_KEY?7:1)*86_400_000,Date.now(),limit).all<{address:string}>();
+  return rows.results;
+}
+async function valueNextWallet(env: WalletEnv,selectedAddress?:string) {
   if (await syncGet(env.WARPLETS,'wallet_cooldown',0)>Date.now()) return {status:'cooldown'};
   const legacy=env.ALCHEMY_API_KEY?"v.address IS NOT NULL AND v.source<>'alchemy-base+defillama'":'0';
-  const row=await env.WARPLETS.prepare(`SELECT l.address FROM network_wallet_links l JOIN (${NETWORK_CURRENT_COHORT}) c ON c.fid=l.fid LEFT JOIN network_wallet_values v ON v.address=l.address LEFT JOIN network_wallet_retries r ON r.address=l.address
-    WHERE (v.address IS NULL OR v.observed_at<? OR (${legacy})) AND (r.address IS NULL OR r.retry_after<?) GROUP BY l.address ORDER BY CASE WHEN (${legacy}) THEN 0 ELSE 1 END,(v.address IS NULL) DESC,COALESCE(v.observed_at,0),MIN(l.fid),l.address LIMIT 1`).bind(Date.now()-(env.ALCHEMY_API_KEY?7:1)*86_400_000,Date.now()).first<{address:string}>();
+  const row=selectedAddress?{address:selectedAddress}:(await walletCandidates(env,1))[0];
   if (!row) {
     const remaining=await env.WARPLETS.prepare(`SELECT COUNT(DISTINCT l.address) n FROM network_wallet_links l JOIN (${NETWORK_CURRENT_COHORT}) c ON c.fid=l.fid LEFT JOIN network_wallet_values v ON v.address=l.address WHERE v.address IS NULL OR v.observed_at<? OR (${legacy})`).bind(Date.now()-(env.ALCHEMY_API_KEY?7:1)*86_400_000).first<{n:number}>();
     return {status:remaining?.n?'waiting':'complete'};
@@ -135,11 +140,35 @@ async function valueNextWallet(env: WalletEnv) {
     return {status:'retry',reason:/^(Invalid Alchemy|Duplicate Alchemy|Alchemy pagination|Priced Alchemy)/.test(message)?message:'Source read failed; retry deferred'};
   }
 }
-export async function importWalletValue(env: WalletEnv) {
+async function withWalletValueLease<T>(env:WalletEnv,work:()=>Promise<T>) {
   const owner=crypto.randomUUID(),now=Date.now();
   const lease=await env.WARPLETS.prepare(`INSERT INTO network_leases(name,owner,expires_at) VALUES('wallet-values',?,?) ON CONFLICT(name) DO UPDATE SET owner=excluded.owner,expires_at=excluded.expires_at WHERE network_leases.expires_at<? RETURNING owner`).bind(owner,now+1_800_000,now).first<{owner:string}>();
   if(lease?.owner!==owner)return {status:'busy'};
-  try{return await valueNextWallet(env);}finally{await env.WARPLETS.prepare("DELETE FROM network_leases WHERE name='wallet-values' AND owner=?").bind(owner).run();}
+  try{return await work();}finally{await env.WARPLETS.prepare("DELETE FROM network_leases WHERE name='wallet-values' AND owner=?").bind(owner).run();}
+}
+export async function importWalletValue(env:WalletEnv){return withWalletValueLease(env,()=>valueNextWallet(env));}
+
+// A bounded local backfill batch shares the same lease as single-wallet jobs.
+// Candidates are deduplicated once; all in-flight readers settle before releasing
+// the lease, including after a budget or provider failure.
+export async function importWalletBatch(env:WalletEnv,limit=25,concurrency=4){
+  if(!Number.isSafeInteger(limit)||limit<1||limit>25||!Number.isSafeInteger(concurrency)||concurrency<1||concurrency>4)throw Error('Invalid wallet batch');
+  return withWalletValueLease(env,async()=>{
+    if(await syncGet(env.WARPLETS,'wallet_cooldown',0)>Date.now())return {status:'cooldown',results:[]};
+    const rows=await walletCandidates(env,limit);
+    if(!rows.length)return {status:(await valueNextWallet(env)).status,results:[]};
+    let next=0,failed=false;let failure:unknown;
+    const results:Awaited<ReturnType<typeof valueNextWallet>>[]=[];
+    await Promise.all(Array.from({length:Math.min(env.ALCHEMY_API_KEY?concurrency:1,rows.length)},async()=>{
+      while(!failed&&next<rows.length){
+        const row=rows[next++];
+        try{const result=await valueNextWallet(env,row.address);results.push(result);if(result.status==='cooldown')failed=true;}
+        catch(error){failed=true;failure??=error;}
+      }
+    }));
+    if(failure)throw failure;
+    return {status:failed?'cooldown':'advanced',results};
+  });
 }
 export async function importWalletAssociations(env: WalletEnv, batch = 100) {
   if(await syncGet(env.WARPLETS,'wallet_cooldown',0)>Date.now())return 0;

@@ -6,7 +6,7 @@ import { NETWORK_OG_LAST_FID, NETWORK_DEPLOY_BLOCK, type NetworkCell, type Netwo
 import type { NetworkProfile } from '../../../shared/network/normalize';
 import type { AcceptanceEvent } from './source';
 import { mergeWalletCells, walletSnapshot } from './walletSnapshot';
-export interface NetworkEnv { ALCHEMY_API_KEY?: string; NETWORK_ALCHEMY_CU?: string; WARPLETS: D1Database; WARPLETS_KV?: KVNamespace; NETWORK_ENABLED?: string; NETWORK_INGEST_ENABLED?: string; NETWORK_RPC_URL?: string; BASE_RPC_URL?: string; NETWORK_PROFILE_BATCH?: string; NETWORK_SCAN_BATCH?: string; NETWORK_REQUESTS_PER_DAY?: string; NETWORK_REQUESTS_PER_MONTH?: string; NETWORK_PROFILE_REFRESH_HOURS?: string; NETWORK_WALLETS_ENABLED?: string; NEYNAR_API_KEY?: string; NETWORK_WALLET_CREDITS?: string }
+export interface NetworkEnv { ALCHEMY_API_KEY?: string; NETWORK_ALCHEMY_CU?: string; NETWORK_ALCHEMY_CU_PER_DAY?: string; WARPLETS: D1Database; WARPLETS_KV?: KVNamespace; NETWORK_ENABLED?: string; NETWORK_INGEST_ENABLED?: string; NETWORK_RPC_URL?: string; BASE_RPC_URL?: string; NETWORK_PROFILE_BATCH?: string; NETWORK_SCAN_BATCH?: string; NETWORK_REQUESTS_PER_DAY?: string; NETWORK_REQUESTS_PER_MONTH?: string; NETWORK_PROFILE_REFRESH_HOURS?: string; NETWORK_WALLETS_ENABLED?: string; NEYNAR_API_KEY?: string; NETWORK_WALLET_CREDITS?: string }
 export function bounded(value: string | undefined, fallback: number, maximum: number) { const n = Number(value); return Number.isSafeInteger(n) && n > 0 ? Math.min(n, maximum) : fallback; }
 export async function syncGet<T>(db: D1Database, key: string, fallback: T): Promise<T> {
   const row = await db.prepare('SELECT value FROM network_sync WHERE key=?').bind(key).first<{ value: string }>();
@@ -17,7 +17,7 @@ export async function syncSet(db: D1Database, key: string, value: unknown) {
 }
 export async function reserveRequest(env: NetworkEnv, provider: string) {
   const day = new Date().toISOString().slice(0, 10), month = day.slice(0, 7);
-  const daily = bounded(env.NETWORK_REQUESTS_PER_DAY, 100_000, 100_000), monthly = bounded(env.NETWORK_REQUESTS_PER_MONTH, 600_000, 1_000_000);
+  const daily = bounded(env.NETWORK_REQUESTS_PER_DAY, 100_000, 250_000), monthly = bounded(env.NETWORK_REQUESTS_PER_MONTH, 600_000, 1_000_000);
   const row = await env.WARPLETS.prepare(`INSERT INTO network_budgets(day,provider,attempts)
     SELECT ?,?,1 WHERE COALESCE((SELECT SUM(attempts) FROM network_budgets WHERE day=?),0)<? AND COALESCE((SELECT SUM(attempts) FROM network_budgets WHERE substr(day,1,7)=?),0)<?
     ON CONFLICT(day,provider) DO UPDATE SET attempts=network_budgets.attempts+1
