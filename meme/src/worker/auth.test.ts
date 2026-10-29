@@ -129,6 +129,37 @@ test("Solana proof binds FID, origin, role and session, consumes once and preser
       t.raw.prepare("SELECT count(*) n FROM meme_nonce_uses").get()?.n,
       1,
     );
+    const holdingChallenge = (await (await authRequest(
+      t.db,
+      request(
+        "/api/auth/solana/challenge",
+        { address, role: "holding" },
+        cookie,
+      ),
+    ))!.json()) as { nonce: string; message: string };
+    const holdingSignature = encode58(
+      new Uint8Array(
+        await crypto.subtle.sign(
+          "Ed25519",
+          key.privateKey,
+          new TextEncoder().encode(holdingChallenge.message),
+        ),
+      ),
+    );
+    await authRequest(
+      t.db,
+      request(
+        "/api/auth/solana/verify",
+        { nonce: holdingChallenge.nonce, signature: holdingSignature },
+        cookie,
+      ),
+    );
+    assert.equal(
+      (await sessionView(t.db, request("/api/auth/session", undefined, cookie)))
+        .solanaWallet,
+      address,
+      "Adding the same holding wallet must preserve its active reward role",
+    );
   } finally {
     t.close();
   }
