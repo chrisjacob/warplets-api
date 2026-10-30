@@ -52,6 +52,15 @@ function dpapi(action, input) {
     throw Error("Windows wallet protection failed; no secret details logged");
   return result.stdout;
 }
+// In-memory only. There is deliberately no plaintext-export CLI or HTTP handler.
+export function readProtectedMaterial(directory) {
+  const target = requireOutsideRepository(
+    realpathSync(requireOutsideRepository(directory)),
+  );
+  return JSON.parse(
+    dpapi("unprotect", readFileSync(resolve(target, "wallets.dpapi"), "utf8")),
+  );
+}
 export function requireOutsideRepository(directory) {
   const absolute = resolve(directory);
   let cursor = absolute;
@@ -63,6 +72,9 @@ export function requireOutsideRepository(directory) {
   return absolute;
 }
 export function initializeVault(directory) {
+  return protectWalletMaterial(directory, createWalletMaterial());
+}
+export function protectWalletMaterial(directory, material) {
   const target = requireOutsideRepository(directory);
   mkdirSync(target, { recursive: true, mode: 0o700 });
   requireOutsideRepository(realpathSync(target));
@@ -70,8 +82,7 @@ export function initializeVault(directory) {
     backup = resolve(target, "wallets.backup.dpapi");
   if (existsSync(vault) || existsSync(backup))
     throw Error("Vault exists; refusing to replace QA keys");
-  const material = createWalletMaterial(),
-    addresses = publicWallets(material);
+  const addresses = publicWallets(material);
   const ciphertext = dpapi("protect", JSON.stringify(material));
   writeFileSync(vault, ciphertext, { flag: "wx", mode: 0o600 });
   copyFileSync(vault, backup, 1);

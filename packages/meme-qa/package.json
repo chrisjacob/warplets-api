@@ -15,6 +15,7 @@
     "capture": "node src/capture.mjs",
     "fees": "node src/fee-quote.mjs",
     "accounts": "node src/accounts.mjs",
+    "gateway": "node src/gateway.mjs",
     "check": "pnpm test && pnpm report"
   },
   "devDependencies": {
