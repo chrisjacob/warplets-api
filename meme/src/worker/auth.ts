@@ -540,6 +540,12 @@ export async function authRequest(
       siwe = parseSiweMessage(message);
     const c = await challenge(db, request, text(siwe.nonce, "nonce"), "base"),
       address = siwe.address?.toLowerCase();
+    const active = await session(db, request);
+    requireThat(
+      c.session_hash === (active?.token_hash ?? null),
+      401,
+      "Account changed. Restart wallet sign-in.",
+    );
     requireThat(
       address &&
         /^0x[0-9a-f]{40}$/.test(address) &&
