@@ -9,7 +9,7 @@
     "wallets": "node src/wallets.mjs",
     "report": "node src/report.mjs",
     "test:browser": "playwright test",
-    "test:chains": "node --test chains/*.test.mjs",
+    "test:chains": "node ../../meme/node_modules/tsx/dist/cli.mjs --test chains/*.test.mjs chains/*.test.ts",
     "capture": "node src/capture.mjs",
     "check": "pnpm test && pnpm report"
   },
