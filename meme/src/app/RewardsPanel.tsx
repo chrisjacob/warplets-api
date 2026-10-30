@@ -24,6 +24,11 @@ export default function RewardsPanel({ fid }: { fid: number }) {
           Refresh
         </button>
       </div>
+      {page.hasMore && (
+        <p className="fine">
+          Totals below cover loaded campaigns. Load older rewards to see more.
+        </p>
+      )}
       {totals.map((e) => (
         <article
           className="reward-row"

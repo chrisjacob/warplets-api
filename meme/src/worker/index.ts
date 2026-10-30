@@ -12,6 +12,7 @@ import { readPagesRequest } from "./readPages";
 import { readinessRequest } from "./readiness";
 import { marketRequest } from "./markets";
 import { packetsRequest } from "./packets";
+import { tradingRequest } from "./trading";
 import { requireUnpaused } from "./controls";
 import { Problem, json as reply } from "./db";
 import { securityHeaders } from "../shared/securityHeaders";
@@ -101,6 +102,7 @@ export default {
           (await authRequest(env.MEME_DB, request)) ??
           (await readinessRequest(env.MEME_DB, request)) ??
           (await marketRequest(env.MEME_DB, request)) ??
+          (await tradingRequest(env.MEME_DB, request)) ??
           (await packetsRequest(env.MEME_DB, request)) ??
           (await readPagesRequest(env.MEME_DB, request)) ??
           (await transactionsRequest(env.MEME_DB, request)) ??

@@ -238,6 +238,21 @@ if (command === "init") {
       }),
     );
   }
+} else if (command === "trading-import" || command === "trading-publish") {
+  let body;
+  if (command === "trading-import") {
+    const bytes = readFileSync(resolve(args[0] ?? ""));
+    if (bytes.length > 262144) throw Error("Trading source exceeds 256 KiB");
+    body = {
+      action: "import",
+      source: JSON.parse(bytes.toString("utf8")),
+      parentId: args[1] === "none" ? null : args[1],
+      reason: args[2],
+    };
+  } else body = { action: "publish", asOf: Number(args[0]) };
+  console.log(
+    JSON.stringify(await send("/api/meme/operator/trading", body), null, 2),
+  );
 } else if (command === "packet-attach" || command === "packet-status") {
   if (!/^tx:[a-f0-9]{64}$/.test(args[0] ?? ""))
     throw Error("Provide the immutable transaction intent id");

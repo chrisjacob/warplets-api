@@ -6,6 +6,7 @@ import { testDb } from "../../../meme/src/worker/testDb";
 import { sha } from "../../../meme/src/worker/db";
 import { advance } from "../../../meme/src/worker/rounds";
 import { seedReadArchive } from "../load/readArchive";
+import { seedMarkets } from "./marketFixtures";
 if (process.env.MEME_QA_HARNESS !== "local-disposable")
   throw Error("Explicit disposable harness flag required");
 const origin = "http://127.0.0.1:5196";
@@ -77,6 +78,7 @@ const server = createServer(async (req, res) => {
         token = randomUUID();
         operator = randomUUID();
         const now = Date.now();
+        await seedMarkets(storage.db, now);
         // External Farcaster assertion is substituted here only; wallet proofs use real cryptography.
         storage.raw
           .prepare("INSERT INTO meme_sessions VALUES(?,?,?,?,?)")

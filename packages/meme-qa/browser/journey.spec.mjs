@@ -1,4 +1,42 @@
 import { test, expect } from "@playwright/test";
+test("matched markets and separate trading ranks stay readable and never enable financial actions", async ({
+  page,
+}, testInfo) => {
+  await page.goto("/");
+  const market = page.getByRole("region", { name: "Token performance" });
+  await expect(
+    market.getByText("ATTN ahead by 60 percentage points."),
+  ).toBeVisible();
+  await expect(
+    market.getByRole("img", { name: /Matched price performance/ }),
+  ).toBeVisible();
+  await market.getByLabel("Period").selectOption("all");
+  await expect(market.getByText("+80%", { exact: true })).toBeVisible();
+  await market.getByText("Buy ATTNALPHA or ALPHA", { exact: true }).click();
+  await expect(
+    market.getByRole("button", { name: /trading disabled/ }),
+  ).toBeDisabled();
+  await page.screenshot({
+    path: testInfo.outputPath("markets.png"),
+    fullPage: true,
+  });
+  await page.getByRole("tab", { name: "Leaders", exact: true }).click();
+  await page.getByRole("button", { name: "Trading", exact: true }).click();
+  const leaders = page.getByRole("region", { name: "Leaderboards" });
+  await expect(leaders.getByText("$38.50", { exact: true })).toBeVisible();
+  await expect(leaders.getByText(/Simulated trades/)).toBeVisible();
+  await leaders.getByLabel("Period").selectOption("30d");
+  await expect(leaders.getByText("$38.50", { exact: true })).toBeVisible();
+  await page.screenshot({
+    path: testInfo.outputPath("leaders.png"),
+    fullPage: true,
+  });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBeTruthy();
+});
 test("onboarding is brief, persistent and replayable without blocking Connect", async ({
   page,
 }, testInfo) => {
