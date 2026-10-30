@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { api, ApiError, type Identity } from "./client";
 import { latestRequest } from "./latestRequest";
 import { useRoundClock } from "./useRoundClock";
+import { pollDelay } from "./polling";
 export interface RoundView {
   id: string;
   state: string;
@@ -77,23 +78,33 @@ export function useLocalState(enabled = true) {
   const requests = useRef(latestRequest()),
     timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined),
     mounted = useRef(false),
-    refreshId = useRef(0);
+    refreshId = useRef(0),
+    failures = useRef(0),
+    authBlocked = useRef(false);
   const refresh = useCallback(async () => {
     const current = ++refreshId.current;
     clearTimeout(timer.current);
     if (!enabled || !mounted.current || !isVisible()) return;
+    if (!navigator.onLine) {
+      setError("Offline. Reconnect to refresh.");
+      return;
+    }
     await requests.current.run(
       (signal) =>
         api("/api/meme/state?view=today", undefined, "GET", signal) as Promise<
           LocalState & { identity: Identity }
         >,
       (next) => {
+        failures.current = 0;
+        authBlocked.current = false;
         setData(next);
         setIdentity(next.identity);
         setError(null);
       },
       (error) => {
+        failures.current = Math.min(3, failures.current + 1);
         if (error instanceof ApiError && [401, 403].includes(error.status)) {
+          authBlocked.current = true;
           setData(null);
           setIdentity(null);
           setError("Sign in again to continue.");
@@ -104,12 +115,19 @@ export function useLocalState(enabled = true) {
       current === refreshId.current &&
       mounted.current &&
       enabled &&
+      !authBlocked.current &&
+      navigator.onLine &&
       isVisible()
     )
-      timer.current = setTimeout(() => void refresh(), 15000);
+      timer.current = setTimeout(
+        () => void refresh(),
+        pollDelay(failures.current),
+      );
   }, [enabled]);
   const onIdentity = useCallback(
     (next: Identity) => {
+      failures.current = 0;
+      authBlocked.current = false;
       requests.current.cancel();
       setData((previous) =>
         previous?.identity.farcasterFid === next.farcasterFid ? previous : null,
@@ -130,12 +148,16 @@ export function useLocalState(enabled = true) {
     };
     void refresh();
     document.addEventListener("visibilitychange", visibility);
+    window.addEventListener("online", visibility);
+    window.addEventListener("offline", visibility);
     return () => {
       mounted.current = false;
       refreshId.current++;
       clearTimeout(timer.current);
       requests.current.cancel();
       document.removeEventListener("visibilitychange", visibility);
+      window.removeEventListener("online", visibility);
+      window.removeEventListener("offline", visibility);
     };
   }, [refresh]);
   return { data, identity, error, refresh, onIdentity };

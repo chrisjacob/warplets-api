@@ -13,6 +13,32 @@ export class ApiError extends Error {
     super(message);
   }
 }
+export async function boundedResponseJson(
+  response: Response,
+  maxBytes = 1048576,
+) {
+  if (!response.body) throw Error("Empty API response");
+  const reader = response.body.getReader(),
+    decoder = new TextDecoder("utf-8", { fatal: true });
+  let size = 0,
+    raw = "";
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.byteLength;
+      if (size > maxBytes) {
+        await reader.cancel();
+        throw Error("API response is too large");
+      }
+      raw += decoder.decode(value, { stream: true });
+    }
+    raw += decoder.decode();
+  } finally {
+    reader.releaseLock();
+  }
+  return JSON.parse(raw);
+}
 export async function api(
   path: string,
   body?: unknown,
@@ -42,7 +68,7 @@ export async function api(
     });
     let data;
     try {
-      data = await response.json();
+      data = await boundedResponseJson(response);
     } catch {
       if (!response.ok) throw new ApiError("Request failed", response.status);
       throw Error("Invalid API response");

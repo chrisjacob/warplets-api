@@ -66,6 +66,8 @@ jobs:
         run: pnpm --dir packages/meme-qa benchmark
       - name: Lifetime history, compact polling and whole-campaign reward pages
         run: pnpm --dir packages/meme-qa benchmark:reads
+      - name: Bounded trading publication and collection-free market/leaderboard reads
+        run: pnpm --dir packages/meme-qa benchmark:growth
       - name: Execute captured protocol binaries offline
         run: pnpm --dir packages/meme-qa test:chains
       - run: pnpm --dir packages/meme-qa exec playwright install --with-deps chromium webkit

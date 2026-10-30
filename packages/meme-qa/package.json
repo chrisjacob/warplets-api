@@ -7,6 +7,7 @@
     "node": ">=22"
   },
   "scripts": {
+    "benchmark:growth": "node ../../meme/node_modules/tsx/dist/cli.mjs load/growth.ts",
     "test:custody": "node ../../meme/node_modules/tsx/dist/cli.mjs --test custody/*.test.mjs",
     "test": "node --test test/*.test.mjs",
     "wallets": "node src/wallets.mjs",

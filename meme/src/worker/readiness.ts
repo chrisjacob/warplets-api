@@ -118,6 +118,34 @@ export async function readiness(db: Database, now = Date.now()) {
     now,
     now,
   );
+  const markets = await one<{ published: number; stale: number }>(
+    db,
+    "SELECT COUNT(*) published,COALESCE(SUM(v.as_of+CAST(json_extract(v.payload,'$.freshnessMs') AS INTEGER)<?),0) stale FROM meme_market_heads h JOIN meme_market_views v ON v.id=h.view_id",
+    now,
+  );
+  const trading = await one<{
+    windows: number;
+    oldestAsOf: number | null;
+    stale: number;
+  }>(
+    db,
+    "SELECT COUNT(*) windows,MIN(as_of) oldestAsOf,COALESCE(SUM(as_of<?),0) stale FROM meme_trading_board_heads",
+    now - 3600000,
+  );
+  const sharing = await one<{ cards: number; pendingImages: number }>(
+    db,
+    "SELECT COUNT(*) cards,COALESCE(SUM((SELECT COUNT(*) FROM meme_share_images i WHERE i.card_id=c.id)<2),0) pendingImages FROM meme_share_cards c",
+  );
+  const notifications = await one<{
+    queued: number;
+    unknown: number;
+    expiredLeases: number;
+    paused: number;
+  }>(
+    db,
+    "SELECT COALESCE(SUM(state IN('queued','retry')),0) queued,COALESCE(SUM(state='unknown'),0) unknown,COALESCE(SUM(state='processing' AND lease_until<=?),0) expiredLeases,(SELECT paused FROM meme_notification_control WHERE id=1) paused FROM meme_notification_outbox",
+    now,
+  );
   const paused = (name: string) =>
       flags.some((c) => c.name === name && c.paused),
     alerts: { code: string; severity: "info" | "warning" | "critical" }[] = [];
@@ -141,6 +169,10 @@ export async function readiness(db: Database, now = Date.now()) {
   )
     add(heartbeat ? "runner-stale" : "runner-not-observed", "warning");
   if (jobs.blocked) add("jobs-blocked", "warning");
+  if (markets?.stale) add("market-snapshots-stale", "warning");
+  if (trading?.stale) add("trading-snapshots-stale", "warning");
+  if (notifications?.unknown || notifications?.expiredLeases)
+    add("notification-outcomes-unresolved", "warning");
   if (heartbeat?.outcome === "error" && !paused("operations"))
     add("runner-error", "warning");
   if (jobs.expiredLeases) add("job-leases-expired", "warning");
@@ -213,6 +245,16 @@ export async function readiness(db: Database, now = Date.now()) {
       })),
     },
     transactions,
+    growth: {
+      markets,
+      trading,
+      sharing,
+      notifications: {
+        ...notifications,
+        registered: false,
+        realDeliveryEnabled: false,
+      },
+    },
     round: current,
     alerts,
     unverifiedProductionGates: [
