@@ -18,6 +18,8 @@ import {
 } from "@meteora-ag/cp-amm-sdk";
 
 export const SDK_VERSION = "1.5.1";
+// Test-only lab exports; the application boundary forbids this package.
+export { CpAmm, cpAmmCoder, BN };
 export const offlineConnection = new Connection("http://127.0.0.1:8899", {
   fetch: async () => {
     throw Error("Protocol lab forbids network access");
@@ -140,7 +142,9 @@ export async function buildLaunchProof(config) {
     tokenAMint: edition,
     tokenBMint: og,
     tokenAAmount: amount,
-    tokenBAmount: new BN(0),
+    // Owner approved the program's exact one-raw-unit proof-of-ownership minimum.
+    // This is an explicit extra OG cost, not part of the edition supply split.
+    tokenBAmount: new BN(1),
     sqrtMinPrice: min,
     sqrtMaxPrice: max,
     liquidityDelta: delta,
@@ -182,6 +186,10 @@ export async function buildLaunchProof(config) {
     daily,
     liquidityDelta: delta.toString(),
     quote: og.toBase58(),
+    // initialize_customizable_pool clamps both transfers to at least one raw unit.
+    // A single-sided position is not a strict zero-quote initialization.
+    minimumQuoteDepositRaw: "1",
+    strictZeroQuoteSupported: false,
     instructions,
   };
   // Stable commitment uses raw instruction bytes/account metas, independent of BN JSON encoding.

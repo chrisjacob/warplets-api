@@ -6,7 +6,7 @@ import {createMint,getOrCreateAssociatedTokenAccount,mintTo,getAccount,getMint,T
 import {installPrograms} from '../src/programs.mjs';
 import {loopback} from '../src/safety.mjs';
 import {planLockedJito,buildLockedClaimInstructions,assertJitoAccount,JITO_PROGRAM} from '../../meme-protocol/src/jito-locked.mjs';
-import {buildLaunchProof} from '../../meme-protocol/src/meteora.mjs';
+import {buildLaunchProof,CpAmm,BN,cpAmmCoder} from '../../meme-protocol/src/meteora.mjs';
 import {fixture} from '../../meme-protocol/src/fixture.mjs';
 const supported=process.platform==='linux'&&process.arch==='x64';
 const disc=name=>createHash('sha256').update('global:'+name).digest().subarray(0,8);
@@ -15,17 +15,36 @@ async function send(connection,payer,instructions,signers=[]){loopback(connectio
 async function clock(connection){const a=await connection.getAccountInfo(SYSVAR_CLOCK_PUBKEY);return Number(a.data.readBigInt64LE(32));}
 function decodeDistributor(plan,a){assert(a?.owner.equals(JITO_PROGRAM));const d=a.data;let o=8;const u8=()=>d[o++],u64=()=>{const v=d.readBigUInt64LE(o).toString();o+=8;return v;},key=()=>{const v=new PublicKey(d.subarray(o,o+32)).toBase58();o+=32;return v;};u8();const version=u64(),root=d.subarray(o,o+32).toString('hex');o+=32;const mint=key(),tokenVault=key(),maxTotalClaim=u64(),maxNumNodes=u64();u64();u64();const startVestingAt=Number(u64()),endVestingAt=Number(u64()),clawbackAt=Number(u64()),clawbackReceiver=key(),admin=key(),clawedBack=!!u8();return {program:a.owner.toBase58(),distributor:plan.expected.distributor,version,root,mint,tokenVault,maxTotalClaim,maxNumNodes,startVestingAt,endVestingAt,clawbackAt,clawbackReceiver,admin,clawedBack};}
 
-test('captured Meteora binary executes single-sided pool creation and permanent lock',{skip:!supported,timeout:120000},async()=>{
+test('Meteora rejects unfunded OG; approved one-unit minimum executes pool creation, lock and swaps',{skip:!supported,timeout:120000},async()=>{
   const{net,connection,payer}=await runtime();try{
     const mint=await createMint(connection,payer,payer.publicKey,null,9),og=await createMint(connection,payer,payer.publicKey,null,9);
     const ata=await getOrCreateAssociatedTokenAccount(connection,payer,mint,payer.publicKey);await mintTo(connection,payer,mint,ata.address,payer,1000000000000n);
     const nft=Keypair.generate(),now=await clock(connection);
     const proof=await buildLaunchProof({...fixture,totalSupply:'1000000000000',editionMint:mint.toBase58(),ogMint:og.toBase58(),creator:payer.publicKey.toBase58(),payer:payer.publicKey.toBase58(),positionNft:nft.publicKey.toBase58(),activationUnixSeconds:now+60});
     const instructions=proof.instructions.map(i=>new TransactionInstruction({programId:new PublicKey(i.program),keys:i.accounts.map(a=>({pubkey:new PublicKey(a.pubkey),isSigner:a.signer,isWritable:a.writable})),data:Buffer.from(i.data,'hex')}));
+    await assert.rejects(send(connection,payer,instructions,[nft]),/insufficient funds/);
+    assert.equal(await connection.getAccountInfo(new PublicKey(proof.pool)),null);
+    const quoteAta=await getOrCreateAssociatedTokenAccount(connection,payer,og,payer.publicKey);
+    await mintTo(connection,payer,og,quoteAta.address,payer,1n);
+    // Approved on 30 October: exactly one raw OG unit, recorded separately from gas/rent.
     await send(connection,payer,instructions,[nft]);
     const pool=await connection.getAccountInfo(new PublicKey(proof.pool));assert(pool?.owner.equals(new PublicKey(proof.program)));
     const position=await connection.getAccountInfo(new PublicKey(proof.position));assert(position?.owner.equals(new PublicKey(proof.program)));
-    assert.equal((await getAccount(connection,ata.address)).amount,100000000000n);
+    const state=cpAmmCoder.accounts.decode('position',position.data);
+    assert.equal(state.permanentLockedLiquidity.toString(),proof.liquidityDelta);
+    assert.equal(state.unlockedLiquidity.toString(),'0');
+    const amm=new CpAmm(connection),ps=await amm.fetchPoolState(new PublicKey(proof.pool));
+    assert.equal(ps.tokenAMint.toBase58(),mint.toBase58());assert.equal(ps.tokenBMint.toBase58(),og.toBase58());assert.equal(ps.collectFeeMode,1);
+    assert.equal((await getAccount(connection,ps.tokenBVault)).amount,1n);
+    await mintTo(connection,payer,og,quoteAta.address,payer,1000000000n);
+    const swap=(input,output,amount)=>amm.swap({payer:payer.publicKey,pool:new PublicKey(proof.pool),inputTokenMint:input,outputTokenMint:output,amountIn:new BN(amount),minimumAmountOut:new BN(1),tokenAMint:mint,tokenBMint:og,tokenAVault:ps.tokenAVault,tokenBVault:ps.tokenBVault,tokenAProgram:TOKEN_PROGRAM_ID,tokenBProgram:TOKEN_PROGRAM_ID,referralTokenAccount:null,poolState:ps});
+    await assert.rejects(send(connection,payer,(await swap(og,mint,'1000000')).instructions),/./);
+    net.timeTravelToTimestamp((now+61)*1000);
+    const beforeA=(await getAccount(connection,ata.address)).amount;
+    await send(connection,payer,(await swap(og,mint,'1000000')).instructions);
+    assert((await getAccount(connection,ata.address)).amount>beforeA);
+    await send(connection,payer,(await swap(mint,og,'1000000')).instructions);
+    assert.equal((await getMint(connection,mint)).supply,1000000000000n);
     await send(connection,payer,[createSetAuthorityInstruction(mint,payer.publicKey,AuthorityType.MintTokens,null)]);assert.equal((await getMint(connection,mint)).mintAuthority,null);
   }finally{net.stop();}
 });

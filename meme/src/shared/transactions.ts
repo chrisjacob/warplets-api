@@ -10,7 +10,7 @@ export interface TransactionPlan {
   /** Bound to immutable allocation/edition/claim identity, not a random retry nonce. */
   businessKey: string;
   signers: string[];
-  instructions: { program: string; accounts: string[]; data: string; description: string }[];
+  instructions: { program: string; accounts: {address:string;signer:boolean;writable:boolean}[]; data: string; description: string }[];
   expected: Record<string, string>;
   maximumCost: string;
   costUnit: 'wei'|'lamports';

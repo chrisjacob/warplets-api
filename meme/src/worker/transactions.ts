@@ -2,6 +2,7 @@ import { canonical } from '../shared/canonical';
 import type { TransactionPlan, TransactionState, TransactionReadAdapter } from '../shared/transactions';
 import { one, rows, requireThat, sha, json, payload, type Database } from './db';
 import { operator } from './rounds';
+import { decode58 } from '../shared/base58';
 
 interface Intent { id:string; business_key:string; network:string; operation:string; subject:string; plan:string; plan_hash:string; state:TransactionState; simulation:string|null; signature:string|null; revision:number; created_at:number; updated_at:number }
 const amount = (v: unknown): v is string => typeof v === 'string' && /^(0|[1-9][0-9]*)$/.test(v) && v.length <= 78;
@@ -13,9 +14,9 @@ export function validatePlan(p: TransactionPlan) {
   requireThat(p.simulated === p.network.endsWith('-local'),400,'Mainnet and simulation must remain distinct');
   requireThat(p.costUnit === (p.network.startsWith('base-') ? 'wei' : 'lamports') && amount(p.maximumCost),400,'Exact native cost ceiling required');
   requireThat(Number.isSafeInteger(p.notBefore) && p.notBefore >= 0 && Number.isSafeInteger(p.expiresAt) && p.expiresAt > Math.max(p.notBefore,Date.now()),400,'Valid transaction window required');
-  const address = (v:unknown) => typeof v === 'string' && (p.network.startsWith('base-') ? /^0x[0-9a-fA-F]{40}$/.test(v) : /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(v));
+  const address = (v:unknown) => { if(typeof v!=='string')return false; if(p.network.startsWith('base-'))return /^0x[0-9a-fA-F]{40}$/.test(v);try{return decode58(v,32).length===32;}catch{return false;} };
   requireThat(Array.isArray(p.signers) && p.signers.length > 0 && p.signers.length <= 4 && p.signers.every(address) && new Set(p.signers).size === p.signers.length,400,'Explicit distinct signers required');
-  requireThat(Array.isArray(p.instructions) && p.instructions.length > 0 && p.instructions.length <= 20 && p.instructions.every(i => address(i.program) && Array.isArray(i.accounts) && i.accounts.length <= 64 && i.accounts.every(address) && typeof i.data === 'string' && /^(?:[a-f0-9]{2})*$/.test(i.data) && i.data.length <= 16384 && typeof i.description === 'string' && i.description.length > 0 && i.description.length <= 240),400,'Decoded bounded instructions required');
+  requireThat(Array.isArray(p.instructions) && p.instructions.length > 0 && p.instructions.length <= 20 && p.instructions.every(i => i && address(i.program) && Array.isArray(i.accounts) && i.accounts.length <= 64 && i.accounts.every(a=>a && address(a.address) && typeof a.signer==='boolean' && typeof a.writable==='boolean' && (!a.signer || p.signers.includes(a.address))) && typeof i.data === 'string' && /^(?:[a-f0-9]{2})*$/.test(i.data) && i.data.length <= 16384 && typeof i.description === 'string' && i.description.length > 0 && i.description.length <= 240),400,'Decoded bounded instructions with explicit account privileges required');
   requireThat(p.expected && typeof p.expected === 'object' && !Array.isArray(p.expected) && Object.keys(p.expected).length > 0 && Object.keys(p.expected).length <= 40 && Object.entries(p.expected).every(([k,v]) => /^[A-Za-z][A-Za-z0-9_]{0,63}$/.test(k) && typeof v === 'string' && v.length <= 256),400,'Expected state changes required');
   requireThat(Object.keys(p).sort().join(',') === ['version','network','operation','subject','businessKey','signers','instructions','expected','maximumCost','costUnit','notBefore','expiresAt','simulated'].sort().join(','),400,'Unexpected transaction fields');
 }
@@ -63,7 +64,8 @@ export async function recordSignature(db:Database,id:string,signature:string) {
   const intent = await getIntent(db,id);
   if (intent.signature === signature) return intent;
   requireThat(intent.state === 'unknown' && intent.signature === null,409,'Submission already recorded; reconcile first');
-  requireThat(typeof signature === 'string' && (intent.network.startsWith('base-') ? /^0x[0-9a-f]{64}$/i.test(signature) : /^[1-9A-HJ-NP-Za-km-z]{87,88}$/.test(signature)),400,'Invalid transaction signature');
+  let valid=false;if(typeof signature==='string'){if(intent.network.startsWith('base-'))valid=/^0x[0-9a-f]{64}$/i.test(signature);else try{valid=decode58(signature,64).length===64;}catch{/* Rejected below. */}}
+  requireThat(valid,400,'Invalid transaction signature');
   return transition(db,intent,'submitted',{signature},{signature});
 }
 export async function reconcileIntent(db:Database,id:string,adapter:TransactionReadAdapter) {
@@ -85,7 +87,7 @@ export async function reconcileIntent(db:Database,id:string,adapter:TransactionR
     ]);
     return getIntent(db,id);
   }
-  requireThat(result.status === 'failed' || result.status === 'absent',409,'Unknown chain outcome');
+  requireThat((result.status === 'failed' && result.complete && result.signature !== null) || result.status === 'absent',409,'Unknown or incomplete chain outcome');
   return transition(db,intent,'failed',result);
 }
 export async function transactionsRequest(db:Database,request:Request):Promise<Response|null> {

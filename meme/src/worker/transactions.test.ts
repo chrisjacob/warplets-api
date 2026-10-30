@@ -3,10 +3,11 @@ import assert from 'node:assert/strict';
 import { testDb } from './testDb';
 import { sha } from './db';
 import { canonical } from '../shared/canonical';
+import { encode58 } from '../shared/base58';
 import type { TransactionPlan, TransactionReadAdapter } from '../shared/transactions';
 import { prepareIntent, simulateIntent, beginHandoff, recordSignature, reconcileIntent, getIntent } from './transactions';
-const wallet = '11111111111111111111111111111111', signature = '2'.repeat(88);
-function plan(subject='allocation:1'):TransactionPlan { return {version:1,network:'solana-local',operation:'claim',subject,businessKey:'solana-local:claim:'+subject,signers:[wallet],instructions:[{program:wallet,accounts:[wallet],data:'0102',description:'Local fixture only'}],expected:{amount:'100',wallet},maximumCost:'2000000',costUnit:'lamports',notBefore:Date.now()-1,expiresAt:Date.now()+120000,simulated:true}; }
+const wallet = '11111111111111111111111111111111', signature = encode58(new Uint8Array(64).fill(2));
+function plan(subject='allocation:1'):TransactionPlan { return {version:1,network:'solana-local',operation:'claim',subject,businessKey:'solana-local:claim:'+subject,signers:[wallet],instructions:[{program:wallet,accounts:[{address:wallet,signer:true,writable:true}],data:'0102',description:'Local fixture only'}],expected:{amount:'100',wallet},maximumCost:'2000000',costUnit:'lamports',notBefore:Date.now()-1,expiresAt:Date.now()+120000,simulated:true}; }
 function adapter(p:TransactionPlan, change:Partial<TransactionReadAdapter>={}):TransactionReadAdapter { return { simulate:async(_,h)=>({planHash:h,success:true,cost:'5000',context:'local-slot:1',expectedHash:await sha(canonical(p.expected)),observedAt:Date.now()}), inspect:async(_,h,s)=>({status:'finalized',network:p.network,planHash:h,signature:s,expectedHash:await sha(canonical(p.expected)),context:'local-slot:2',expired:false,complete:true}), ...change }; }
 test('lost response after durable preparation preserves one immutable business operation',async()=>{
   const t=testDb(); try { const p=plan(); t.interruptNextBatch(); await assert.rejects(prepareIntent(t.db,p),/lost response/); const i=await prepareIntent(t.db,p); assert.equal((await prepareIntent(t.db,p)).id,i.id); await assert.rejects(prepareIntent(t.db,{...p,maximumCost:'1'}),/different immutable/); assert.equal(t.raw.prepare('SELECT COUNT(*) n FROM meme_transaction_intents').get()!.n,1); }finally{t.close();}
