@@ -47,6 +47,8 @@ export interface SimulationEvidence {
 }
 export interface ChainObservation {
   status: "pending" | "confirmed" | "finalized" | "failed" | "absent";
+  /** Actual chain commitment, independent of completeness or application state. */
+  commitment: "unknown" | "processed" | "confirmed" | "finalized";
   network: TransactionNetwork;
   planHash: string;
   signature: string | null;
