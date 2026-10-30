@@ -27,7 +27,9 @@ export function qaTransportRequest(
     404,
     "Local application only",
   );
-  const target = new URL(input.pathname + input.search, origin);
+  const target = new URL(origin);
+  target.pathname = input.pathname;
+  target.search = input.search;
   return new Request(target, request);
 }
 

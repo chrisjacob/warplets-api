@@ -118,7 +118,7 @@ test("restricted compiled gateway requires access, expires sessions and cannot p
     const cookie = login.headers["set-cookie"][0].split(";")[0];
     assert.match(
       login.headers["set-cookie"][0],
-      /HttpOnly; Secure; SameSite=Strict/,
+      /HttpOnly; Secure; SameSite=Lax/,
     );
     assert.equal((await call("/", { cookie })).body, "compiled QA");
     for (const path of [

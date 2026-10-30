@@ -168,7 +168,7 @@ export function createGateway(
         });
         return send(303, "", "text/plain", {
           location: "/",
-          "set-cookie": `__Host-meme_qa=${token}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=${Math.floor((grant.expiresAt - now()) / 1000)}`,
+            "set-cookie": `__Host-meme_qa=${token}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${Math.floor((grant.expiresAt - now()) / 1000)}`,
         });
       }
       const token =
