@@ -1,0 +1,13 @@
+{
+  "id": "jito-locked-v1-proposal",
+  "status": "proposed",
+  "vestingSeconds": 1,
+  "clawbackDaysAfterFinalRelease": 365,
+  "clawbackTrigger": "permissionless-after-timestamp",
+  "custody": "2-of-3 multisig vault; addresses and execution integration pending",
+  "adminVault": null,
+  "receiverOwner": null,
+  "claimsPause": "application-only; funded eligible on-chain claims cannot be paused by the application",
+  "reserve": "hold separately; no automatic redistribution",
+  "scope": "policy proposal only; no deployment, signing, funding, claims or spend authorization"
+}

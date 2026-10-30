@@ -14,6 +14,7 @@ test("rejects open or missing production configuration and absent thesis content
   assert.throws(() => assertClosedTenxRelease({}, [], thesis, config));
 });
 test("rejects an enabled or stale hidden-product artifact even when configuration is closed", () => {
+  assert.throws(() => assertClosedTenxRelease({ ...manifest, "../meme/src/app/main.tsx": { file: "assets/main-fixture.js" } }, [], thesis, config));
   assert.throws(() => assertClosedTenxRelease({ ...manifest, "src/discovery/DiscoveryPage.tsx": { file: "assets/DiscoveryPage-open.js" } }, [], thesis, config));
   assert.throws(() => assertClosedTenxRelease(manifest, ["DiscoveryPage-stale.js"], thesis, config));
 });

@@ -1,0 +1,694 @@
+.search-header-account .farcaster-signin-control button {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-width: 0 !important;
+  height: 32px !important;
+  margin: 0 !important;
+  padding: 0 12px !important;
+  border: 1px solid rgba(0, 255, 0, 0.55) !important;
+  border-radius: 8px !important;
+  background: #00ff00 !important;
+  color: rgb(0, 80, 0) !important;
+  font-family: "Roboto Mono", system-ui, sans-serif !important;
+  font-size: 0.75rem !important;
+  font-weight: 700 !important;
+  line-height: 1 !important;
+  box-shadow: none !important;
+}
+
+.web-connect-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2200;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgb(0 0 0 / 84%);
+  backdrop-filter: blur(3px);
+}
+
+.web-connect-backdrop,
+.identity-link-backdrop {
+  top: var(--app-visual-viewport-offset-top, 0px);
+  bottom: auto;
+  box-sizing: border-box;
+  height: 100vh;
+  height: var(--app-visual-viewport-height, 100svh);
+  max-height: 100vh;
+  max-height: var(--app-visual-viewport-height, 100svh);
+  overflow: hidden;
+  padding-top: max(1rem, env(safe-area-inset-top));
+  padding-right: max(1rem, env(safe-area-inset-right));
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  padding-left: max(1rem, env(safe-area-inset-left));
+}
+
+.web-connect-progress-toast {
+  position: fixed;
+  top: var(--app-fixed-top-offset);
+  left: 50%;
+  z-index: 2300;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: min(100vw, 500px);
+  min-height: 60px;
+  transform: translateX(-50%);
+  padding: 18px 16px;
+  border-bottom: 1px solid #00ff00;
+  background: oklab(0.163375 -0.0304675 0.0224707 / 1);
+  color: #00ff00;
+  font-size: 0.875rem;
+  font-weight: 700;
+  line-height: 1.35;
+  text-align: left;
+  box-shadow: 0 14px 28px rgb(0 0 0 / 50%);
+  animation: trade-toast-slide-down 220ms ease-out forwards;
+}
+
+.web-connect-progress-toast--danger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom-color: #ff3b3b;
+  background: rgb(72 0 0);
+  color: #ff7474;
+  text-align: left;
+}
+
+.web-connect-progress-toast--danger button {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  place-items: center;
+  padding: 0;
+  border: 1px solid rgb(255 59 59 / 62%);
+  border-radius: 8px;
+  background: rgb(0 0 0 / 28%);
+  color: currentColor;
+  font: inherit;
+  cursor: pointer;
+}
+
+.web-connect-modal {
+  display: flex;
+  flex-direction: column;
+  width: min(392px, 100%);
+  max-height: 100%;
+  overflow: hidden;
+  padding: 0;
+  border: 1px solid rgb(0 255 0 / 35%);
+  border-radius: 16px;
+  background:
+    radial-gradient(circle at top left, rgb(0 255 0 / 9%), transparent 42%),
+    #000;
+  box-shadow: 0 24px 80px rgb(0 0 0 / 82%);
+  color: #fff;
+}
+
+.web-connect-heading {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 61px;
+  padding: 12px 16px;
+  border-bottom: 1px solid rgb(0 255 0 / 20%);
+  background: #000;
+}
+
+.web-connect-heading h2 {
+  margin: 0;
+  color: #8bbf8b;
+  font-family: "Roboto Mono", system-ui, sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.web-connect-heading h2 > span {
+  color: #00ff00;
+}
+
+.web-connect-close {
+  display: flex;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid rgb(0 255 0 / 35%);
+  border-radius: 8px;
+  background: transparent;
+  color: #00ff00;
+  cursor: pointer;
+}
+
+.web-connect-close:hover {
+  background: #041204;
+}
+
+.web-connect-close svg {
+  width: 16px;
+  height: 16px;
+}
+
+.web-connect-scroll {
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
+.web-connect-content {
+  display: grid;
+  gap: 20px;
+  padding: 16px 16px 20px;
+}
+
+.web-connect-section {
+  display: grid;
+  gap: 10px;
+}
+
+.web-connect-section + .web-connect-section {
+  padding-top: 8px;
+}
+
+.web-connect-section-heading {
+  display: grid;
+  gap: 4px;
+}
+
+.web-connect-section-heading h3,
+.web-connect-section-heading p {
+  margin: 0;
+}
+
+.web-connect-section-heading h3 {
+  color: #00ff00;
+  font-family: "Roboto Mono", system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.web-connect-optional-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 18px;
+  margin-left: 5px;
+  padding: 1px 6px;
+  border: 1px solid rgb(0 255 0 / 42%);
+  border-radius: 999px;
+  background: rgb(0 255 0 / 8%);
+  color: #00ff00;
+  font-size: 8px;
+  font-weight: 700;
+  line-height: 1;
+  text-transform: uppercase;
+  vertical-align: 1px;
+}
+
+.web-connect-section-heading p {
+  color: #9fbd9f;
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: nowrap;
+}
+
+.web-connect-options {
+  display: grid;
+  gap: 10px;
+}
+
+.web-connect-provider-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 68px;
+  padding: 10px 11px;
+  border: 1px solid rgb(0 255 0 / 34%);
+  border-radius: 12px;
+  background: rgb(0 255 0 / 5%);
+}
+
+.web-connect-provider-copy {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+}
+
+.web-connect-provider-copy > span {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.web-connect-provider-copy strong {
+  color: #fff;
+  font-size: 13px;
+  line-height: 1.2;
+}
+
+.web-connect-provider-copy small {
+  color: #9fbd9f;
+  font-size: 10px;
+  line-height: 1.3;
+}
+
+.web-connect-provider-icon {
+  display: block;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  border: 1px solid rgb(255 255 255 / 22%);
+  border-radius: 7px;
+  object-fit: cover;
+}
+
+.web-connect-provider-icon-browser {
+  background: #001500;
+  border-color: #00ff00;
+}
+
+.web-connect-farcaster-footer {
+  display: grid;
+  gap: 9px;
+}
+
+.web-connect-identity-link {
+  justify-self: center;
+  margin-bottom: 8px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #00ff00;
+  font-family: "Roboto Mono", system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.4;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.web-connect-identity-link:hover {
+  color: #66ff66;
+}
+
+.web-connect-identity-link:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
+.web-connect-farcaster-footer p {
+  margin: 0;
+  color: #9fbd9f;
+  font-size: 12px;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.web-connect-farcaster-cta {
+  display: flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 16px;
+  border: 1px solid #5d42d6;
+  border-radius: 14px;
+  background: #7959ff;
+  box-shadow: 3px 6px 0 #4b33b3;
+  color: #eeeaff;
+  font-family: "Roboto Mono", system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 900;
+  text-decoration: none;
+  transition:
+    transform 100ms,
+    box-shadow 100ms,
+    background 100ms;
+}
+
+.web-connect-farcaster-cta:hover {
+  background: #967fff;
+}
+
+.web-connect-farcaster-cta:active {
+  transform: translate(1px, 2px);
+  box-shadow: 1px 3px 0 #4b33b3;
+}
+
+.web-connect-farcaster-bonus-link {
+  justify-self: center;
+  margin-top: 8px;
+  color: #00ff00;
+  font-family: "Roboto Mono", system-ui, sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.4;
+  text-align: center;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.web-connect-farcaster-bonus-link:hover {
+  color: #66ff66;
+}
+
+.wallet-connect-diagnostics {
+  margin-top: 14px;
+  padding: 10px;
+  border: 1px solid rgb(121 89 255 / 55%);
+  border-radius: 10px;
+  background: #080414;
+  color: #b9aaff;
+  font-family: "Roboto Mono", ui-monospace, monospace;
+  font-size: 10px;
+  text-align: left;
+}
+
+.wallet-connect-diagnostics summary {
+  cursor: pointer;
+  font-weight: 900;
+}
+
+.wallet-connect-diagnostics__actions {
+  display: flex;
+  gap: 8px;
+  margin: 10px 0 8px;
+}
+
+.wallet-connect-diagnostics__actions button {
+  padding: 5px 8px;
+  border: 1px solid rgb(121 89 255 / 60%);
+  border-radius: 6px;
+  background: #160b38;
+  color: #c9beff;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.wallet-connect-diagnostics pre {
+  max-height: 260px;
+  margin: 0;
+  overflow: auto;
+  color: #d8d1ff;
+  font: inherit;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.web-connect-cta {
+  min-width: 106px;
+  min-height: 36px;
+  flex: 0 0 auto;
+  padding: 0 14px;
+  border: 1px solid #009900;
+  border-radius: 12px;
+  background: #00ff00;
+  box-shadow: 2px 4px 0 #008000;
+  color: rgb(0 80 0);
+  font-family: "Roboto Mono", system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 900;
+  cursor: pointer;
+  transition:
+    transform 100ms,
+    box-shadow 100ms,
+    background 100ms;
+}
+
+.web-connect-cta:hover:not(:disabled) {
+  background: #33ff33;
+}
+
+.web-connect-cta:active:not(:disabled) {
+  transform: translate(1px, 2px);
+  box-shadow: 1px 2px 0 #008000;
+}
+
+.web-connect-cta:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  box-shadow: none;
+}
+
+.web-connect-cta--disconnect {
+  border-color: rgb(0 255 0 / 35%);
+  background: #000;
+  box-shadow: 2px 4px 0 rgb(0 255 0 / 35%);
+  color: #00ff00;
+}
+
+.web-connect-cta--disconnect:hover:not(:disabled) {
+  background: #041204;
+}
+
+.web-connect-choice {
+  display: grid;
+  width: 100%;
+  gap: 2px;
+  padding: 12px 14px;
+  border: 1px solid rgb(0 255 0 / 48%);
+  border-radius: 12px;
+  background: rgb(0 255 0 / 7%);
+  color: #fff;
+  text-align: left;
+  cursor: pointer;
+}
+
+.web-connect-choice:hover {
+  border-color: #00ff00;
+  background: rgb(0 255 0 / 13%);
+}
+
+.web-connect-choice span {
+  color: #9fbd9f;
+  font-size: 12px;
+}
+
+.web-connect-option-group {
+  display: grid;
+  gap: 8px;
+}
+
+.web-connect-farcaster {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 68px;
+  padding: 10px 11px;
+  border: 1px solid rgb(124 101 193 / 60%);
+  border-radius: 12px;
+  background: rgb(124 101 193 / 10%);
+}
+
+.farcaster-signin-debug {
+  flex: 1 0 100%;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid rgb(121 89 255 / 45%);
+  border-radius: 8px;
+  background: #05020d;
+  color: #cfc3ff;
+  font-family: "Roboto Mono", system-ui, sans-serif;
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+.farcaster-signin-debug summary {
+  color: #eeeaff;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.farcaster-signin-debug dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 3px 10px;
+  margin: 8px 0;
+}
+
+.farcaster-signin-debug dl div {
+  display: flex;
+  min-width: 0;
+  justify-content: space-between;
+  gap: 5px;
+}
+
+.farcaster-signin-debug dt {
+  color: #9d8adb;
+}
+
+.farcaster-signin-debug dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: #fff;
+  text-align: right;
+}
+
+.farcaster-signin-debug p {
+  margin: 4px 0;
+  overflow-wrap: anywhere;
+}
+
+.farcaster-signin-debug__error {
+  color: #ff7373;
+}
+
+.web-connect-farcaster .farcaster-signin-debug__copy {
+  width: auto;
+  min-width: 0;
+  min-height: 26px;
+  margin-top: 5px;
+  padding: 0 8px;
+  border-radius: 7px;
+  box-shadow: none;
+  font-size: 10px;
+}
+
+.web-connect-farcaster .farcaster-signin-control button,
+.web-connect-farcaster
+  .farcaster-signin-control
+  .farcaster-mobile-signin-button {
+  display: flex;
+  width: 106px;
+  min-width: 106px;
+  min-height: 36px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 14px;
+  border: 1px solid #5d42d6;
+  border-radius: 12px;
+  background: #7959ff;
+  box-shadow: 2px 4px 0 #4b33b3;
+  color: #eeeaff;
+  font-family: "Roboto Mono", system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: normal;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    transform 100ms,
+    box-shadow 100ms,
+    background 100ms;
+}
+
+.web-connect-farcaster .farcaster-signin-control,
+.web-connect-farcaster .fc-authkit-signin-button,
+.web-connect-farcaster .fc-authkit-profile-button {
+  width: 106px;
+  flex: 0 0 106px;
+}
+
+.web-connect-farcaster .farcaster-signin-control button:hover:not(:disabled),
+.web-connect-farcaster
+  .farcaster-signin-control
+  .farcaster-mobile-signin-button:hover {
+  background: #967fff;
+}
+
+.web-connect-farcaster .farcaster-signin-control button:active:not(:disabled),
+.web-connect-farcaster
+  .farcaster-signin-control
+  .farcaster-mobile-signin-button:active {
+  transform: translate(1px, 2px);
+  box-shadow: 1px 2px 0 #4b33b3;
+}
+
+.web-connect-farcaster .farcaster-signin-control button:disabled {
+  box-shadow: none;
+  opacity: 0.55;
+  transform: none;
+  cursor: wait;
+}
+
+.web-connect-farcaster .farcaster-signin-control--connected button {
+  border-color: rgb(150 120 255 / 55%);
+  background: #000;
+  box-shadow: 2px 4px 0 rgb(121 89 255 / 52%);
+  color: #cfc3ff;
+}
+
+.web-connect-farcaster
+  .farcaster-signin-control--connected
+  button:hover:not(:disabled) {
+  background: rgb(121 89 255 / 12%);
+}
+
+.web-connect-farcaster
+  .farcaster-signin-control--connected
+  button:active:not(:disabled) {
+  box-shadow: 1px 2px 0 rgb(121 89 255 / 52%);
+  transform: translate(1px, 2px);
+}
+
+.farcaster-signin-control .fc-authkit-signin-button > button {
+  font-size: 0 !important;
+}
+
+.web-connect-farcaster
+  .farcaster-signin-control
+  .fc-authkit-signin-button
+  > button
+  svg,
+.web-connect-farcaster
+  .farcaster-signin-control
+  .fc-authkit-signin-button
+  > button
+  img {
+  display: none !important;
+}
+
+.farcaster-signin-control .fc-authkit-signin-button > button::after {
+  content: "Connect";
+  font-size: 12px;
+  font-family: "Roboto Mono", system-ui, sans-serif;
+  font-weight: 900;
+  line-height: normal;
+}
+
+.farcaster-signin-control .fc-authkit-profile-button > div {
+  display: none !important;
+}
+
+.farcaster-signin-control .fc-authkit-profile-button::after {
+  content: "Connecting\2026";
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 12px;
+  color: #fff;
+  font-family: "Roboto Mono", system-ui, sans-serif;
+  font-size: 12px;
+}
+
+.web-connect-loading,
+.web-connect-error {
+  margin: 12px 0 0;
+  font-size: 13px;
+}
+
+.web-connect-loading {
+  color: #b7d8b7;
+}
+
+.web-connect-error {
+  color: #ff7474;
+}

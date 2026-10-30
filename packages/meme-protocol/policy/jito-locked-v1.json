@@ -1,0 +1,18 @@
+{
+  "id": "jito-locked-v1",
+  "status": "approved",
+  "vestingSeconds": 1,
+  "clawbackDaysAfterFinalRelease": 365,
+  "clawbackTrigger": "permissionless-after-timestamp",
+  "custody": "2-of-3 multisig vault; addresses and execution integration pending",
+  "adminVault": null,
+  "receiverOwner": null,
+  "claimsPause": "application-only; funded eligible on-chain claims cannot be paused by the application",
+  "reserve": "hold separately; no automatic redistribution",
+  "scope": "approved intended policy only; no deployment, signing, funding, claims or spend authorization",
+  "approval": {
+    "record": "docs/10x/approvals/2026-10-30-jito-policy.json",
+    "sourceCommit": "2246e13af662dbdea57cbba4599e38c323467c48",
+    "sourceSha256": "583d0670f0315d182282b445174bd1ab47872f87c658b2f486582994d7f5d60a"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "status": "draft-for-owner-review",
+  "executionAllowed": false,
+  "maximumCohort": 100,
+  "edition": { "tokenProgram": "spl-token", "decimals": 9, "totalSupplyRaw": "1000000000000000000" },
+  "valuationProposal": { "initialFdvUsd": "10000", "upperFdvUsd": "1000000", "selectedOgMint": null, "verifiedOgUsdPrice": null },
+  "fees": { "openingBps": 300, "ongoingBps": 100, "durationSeconds": 600, "periods": 100, "dynamicEnabled": false },
+  "permanentLock": true,
+  "approvedOgInitializationRawUnits": "1",
+  "evmTreasuryPreference": "splits-smart-account",
+  "solanaCustodyRecommendation": "squads-v4",
+  "solanaThresholdApproved": "2-of-3",
+  "actualCustodyAddresses": null,
+  "newHeliusAllowance": 0,
+  "newPythAllowance": 0,
+  "deploymentAuthorized": false,
+  "financialActionsAuthorized": false
+}

@@ -1,0 +1,11 @@
+CREATE TABLE meme_notification_settings(fid INTEGER PRIMARY KEY,enabled INTEGER NOT NULL DEFAULT 0,voting INTEGER NOT NULL DEFAULT 1,launch INTEGER NOT NULL DEFAULT 1,rewards INTEGER NOT NULL DEFAULT 1,updated_at INTEGER NOT NULL);
+CREATE TABLE meme_notification_subscriptions(scope TEXT NOT NULL,fid INTEGER NOT NULL,client_fid INTEGER NOT NULL,url TEXT,encrypted_token TEXT,enabled INTEGER NOT NULL,updated_at INTEGER NOT NULL,PRIMARY KEY(scope,fid,client_fid));
+CREATE TABLE meme_notification_webhooks(id TEXT PRIMARY KEY,scope TEXT NOT NULL,fid INTEGER NOT NULL,client_fid INTEGER NOT NULL,event TEXT NOT NULL,received_at INTEGER NOT NULL,accept_token TEXT NOT NULL);
+CREATE TABLE meme_notification_events(id TEXT PRIMARY KEY,kind TEXT NOT NULL,subject TEXT NOT NULL,fid INTEGER NOT NULL,payload TEXT NOT NULL,created_at INTEGER NOT NULL);
+CREATE TABLE meme_notification_outbox(id TEXT PRIMARY KEY,event_id TEXT NOT NULL REFERENCES meme_notification_events(id),scope TEXT NOT NULL,fid INTEGER NOT NULL,client_fid INTEGER NOT NULL,state TEXT NOT NULL CHECK(state IN('queued','processing','sent','retry','unknown','cancelled')),attempts INTEGER NOT NULL DEFAULT 0,retry_at INTEGER NOT NULL,lease TEXT,lease_until INTEGER,created_at INTEGER NOT NULL,UNIQUE(event_id,scope,client_fid));
+CREATE INDEX meme_notification_due ON meme_notification_outbox(state,retry_at);
+CREATE INDEX meme_notification_daily ON meme_notification_events(fid,created_at);
+CREATE TABLE meme_notification_control(id INTEGER PRIMARY KEY CHECK(id=1),paused INTEGER NOT NULL DEFAULT 1 CHECK(paused IN(0,1)));
+INSERT INTO meme_notification_control VALUES(1,1);
+CREATE TRIGGER meme_notification_event_immutable_update BEFORE UPDATE ON meme_notification_events BEGIN SELECT RAISE(ABORT,'Immutable notification event');END;
+CREATE TRIGGER meme_notification_event_immutable_delete BEFORE DELETE ON meme_notification_events BEGIN SELECT RAISE(ABORT,'Immutable notification event');END;
