@@ -5,6 +5,14 @@ export interface Identity {
   baseWallets: string[];
   wallets: { chain: string; address: string; role: string }[];
 }
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+  }
+}
 export async function api(
   path: string,
   body?: unknown,
@@ -32,8 +40,18 @@ export async function api(
           }
         : {}),
     });
-    const data = await response.json();
-    if (!response.ok) throw Error(data.error ?? "Request failed");
+    let data;
+    try {
+      data = await response.json();
+    } catch {
+      if (!response.ok) throw new ApiError("Request failed", response.status);
+      throw Error("Invalid API response");
+    }
+    if (!response.ok)
+      throw new ApiError(
+        data && typeof data.error === "string" ? data.error : "Request failed",
+        response.status,
+      );
     return data;
   } catch (error) {
     if (timedOut) throw Error("Request timed out. Try again.");

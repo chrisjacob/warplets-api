@@ -66,7 +66,12 @@ export function qaRoute(path: string, method: string) {
     return ["GET", "POST", "DELETE"].includes(method);
   if (method === "GET")
     return (
-      ["/api/meme/state", "/api/meme/preview"].includes(path) ||
+      [
+        "/api/meme/state",
+        "/api/meme/preview",
+        "/api/meme/history",
+        "/api/meme/rewards",
+      ].includes(path) ||
       /^\/api\/meme\/(?:cycles|settlements)\/[a-zA-Z0-9_-]+$/.test(path)
     );
   return (

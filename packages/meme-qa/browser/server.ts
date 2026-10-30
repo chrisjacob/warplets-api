@@ -5,6 +5,7 @@ import worker from "../../../meme/src/worker/index";
 import { testDb } from "../../../meme/src/worker/testDb";
 import { sha } from "../../../meme/src/worker/db";
 import { advance } from "../../../meme/src/worker/rounds";
+import { seedReadArchive } from "../load/readArchive";
 if (process.env.MEME_QA_HARNESS !== "local-disposable")
   throw Error("Explicit disposable harness flag required");
 const origin = "http://127.0.0.1:5196";
@@ -124,6 +125,12 @@ const server = createServer(async (req, res) => {
           "set-cookie",
           `meme_session=${token}; Path=/; HttpOnly; SameSite=Strict`,
         );
+      } else if (url.pathname === "/__qa/archive") {
+        seedReadArchive(storage.raw);
+      } else if (url.pathname === "/__qa/switch-account") {
+        storage.raw
+          .prepare("UPDATE meme_sessions SET fid=43 WHERE token_hash=?")
+          .run(await sha(token));
       } else if (
         url.pathname === "/__qa/select" ||
         url.pathname === "/__qa/skip"

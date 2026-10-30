@@ -8,6 +8,7 @@ import { operationsRequest, tick } from "./operations";
 import { sourceRequest } from "./sources";
 import { versionRequest } from "./evidenceVersions";
 import { transactionsRequest } from "./transactions";
+import { readPagesRequest } from "./readPages";
 import { Problem, json as reply } from "./db";
 import { securityHeaders } from "../shared/securityHeaders";
 import { qaRequest, qaResponse, qaTransportRequest } from "./qaAccess";
@@ -88,6 +89,7 @@ export default {
           await qaRequest(env.MEME_DB, request, String(env.MEME_QA_FIDS));
         const response =
           (await authRequest(env.MEME_DB, request)) ??
+          (await readPagesRequest(env.MEME_DB, request)) ??
           (await transactionsRequest(env.MEME_DB, request)) ??
           (await operationsRequest(env.MEME_DB, request)) ??
           (await sourceRequest(env.MEME_DB, request, {

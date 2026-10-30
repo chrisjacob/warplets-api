@@ -2,6 +2,8 @@
 
 Implemented on 30 October 2026 (Sydney). This is an isolated test system, not deployment or financial activation. Use `pnpm --dir packages/meme-qa check`, `test:browser`, and `test:chains`. Browser tests use ports 5196/8798 and an in-memory database; existing previews on 5194/8797 are untouched. CI runs on the existing Ubuntu runner with no production credentials.
 
+The [evening review](READ-REVIEW-2026-10-30.md) expands the suite to twenty-two desktop/mobile journeys, adds whole-campaign reward/history paging and records the next phone-testing steps. The earlier public session expired and its processes were verified stopped. Base/Trust and Solana physical-device checks are deferred until the owner is ready; no replacement access was opened.
+
 ## Wallet custody and recovery
 
 The follow-on [restricted QA and owner recovery procedure](QA-ACCESS.md), [attempt/finality journal](TRANSACTION-RECOVERY.md), [large-history checkpoints](EVIDENCE-CHECKPOINTS.md), [local pilot benchmark](PILOT-PERFORMANCE.md) and [unapproved Splits/native-Solana configuration proposal](CONFIGURATION-PROPOSAL.md) extend this baseline. The [production ownership audit](OWNERSHIP-SOURCE-AUDIT.md) confirms a full cached token roster but insufficient checked freshness for a financial freeze. No physical wallet, mainnet transaction or production readiness is inferred from those local passes.

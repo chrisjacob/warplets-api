@@ -60,6 +60,8 @@ jobs:
           pnpm --dir packages/meme-qa gateway:probe "$qa_private/gateway.json"
       - name: Local 100-account pilot and 1200-account stress benchmark
         run: pnpm --dir packages/meme-qa benchmark
+      - name: Lifetime history, compact polling and whole-campaign reward pages
+        run: pnpm --dir packages/meme-qa benchmark:reads
       - name: Execute captured protocol binaries offline
         run: pnpm --dir packages/meme-qa test:chains
       - run: pnpm --dir packages/meme-qa exec playwright install --with-deps chromium webkit

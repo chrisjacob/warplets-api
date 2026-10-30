@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { api, type Identity } from "./client";
+import { api, ApiError, type Identity } from "./client";
 import { latestRequest } from "./latestRequest";
+import { useRoundClock } from "./useRoundClock";
 export interface RoundView {
   id: string;
   state: string;
@@ -20,6 +21,7 @@ export interface RoundView {
   }[];
 }
 export interface LocalState {
+  serverTime?: number;
   identity: Identity;
   settlement?: {
     state: string;
@@ -81,7 +83,7 @@ export function useLocalState(enabled = true) {
     if (!enabled || !mounted.current || !isVisible()) return;
     await requests.current.run(
       (signal) =>
-        api("/api/meme/state", undefined, "GET", signal) as Promise<
+        api("/api/meme/state?view=today", undefined, "GET", signal) as Promise<
           LocalState & { identity: Identity }
         >,
       (next) => {
@@ -89,7 +91,13 @@ export function useLocalState(enabled = true) {
         setIdentity(next.identity);
         setError(null);
       },
-      () => setError("Couldn’t refresh. Try again."),
+      (error) => {
+        if (error instanceof ApiError && [401, 403].includes(error.status)) {
+          setData(null);
+          setIdentity(null);
+          setError("Sign in again to continue.");
+        } else setError("Couldn’t refresh. Try again.");
+      },
     );
     if (
       current === refreshId.current &&
@@ -148,8 +156,17 @@ export function LocalRounds({
     [busy, setBusy] = useState(false);
   const r = data?.round,
     eligible = !!identity?.farcasterFid && !!identity.solanaWallet;
+  const now = useRoundClock(data?.serverTime, r?.opens_at, r?.closes_at);
   async function cast(candidateId: string) {
-    if (!r || busy || stale) return;
+    if (
+      !r ||
+      busy ||
+      stale ||
+      r.state !== "open" ||
+      now < r.opens_at ||
+      now >= r.closes_at
+    )
+      return;
     setBusy(true);
     setError(null);
     try {
@@ -171,9 +188,10 @@ export function LocalRounds({
         {data && <p>Check back for the next vote.</p>}
       </section>
     );
-  const upcoming = r.state === "prepared" || r.state === "frozen";
+  const upcoming =
+    r.state === "prepared" || r.state === "frozen" || now < r.opens_at;
   const boundary = upcoming ? r.opens_at : r.closes_at;
-  const live = r.state === "open",
+  const live = r.state === "open" && now >= r.opens_at && now < r.closes_at,
     final = data?.settlement?.state === "finalized";
   const label =
     (
@@ -186,6 +204,12 @@ export function LocalRounds({
         skipped: "Skipped",
       } as Record<string, string>
     )[r.state] ?? r.state;
+  const displayLabel =
+    r.state === "open" && !live
+      ? now < r.opens_at
+        ? "Upcoming"
+        : "Voting closed"
+      : label;
   return (
     <section aria-label="Today’s round" className="round-content">
       <div className="round-heading">
@@ -197,7 +221,7 @@ export function LocalRounds({
               : "Reveals at opening"}
           </h2>
         </div>
-        <span className="pill">{label}</span>
+        <span className="pill">{displayLabel}</span>
       </div>
       <p className="fine">
         {upcoming ? "Opens " : live ? "Closes " : "Closed "}
@@ -273,7 +297,13 @@ export function LocalRounds({
               className={
                 data?.myVote?.candidate_id === c.id ? "selected-vote" : ""
               }
-              disabled={!eligible || busy || !live || stale}
+              disabled={
+                !eligible ||
+                busy ||
+                !live ||
+                stale ||
+                data?.myVote?.candidate_id === c.id
+              }
               aria-pressed={data?.myVote?.candidate_id === c.id}
               onClick={() => void cast(c.id)}
             >

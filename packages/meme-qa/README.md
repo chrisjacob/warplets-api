@@ -7,6 +7,7 @@ pnpm --dir packages/meme-qa check
 pnpm --dir packages/meme-qa exec playwright install chromium
 pnpm --dir packages/meme-qa test:browser
 pnpm --dir packages/meme-qa test:chains
+pnpm --dir packages/meme-qa benchmark:reads
 ```
 
 Solana execution requires Linux x64. Windows reports those tests as **skipped**; the Ubuntu CI job must pass them. Anvil and the browser suite also run on Windows. Fixture tests never contact a live chain. Do not fund local simulator keys.

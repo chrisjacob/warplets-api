@@ -16,10 +16,10 @@ for (const [key, value] of Object.entries(manifest))
 if (!seen.size) throw Error("Production entry missing");
 if (
   [...seen].some((key) =>
-    /ConnectDialog|TrustConnectBridge|FarcasterSignInControl/.test(key),
+    /ConnectDialog|TrustConnectBridge|FarcasterSignInControl|HistoryPanel|RewardsPanel/.test(key),
   )
 )
-  throw Error("Wallet providers entered the startup graph");
+  throw Error("Deferred wallet or archive views entered the startup graph");
 const assets = [
   ...new Set(
     [...seen].flatMap((key) => [

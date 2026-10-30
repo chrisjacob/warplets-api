@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { preview } from "../shared/fixtures";
 import { LocalRounds, OperatorPanel, useLocalState } from "./LocalRounds";
 import { IdentityPanel } from "./IdentityPanel";
 import { Tabs, type Tab as LaunchTab } from "./Tabs";
-import { rewardTotals, tokenAmount, rewardStatus } from "./rewards";
+const HistoryPanel = lazy(() => import("./HistoryPanel"));
+const RewardsPanel = lazy(() => import("./RewardsPanel"));
 type Tab = "Today" | "Rewards" | "Launches";
 function FixtureApp() {
   const [tab, setTab] = useState<Tab>("Today");
@@ -214,7 +215,6 @@ export function App() {
         <FixtureApp />
       </>
     );
-  const totals = rewardTotals(data?.entitlements ?? []);
   return (
     <div className="shell local-app">
       <header>
@@ -260,89 +260,30 @@ export function App() {
               stale={!!error}
             />
           )}
-          {tab === "Rewards" && (
-            <section className="card" aria-label="Rewards">
-              <h2>Your rewards</h2>
-              {totals.length ? (
-                totals.map((e) => (
-                  <article
-                    className="reward-row"
-                    key={JSON.stringify([
-                      e.edition_id,
-                      e.reward_wallet,
-                      e.mode,
-                      e.fundingState,
-                      e.releaseState,
-                      e.claimState,
-                    ])}
-                  >
-                    <div>
-                      <strong>
-                        {tokenAmount(e.amount, e.decimals)} {e.symbol}
-                      </strong>
-                      <p>
-                        {rewardStatus(e)}
-                        {e.mode === "simulated" ? " · Simulated" : ""}
-                      </p>
-                      <details>
-                        <summary>Details</summary>
-                        <p>Destination: {e.reward_wallet}</p>
-                        <p>
-                          Scheduled through{" "}
-                          {new Date(e.release_at).toLocaleDateString()}
-                        </p>
-                      </details>
-                    </div>
-                  </article>
-                ))
-              ) : (
-                <p>
-                  {identity?.farcasterFid
-                    ? "No rewards yet. Vote in the next round."
-                    : "Connect to see your rewards."}
-                </p>
-              )}
-              {!identity?.farcasterFid ? (
+          {tab === "Rewards" &&
+            (identity?.farcasterFid ? (
+              <Suspense fallback={<p role="status">Loading rewards…</p>}>
+                <RewardsPanel
+                  key={identity.farcasterFid}
+                  fid={identity.farcasterFid}
+                />
+              </Suspense>
+            ) : (
+              <section className="card" aria-label="Rewards">
+                <h2>Your rewards</h2>
+                <p>Connect to see your rewards.</p>
                 <button
                   className="primary"
                   onClick={() => setConnectOpen(true)}
                 >
                   Connect
                 </button>
-              ) : (
-                <button disabled>Claims coming later</button>
-              )}
-            </section>
-          )}
+              </section>
+            ))}
           {tab === "History" && (
-            <section className="card" aria-label="Round history">
-              <h2>Past rounds</h2>
-              {data?.history.length ? (
-                data.history.map((r) => (
-                  <article className="history-row" key={r.id}>
-                    <div>
-                      <h3>
-                        {new Date(r.closes_at).toLocaleDateString(undefined, {
-                          month: "short",
-                          day: "numeric",
-                        })}
-                      </h3>
-                      <p>
-                        {r.state === "skipped"
-                          ? "Skipped"
-                          : r.selected_candidate
-                            ? "Selected: " +
-                              (r.selected_name ?? r.selected_candidate)
-                            : "Selection pending"}
-                      </p>
-                    </div>
-                    {r.outcome_reason && <p>{r.outcome_reason}</p>}
-                  </article>
-                ))
-              ) : (
-                <p>No past rounds yet.</p>
-              )}
-            </section>
+            <Suspense fallback={<p role="status">Loading rounds…</p>}>
+              <HistoryPanel />
+            </Suspense>
           )}
         </div>
         {new URLSearchParams(location.search).get("operator") === "1" && (
