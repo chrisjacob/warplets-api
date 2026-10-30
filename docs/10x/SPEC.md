@@ -9,7 +9,7 @@ The everyday journey is **claim previous rewards → see today's attribute and b
 ## Launch and campaign
 
 - Initial chain: Solana. Intended infrastructure: Meteora DAMM v2.
-- Each new token trades in one pool against the selected OG token. Initial liquidity is single-sided, funded with the new token.
+- Each new token trades in one pool against the selected OG token. Initial liquidity uses the new token plus exactly one raw OG unit, the subsequently approved initialization minimum. Itemize that OG unit separately from fees and the 90/10 supply split.
 - Supply allocation is 90% liquidity and 10% community rewards. “100% OG paired” describes the pairing, not supply allocation.
 - Each campaign releases 1% of total supply at launch +24 hours, then another 1% daily through +240 hours. Nothing from the reward reserve releases during the first 24 hours.
 - At a mature daily cadence, one day's winners can receive allocations from ten previous launches. The newly launched token first participates the following day. A skipped launch does not interrupt existing campaigns.
@@ -43,13 +43,21 @@ Use USD acquisition value of purchased units still held, not current market valu
 - A disposal proportionally reduces acquisition credit against the combined purchased and airdropped position. Buying 1,000 units for $100, receiving 1,000 by airdrop, then disposing of 500 leaves $75 credit.
 - Retained purchased lots preserve acquisition dates. Rebuys start new clocks. Verified transfers between the same account's wallets preserve credit. Final rewards are never clawed back.
 
-A versioned local normalization now integrates retained acquisition credit over elapsed active-campaign opportunities; see [BUILD.md](BUILD.md) for the exact formula and worked examples. This implementation supports functional testing. Production approval of its economic policy and source evidence remains a gate in [DECISIONS.md](DECISIONS.md).
+A versioned local normalization integrates retained acquisition credit over elapsed active-campaign opportunities; see [BUILD.md](BUILD.md) for the exact formula and worked examples. The owner approved the current participation design for the controlled cohort. Complete source evidence, public operating policies and activation remain separate gates in [DECISIONS.md](DECISIONS.md).
 
 ## Identity and claims
 
 Farcaster authenticates participation. A verified Solana wallet receives rewards; a linked Base wallet establishes Warplet ownership. A wallet or Warplet cannot supply boosts to multiple accounts in the same round. A Farcaster identity does not establish unique humanity.
 
-Final allocations become claimable after processing, subject to each token's minimum first release at +24 hours. Unclaimed allocations accumulate. Claim all may require multiple transactions. Users pay network and required token-account costs. Claiming adds no points or streak credit. There is no planned expiry or additional holding condition on finalized rewards. The distributor remains unselected; Jito's open-source distributor is a feasibility candidate.
+Final allocations become claimable after verified funding and release, subject to each token's minimum first release at +24 hours. Unclaimed allocations accumulate. Claim all may require multiple transactions. Users pay network and required token-account costs. Claiming adds no points or streak credit. The approved Jito design fully locks rewards until release, then vests them over one second. Permissionless clawback to the configured receiver starts 365 days after the final vesting end. Admin and receiver use native Solana 2-of-3 custody. Funded direct on-chain claims cannot be paused by this app. Actual custody, mainnet execution and deployment remain separate gates; see the dated approval records.
+
+## Mini apps, markets and trading profiles
+
+ATTN names each daily edition, paired with its selected OG; it is not a separate ecosystem token. Support Farcaster Mini Apps, the existing Base/web surface and standalone browsers through capability detection and reused Connect/onboarding components. Integrated Solana wallet flows may prepare ATTN/OG trades; no Base-wrapped token or implicit bridge is introduced.
+
+Show matched-window ATTN-versus-OG returns, quote units, source timestamps and coverage. ATTN/USD equals ATTN/OG times OG/USD. Show outperformance and underperformance, with illustrative scenarios identified. Trading P&L and reward holding credit are separate, versioned calculations.
+
+All verified traders have public app-scoped profiles, disclosed before verification. The top-100 trading board ranks purchased ATTN trading by realized net USD P&L over rolling 24-hour, 30-day and all-time windows, using moving weighted-average acquisition cost and attributable fees. Supporting metrics include realized ROI and per-OG gains; unlike OG units are never summed. Complete basis/evidence is required. Reward income, deposits and self-transfers are not trading profit. Sharing requires a user action and earns no points. Notifications require valid host permission; no real notification or financial action is enabled by local fixtures.
 
 ## Working assumptions, not settled protocol settings
 

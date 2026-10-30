@@ -24,6 +24,7 @@
     "security:test": "node scripts/test-security-blocklist.mjs",
     "security:test:redirects": "node --test scripts/test-http-redirect-security.mjs",
     "security:test:solana-rpc": "node --test scripts/test-solana-rpc-dependency.mjs",
+    "security:test:rendering": "node --test scripts/test-rendering-security.mjs",
     "security:smoke": "node scripts/security-smoke.mjs",
     "warpmoji:generate": "node scripts/generate-warpmoji-data.mjs && node scripts/generate-warpmoji-popularity.mjs",
     "warpmoji:popularity": "node scripts/generate-warpmoji-popularity.mjs",
@@ -52,7 +53,8 @@
       "hono@>=4.0.0 <4.13.14": "4.13.14",
       "@coinbase/cdp-sdk>zod": "4.6.6",
       "@coinbase/cdp-sdk>abitype": "1.3.0",
-      "@farcaster/quick-auth>zod": "4.6.6"
+      "@farcaster/quick-auth>zod": "4.6.6",
+      "@farcaster/snap-hono>satori": "0.33.5"
     },
     "patchedDependencies": {
       "@trustwallet/connect-walletconnect@0.0.0": "patches/@trustwallet__connect-walletconnect@0.0.0.patch",
@@ -68,8 +70,9 @@
     "zod": "^4.0.0"
   },
   "devDependencies": {
+    "@fontsource/inter": "4.5.15",
     "@cloudflare/workers-types": "^4.0.0",
-    "@hono/node-server": "^1.19.15",
+    "@hono/node-server": "2.1.3",
     "@types/node": "^24.0.0",
     "localflare": "^0.5.0",
     "react": "19.2.5",

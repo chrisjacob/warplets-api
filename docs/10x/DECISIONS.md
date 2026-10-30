@@ -6,8 +6,8 @@ The owner authorized building milestones 1–3 on 30 October 2026 with commits/P
 |---|---|---|
 | UTC timetable: previous-day 20:00 open, 19:30 close; ownership before reveal; links at freeze, Solana scope at first vote | Round, cycle and HTTP journey tests; BUILD.md | Final timetable, late ownership and launch operations review |
 | Valid Farcaster vote plus verified Solana reward wallet qualifies; Base optional; shared wallet/NFT conflicts excluded/reserved | Proof, ambiguity and wallet-conflict tests | Sybil/dispute policy; manual real-account and mobile QA |
-| Retained acquisition lots, proportional disposals, active-campaign opportunity normalization, floor once to +5x units | Rational ledger and replay examples | Approve normalization; independent historical prices and complete-history source integration |
-| Integer score units; earliest valid vote then FID; top 100 share the full 1% release; largest remainders tie by rank | Pure allocation, 101-voter and overlap tests | Approve allocation/qualification policy |
+| Retained acquisition lots, proportional disposals, active-campaign opportunity normalization, floor once to +5x units | Rational ledger and replay examples; controlled-cohort design approved | Independent historical prices and complete-history source integration |
+| Integer score units; earliest valid vote then FID; top 100 share the full 1% release; largest remainders tie by rank | Pure allocation, 101-voter and overlap tests; controlled-cohort design approved | Public abuse/dispute procedures and activation review |
 | Zero qualifiers reserve the release; no offered round needs an explicit reasoned reserve; no silent reassignment | Empty/unoffered reserve tests | Treasury handling/disclosure of reserves |
 | Closing round serves releases in `(close, close +24h]`; actual launch starts ten releases at +24h through +240h | Boundary/delay and HTTP journey tests | Final delays/overlap operations and distributor feasibility |
 
