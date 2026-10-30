@@ -46,7 +46,7 @@ export interface SimulationEvidence {
   observedAt: number;
 }
 export interface ChainObservation {
-  status: "pending" | "finalized" | "failed" | "absent";
+  status: "pending" | "confirmed" | "finalized" | "failed" | "absent";
   network: TransactionNetwork;
   planHash: string;
   signature: string | null;

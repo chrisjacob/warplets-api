@@ -12,6 +12,8 @@ import {
 import worker from "../../../meme/src/worker/index";
 import { testDb } from "../../../meme/src/worker/testDb";
 import { sha } from "../../../meme/src/worker/db";
+import { canonical } from "../../../meme/src/shared/canonical";
+import { decodeDistributor } from "../src/jito-account.mjs";
 import { encode58 } from "../../../meme/src/shared/base58";
 import {
   prepareIntent,
@@ -38,6 +40,7 @@ import {
 import {
   planLockedJito,
   buildLockedClaimInstructions,
+  assertJitoAccount,
 } from "../../meme-protocol/src/jito-locked.mjs";
 import {
   buildLaunchProof,
@@ -97,6 +100,11 @@ test(
         observe: () => Promise<Record<string, string>>,
         notBefore = Date.now(),
         loseResponse = false,
+        beforeHandoff?: () => Promise<{
+          observedHash: string;
+          observedAt: number;
+          context: string;
+        }>,
       ) {
         const plan: TransactionPlan = {
           version: 1,
@@ -119,7 +127,16 @@ test(
             observe,
           ) as TransactionReadAdapter;
         await simulateIntent(storage.db, intent.id, adapter);
-        await beginHandoff(storage.db, intent.id);
+        await beginHandoff(
+          storage.db,
+          intent.id,
+          beforeHandoff
+            ? async () => ({
+                ...(await beforeHandoff()),
+                planHash: intent.plan_hash,
+              })
+            : undefined,
+        );
         const signature = await sendLocalPlan(connection, plan, signers);
         if (loseResponse) {
           storage.interruptNextBatch();
@@ -129,8 +146,14 @@ test(
           );
         }
         await recordSignature(storage.db, intent.id, signature);
-        const receipt = await reconcileIntent(storage.db, intent.id, adapter);
+        let receipt = await reconcileIntent(storage.db, intent.id, adapter);
+        const deadline = performance.now() + 30000;
+        while (receipt.state !== "confirmed" && performance.now() < deadline) {
+          await new Promise((resolve) => setTimeout(resolve, 100));
+          receipt = await reconcileIntent(storage.db, intent.id, adapter);
+        }
         assert.equal(receipt.state, "confirmed");
+        assert.equal(receipt.chain_status, "finalized");
         assert.equal(
           (await reconcileIntent(storage.db, intent.id, adapter)).state,
           "confirmed",
@@ -348,6 +371,15 @@ test(
       });
       const distributor = new PublicKey(plan.expected.distributor),
         vault = new PublicKey(plan.expected.tokenVault);
+      const preconditionHash = await sha(
+        canonical({
+          ...plan.expected,
+          clawedBack: false,
+          vaultAmount: "0",
+          vaultMint: mint.toBase58(),
+          vaultAuthority: distributor.toBase58(),
+        }),
+      );
       await execute(
         "create-distributor",
         "edition:1",
@@ -372,13 +404,45 @@ test(
           ),
         ],
         [payer],
-        { mint: mint.toBase58(), amount: entitlement.amount },
+        { mint: mint.toBase58(), amount: entitlement.amount, preconditionHash },
         async () => {
           const a = await getAccount(connection, vault);
-          return { mint: a.mint.toBase58(), amount: a.amount.toString() };
+          assertJitoAccount(
+            plan,
+            decodeDistributor(
+              plan,
+              await connection.getAccountInfo(distributor),
+            ),
+          );
+          return {
+            mint: a.mint.toBase58(),
+            amount: a.amount.toString(),
+            preconditionHash,
+          };
         },
         Date.now(),
         true,
+        async () => {
+          const observed = decodeDistributor(
+            plan,
+            await connection.getAccountInfo(distributor, "finalized"),
+          );
+          assertJitoAccount(plan, observed);
+          const token = await getAccount(connection, vault, "finalized");
+          const observedHash = await sha(
+            canonical({
+              ...observed,
+              vaultAmount: token.amount.toString(),
+              vaultMint: token.mint.toBase58(),
+              vaultAuthority: token.owner.toBase58(),
+            }),
+          );
+          return {
+            observedHash,
+            observedAt: Date.now(),
+            context: "solana-local:" + (await connection.getSlot("finalized")),
+          };
+        },
       );
       const immutableBefore = JSON.stringify(
         storage.raw.prepare("SELECT * FROM meme_entitlements").all(),

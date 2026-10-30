@@ -9,7 +9,7 @@ import {
   recordSignature,
   reconcileIntent,
 } from "./transactions";
-import { requireThat, type Database } from "./db";
+import { requireThat, one, type Database } from "./db";
 /** Sequential, bounded controller. The submit callback is supplied by a local harness,
  * never by a public request, and mainnet handoff remains rejected by the intent layer. */
 export async function runClaimBatch(
@@ -65,6 +65,8 @@ export async function runClaimBatch(
         results,
         nextCursor: next,
         complete: false,
+        processedAll: false,
+        allClaimed: false,
         needsReconciliation: true,
       };
   }
@@ -72,6 +74,14 @@ export async function runClaimBatch(
     results,
     nextCursor: next < ids.length ? next : null,
     complete: next === ids.length,
+    processedAll: next === ids.length,
     needsReconciliation: false,
+    allClaimed:
+      next === ids.length &&
+      (await one<{ n: number }>(
+        db,
+        "SELECT COUNT(*) n FROM meme_transaction_intents WHERE id IN(SELECT value FROM json_each(?)) AND state='confirmed'",
+        JSON.stringify(ids),
+      ))!.n === ids.length,
   };
 }
