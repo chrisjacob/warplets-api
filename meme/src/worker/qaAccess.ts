@@ -1,5 +1,35 @@
 import { session } from "./auth";
 import { type Database, requireThat, run, json } from "./db";
+import { timingSafeEqual } from "node:crypto";
+
+export function qaTransportRequest(
+  request: Request,
+  origin: string,
+  secret: string,
+) {
+  requireThat(qaOrigin(origin), 404, "Local application only");
+  const token = request.headers.get("x-meme-qa-gateway") ?? "";
+  requireThat(
+    /^[A-Za-z0-9_-]{43}$/.test(secret) &&
+      /^[A-Za-z0-9_-]{43}$/.test(token) &&
+      timingSafeEqual(
+        new TextEncoder().encode(secret),
+        new TextEncoder().encode(token),
+      ),
+    403,
+    "QA gateway authentication required",
+  );
+  const input = new URL(request.url);
+  requireThat(
+    ["localhost", "127.0.0.1", "[::1]", new URL(origin).hostname].includes(
+      input.hostname,
+    ),
+    404,
+    "Local application only",
+  );
+  const target = new URL(input.pathname + input.search, origin);
+  return new Request(target, request);
+}
 
 // QA is deliberately incompatible with every existing product/dev hostname.
 export function qaOrigin(value: string): string | null {

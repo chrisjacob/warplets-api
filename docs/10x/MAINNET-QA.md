@@ -4,6 +4,8 @@ Implemented on 30 October 2026 (Sydney). This is an isolated test system, not de
 
 ## Wallet custody and recovery
 
+The follow-on [restricted QA and owner recovery procedure](QA-ACCESS.md), [attempt/finality journal](TRANSACTION-RECOVERY.md), [large-history checkpoints](EVIDENCE-CHECKPOINTS.md), [local pilot benchmark](PILOT-PERFORMANCE.md) and [unapproved Splits/native-Solana configuration proposal](CONFIGURATION-PROPOSAL.md) extend this baseline. The [production ownership audit](OWNERSHIP-SOURCE-AUDIT.md) confirms a full cached token roster but insufficient checked freshness for a financial freeze. No physical wallet, mainnet transaction or production readiness is inferred from those local passes.
+
 Dedicated public addresses, generated with secure library randomness:
 
 | Network | QA address |

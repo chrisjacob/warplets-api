@@ -1,8 +1,37 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { testDb } from "./testDb";
-import { qaOrigin, qaResponse, qaRequest } from "./qaAccess";
+import {
+  qaOrigin,
+  qaResponse,
+  qaRequest,
+  qaTransportRequest,
+} from "./qaAccess";
 import { sha } from "./db";
+test("QA transport pins HTTPS only with the private gateway token, preserving the browser Origin", () => {
+  const origin = "https://private-qa.trycloudflare.com",
+    secret = "t".repeat(43);
+  assert.throws(
+    () =>
+      qaTransportRequest(
+        new Request("http://127.0.0.1/api/auth/session", {
+          headers: { "x-meme-qa-gateway": "bad" },
+        }),
+        origin,
+        secret,
+      ),
+    /authentication/,
+  );
+  const request = qaTransportRequest(
+    new Request("http://127.0.0.1/api/auth/session", {
+      headers: { "x-meme-qa-gateway": secret, origin: "https://evil.test" },
+    }),
+    origin,
+    secret,
+  );
+  assert.equal(request.url, origin + "/api/auth/session");
+  assert.equal(request.headers.get("origin"), "https://evil.test");
+});
 
 test("QA checks server-verified FIDs, rejects malformed rosters and revokes an uninvited sign-in", async () => {
   const t = testDb(),

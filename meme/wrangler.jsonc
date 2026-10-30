@@ -16,6 +16,7 @@
     "LOCAL_OPERATIONS_ENABLED": "false",
     "MEME_QA_ORIGIN": "",
     "MEME_QA_FIDS": "",
+    "MEME_QA_GATEWAY_TOKEN": "",
   },
   "d1_databases": [
     {

@@ -153,11 +153,13 @@ export function replayHolding(
     ]),
   ].sort((a, b) => a - b);
   let pointMs = 0n;
+  const orderedLots = [...lots].sort((a, b) => a.acquiredAt - b.acquiredAt);
+  let credit = new Fraction(0n),
+    cursor = 0;
   for (let i = 0; i < changes.length - 1; i++) {
     const at = changes[i];
-    const credit = lots
-      .filter((l) => l.acquiredAt <= at)
-      .reduce((sum, l) => sum.add(l.credit), new Fraction(0n));
+    while (cursor < orderedLots.length && orderedLots[cursor].acquiredAt <= at)
+      credit = credit.add(orderedLots[cursor++].credit);
     const tier =
       credit.compare(new Fraction(100000000n)) >= 0
         ? 2n

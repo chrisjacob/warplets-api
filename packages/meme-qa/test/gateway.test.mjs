@@ -46,6 +46,7 @@ test("restricted compiled gateway requires access, expires sessions and cannot p
     worker: "http://127.0.0.1:8799",
     staticDirectory: dir,
     grants: [invitation.grant],
+    upstreamToken: "t".repeat(43),
   };
   writeFileSync(join(dir, "index.html"), "compiled QA");
   assert.throws(() =>
@@ -57,6 +58,8 @@ test("restricted compiled gateway requires access, expires sessions and cannot p
       assert.equal(init.headers.get("x-qa-principal"), null);
       if (url.pathname === "/api/auth/session")
         return Response.json({ farcasterFid: fid });
+      if (url.pathname === "/api/auth/wallet/challenge")
+        return Response.json({ error: "Expired proof" }, { status: 401 });
       writes++;
       return Response.json({ ok: true });
     },
@@ -149,6 +152,16 @@ test("restricted compiled gateway requires access, expires sessions and cannot p
         })
       ).status,
       200,
+    );
+    assert.equal(
+      (
+        await call("/api/auth/wallet/challenge", {
+          cookie,
+          method: "POST",
+          body: "x=y",
+        })
+      ).status,
+      401,
     );
     now = invitation.grant.expiresAt + 1;
     assert.equal((await call("/", { cookie })).status, 401);

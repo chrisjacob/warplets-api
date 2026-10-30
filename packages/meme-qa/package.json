@@ -16,6 +16,8 @@
     "fees": "node src/fee-quote.mjs",
     "accounts": "node src/accounts.mjs",
     "gateway": "node src/gateway.mjs",
+    "gateway:probe": "node src/probe-gateway.mjs",
+    "benchmark": "node ../../meme/node_modules/tsx/dist/cli.mjs load/pilot.ts",
     "check": "pnpm test && pnpm report"
   },
   "devDependencies": {

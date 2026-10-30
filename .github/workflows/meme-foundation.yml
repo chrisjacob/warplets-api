@@ -36,6 +36,26 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm --dir packages/meme-qa check
+      - name: Build compiled restricted QA app
+        run: pnpm --dir meme qa:build && pnpm --dir meme qa:migrate
+      - name: Real local gateway and Worker proof round-trip (no tunnel)
+        shell: bash
+        run: |
+          set -euo pipefail
+          qa_private="$RUNNER_TEMP/meme-restricted-qa"
+          pnpm --dir packages/meme-qa gateway prepare "$qa_private" https://isolated-qa.trycloudflare.com 1431382
+          pnpm --dir meme exec wrangler dev --config "$qa_private/wrangler.jsonc" --local --ip 127.0.0.1 --port 8799 --persist-to .wrangler/restricted-qa-state > "$RUNNER_TEMP/meme-qa-worker.log" 2>&1 &
+          qa_pid=$!
+          trap 'kill "$qa_pid" 2>/dev/null || true' EXIT
+          ready=false
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:8799/health > /dev/null; then ready=true; break; fi
+            sleep 1
+          done
+          if [ "$ready" != true ]; then echo 'Local QA Worker failed to start'; exit 1; fi
+          pnpm --dir packages/meme-qa gateway:probe "$qa_private/gateway.json"
+      - name: Local 100-account pilot and 1200-account stress benchmark
+        run: pnpm --dir packages/meme-qa benchmark
       - name: Execute captured protocol binaries offline
         run: pnpm --dir packages/meme-qa test:chains
       - run: pnpm --dir packages/meme-qa exec playwright install --with-deps chromium

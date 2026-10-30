@@ -25,6 +25,8 @@ export function validateGateway(config, now = Date.now()) {
   )
     throw Error("An exact isolated HTTPS Quick Tunnel origin is required");
   loopback(config.worker);
+  if (!/^[A-Za-z0-9_-]{43}$/.test(config.upstreamToken ?? ""))
+    throw Error("Private gateway transport token required");
   if (
     !Array.isArray(config.grants) ||
     !config.grants.length ||
@@ -194,11 +196,13 @@ export function createGateway(
         ])
           if (req.headers[name]) headers.set(name, req.headers[name]);
         headers.set("host", u.host);
+        headers.set("x-meme-qa-gateway", config.upstreamToken);
         // Never forward client-supplied principal/operator/forwarded headers.
         const current = await boundedJson(
           await fetcher(new URL("/api/auth/session", config.worker), {
             headers: new Headers({
               host: u.host,
+              "x-meme-qa-gateway": config.upstreamToken,
               cookie: headers.get("cookie") ?? "",
             }),
             redirect: "error",
@@ -225,7 +229,10 @@ export function createGateway(
         const cookie = response.headers.get("set-cookie");
         if (cookie) responseHeaders["set-cookie"] = cookie;
         // Bind a gateway invitation to its server-verified identity, after login and on every request.
-        const sessionHeaders = new Headers({ host: u.host });
+        const sessionHeaders = new Headers({
+          host: u.host,
+          "x-meme-qa-gateway": config.upstreamToken,
+        });
         sessionHeaders.set(
           "cookie",
           cookie ? cookie.split(";")[0] : (headers.get("cookie") ?? ""),
@@ -242,7 +249,11 @@ export function createGateway(
         const fid = identity.farcasterFid;
         if (fid != null && fid !== access.fid)
           return send(403, "Use the invited Farcaster account");
-        const data = await boundedJson(response, 1024 * 1024);
+        // Bound error bodies too, while preserving the Worker's actual status.
+        const data = await boundedJson(
+          new Response(response.body),
+          1024 * 1024,
+        );
         return send(
           response.status,
           JSON.stringify(data),
@@ -291,10 +302,45 @@ if (
         "../../../meme/.tmp/restricted-qa-web",
       ),
       grants: invitations.map((x) => x.grant),
+      upstreamToken: randomBytes(32).toString("base64url"),
     });
     writeFileSync(
       resolve(target, "gateway.json"),
       JSON.stringify(config, null, 2),
+      { flag: "wx", mode: 0o600 },
+    );
+    writeFileSync(
+      resolve(target, ".dev.vars"),
+      `MEME_QA_GATEWAY_TOKEN="${config.upstreamToken}"\n`,
+      { flag: "wx", mode: 0o600 },
+    );
+    const workerConfig = {
+      name: "meme-restricted-qa-local",
+      main: resolve(import.meta.dirname, "../../../meme/src/worker/index.ts"),
+      compatibility_date: "2026-10-30",
+      compatibility_flags: ["nodejs_compat"],
+      workers_dev: false,
+      vars: {
+        LOCAL_PREVIEW_ONLY: "true",
+        LOCAL_PARTICIPATION_ENABLED: "true",
+        LOCAL_OPERATIONS_ENABLED: "false",
+        MEME_QA_ORIGIN: origin,
+        MEME_QA_FIDS: fids.join(","),
+      },
+      d1_databases: [
+        {
+          binding: "MEME_DB",
+          database_name: "meme-local",
+          migrations_dir: resolve(
+            import.meta.dirname,
+            "../../../meme/migrations",
+          ),
+        },
+      ],
+    };
+    writeFileSync(
+      resolve(target, "wrangler.jsonc"),
+      JSON.stringify(workerConfig, null, 2),
       { flag: "wx", mode: 0o600 },
     );
     writeFileSync(

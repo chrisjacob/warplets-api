@@ -5,6 +5,7 @@ Prepared 30 October 2026. **No tunnel is started by these changes.** Public expo
 ## Access boundaries
 
 - An exact `https://<random>.trycloudflare.com` origin must be configured in both gateway and Worker. Shared `10x.meme` hostnames and arbitrary origins are rejected. Forwarded host, principal and operator headers are not trusted.
+- A separately generated server-only transport token authenticates gateway→Worker requests. The private Worker config loads it from its adjacent `.dev.vars`; it never appears in arguments, browser assets or responses. This preserves the pinned HTTPS proof/cookie origin even when the local dev transport rewrites Host. The browser's original Origin is still checked unchanged. The comparison is constant-time; a missing/forged token cannot opt a request into QA mode.
 - Owner-issued 256-bit access codes grant at most eight hours; preparation defaults to two hours. Hashed codes live in the private gateway configuration. Plain codes live only in an owner-readable invitation file outside Git. Neither is logged or included in URLs. One active browser session per invitation; restarting the gateway revokes all sessions.
 - An invitation is bound to a FID. Farcaster verification remains cryptographic, using the existing Connect UI. Participant reads/votes require a verified invited FID. Wallet-only login does not grant participant access. A wrong FID is rejected before participant mutations; uninvited Farcaster sessions are revoked.
 - Gateway exposes auth, participant state/preview, cycle/settlement reads and voting only. Operator APIs, source imports, test principals, financial routes, source files, sourcemaps, dotfiles and arbitrary proxy destinations are blocked. Secrets and wallet vaults never enter this server.
@@ -23,17 +24,19 @@ After separate exposure approval, start a temporary Quick Tunnel to loopback por
 
 # A separate terminal; replace the example URL and private directory:
 pnpm --dir packages/meme-qa gateway prepare C:/private/10x-qa https://example-qa.trycloudflare.com 1431382
-pnpm --dir meme exec wrangler dev --local --ip 127.0.0.1 --port 8799 --persist-to .wrangler/restricted-qa-state --var MEME_QA_ORIGIN:https://example-qa.trycloudflare.com --var MEME_QA_FIDS:1431382
+pnpm --dir meme exec wrangler dev --config C:/private/10x-qa/wrangler.jsonc --local --ip 127.0.0.1 --port 8799 --persist-to .wrangler/restricted-qa-state
 
 # Another terminal; no tunnel is launched by this command:
 pnpm --dir packages/meme-qa gateway serve C:/private/10x-qa/gateway.json
 ```
 
-Invite up to **100 reviewed FIDs** by listing them in `prepare` and the same comma-separated Worker binding. Do not add balajis: the supplied account is read-only reference data. Use warpmoji only for owner-supervised local login/off-chain proofs. No external account links/settings or funds are changed. A new QA account is optional, not required. Prepare rounds and approved ownership evidence through the loopback operator tooling; no operator functionality is available over the tunnel. No synthetic test principal is inserted into this database.
+Invite up to **100 reviewed FIDs** by listing them in `prepare`; the generated private Worker config pins that same roster and origin. Keep the generated `.dev.vars`, gateway config and invitations outside Git and backups/reports containing public evidence. The private config contains no remote database ID or route. Do not add balajis: the supplied account is read-only reference data. Use warpmoji only for owner-supervised local login/off-chain proofs. No external account links/settings or funds are changed. A new QA account is optional, not required. Prepare rounds and approved ownership evidence through the loopback operator tooling; no operator functionality is available over the tunnel. No synthetic test principal is inserted into this database.
 
 For the isolated operator terminal, set `$env:MEME_OPERATOR_TARGET = 'restricted-qa'` before `pnpm --dir meme operator init` or any operator request. This selects port 8799, the separate persistence directory and a separate operator token. The default target remains the original preview; arbitrary destinations are not supported. Do not run `demo` when recording real-account evidence: its data is simulated.
 
 Privately open the invitation file on this workstation. Type its code on the QA access screen; do not paste it into chat, URLs, screenshots or reports. Verify unauthenticated/expired access, wrong FID, operator/financial rejection and HTTPS challenge URI before inviting anyone else. Stopping cloudflared removes exposure; stopping the gateway revokes access sessions. Keep both stopped when unattended. Delete or archive private invitations separately from the database; never commit them.
+
+`gateway:probe <private-gateway.json>` verifies the actual local HTTP round-trip with a disposable EOA proof and an inert `isolated-qa.trycloudflare.com` hostname. It requires a separately started loopback Worker and never opens a tunnel or contacts that hostname. Local execution and Linux CI verify origin-bound Secure cookies, preserved 401 responses and blocked operator/financial/explorer/secret routes. This remains distinct from physical-phone or real-user signing evidence.
 
 The service uses the documented [Quick Tunnel](https://developers.cloudflare.com/tunnel/get-started/quick-tunnels/) temporary URL and lifecycle. Cloudflare email access can provide an additional layer if supported by the installed connector and explicitly configured; this implementation does not depend on that optional feature.
 
