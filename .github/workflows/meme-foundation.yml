@@ -58,7 +58,9 @@ jobs:
         run: pnpm --dir packages/meme-qa benchmark
       - name: Execute captured protocol binaries offline
         run: pnpm --dir packages/meme-qa test:chains
-      - run: pnpm --dir packages/meme-qa exec playwright install --with-deps chromium
+      - run: pnpm --dir packages/meme-qa exec playwright install --with-deps chromium webkit
+      - name: Native access form origin regression in Chromium and WebKit
+        run: pnpm --dir packages/meme-qa test:gateway-browser
       - name: Desktop and mobile viewport journeys against the isolated Worker
         run: pnpm --dir packages/meme-qa test:browser
       - uses: actions/upload-artifact@v4

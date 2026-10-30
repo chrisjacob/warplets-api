@@ -116,8 +116,22 @@ test("restricted compiled gateway requires access, expires sessions and cannot p
       r.end(body);
     });
   try {
-    assert.equal((await call("/")).status, 401);
+    const entry = await call("/");
+    assert.equal(entry.status, 401);
+    assert.equal(entry.headers["referrer-policy"], "same-origin");
     assert.equal((await call("/", { host: "evil.test" })).status, 403);
+    for (const originHeader of ["null", "https://evil.test", ""]) {
+      assert.equal(
+        (
+          await call("/qa/access", {
+            method: "POST",
+            body: new URLSearchParams({ code: invitation.code }).toString(),
+            extra: { origin: originHeader },
+          })
+        ).status,
+        403,
+      );
+    }
     const login = await call("/qa/access", {
       method: "POST",
       body: new URLSearchParams({ code: invitation.code }).toString(),

@@ -179,7 +179,11 @@ export function createGateway(
           ?.slice(15) ?? "";
       const access = sessions.get(digest(token).toString("hex"));
       if (!access || access.expiresAt <= now())
-        return send(401, entry, "text/html; charset=utf-8");
+        // A navigate-mode form POST under no-referrer sends Origin:null.
+        // Preserve the real same-origin form Origin without leaking referrers cross-site.
+        return send(401, entry, "text/html; charset=utf-8", {
+          "referrer-policy": "same-origin",
+        });
       if (u.pathname.startsWith("/api/")) {
         if (!permittedApi(u.pathname, method)) return send(404, "Not found");
         if (

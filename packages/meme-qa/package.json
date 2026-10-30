@@ -11,6 +11,7 @@
     "wallets": "node src/wallets.mjs",
     "report": "node src/report.mjs",
     "test:browser": "playwright test",
+    "test:gateway-browser": "playwright test --config playwright.gateway.config.mjs",
     "test:chains": "node ../../meme/node_modules/tsx/dist/cli.mjs --test chains/*.test.mjs chains/*.test.ts",
     "capture": "node src/capture.mjs",
     "fees": "node src/fee-quote.mjs",
