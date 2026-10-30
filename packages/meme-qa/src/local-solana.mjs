@@ -93,8 +93,18 @@ export async function createLocalMint(connection, payer, decimals) {
   );
   return mint.publicKey;
 }
-export async function createLocalAta(connection, payer, mint, owner) {
-  const address = getAssociatedTokenAddressSync(mint, owner);
+export async function createLocalAta(
+  connection,
+  payer,
+  mint,
+  owner,
+  allowOwnerOffCurve = false,
+) {
+  const address = getAssociatedTokenAddressSync(
+    mint,
+    owner,
+    allowOwnerOffCurve,
+  );
   await sendFixtureInstructions(connection, payer, [
     createAssociatedTokenAccountIdempotentInstruction(
       payer.publicKey,

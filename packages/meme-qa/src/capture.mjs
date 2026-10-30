@@ -2,12 +2,18 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { PublicKey } from "@solana/web3.js";
 import { rpc, hash, validateEvidenceCapture } from "./safety.mjs";
-const programs = [
+const launchPrograms = [
   "cpamdpZCGKUy5JxQXB4dcpGPiikHawvSWAd6mEn1sGG",
   "mERKcfxMC5SqJn4Ld4BUris3WKZZ1ojjWJ3A3J5CKxv",
 ];
-/** Three bounded, public read-only RPC requests; never uses Network credentials. */
-export async function capturePrograms(output) {
+/** Two bounded, public read-only RPC requests; never uses Network credentials. */
+export async function capturePrograms(output, selection = "launch") {
+  if (!["launch", "custody"].includes(selection))
+    throw Error("Unsupported capture selection");
+  const programs =
+    selection === "launch"
+      ? launchPrograms
+      : ["SQDS4ep65T869zMMBKyuUq6aD6EgTu8psMjkvj52pCf"];
   const endpoint = "https://api.mainnet-beta.solana.com";
   const first = await rpc(endpoint, "getMultipleAccounts", [
     programs,
@@ -55,11 +61,12 @@ export async function capturePrograms(output) {
   });
   for (let i = 0; i < programs.length; i++) {
     const p = Buffer.from(accounts[i].data, "base64"),
-      d = Buffer.from(accounts[i + 2].data, "base64");
+      d = Buffer.from(accounts[i + programs.length].data, "base64");
     if (
       new PublicKey(p.subarray(4, 36)).toBase58() !== dataAddresses[i] ||
       d.readUInt32LE() !== 3 ||
-      accounts[i + 2].owner !== "BPFLoaderUpgradeab1e11111111111111111111111"
+      accounts[i + programs.length].owner !==
+        "BPFLoaderUpgradeab1e11111111111111111111111"
     )
       throw Error("Program linkage changed or invalid program data");
     accounts[i].programData = dataAddresses[i];
@@ -79,7 +86,7 @@ export async function capturePrograms(output) {
     context: manifest.context,
     requests: manifest.requests,
     programs: accounts
-      .slice(0, 2)
+      .slice(0, programs.length)
       .map(({ address, binarySha256, upgradeAuthority, deployedSlot }) => ({
         address,
         binarySha256,
@@ -90,11 +97,21 @@ export async function capturePrograms(output) {
   };
 }
 if (process.argv[1]?.endsWith("capture.mjs")) {
-  if (process.argv[2] !== "--public-read-only" || !process.argv[3])
+  if (
+    !["--public-read-only", "--custody-read-only"].includes(process.argv[2]) ||
+    !process.argv[3]
+  )
     throw Error(
       "Usage: capture --public-read-only <ignored-output-directory>; writes no chain state",
     );
   console.log(
-    JSON.stringify(await capturePrograms(resolve(process.argv[3])), null, 2),
+    JSON.stringify(
+      await capturePrograms(
+        resolve(process.argv[3]),
+        process.argv[2] === "--custody-read-only" ? "custody" : "launch",
+      ),
+      null,
+      2,
+    ),
   );
 }
