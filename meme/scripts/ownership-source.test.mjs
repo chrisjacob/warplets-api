@@ -42,6 +42,9 @@ test("ownership bridge reads the authoritative complete snapshot, validates real
     assert.equal(snapshot.ownership.length, 10000);
     assert.equal(snapshot.ownership[0].levels.cast, 7);
     assert.equal(snapshot.sourceAt, now - 1000);
+    assert.equal(snapshot.consistency.chainSnapshotVerified, false);
+    assert.equal(snapshot.consistency.financialFreezeEligible, false);
+    assert.equal(snapshot.consistency.oldestOwnerObservationAt, now - 1000);
     assert.equal(snapshot.checkpoint, readOwnership(file, now).checkpoint);
     db.prepare(
       "UPDATE warplet_market_state SET owner_checked_at=? WHERE token_id=1",

@@ -7,6 +7,7 @@ import {
 } from "../shared/holding";
 import { boost, decimal, streakLength } from "../shared/scoring";
 import { RULES_VERSION } from "../shared/rules";
+import { replayVersionPage } from "./pagedEvidence";
 
 interface Context {
   rules: string;
@@ -145,7 +146,8 @@ export async function stepSnapshot(db: Database, id: string) {
     const scope = new Set(input.wallets),
       events = new Map<string, LedgerEvent[]>(),
       coverage: string[] = [];
-    let complete = true;
+    let complete = true,
+      pagedNumerator = 0n;
     for (const c of context.campaigns) {
       if (!scope.size) {
         events.set(c.id, []);
@@ -168,22 +170,23 @@ export async function stepSnapshot(db: Database, id: string) {
           continue;
         }
         coverage.push(version.manifest_hash!);
-        const found = await rows<{ payload: string }>(
+        const replay = await replayVersionPage(
           db,
-          "SELECT e.payload FROM meme_version_events e WHERE version_id=? AND event_at<=? AND event_key IN(SELECT event_key FROM meme_version_wallets WHERE version_id=? AND wallet IN(SELECT value FROM json_each(?))) ORDER BY slot,signature,event_index LIMIT 5001",
+          id,
+          next.fid,
+          c,
           version.id,
+          scope,
           s.as_of,
-          version.id,
-          canonical(input.wallets),
         );
-        if (found.length > 5000) {
-          complete = false;
-          continue;
-        }
-        events.set(
-          c.id,
-          found.map((e) => JSON.parse(e.payload) as LedgerEvent),
-        );
+        if (!replay.complete)
+          return {
+            state: "building",
+            id,
+            participant: next.fid,
+            phase: "holding-replay",
+          };
+        pagedNumerator += replay.pointMs;
         continue;
       }
       const cp = await one<{ evidence_hash: string }>(
@@ -219,12 +222,18 @@ export async function stepSnapshot(db: Database, id: string) {
     let units = 0n;
     if (complete) {
       try {
-        units = normalizedHolding(
+        const value = normalizedHolding(
           context.campaigns,
           events,
           scope,
           s.as_of,
-        ).units;
+        );
+        const denominator = BigInt(value.denominator);
+        units =
+          denominator === 0n
+            ? 0n
+            : (50000n * (BigInt(value.numerator) + pagedNumerator)) /
+              denominator;
       } catch {
         complete = false;
       }

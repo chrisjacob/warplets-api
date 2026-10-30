@@ -177,7 +177,7 @@ if (command === "init") {
     const result = await send("/api/meme/operator/operations/tick", {});
     console.log(JSON.stringify(result));
     if (args[0]) {
-      const response = await fetch("http://127.0.0.1:8797/api/meme/state", {
+      const response = await fetch(apiOrigin + "/api/meme/state", {
         signal: AbortSignal.timeout(15000),
       });
       if (!response.ok) throw Error("Local round state unavailable");

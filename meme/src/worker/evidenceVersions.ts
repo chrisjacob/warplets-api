@@ -65,7 +65,7 @@ export async function startVersion(db: Database, p: Record<string, unknown>) {
   requireThat(
     Array.isArray(p.scopeWallets) &&
       p.scopeWallets.length > 0 &&
-      p.scopeWallets.length <= 1000,
+      p.scopeWallets.length <= 10000,
     400,
     "Version wallet scope required",
   );
@@ -225,16 +225,20 @@ export async function versionRequest(
     return json(
       await startVersion(
         db,
-        await payload(request, [
-          "id",
-          "campaignId",
-          "parentId",
-          "correctionId",
-          "effectiveFrom",
-          "throughAt",
-          "scopeWallets",
-          "mode",
-        ]),
+        await payload(
+          request,
+          [
+            "id",
+            "campaignId",
+            "parentId",
+            "correctionId",
+            "effectiveFrom",
+            "throughAt",
+            "scopeWallets",
+            "mode",
+          ],
+          1024 * 1024,
+        ),
       ),
     );
   const p = await payload(request, ["id", "events"]),

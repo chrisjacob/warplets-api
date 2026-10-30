@@ -32,6 +32,7 @@ export function readOwnership(path, now = Date.now()) {
   if (records.length !== 10000)
     throw Error("Full 10K ownership/metadata coverage required");
   let sourceAt = now;
+  let newestAt = 0;
   const ownership = records.map((r, i) => {
     if (
       Number(r.token_id) !== i + 1 ||
@@ -46,6 +47,7 @@ export function readOwnership(path, now = Date.now()) {
     )
       throw Error("Stale or invalid ownership observation");
     sourceAt = Math.min(sourceAt, checked);
+    newestAt = Math.max(newestAt, checked);
     const levels = {};
     for (const a of attributes) {
       const match = String(r[a + "_level"]).match(
@@ -66,6 +68,17 @@ export function readOwnership(path, now = Date.now()) {
     sourceAt,
     checkpoint: hash(JSON.stringify(records)),
     complete: true,
+    // SQLite consistency does not imply that all owners were observed at one chain block.
+    consistency: {
+      kind: "cache-snapshot",
+      observedAt: now,
+      oldestOwnerObservationAt: sourceAt,
+      newestOwnerObservationAt: newestAt,
+      chainSnapshotVerified: false,
+      financialFreezeEligible: false,
+      required:
+        "Reconcile all owners to one finalized Base block before a financial cohort freeze",
+    },
     ownership,
   };
 }
