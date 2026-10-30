@@ -1,7 +1,15 @@
 /** Read-only simulator reconciliation. No signing, broadcast or mainnet endpoint. */
 import { isDeepStrictEqual } from "node:util";
-import { PublicKey, Transaction } from "@solana/web3.js";
+import { createPublicKey, verify } from "node:crypto";
+import { PublicKey, Transaction, VersionedTransaction } from "@solana/web3.js";
 import { loopback, rpc, hash } from "./safety.mjs";
+import {
+  bytesHash,
+  validatePacket,
+  messageBytes,
+  decodeMessage,
+} from "../../../meme/src/shared/packets.ts";
+import { decode58 } from "../../../meme/src/shared/base58.ts";
 
 const stable = (value) => JSON.stringify(value, Object.keys(value).sort());
 const slot = (value) => Number.isSafeInteger(value) && value >= 0;
@@ -20,7 +28,13 @@ function signature58(bytes) {
   return text;
 }
 
-function validateTransaction(plan, signature, result, expectedSlot) {
+async function validateTransaction(
+  plan,
+  signature,
+  result,
+  expectedSlot,
+  packet,
+) {
   if (
     !result ||
     !slot(result.slot) ||
@@ -45,6 +59,40 @@ function validateTransaction(plan, signature, result, expectedSlot) {
   const wire = Buffer.from(result.transaction[0], "base64");
   if (wire.toString("base64") !== result.transaction[0] || wire.length > 1232)
     throw Error("Invalid transaction encoding");
+  if (packet) {
+    await validatePacket(
+      plan,
+      packet.attemptId,
+      packet.planHash,
+      packet,
+      packet.lifetime.observedAt,
+    );
+    const tx = VersionedTransaction.deserialize(wire),
+      message = tx.message.serialize(),
+      decoded = decodeMessage(message, packet.lookupTables);
+    if (
+      (await bytesHash(message)) !== packet.messageHash ||
+      signature58(Buffer.from(tx.signatures[0])) !== signature ||
+      !Buffer.from(tx.serialize()).equals(wire) ||
+      tx.signatures.length !== decoded.signers.length
+    )
+      throw Error("Observed transaction differs from the reviewed packet");
+    for (let i = 0; i < decoded.signers.length; i++) {
+      const key = createPublicKey({
+        key: Buffer.concat([
+          Buffer.from("302a300506032b6570032100", "hex"),
+          Buffer.from(decode58(decoded.signers[i], 32)),
+        ]),
+        format: "der",
+        type: "spki",
+      });
+      if (
+        !verify(null, Buffer.from(message), key, Buffer.from(tx.signatures[i]))
+      )
+        throw Error("Invalid reviewed transaction signature");
+    }
+    return result;
+  }
   const tx = Transaction.from(wire);
   if (
     !tx.signature ||
@@ -99,11 +147,18 @@ function validateTransaction(plan, signature, result, expectedSlot) {
 }
 
 /** Injectable RPC transport permits deterministic outage/fork fixtures, always loopback-only. */
-export function localInspector(connection, observeExpected, read = rpc) {
+export function localInspector(
+  connection,
+  observeExpected,
+  read = rpc,
+  packet = null,
+) {
   return async function inspect(plan, planHash, signature) {
     loopback(connection.rpcEndpoint);
     if (plan.network !== "solana-local" || plan.simulated !== true)
       throw Error("Simulator plans only; mainnet is unavailable");
+    if (packet && packet.planHash !== planHash)
+      throw Error("Packet differs from immutable plan");
     const base = {
       network: plan.network,
       planHash,
@@ -128,7 +183,7 @@ export function localInspector(connection, observeExpected, read = rpc) {
     const result = await get("confirmed");
     if (result === null)
       return { ...base, status: "pending", context: "not-yet-observed" };
-    validateTransaction(plan, signature, result);
+    await validateTransaction(plan, signature, result, undefined, packet);
     const statuses = await read(
       connection.rpcEndpoint,
       "getSignatureStatuses",
@@ -183,7 +238,7 @@ export function localInspector(connection, observeExpected, read = rpc) {
         status: "pending",
         context: "finalized-body-unavailable",
       };
-    validateTransaction(plan, signature, finalized, result.slot);
+    await validateTransaction(plan, signature, finalized, result.slot, packet);
     if (
       !isDeepStrictEqual(finalized.meta.err, status.err) ||
       finalized.meta.fee !== result.meta.fee ||

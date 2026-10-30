@@ -23,6 +23,8 @@ import {
   recordSignature,
   reconcileIntent,
 } from "../../../meme/src/worker/transactions";
+import { attachPacket } from "../../../meme/src/worker/packets";
+import { inspectPacketLifetime } from "../src/packet-lifetime.mjs";
 import type {
   TransactionPlan,
   TransactionReadAdapter,
@@ -37,6 +39,7 @@ import {
   createLocalMint,
   createLocalAta,
   mintLocal,
+  prepareLocalPacket,
 } from "../src/local-solana.mjs";
 import {
   planLockedJito,
@@ -125,11 +128,20 @@ test(
           expiresAt: Date.now() + 3600000,
           simulated: true,
         };
-        const intent = await prepareIntent(storage.db, plan),
-          adapter = localReadAdapter(
-            connection,
-            observe,
-          ) as TransactionReadAdapter;
+        const intent = await prepareIntent(storage.db, plan);
+        const packet = await prepareLocalPacket(
+          connection,
+          plan,
+          intent.attempt_id,
+          intent.plan_hash,
+        );
+        const attached = await attachPacket(storage.db, intent.id, packet),
+          review = { id: attached.id, packet };
+        const adapter = localReadAdapter(
+          connection,
+          observe,
+          review,
+        ) as TransactionReadAdapter;
         await simulateIntent(storage.db, intent.id, adapter);
         await beginHandoff(
           storage.db,
@@ -140,8 +152,15 @@ test(
                 planHash: intent.plan_hash,
               })
             : undefined,
+          () =>
+            inspectPacketLifetime(connection.rpcEndpoint, review.id, packet),
         );
-        const signature = await sendLocalPlan(connection, plan, signers);
+        const signature = await sendLocalPlan(
+          connection,
+          plan,
+          signers,
+          review,
+        );
         if (loseResponse) {
           storage.interruptNextBatch();
           await assert.rejects(

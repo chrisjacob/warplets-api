@@ -38,6 +38,8 @@ export interface TransactionPlan {
   simulated: boolean;
 }
 export interface SimulationEvidence {
+  /** Required when an exact message packet is attached to the active attempt. */
+  packetHash?: string;
   planHash: string;
   success: boolean;
   cost: string;
