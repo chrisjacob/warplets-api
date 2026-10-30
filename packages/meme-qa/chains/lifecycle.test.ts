@@ -9,7 +9,7 @@ import {encode58} from '../../../meme/src/shared/base58';
 import {prepareIntent,simulateIntent,beginHandoff,recordSignature,reconcileIntent} from '../../../meme/src/worker/transactions';
 import type {TransactionPlan,TransactionReadAdapter} from '../../../meme/src/shared/transactions';
 // Test-only imports; boundary checks reject all of these from application source.
-import {startSolana,chainTime,instructionsForPlan,localReadAdapter,sendLocalPlan} from '../src/local-solana.mjs';
+import {startSolana,chainTime,instructionsForPlan,localReadAdapter,sendLocalPlan,createLocalMint,createLocalAta,mintLocal} from '../src/local-solana.mjs';
 import {planLockedJito,buildLockedClaimInstructions} from '../../meme-protocol/src/jito-locked.mjs';
 import {buildLaunchProof,cpAmmCoder} from '../../meme-protocol/src/meteora.mjs';
 import {fixture} from '../../meme-protocol/src/fixture.mjs';
@@ -18,9 +18,9 @@ test('actual local launch → signed vote → immutable settlement → verified 
   const {net,connection,payer}=await startSolana(),storage=testDb();
   try{
     const claimant=Keypair.generate();net.fundSol(claimant.publicKey.toBase58(),10000000000);
-    const mint=await createMint(connection,payer,payer.publicKey,null,9),og=await createMint(connection,payer,payer.publicKey,null,9);
-    const source=await getOrCreateAssociatedTokenAccount(connection,payer,mint,payer.publicKey),quote=await getOrCreateAssociatedTokenAccount(connection,payer,og,payer.publicKey),destination=await getOrCreateAssociatedTokenAccount(connection,payer,mint,claimant.publicKey);
-    await mintTo(connection,payer,mint,source.address,payer,1000000000000n);await mintTo(connection,payer,og,quote.address,payer,1n);
+    const mint=await createLocalMint(connection,payer,9),og=await createLocalMint(connection,payer,9);
+    const source=await createLocalAta(connection,payer,mint,payer.publicKey),quote=await createLocalAta(connection,payer,og,payer.publicKey),destination=await createLocalAta(connection,payer,mint,claimant.publicKey);
+    await mintLocal(connection,payer,mint,source.address,1000000000000n);await mintLocal(connection,payer,og,quote.address,1n);
     const initial=await chainTime(connection),nft=Keypair.generate();
     context.mock.timers.enable({apis:['Date'],now:initial});
     const proof=await buildLaunchProof({...fixture,totalSupply:'1000000000000',editionMint:mint.toBase58(),ogMint:og.toBase58(),creator:payer.publicKey.toBase58(),payer:payer.publicKey.toBase58(),positionNft:nft.publicKey.toBase58(),activationUnixSeconds:Math.floor(initial/1000)+1});
@@ -33,7 +33,7 @@ test('actual local launch → signed vote → immutable settlement → verified 
       await recordSignature(storage.db,intent.id,signature);const receipt=await reconcileIntent(storage.db,intent.id,adapter);assert.equal(receipt.state,'confirmed');assert.equal((await reconcileIntent(storage.db,intent.id,adapter)).state,'confirmed');return receipt;
     }
     const launchInstructions=proof.instructions.map(i=>new TransactionInstruction({programId:new PublicKey(i.program),keys:i.accounts.map(a=>({pubkey:new PublicKey(a.pubkey),isSigner:a.signer,isWritable:a.writable})),data:Buffer.from(i.data,'hex')}));
-    await execute('launch','edition',launchInstructions,[payer,nft],{pool:proof.pool,mint:mint.toBase58(),permanentLockedLiquidity:proof.liquidityDelta},async()=>{const a=await connection.getAccountInfo(new PublicKey(proof.position));const p=cpAmmCoder.accounts.decode('Position',a!.data);return {pool:p.pool.toBase58(),mint:mint.toBase58(),permanentLockedLiquidity:p.permanentLockedLiquidity.toString()};});
+    await execute('launch','edition',launchInstructions,[payer,nft],{pool:proof.pool,mint:mint.toBase58(),permanentLockedLiquidity:proof.liquidityDelta},async()=>{const a=await connection.getAccountInfo(new PublicKey(proof.position));const p=cpAmmCoder.accounts.decode('Position',a!.data);return {pool:p.pool.toBase58(),mint:mint.toBase58(),permanentLockedLiquidity:p.permanent_locked_liquidity.toString()};});
     const launchedAt=await chainTime(connection);
     context.mock.timers.setTime(launchedAt+20*3600000);
     const token='disposable-cycle-session',operator='disposable-cycle-operator';

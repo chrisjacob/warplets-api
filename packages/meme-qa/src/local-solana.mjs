@@ -1,5 +1,6 @@
 /** Executable simulator adapter. No mainnet endpoint, funded vault or production import is allowed. */
-import {Connection,Keypair,PublicKey,Transaction,TransactionInstruction,ComputeBudgetProgram,SYSVAR_CLOCK_PUBKEY} from '@solana/web3.js';
+import {Connection,Keypair,PublicKey,Transaction,TransactionInstruction,ComputeBudgetProgram,SYSVAR_CLOCK_PUBKEY,SystemProgram} from '@solana/web3.js';
+import {MINT_SIZE,TOKEN_PROGRAM_ID,getAssociatedTokenAddressSync,createInitializeMint2Instruction,createAssociatedTokenAccountIdempotentInstruction,createMintToInstruction} from '@solana/spl-token';
 import {installPrograms} from './programs.mjs';
 import {loopback,rpc,hash} from './safety.mjs';
 export async function startSolana(){
@@ -7,6 +8,10 @@ export async function startSolana(){
   return {net,connection:new Connection(net.rpcUrl,{commitment:'confirmed',wsEndpoint:net.wsUrl}),payer:Keypair.fromSecretKey(net.payerSecretKey)};
 }
 export async function chainTime(connection){loopback(connection.rpcEndpoint);const a=await connection.getAccountInfo(SYSVAR_CLOCK_PUBKEY);return Number(a.data.readBigInt64LE(32))*1000;}
+export async function sendFixtureInstructions(connection,payer,instructions,others=[]){loopback(connection.rpcEndpoint);const block=await connection.getLatestBlockhash('confirmed');const tx=new Transaction({feePayer:payer.publicKey,...block}).add(ComputeBudgetProgram.setComputeUnitLimit({units:1400000}),...instructions);tx.sign(payer,...others);return connection.sendRawTransaction(tx.serialize(),{skipPreflight:false,maxRetries:0});}
+export async function createLocalMint(connection,payer,decimals){const mint=Keypair.generate(),lamports=await connection.getMinimumBalanceForRentExemption(MINT_SIZE);await sendFixtureInstructions(connection,payer,[SystemProgram.createAccount({fromPubkey:payer.publicKey,newAccountPubkey:mint.publicKey,lamports,space:MINT_SIZE,programId:TOKEN_PROGRAM_ID}),createInitializeMint2Instruction(mint.publicKey,decimals,payer.publicKey,null)],[mint]);return mint.publicKey;}
+export async function createLocalAta(connection,payer,mint,owner){const address=getAssociatedTokenAddressSync(mint,owner);await sendFixtureInstructions(connection,payer,[createAssociatedTokenAccountIdempotentInstruction(payer.publicKey,address,owner,mint)]);return {address};}
+export async function mintLocal(connection,payer,mint,address,amount){await sendFixtureInstructions(connection,payer,[createMintToInstruction(mint,address,payer.publicKey,amount)]);}
 export function instructionsForPlan(instructions){return [ComputeBudgetProgram.setComputeUnitLimit({units:1400000}),...instructions].map(ix=>({program:ix.programId.toBase58(),accounts:ix.keys.map(k=>({address:k.pubkey.toBase58(),signer:k.isSigner,writable:k.isWritable})),data:ix.data.toString('hex'),description:'Local verified program instruction'}));}
 function requireLocal(connection,plan){loopback(connection.rpcEndpoint);if(plan.network!=='solana-local'||plan.simulated!==true)throw Error('Simulator plans only; mainnet is unavailable');}
 async function transaction(connection,plan){requireLocal(connection,plan);const block=await connection.getLatestBlockhash('confirmed');return new Transaction({feePayer:new PublicKey(plan.signers[0]),...block}).add(...plan.instructions.map(i=>new TransactionInstruction({programId:new PublicKey(i.program),keys:i.accounts.map(a=>({pubkey:new PublicKey(a.address),isSigner:a.signer,isWritable:a.writable})),data:Buffer.from(i.data,'hex')})));}

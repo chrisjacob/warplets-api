@@ -31,8 +31,8 @@ test('Meteora rejects unfunded OG; approved one-unit minimum executes pool creat
     const pool=await connection.getAccountInfo(new PublicKey(proof.pool));assert(pool?.owner.equals(new PublicKey(proof.program)));
     const position=await connection.getAccountInfo(new PublicKey(proof.position));assert(position?.owner.equals(new PublicKey(proof.program)));
     const state=cpAmmCoder.accounts.decode('Position',position.data);
-    assert.equal(state.permanentLockedLiquidity.toString(),proof.liquidityDelta);
-    assert.equal(state.unlockedLiquidity.toString(),'0');
+    assert.equal(state.permanent_locked_liquidity.toString(),proof.liquidityDelta);
+    assert.equal(state.unlocked_liquidity.toString(),'0');
     const amm=new CpAmm(connection),ps=await amm.fetchPoolState(new PublicKey(proof.pool));
     assert.equal(ps.tokenAMint.toBase58(),mint.toBase58());assert.equal(ps.tokenBMint.toBase58(),og.toBase58());assert.equal(ps.collectFeeMode,1);
     assert.equal((await getAccount(connection,ps.tokenBVault)).amount,1n);
