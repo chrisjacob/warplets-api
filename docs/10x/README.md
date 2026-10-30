@@ -14,4 +14,4 @@ The separate [protocol feasibility lab](PROTOCOL-FEASIBILITY.md) pins the publis
 
 See [DELIVERY-STATUS.md](DELIVERY-STATUS.md) for what is built versus the remaining gates, and the [production preparation/recovery draft](PRODUCTION-READINESS.md) for the later controlled activation sequence.
 
-The owner approved the current participation design and selected fully locked Jito evaluation on 30 October. The [decision record](approvals/2026-10-30-design.json) preserves that approval; [JITO-LOCKED-PROPOSAL.md](JITO-LOCKED-PROPOSAL.md) contains the new concrete timing and custody choices for review.
+The owner approved the current participation design and selected fully locked Jito evaluation on 30 October. The [decision record](approvals/2026-10-30-design.json) preserves that approval; [JITO-LOCKED-PROPOSAL.md](JITO-LOCKED-PROPOSAL.md) records the subsequently approved timing/custody policy and its remaining execution gates.

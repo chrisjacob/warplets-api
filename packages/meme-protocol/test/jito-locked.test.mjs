@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { PublicKey, Transaction, SystemProgram } from "@solana/web3.js";
 import {
   TOKEN_PROGRAM_ID,
@@ -13,7 +14,7 @@ import {
   buildLockedClaimInstructions,
   assertJitoAccount,
   previewLockedWithdrawal,
-  JITO_POLICY_PROPOSAL,
+  JITO_POLICY,
 } from "../src/jito-locked.mjs";
 const key = (n) => new PublicKey(new Uint8Array(32).fill(n)).toBase58();
 const input = () => ({
@@ -34,6 +35,41 @@ const input = () => ({
     { wallet: key(7), amount: "60" },
     { wallet: key(8), amount: "40" },
   ],
+});
+
+test("approved policy matches the exact reviewed packet while execution remains gated", () => {
+  const proposalBytes = readFileSync(
+    new URL("../policy/jito-locked-v1-proposal.json", import.meta.url),
+    "utf8",
+  ).replace(/\r\n/g, "\n");
+  const proposal = JSON.parse(proposalBytes);
+  const record = JSON.parse(
+    readFileSync(
+      new URL(
+        "../../../docs/10x/approvals/2026-10-30-jito-policy.json",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  );
+  assert.equal(
+    createHash("sha256").update(proposalBytes).digest("hex"),
+    record.sourceSha256,
+  );
+  assert.equal(JITO_POLICY.id, record.approvedPolicyId);
+  for (const field of [
+    "vestingSeconds",
+    "clawbackDaysAfterFinalRelease",
+    "clawbackTrigger",
+    "custody",
+    "adminVault",
+    "receiverOwner",
+    "claimsPause",
+    "reserve",
+  ])
+    assert.deepEqual(JITO_POLICY[field], proposal[field]);
+  assert.equal(record.deploymentAuthorized, false);
+  assert.equal(record.financialActionsAuthorized, false);
 });
 
 test("Merkle roots and every proof match the pinned upstream three-recipient fixture", () => {
@@ -96,8 +132,9 @@ test("fully locked plans preserve allocation totals, u64 version, stable roots a
   const last = planLockedJito({ ...input(), releaseIndex: 10 });
   assert.equal(last.expected.startVestingAt, 1800864000);
   assert.equal(last.expected.clawbackAt, a.expected.clawbackAt);
-  assert.equal(JITO_POLICY_PROPOSAL.status, "proposed");
-  assert.equal(a.policyApproved, false);
+  assert.equal(JITO_POLICY.status, "approved");
+  assert.equal(a.policyApproved, true);
+  assert.equal(a.productionApproved, false);
   assert.equal(a.executionProof, false);
 });
 test("time rounding never unlocks before the actual millisecond release and repeated withdrawals have zero remainder", () => {
@@ -192,6 +229,15 @@ test("claim instructions encode zero unlocked tokens and reuse the frozen claim-
   assert.equal(first[1].data.toString("hex"), "22ceb5170bcf935a");
   assert(first[1].keys[1].pubkey.equals(retry[0].keys[1].pubkey));
   assert.throws(() => buildLockedClaimInstructions(p, key(20)), /proof/);
+  assert.throws(
+    () => buildLockedClaimInstructions({ ...p, mode: "production" }, wallet),
+    /Offline/,
+  );
+  assert.throws(
+    () =>
+      buildLockedClaimInstructions({ ...p, productionApproved: true }, wallet),
+    /Offline/,
+  );
 });
 test("a top-100 claim proof and initialize/withdraw pair fit one unsigned Solana transaction", () => {
   const recipients = Array.from({ length: 100 }, (_, i) => ({
