@@ -238,6 +238,27 @@ if (command === "init") {
       }),
     );
   }
+} else if (command === "packet-attach" || command === "packet-status") {
+  if (!/^tx:[a-f0-9]{64}$/.test(args[0] ?? ""))
+    throw Error("Provide the immutable transaction intent id");
+  const path =
+    "/api/meme/operator/transactions/" +
+    encodeURIComponent(args[0]) +
+    "/packet";
+  if (command === "packet-status")
+    console.log(JSON.stringify(await send(path, undefined, "GET"), null, 2));
+  else {
+    if (!args[1]) throw Error("Provide an unsigned packet JSON file");
+    const bytes = readFileSync(resolve(args[1]));
+    if (bytes.length > 262144) throw Error("Packet exceeds its bound");
+    console.log(
+      JSON.stringify(
+        await send(path, { packet: JSON.parse(bytes.toString("utf8")) }),
+        null,
+        2,
+      ),
+    );
+  }
 } else if (
   [
     "market-register",

@@ -15,6 +15,8 @@ import {
 } from "./db";
 import { operator } from "./rounds";
 import { decode58 } from "../shared/base58";
+import { activePacket } from "./packets";
+import { messageBytes, type PreparedPacket } from "../shared/packets";
 
 interface Intent {
   id: string;
@@ -316,6 +318,12 @@ export async function simulateIntent(
   const plan = JSON.parse(intent.plan) as TransactionPlan;
   requireThat(Date.now() < plan.expiresAt, 409, "Intent expired");
   const result = await adapter.simulate(plan, intent.plan_hash);
+  const packet = await activePacket(db, intent.attempt_id);
+  requireThat(
+    !packet || result.packetHash === packet.id,
+    409,
+    "Simulation must bind the active message packet",
+  );
   requireThat(
     result.success &&
       result.planHash === intent.plan_hash &&
@@ -344,6 +352,14 @@ export async function beginHandoff(
     observedAt: number;
     context: string;
   }>,
+  verifyLifetime?: () => Promise<{
+    packetHash: string;
+    genesisHash: string;
+    contextSlot: number;
+    blockHeight: number;
+    blockhashValid: boolean;
+    observedAt: number;
+  }>,
 ) {
   const intent = await getIntent(db, id),
     plan = JSON.parse(intent.plan) as TransactionPlan;
@@ -365,6 +381,44 @@ export async function beginHandoff(
     409,
     "Resimulate a stale transaction in a separately reviewed attempt",
   );
+  const packet = await activePacket(db, intent.attempt_id);
+  requireThat(
+    !packet || JSON.parse(intent.simulation!).packetHash === packet.id,
+    409,
+    "Packet changed; resimulate before handoff",
+  );
+  let lifetime: Awaited<ReturnType<NonNullable<typeof verifyLifetime>>> | null =
+    null;
+  if (packet) {
+    requireThat(
+      verifyLifetime,
+      409,
+      "Re-read the packet lifetime before handoff",
+    );
+    const review = JSON.parse(packet.payload) as PreparedPacket,
+      observation = await verifyLifetime();
+    lifetime = observation;
+    requireThat(
+      observation.packetHash === packet.id &&
+        observation.genesisHash === review.genesisHash &&
+        observation.blockhashValid === true &&
+        Number.isSafeInteger(observation.blockHeight) &&
+        observation.blockHeight >= 0 &&
+        observation.blockHeight <= review.lifetime.lastValidBlockHeight &&
+        Number.isSafeInteger(observation.contextSlot) &&
+        observation.contextSlot >= review.lifetime.contextSlot &&
+        Number.isSafeInteger(observation.observedAt) &&
+        Math.abs(Date.now() - observation.observedAt) <= 15000,
+      409,
+      "Packet lifetime expired, stale or on a different chain",
+    );
+    requireThat(
+      Date.now() < plan.expiresAt &&
+        Date.now() - JSON.parse(intent.simulation!).observedAt <= 60000,
+      409,
+      "Resimulate after slow lifetime check",
+    );
+  }
   let preflight = null;
   if (plan.operation === "fund") {
     requireThat(
@@ -391,6 +445,14 @@ export async function beginHandoff(
       "Resimulate after slow funding preflight",
     );
   }
+  requireThat(
+    Date.now() < plan.expiresAt &&
+      Date.now() - JSON.parse(intent.simulation!).observedAt <= 60000 &&
+      (!lifetime || Date.now() - lifetime.observedAt <= 15000) &&
+      (!preflight || Date.now() - preflight.observedAt <= 15000),
+    409,
+    "Recheck stale simulation, lifetime or funding evidence before handoff",
+  );
   return transition(
     db,
     intent,
@@ -399,6 +461,8 @@ export async function beginHandoff(
       reason: "Wallet handoff reserved; inspect before retry",
       attemptId: intent.attempt_id,
       preflight,
+      packetId: packet?.id ?? null,
+      lifetime,
     },
     { approval: true },
   );
@@ -427,6 +491,29 @@ export async function recordSignature(
       }
   }
   requireThat(valid, 400, "Invalid transaction signature");
+  const packet = await activePacket(db, intent.attempt_id);
+  if (packet) {
+    const plan = JSON.parse(intent.plan) as TransactionPlan,
+      review = JSON.parse(packet.payload) as PreparedPacket;
+    const publicKey = await crypto.subtle.importKey(
+      "raw",
+      new Uint8Array(decode58(plan.signers[0], 32)).buffer,
+      { name: "Ed25519" },
+      false,
+      ["verify"],
+    );
+    const matches = await crypto.subtle.verify(
+      { name: "Ed25519" },
+      publicKey,
+      new Uint8Array(decode58(signature, 64)).buffer,
+      new Uint8Array(messageBytes(review.messageBase64)).buffer,
+    );
+    requireThat(
+      matches,
+      409,
+      "Signature does not authorize the attached message",
+    );
+  }
   return transition(db, intent, "submitted", { signature }, { signature });
 }
 /** Explicit local retry only after complete chain failure/expiry reconciliation. */
