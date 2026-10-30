@@ -7,6 +7,7 @@ on:
       - 'meme/**'
       - 'packages/connect/**'
       - 'packages/meme-protocol/**'
+      - 'packages/meme-qa/**'
       - 'patches/bigint-buffer@1.1.5.patch'
       - 'package.json'
       - 'docs/10x/**'
@@ -15,9 +16,37 @@ on:
       - '.github/workflows/meme-foundation.yml'
 permissions:
   contents: read
+concurrency:
+  group: meme-foundation-${{ github.ref }}
+  cancel-in-progress: true
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 jobs:
+  qa:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v5
+        with:
+          version: 10.26.0
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --dir packages/meme-qa check
+      - name: Execute captured protocol binaries offline
+        run: pnpm --dir packages/meme-qa test:chains
+      - run: pnpm --dir packages/meme-qa exec playwright install --with-deps chromium
+      - name: Desktop and mobile viewport journeys against the isolated Worker
+        run: pnpm --dir packages/meme-qa test:browser
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: meme-qa-results
+          path: .tmp/meme-qa/
+          retention-days: 7
   foundation:
     runs-on: ubuntu-latest
     steps:

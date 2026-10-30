@@ -1,6 +1,6 @@
 # Launch and distributor feasibility
 
-Reviewed 30 October 2026. **The intended Jito policy is approved. No complete financial configuration has been activated, signed, funded, deployed or executed on a Solana cluster.** The offline lab is deliberately separate from the browser, Worker and production app build graphs.
+Reviewed 30 October 2026. **The intended Jito policy and exact one-raw-unit OG initialization minimum are approved. Captured deployed programs have now executed in an isolated local SVM; no mainnet transactions or production activation occurred.** The offline lab and executable QA package remain separate from production build graphs. See [MAINNET-QA.md](MAINNET-QA.md).
 
 ## Pinned evidence
 
@@ -18,11 +18,11 @@ Primary sources: [Meteora SDK](https://github.com/MeteoraAg/damm-v2-sdk), [progr
 
 Run `pnpm --dir packages/meme-protocol check`. Network access through the lab's Connection is prohibited; it has no signer or send path. The fixture is marked simulated and supplies unrelated public keys and illustrative OG-denominated bounds. It is **not** a production economic proposal.
 
-The published SDK constructs single-sided edition-token liquidity at the lower range boundary, with OG explicitly token B, zero OG input, quote-only fee collection, timestamp activation and an atomic permanent-lock instruction. Tests decode actual SDK-generated instruction bytes, assert authorities and fee mode, verify the 90/10 supply split, and commit the raw bytes/account metas with a SHA-256 hash. Token-2022 and alternative lock policies are outside this proof and rejected.
+The published SDK constructs single-sided edition-token liquidity at the lower range boundary, with OG explicitly token B, quote-only fee collection, timestamp activation and an atomic permanent-lock instruction. Executed testing found that the customizable-pool program clamps each initial transfer to at least one raw token unit to prove mint ownership: a strict zero-OG deposit fails. The owner [approved exactly one raw OG unit](approvals/2026-10-30-og-minimum.json), separately itemized in the launch budget. The lab now states that minimum explicitly; it is not a change to the 90/10 edition supply split. Tests decode SDK instructions and assert exact state. Token-2022 edition mints and alternative lock policies remain outside this proof.
 
 The illustrative time scheduler starts at **10%**, decays linearly once per second for ten minutes, and ends at **1%**. The opening value is a fixture, not approved policy. SDK integer division can leave a residual above 1% for some settings; the lab rejects those settings rather than rounding them silently. A 100% opening fee is rejected. No archived $1bn boundary is used. Dynamic fees are disabled in this fixture; enabling them would change the total fee and needs a separate decision.
 
-An SDK instruction is not evidence of successful execution. Before selecting this protocol/configuration, execute a pinned, hash-verified program binary in a validator/SVM, verify pool and mint state, supply, authority revocation, permanent-lock behavior, OG-only fee claims, swaps in both directions, delayed activation, price-bound exhaustion, fees and transaction size/compute costs. The current Windows host has no Solana CLI, Rust/Anchor or Docker; LiteSVM 1.6.1 publishes Linux/macOS binaries, not Windows. A Linux execution environment and a verified compatible program binary remain necessary. No remote environment was provisioned.
+The existing Ubuntu CI now runs Surfpool offline against checksummed deployed program captures. It executes pool initialization, verifies the permanent lock and supply, exercises activation and both swap directions, and runs a complete local launch-to-funded-claim cycle. The Jito suite executes 100 daily distributors across ten overlapping campaigns through every +240h release. This proves tested behavior of those captured binaries, not reproducible correspondence to the pinned source, production economics, custody, realistic load or mainnet execution. Price-bound stress, exhaustive fee/authority review and actual launch budget remain production gates. No remote environment was provisioned.
 
 ## Distributor findings and decision
 

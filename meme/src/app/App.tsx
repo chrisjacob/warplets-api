@@ -3,7 +3,7 @@ import { preview } from "../shared/fixtures";
 import { LocalRounds, OperatorPanel, useLocalState } from "./LocalRounds";
 import { IdentityPanel } from "./IdentityPanel";
 import { Tabs, type Tab as LaunchTab } from "./Tabs";
-import { rewardTotals, tokenAmount } from "./rewards";
+import { rewardTotals, tokenAmount, rewardStatus } from "./rewards";
 type Tab = "Today" | "Rewards" | "Launches";
 function FixtureApp() {
   const [tab, setTab] = useState<Tab>("Today");
@@ -152,8 +152,8 @@ function FixtureApp() {
             <p className="eyebrow">Your rewards</p>
             <h2>Rewards keep accumulating.</h2>
             <p>
-              Final allocations have no planned expiry. Claiming does not change
-              your points or voting streak.
+              Each campaign has a claim deadline. Claiming does not change your
+              points or voting streak.
             </p>
             <div className="reward-row">
               <div>
@@ -271,6 +271,9 @@ export function App() {
                       e.edition_id,
                       e.reward_wallet,
                       e.mode,
+                      e.fundingState,
+                      e.releaseState,
+                      e.claimState,
                     ])}
                   >
                     <div>
@@ -278,7 +281,8 @@ export function App() {
                         {tokenAmount(e.amount, e.decimals)} {e.symbol}
                       </strong>
                       <p>
-                        Unfunded{e.mode === "simulated" ? " · Simulated" : ""}
+                        {rewardStatus(e)}
+                        {e.mode === "simulated" ? " · Simulated" : ""}
                       </p>
                       <details>
                         <summary>Details</summary>

@@ -14,4 +14,6 @@ The separate [protocol feasibility lab](PROTOCOL-FEASIBILITY.md) pins the publis
 
 See [DELIVERY-STATUS.md](DELIVERY-STATUS.md) for what is built versus the remaining gates, and the [production preparation/recovery draft](PRODUCTION-READINESS.md) for the later controlled activation sequence.
 
+[MAINNET-QA.md](MAINNET-QA.md) defines the isolated browser/protocol test harness, protected QA wallet custody, captured mainnet binaries, transaction-review journal and human financial handoff. The new wallets are not yet approved for funding.
+
 The owner approved the current participation design and selected fully locked Jito evaluation on 30 October. The [decision record](approvals/2026-10-30-design.json) preserves that approval; [JITO-LOCKED-PROPOSAL.md](JITO-LOCKED-PROPOSAL.md) records the subsequently approved timing/custody policy and its remaining execution gates.

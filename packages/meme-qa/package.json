@@ -1,0 +1,28 @@
+{
+  "name": "@10x/meme-qa",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "wallets": "node src/wallets.mjs",
+    "report": "node src/report.mjs",
+    "test:browser": "playwright test",
+    "test:chains": "node ../../meme/node_modules/tsx/dist/cli.mjs --test chains/*.test.mjs chains/*.test.ts",
+    "capture": "node src/capture.mjs",
+    "fees": "node src/fee-quote.mjs",
+    "accounts": "node src/accounts.mjs",
+    "check": "pnpm test && pnpm report"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.1",
+    "@solana/web3.js": "1.98.4",
+    "@solana/spl-token": "0.4.14",
+    "viem": "2.55.19",
+    "@solana/surfpool": "1.7.0",
+    "@foundry-rs/anvil": "1.7.1"
+  }
+}

@@ -14,7 +14,7 @@ function check(directory, packageRoot) {
       /(?:\bfrom\s*|\bimport\s*(?:\(\s*)?)["']([^"']+)["']/g,
     )) {
       const specifier = match[1];
-      if (/^(?:@10x\/meme-protocol-lab|@meteora-ag\/)/.test(specifier))
+      if (/^(?:@10x\/(?:meme-protocol-lab|meme-qa)|@meteora-ag\/|@solana\/surfpool|@foundry-rs\/|@playwright\/)/.test(specifier))
         throw Error(`Protocol lab entered application runtime: ${file}`);
       if (/(?:^|\/)(?:discovery|network)(?:\/|$)/.test(specifier))
         throw Error(`Archived/analytics runtime import in ${file}`);

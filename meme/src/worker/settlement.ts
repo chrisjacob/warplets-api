@@ -542,11 +542,20 @@ export async function settledWeights(db: Database, id: string) {
 }
 export async function ownEntitlements(db: Database, fid: number | null) {
   if (!fid) return [];
-  return rows(
+  const result = await rows<{
+    amount: string;
+    reward_wallet: string;
+    release_at: number;
+    state: string;
+    [key: string]: unknown;
+  }>(
     db,
-    "SELECT a.campaign_id edition_id,c.symbol,c.decimals,a.release_index,a.release_at,e.amount,e.state,e.reward_wallet,a.round_id,a.mode FROM meme_entitlements e JOIN meme_allocations a ON a.id=e.allocation_id JOIN meme_settlements s ON s.round_id=a.round_id JOIN meme_campaigns c ON c.id=a.campaign_id WHERE e.fid=? AND s.state='finalized' ORDER BY a.release_at,a.id",
+    "SELECT a.id allocationId,a.campaign_id edition_id,c.symbol,c.decimals,a.release_index,a.release_at,e.amount,e.state,e.reward_wallet,a.round_id,a.mode,'finalized' finality,CASE WHEN f.intent_id IS NOT NULL THEN 'funded' ELSE 'unfunded' END fundingState,CASE WHEN ?<a.release_at THEN 'scheduled' WHEN ?<(CAST((a.release_at+999)/1000 AS INTEGER)*1000+1000) THEN 'vesting' ELSE 'released' END releaseState,CASE WHEN cl.intent_id IS NOT NULL THEN 'claimed' ELSE 'unclaimed' END claimState,'local-only' executionMode,0 claimable FROM meme_entitlements e JOIN meme_allocations a ON a.id=e.allocation_id JOIN meme_settlements s ON s.round_id=a.round_id JOIN meme_campaigns c ON c.id=a.campaign_id LEFT JOIN meme_financial_receipts f ON a.mode='simulated' AND f.business_key=('solana-local:fund:'||a.id) LEFT JOIN meme_financial_receipts cl ON a.mode='simulated' AND cl.business_key=('solana-local:claim:'||a.id||':'||e.fid) WHERE e.fid=? AND s.state='finalized' ORDER BY a.release_at,a.id",
+    Date.now(),
+    Date.now(),
     fid,
   );
+  return result.map((row) => ({ ...row, claimable: false }));
 }
 export async function ownSettledScore(
   db: Database,
