@@ -131,6 +131,14 @@ const server = createServer(async (req, res) => {
         storage.raw
           .prepare("UPDATE meme_sessions SET fid=43 WHERE token_hash=?")
           .run(await sha(token));
+      } else if (url.pathname === "/__qa/pause-voting") {
+        await call("/api/meme/operator/operations/controls", {
+          name: "participation",
+          paused: true,
+          expectedVersion: 0,
+          key: "browser-pause-voting",
+          reason: "SIMULATED browser pause",
+        });
       } else if (
         url.pathname === "/__qa/select" ||
         url.pathname === "/__qa/skip"

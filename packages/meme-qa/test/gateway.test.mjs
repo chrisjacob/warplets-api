@@ -152,6 +152,8 @@ test("restricted compiled gateway requires access, expires sessions and cannot p
     assert.equal(image.headers["content-type"], "image/webp");
     for (const path of [
       "/api/meme/operator/rounds",
+      "/api/meme/operator/operations/health",
+      "/api/meme/operator/operations/controls",
       "/api/meme/claims",
       "/api/qa/principal",
       "/.env",

@@ -16,6 +16,8 @@ import { advance, createRound, operator, audit } from "./rounds";
 import { settle } from "./settlement";
 import { startSnapshot, stepSnapshot } from "./snapshots";
 import { canonical } from "../shared/canonical";
+import { control } from "./controls";
+import { beginTick, finishTick } from "./readiness";
 
 type Kind = "score" | "settle" | "prepare";
 interface Job {
@@ -65,7 +67,7 @@ export async function enqueue(
 export async function claimJob(db: Database, now = Date.now()) {
   return one<Job>(
     db,
-    `UPDATE meme_jobs SET state='running',lease_token=?,lease_until=?,attempts=attempts+1 WHERE id=(SELECT id FROM meme_jobs WHERE due_at<=? AND retry_at<=? AND (state='queued' OR (state='running' AND lease_until<=?)) ORDER BY due_at,id LIMIT 1) RETURNING *`,
+    `UPDATE meme_jobs SET state='running',lease_token=?,lease_until=?,attempts=attempts+1 WHERE id=(SELECT id FROM meme_jobs WHERE due_at<=? AND retry_at<=? AND (state='queued' OR (state='running' AND lease_until<=?)) ORDER BY due_at,id LIMIT 1) AND EXISTS(SELECT 1 FROM meme_safety_controls WHERE name='operations' AND paused=0) RETURNING *`,
     random(),
     now + 60000,
     now,
@@ -85,6 +87,15 @@ export async function runJob(db: Database, job: Job, now = Date.now()) {
     ))
   )
     return { state: "stale" };
+  if ((await control(db, "operations")).paused) {
+    await run(
+      db,
+      "UPDATE meme_jobs SET state='queued',lease_token=NULL,lease_until=NULL WHERE id=? AND state='running' AND lease_token=?",
+      job.id,
+      job.lease_token,
+    );
+    return { state: "paused" };
+  }
   try {
     let done = false;
     if (job.kind === "score") {
@@ -151,7 +162,7 @@ export async function runJob(db: Database, job: Job, now = Date.now()) {
     return { state: blocked ? "blocked" : "retry", id: job.id, error: message };
   }
 }
-export async function tick(db: Database, now = Date.now()) {
+async function workTick(db: Database, now: number) {
   await advance(db, now);
   const active = await rows<{ id: string; closes_at: number }>(
     db,
@@ -179,6 +190,19 @@ export async function tick(db: Database, now = Date.now()) {
   }
   const job = await claimJob(db, now);
   return job ? runJob(db, job, now) : { state: "idle" };
+}
+export async function tick(db: Database, now = Date.now()) {
+  const token = await beginTick(db, now);
+  try {
+    const result = (await control(db, "operations")).paused
+      ? { state: "paused" }
+      : await workTick(db, now);
+    await finishTick(db, token, result.state, Math.max(now, Date.now()));
+    return result;
+  } catch (error) {
+    await finishTick(db, token, "error", Math.max(now, Date.now()));
+    throw error;
+  }
 }
 export async function operationsRequest(
   db: Database,

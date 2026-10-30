@@ -47,8 +47,10 @@ jobs:
         run: |
           set -euo pipefail
           qa_private="$RUNNER_TEMP/meme-restricted-qa"
+          qa_state="$GITHUB_WORKSPACE/meme/.wrangler/restricted-qa-state"
           pnpm --dir packages/meme-qa gateway prepare "$qa_private" https://isolated-qa.trycloudflare.com 1431382
-          pnpm --dir meme exec wrangler dev --config "$qa_private/wrangler.jsonc" --local --ip 127.0.0.1 --port 8799 --persist-to .wrangler/restricted-qa-state > "$RUNNER_TEMP/meme-qa-worker.log" 2>&1 &
+          MEME_OPERATOR_TARGET=restricted-qa pnpm --dir meme operator init
+          pnpm --dir meme exec wrangler dev --config "$qa_private/wrangler.jsonc" --local --ip 127.0.0.1 --port 8799 --persist-to "$qa_state" > "$RUNNER_TEMP/meme-qa-worker.log" 2>&1 &
           qa_pid=$!
           trap 'kill "$qa_pid" 2>/dev/null || true' EXIT
           ready=false
@@ -58,6 +60,8 @@ jobs:
           done
           if [ "$ready" != true ]; then echo 'Local QA Worker failed to start'; exit 1; fi
           pnpm --dir packages/meme-qa gateway:probe "$qa_private/gateway.json"
+          MEME_QA_DISPOSABLE_OPERATIONS=true pnpm --dir packages/meme-qa operations:probe
+          MEME_OPERATOR_TARGET=restricted-qa pnpm --dir meme operator status --check
       - name: Local 100-account pilot and 1200-account stress benchmark
         run: pnpm --dir packages/meme-qa benchmark
       - name: Lifetime history, compact polling and whole-campaign reward pages

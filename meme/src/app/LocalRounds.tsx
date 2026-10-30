@@ -22,6 +22,7 @@ export interface RoundView {
 }
 export interface LocalState {
   serverTime?: number;
+  participationPaused?: boolean;
   identity: Identity;
   settlement?: {
     state: string;
@@ -162,6 +163,7 @@ export function LocalRounds({
       !r ||
       busy ||
       stale ||
+      data?.participationPaused ||
       r.state !== "open" ||
       now < r.opens_at ||
       now >= r.closes_at
@@ -221,7 +223,9 @@ export function LocalRounds({
               : "Reveals at opening"}
           </h2>
         </div>
-        <span className="pill">{displayLabel}</span>
+        <span className="pill">
+          {data?.participationPaused && live ? "Voting paused" : displayLabel}
+        </span>
       </div>
       <p className="fine">
         {upcoming ? "Opens " : live ? "Closes " : "Closed "}
@@ -259,7 +263,7 @@ export function LocalRounds({
           </details>
         </article>
       )}
-      {!eligible && live && (
+      {!eligible && live && !data?.participationPaused && (
         <div className="connect-prompt">
           <p>
             {identity?.farcasterFid
@@ -302,6 +306,7 @@ export function LocalRounds({
                 busy ||
                 !live ||
                 stale ||
+                data?.participationPaused ||
                 data?.myVote?.candidate_id === c.id
               }
               aria-pressed={data?.myVote?.candidate_id === c.id}
@@ -320,7 +325,9 @@ export function LocalRounds({
       <p className="fine">
         {data?.myVote
           ? live
-            ? "Vote saved. You can change it until close."
+            ? data?.participationPaused
+              ? "Vote saved."
+              : "Vote saved. You can change it until close."
             : "Vote recorded."
           : "One vote per account. 10X makes the final pick."}
       </p>

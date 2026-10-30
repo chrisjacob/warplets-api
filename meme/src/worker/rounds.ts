@@ -22,6 +22,7 @@ import { canonical } from "../shared/canonical";
 import { decode58 } from "../shared/base58";
 import { cycleAttribute } from "./cycles";
 import { snapshotView } from "./snapshots";
+import { control, requireUnpaused } from "./controls";
 import {
   settlementView,
   ownEntitlements,
@@ -425,6 +426,7 @@ export async function vote(
     );
     return { replayed: true };
   }
+  await requireUnpaused(db, "participation");
   const r = await round(db, id);
   requireThat(
     r.state === "open" && r.opens_at <= now && r.closes_at > now,
@@ -577,6 +579,7 @@ export async function state(db: Database, request: Request) {
   requireThat(view === null || view === "today", 400, "Unknown state view");
   const compact = view === "today",
     serverTime = Date.now();
+  const participationPaused = (await control(db, "participation")).paused === 1;
   const identity = await sessionView(db, request),
     current = await one<StoredRound>(
       db,
@@ -599,6 +602,7 @@ export async function state(db: Database, request: Request) {
     return {
       mode: "local",
       serverTime,
+      participationPaused,
       identity,
       round: null,
       history,
@@ -652,6 +656,7 @@ export async function state(db: Database, request: Request) {
   return {
     mode: "local",
     serverTime,
+    participationPaused,
     ...(scoring?.view ?? {}),
     ...(settlement?.state === "finalized"
       ? { leaderboard: settlement.leaderboard }
