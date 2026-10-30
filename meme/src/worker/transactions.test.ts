@@ -17,6 +17,7 @@ import {
   reconcileIntent,
   getIntent,
   retryFailedIntent,
+  renewIntentAttempt,
 } from "./transactions";
 const wallet = "11111111111111111111111111111111",
   signature = encode58(new Uint8Array(64).fill(2));
@@ -311,11 +312,171 @@ test("claim-all preserves partial success and reconciles a lost submission witho
       1,
     );
     assert.equal(resumed.complete, true);
+    assert.equal(resumed.allClaimed, true);
     assert.equal(resumed.results[0].state, "confirmed");
     assert.equal(
       t.raw.prepare("SELECT COUNT(*) n FROM meme_financial_receipts").get()!.n,
       2,
     );
+  } finally {
+    t.close();
+  }
+});
+
+test("expiry renewal and stale resimulation append attempts under one immutable operation; lost responses are idempotent", async (context) => {
+  const t = testDb(),
+    now = Date.now();
+  context.mock.timers.enable({ apis: ["Date"], now });
+  try {
+    const p = plan(),
+      i = await prepareIntent(t.db, p);
+    await simulateIntent(t.db, i.id, adapter(p));
+    context.mock.timers.setTime(now + 130000);
+    await assert.rejects(beginHandoff(t.db, i.id), /expired/);
+    const renewed = { ...p, expiresAt: Date.now() + 120000 },
+      review = {
+        key: "expiry-renewal-01",
+        reason: "Reviewed local expiry renewal without changing business terms",
+      };
+    t.interruptNextBatch();
+    await assert.rejects(
+      renewIntentAttempt(t.db, i.id, renewed, review),
+      /lost response/,
+    );
+    const recovered = await renewIntentAttempt(t.db, i.id, renewed, review);
+    assert.equal(recovered.id, i.id);
+    assert.equal(recovered.attempt, 1);
+    assert.equal(recovered.simulation, null);
+    assert.equal(
+      t.raw.prepare("SELECT COUNT(*) n FROM meme_transaction_intents").get()!.n,
+      1,
+    );
+    assert.equal(
+      t.raw.prepare("SELECT COUNT(*) n FROM meme_transaction_attempts").get()!
+        .n,
+      2,
+    );
+    assert.equal(
+      t.raw.prepare("SELECT plan_hash FROM meme_transaction_intents").get()!
+        .plan_hash,
+      i.plan_hash,
+    );
+    assert.notEqual(recovered.plan_hash, i.plan_hash);
+    await assert.rejects(
+      renewIntentAttempt(
+        t.db,
+        i.id,
+        { ...renewed, maximumCost: "9999999" },
+        {
+          key: "change-cost-denied",
+          reason: "Changes cannot hide inside a retry",
+        },
+      ),
+      /immutable business/,
+    );
+    await simulateIntent(t.db, i.id, adapter(renewed));
+    await beginHandoff(t.db, i.id);
+    const approval = t.raw
+      .prepare("SELECT * FROM meme_transaction_approvals")
+      .get()!;
+    assert.equal(approval.attempt_id, recovered.attempt_id);
+    assert.equal(approval.authority, "local-test-controller");
+    await assert.rejects(
+      renewIntentAttempt(t.db, i.id, renewed, {
+        key: "ambiguous-denied",
+        reason: "Must not replace an ambiguous operation",
+      }),
+      /Reconcile ambiguous/,
+    );
+    assert.throws(
+      () =>
+        t.raw
+          .prepare("UPDATE meme_transaction_attempts SET reason='changed'")
+          .run(),
+      /immutable/,
+    );
+    assert.throws(
+      () => t.raw.prepare("DELETE FROM meme_transaction_approvals").run(),
+      /immutable/,
+    );
+  } finally {
+    context.mock.timers.reset();
+    t.close();
+  }
+});
+
+test("confirmed is provisional until finalized; a reorg/pending result never creates a financial receipt", async () => {
+  const t = testDb();
+  try {
+    const p = plan(),
+      i = await prepareIntent(t.db, p),
+      a = adapter(p);
+    await simulateIntent(t.db, i.id, a);
+    await beginHandoff(t.db, i.id);
+    await recordSignature(t.db, i.id, signature);
+    let status: "confirmed" | "pending" | "finalized" = "confirmed";
+    const observing = adapter(p, {
+      inspect: async (p, h, s) => ({
+        ...(await a.inspect(p, h, s)),
+        status,
+        complete: status === "finalized",
+      }),
+    });
+    const observed = await reconcileIntent(t.db, i.id, observing);
+    assert.equal(observed.state, "submitted");
+    assert.equal(observed.chain_status, "confirmed");
+    assert.equal(
+      t.raw.prepare("SELECT COUNT(*) n FROM meme_financial_receipts").get()!.n,
+      0,
+    );
+    status = "pending";
+    assert.equal(
+      (await reconcileIntent(t.db, i.id, observing)).chain_status,
+      "pending",
+    );
+    status = "finalized";
+    const final = await reconcileIntent(t.db, i.id, observing);
+    assert.equal(final.state, "confirmed");
+    assert.equal(final.chain_status, "finalized");
+    assert.equal(
+      t.raw.prepare("SELECT COUNT(*) n FROM meme_financial_receipts").get()!.n,
+      1,
+    );
+  } finally {
+    t.close();
+  }
+});
+
+test("funding requires a freshly re-read committed configuration before a handoff reservation", async () => {
+  const t = testDb();
+  try {
+    const p = {
+      ...plan("fund:1"),
+      operation: "fund" as const,
+      businessKey: "solana-local:fund:fund:1",
+    };
+    await assert.rejects(prepareIntent(t.db, p), /configuration precondition/);
+    p.expected.preconditionHash = "a".repeat(64);
+    const i = await prepareIntent(t.db, p);
+    await simulateIntent(t.db, i.id, adapter(p));
+    await assert.rejects(beginHandoff(t.db, i.id), /Re-read distributor/);
+    await assert.rejects(
+      beginHandoff(t.db, i.id, async () => ({
+        planHash: i.plan_hash,
+        observedHash: "b".repeat(64),
+        observedAt: Date.now(),
+        context: "local:1",
+      })),
+      /changed or are stale/,
+    );
+    assert.equal((await getIntent(t.db, i.id)).state, "awaiting_approval");
+    await beginHandoff(t.db, i.id, async () => ({
+      planHash: i.plan_hash,
+      observedHash: p.expected.preconditionHash,
+      observedAt: Date.now(),
+      context: "local:1",
+    }));
+    assert.equal((await getIntent(t.db, i.id)).state, "unknown");
   } finally {
     t.close();
   }

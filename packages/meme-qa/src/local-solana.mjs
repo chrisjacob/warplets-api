@@ -258,15 +258,28 @@ export function localReadAdapter(connection, observeExpected) {
       const observed = result.meta.err
         ? plan.expected
         : await observeExpected(plan);
+      const statuses = await rpc(
+        connection.rpcEndpoint,
+        "getSignatureStatuses",
+        [[signature], { searchTransactionHistory: true }],
+      );
+      const status = statuses.value?.[0];
+      if (!status || status.slot !== result.slot)
+        throw Error("Local signature status is unavailable or inconsistent");
+      const finalized = status.confirmationStatus === "finalized";
       return {
-        status: result.meta.err ? "failed" : "finalized",
+        status: finalized
+          ? result.meta.err
+            ? "failed"
+            : "finalized"
+          : "confirmed",
         network: plan.network,
         planHash,
         signature,
         expectedHash: hash(stable(observed)),
         context: "solana-local:" + result.slot,
         expired: false,
-        complete: true,
+        complete: finalized,
       };
     },
   };

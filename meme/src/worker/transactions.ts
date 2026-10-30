@@ -30,6 +30,9 @@ interface Intent {
   revision: number;
   created_at: number;
   updated_at: number;
+  attempt_id: string;
+  attempt: number;
+  chain_status: string;
 }
 const amount = (v: unknown): v is string =>
   typeof v === "string" && /^(0|[1-9][0-9]*)$/.test(v) && v.length <= 78;
@@ -141,6 +144,12 @@ export function validatePlan(p: TransactionPlan) {
     400,
     "Expected state changes required",
   );
+  if (p.operation === "fund")
+    requireThat(
+      /^[a-f0-9]{64}$/.test(p.expected.preconditionHash ?? ""),
+      400,
+      "Funding requires a committed distributor configuration precondition",
+    );
   requireThat(
     Object.keys(p).sort().join(",") ===
       [
@@ -167,7 +176,7 @@ export function validatePlan(p: TransactionPlan) {
 export async function getIntent(db: Database, id: string) {
   const intent = await one<Intent>(
     db,
-    "SELECT * FROM meme_transaction_intents WHERE id=?",
+    `SELECT i.id,i.business_key,i.network,i.operation,i.subject,a.plan,a.plan_hash,i.state,i.simulation,i.signature,i.revision,i.created_at,i.updated_at,i.current_attempt attempt_id,a.ordinal attempt,i.chain_status FROM meme_transaction_intents i JOIN meme_transaction_attempts a ON a.id=i.current_attempt WHERE i.id=?`,
     id,
   );
   requireThat(intent, 404, "Transaction intent not found");
@@ -181,7 +190,7 @@ export async function prepareIntent(db: Database, plan: TransactionPlan) {
   await db.batch([
     db
       .prepare(
-        "INSERT OR IGNORE INTO meme_transaction_intents VALUES(?,?,?,?,?,?,?,'prepared',NULL,NULL,0,?,?)",
+        "INSERT OR IGNORE INTO meme_transaction_intents(id,business_key,network,operation,subject,plan,plan_hash,state,simulation,signature,revision,created_at,updated_at) VALUES(?,?,?,?,?,?,?,'prepared',NULL,NULL,0,?,?)",
       )
       .bind(
         id,
@@ -194,6 +203,16 @@ export async function prepareIntent(db: Database, plan: TransactionPlan) {
         Date.now(),
         Date.now(),
       ),
+    db
+      .prepare(
+        "INSERT OR IGNORE INTO meme_transaction_attempts SELECT id||':attempt:0',id,0,'initial',plan,plan_hash,NULL,'Initial immutable review record',created_at FROM meme_transaction_intents WHERE id=?",
+      )
+      .bind(id),
+    db
+      .prepare(
+        "UPDATE meme_transaction_intents SET current_attempt=id||':attempt:0' WHERE id=? AND current_attempt IS NULL",
+      )
+      .bind(id),
     db
       .prepare(
         "INSERT OR IGNORE INTO meme_transaction_events(intent_id,revision,at,state,evidence) SELECT id,0,created_at,'prepared',? FROM meme_transaction_intents WHERE id=?",
@@ -210,14 +229,19 @@ export async function prepareIntent(db: Database, plan: TransactionPlan) {
     409,
     "Business operation already has a different immutable intent",
   );
-  return intent;
+  return getIntent(db, intent.id);
 }
 async function transition(
   db: Database,
   old: Intent,
   state: TransactionState,
   evidence: unknown,
-  extra: { simulation?: string; signature?: string } = {},
+  extra: {
+    simulation?: string;
+    signature?: string;
+    chainStatus?: string;
+    approval?: boolean;
+  } = {},
 ) {
   const encoded = canonical(evidence);
   requireThat(
@@ -228,22 +252,42 @@ async function transition(
   const result = await db.batch([
     db
       .prepare(
-        "UPDATE meme_transaction_intents SET state=?,revision=revision+1,updated_at=?,simulation=COALESCE(?,simulation),signature=COALESCE(?,signature) WHERE id=? AND revision=? AND state=?",
+        "UPDATE meme_transaction_intents SET state=?,revision=revision+1,updated_at=?,simulation=COALESCE(?,simulation),signature=COALESCE(?,signature),chain_status=? WHERE id=? AND revision=? AND state=? AND current_attempt=?",
       )
       .bind(
         state,
         Date.now(),
         extra.simulation ?? null,
         extra.signature ?? null,
+        extra.chainStatus ?? state,
         old.id,
         old.revision,
         old.state,
+        old.attempt_id,
       ),
     db
       .prepare(
         "INSERT OR IGNORE INTO meme_transaction_events(intent_id,revision,at,state,evidence) SELECT id,revision,updated_at,state,? FROM meme_transaction_intents WHERE id=? AND revision=? AND state=?",
       )
       .bind(encoded, old.id, old.revision + 1, state),
+    ...(extra.approval
+      ? [
+          db
+            .prepare(
+              "INSERT OR IGNORE INTO meme_transaction_approvals SELECT ?,?,?,'local-test-controller',?,? WHERE EXISTS(SELECT 1 FROM meme_transaction_intents WHERE id=? AND revision=? AND current_attempt=? AND state='unknown')",
+            )
+            .bind(
+              old.attempt_id,
+              old.plan_hash,
+              await sha(old.simulation!),
+              Date.now(),
+              JSON.parse(old.plan).expiresAt,
+              old.id,
+              old.revision + 1,
+              old.attempt_id,
+            ),
+        ]
+      : []),
   ]);
   requireThat(
     result[0].meta.changes === 1,
@@ -291,7 +335,16 @@ export async function simulateIntent(
   });
 }
 /** Reserve before opening a wallet prompt: a lost response must be treated as ambiguous. */
-export async function beginHandoff(db: Database, id: string) {
+export async function beginHandoff(
+  db: Database,
+  id: string,
+  verifyPreconditions?: () => Promise<{
+    planHash: string;
+    observedHash: string;
+    observedAt: number;
+    context: string;
+  }>,
+) {
   const intent = await getIntent(db, id),
     plan = JSON.parse(intent.plan) as TransactionPlan;
   requireThat(
@@ -312,9 +365,43 @@ export async function beginHandoff(db: Database, id: string) {
     409,
     "Resimulate a stale transaction in a separately reviewed attempt",
   );
-  return transition(db, intent, "unknown", {
-    reason: "Wallet handoff reserved; inspect before retry",
-  });
+  let preflight = null;
+  if (plan.operation === "fund") {
+    requireThat(
+      verifyPreconditions,
+      409,
+      "Re-read distributor configuration before funding",
+    );
+    preflight = await verifyPreconditions();
+    requireThat(
+      preflight.planHash === intent.plan_hash &&
+        preflight.observedHash === plan.expected.preconditionHash &&
+        Number.isSafeInteger(preflight.observedAt) &&
+        Math.abs(Date.now() - preflight.observedAt) <= 15000 &&
+        typeof preflight.context === "string" &&
+        preflight.context.length > 0 &&
+        preflight.context.length <= 256,
+      409,
+      "Funding preconditions changed or are stale",
+    );
+    requireThat(
+      Date.now() < plan.expiresAt &&
+        Date.now() - JSON.parse(intent.simulation!).observedAt <= 60000,
+      409,
+      "Resimulate after slow funding preflight",
+    );
+  }
+  return transition(
+    db,
+    intent,
+    "unknown",
+    {
+      reason: "Wallet handoff reserved; inspect before retry",
+      attemptId: intent.attempt_id,
+      preflight,
+    },
+    { approval: true },
+  );
 }
 export async function recordSignature(
   db: Database,
@@ -356,27 +443,107 @@ export async function retryFailedIntent(db: Database, id: string) {
     409,
     "Reconcile first; an expired intent requires a new reviewed recovery plan",
   );
+  return renewIntentAttempt(db, id, plan, {
+    key: `failed:${old.attempt}:${old.revision}`,
+    reason: "Explicit retry of fully reconciled failed attempt",
+  });
+}
+/** A new attempt never changes economics, destinations, instructions or a business identity.
+ * Before submission, expiry may be explicitly renewed. After handoff, reconcile first. */
+export async function renewIntentAttempt(
+  db: Database,
+  id: string,
+  plan: TransactionPlan,
+  review: { key: string; reason: string },
+) {
+  const old = await getIntent(db, id);
+  requireThat(
+    old.network.endsWith("-local"),
+    403,
+    "No mainnet retry adapter is enabled",
+  );
+  requireThat(
+    /^[A-Za-z0-9:._-]{8,160}$/.test(review.key) &&
+      typeof review.reason === "string" &&
+      review.reason.trim().length >= 8 &&
+      review.reason.length <= 500,
+    400,
+    "Explicit bounded recovery review required",
+  );
+  validatePlan(plan);
+  const bytes = canonical(plan),
+    hash = await sha(bytes);
+  const prior = await one<{ id: string; plan_hash: string; reason: string }>(
+    db,
+    "SELECT id,plan_hash,reason FROM meme_transaction_attempts WHERE intent_id=? AND recovery_key=?",
+    id,
+    review.key,
+  );
+  if (prior) {
+    requireThat(
+      prior.plan_hash === hash &&
+        prior.reason === review.reason &&
+        prior.id === old.attempt_id,
+      409,
+      "Recovery key is changed or superseded",
+    );
+    return old;
+  }
+  const original = JSON.parse(old.plan) as TransactionPlan;
+  const economics = (p: TransactionPlan) => canonical({ ...p, expiresAt: 0 });
+  requireThat(
+    economics(original) === economics(plan),
+    409,
+    "Retry cannot alter immutable business terms",
+  );
+  requireThat(
+    ["failed", "prepared", "awaiting_approval"].includes(old.state),
+    409,
+    "Reconcile ambiguous or submitted attempts before retry",
+  );
+  const attemptId = `${id}:attempt:${old.attempt + 1}`;
   const result = await db.batch([
     db
       .prepare(
-        "UPDATE meme_transaction_intents SET state='prepared',simulation=NULL,signature=NULL,revision=revision+1,updated_at=? WHERE id=? AND revision=? AND state='failed' AND NOT EXISTS(SELECT 1 FROM meme_financial_receipts WHERE intent_id=?)",
+        "INSERT INTO meme_transaction_attempts SELECT ?,id,?,?,?, ?,signature,?,? FROM meme_transaction_intents WHERE id=? AND revision=? AND current_attempt=? AND state IN('failed','prepared','awaiting_approval') AND NOT EXISTS(SELECT 1 FROM meme_financial_receipts WHERE intent_id=?)",
       )
-      .bind(Date.now(), id, old.revision, id),
+      .bind(
+        attemptId,
+        old.attempt + 1,
+        review.key,
+        bytes,
+        hash,
+        review.reason,
+        Date.now(),
+        id,
+        old.revision,
+        old.attempt_id,
+        id,
+      ),
     db
       .prepare(
-        "INSERT OR IGNORE INTO meme_transaction_events(intent_id,revision,at,state,evidence) SELECT id,revision,updated_at,state,? FROM meme_transaction_intents WHERE id=? AND revision=? AND state='prepared'",
+        "UPDATE meme_transaction_intents SET state='prepared',simulation=NULL,signature=NULL,chain_status='prepared',current_attempt=?,revision=revision+1,updated_at=? WHERE id=? AND revision=? AND current_attempt=? AND EXISTS(SELECT 1 FROM meme_transaction_attempts WHERE id=?)",
+      )
+      .bind(attemptId, Date.now(), id, old.revision, old.attempt_id, attemptId),
+    db
+      .prepare(
+        "INSERT OR IGNORE INTO meme_transaction_events(intent_id,revision,at,state,evidence) SELECT id,revision,updated_at,state,? FROM meme_transaction_intents WHERE id=? AND revision=? AND current_attempt=?",
       )
       .bind(
         canonical({
-          reason: "Explicit retry of fully reconciled failed attempt",
+          reason: review.reason,
           previousSignature: old.signature,
+          previousAttempt: old.attempt_id,
+          attemptId,
+          planHash: hash,
         }),
         id,
         old.revision + 1,
+        attemptId,
       ),
   ]);
   requireThat(
-    result[0].meta.changes === 1,
+    result[0].meta.changes === 1 && result[1].meta.changes === 1,
     409,
     "Concurrent retry; reconcile first",
   );
@@ -409,8 +576,22 @@ export async function reconcileIntent(
   if (
     result.status === "pending" ||
     (result.status === "absent" && !(result.expired && result.complete))
-  )
-    return intent;
+  ) {
+    const status = result.status === "absent" ? "unknown" : result.status;
+    return intent.chain_status === status
+      ? intent
+      : transition(db, intent, intent.state, result, { chainStatus: status });
+  }
+  if (result.status === "confirmed") {
+    requireThat(
+      result.signature && intent.signature === result.signature,
+      409,
+      "Recover and record the observed signature before confirmation",
+    );
+    return transition(db, intent, "submitted", result, {
+      chainStatus: "confirmed",
+    });
+  }
   if (result.status === "absent")
     requireThat(
       Date.now() >= plan.expiresAt,
@@ -448,7 +629,7 @@ export async function reconcileIntent(
         ),
       db
         .prepare(
-          "UPDATE meme_transaction_intents SET state='confirmed',revision=revision+1,updated_at=? WHERE id=? AND revision=? AND EXISTS(SELECT 1 FROM meme_financial_receipts WHERE intent_id=? AND signature=?)",
+          "UPDATE meme_transaction_intents SET state='confirmed',chain_status='finalized',revision=revision+1,updated_at=? WHERE id=? AND revision=? AND EXISTS(SELECT 1 FROM meme_financial_receipts WHERE intent_id=? AND signature=?)",
         )
         .bind(Date.now(), id, intent.revision, id, intent.signature),
       db
@@ -467,6 +648,12 @@ export async function reconcileIntent(
     409,
     "Unknown or incomplete chain outcome",
   );
+  if (result.status === "failed")
+    requireThat(
+      intent.signature === result.signature,
+      409,
+      "Recover and record the observed signature before failure reconciliation",
+    );
   return transition(db, intent, "failed", result);
 }
 export async function transactionsRequest(
@@ -483,7 +670,7 @@ export async function transactionsRequest(
       mainnetEnabled: false,
       intents: await rows(
         db,
-        "SELECT id,network,operation,subject,plan_hash,state,signature,created_at,updated_at FROM meme_transaction_intents ORDER BY created_at DESC,id LIMIT 100",
+        "SELECT i.id,i.network,i.operation,i.subject,a.plan_hash,i.state,i.chain_status,i.signature,i.current_attempt,a.ordinal attempt,i.created_at,i.updated_at FROM meme_transaction_intents i JOIN meme_transaction_attempts a ON a.id=i.current_attempt ORDER BY i.created_at DESC,i.id LIMIT 100",
       ),
     });
   requireThat(request.method === "POST", 405, "Method not allowed");
