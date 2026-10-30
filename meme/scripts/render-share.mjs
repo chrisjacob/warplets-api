@@ -6,6 +6,45 @@ import { fileURLToPath } from "node:url";
 const root = createRequire(new URL("../../package.json", import.meta.url)),
   wrapper = createRequire(root.resolve("@farcaster/snap-hono"));
 let init;
+export async function rasterScene(tree, width, height) {
+  if (
+    !Number.isSafeInteger(width) ||
+    !Number.isSafeInteger(height) ||
+    width < 1 ||
+    height < 1 ||
+    width > 2048 ||
+    height > 2048
+  )
+    throw Error("Bounded scene dimensions required");
+  const { Resvg, initWasm } = wrapper("@resvg/resvg-wasm");
+  await (init ??= initWasm(
+    readFileSync(wrapper.resolve("@resvg/resvg-wasm/index_bg.wasm")),
+  ));
+  const font = readFileSync(
+      root.resolve("@fontsource/inter/files/inter-latin-400-normal.woff"),
+    ),
+    data = font.buffer.slice(
+      font.byteOffset,
+      font.byteOffset + font.byteLength,
+    ),
+    satori = wrapper("satori").default;
+  const svg = await satori(tree, {
+      width,
+      height,
+      fonts: [{ name: "Inter", data, weight: 400, style: "normal" }],
+    }),
+    renderer = new Resvg(svg);
+  try {
+    const rendered = renderer.render();
+    try {
+      return Buffer.from(rendered.asPng());
+    } finally {
+      rendered.free();
+    }
+  } finally {
+    renderer.free();
+  }
+}
 export async function renderCard(card, height) {
   if (
     ![630, 800].includes(height) ||
@@ -21,18 +60,6 @@ export async function renderCard(card, height) {
     !/^[a-f0-9]{64}$/.test(card.sourceHash)
   )
     throw Error("Invalid server card");
-  const { Resvg, initWasm } = wrapper("@resvg/resvg-wasm");
-  await (init ??= initWasm(
-    readFileSync(wrapper.resolve("@resvg/resvg-wasm/index_bg.wasm")),
-  ));
-  const font = readFileSync(
-    root.resolve("@fontsource/inter/files/inter-latin-400-normal.woff"),
-  );
-  const fontData = font.buffer.slice(
-    font.byteOffset,
-    font.byteOffset + font.byteLength,
-  );
-  const satori = wrapper("satori").default;
   const div = (text, style = {}) => ({
     type: "div",
     props: { style: { display: "flex", ...style }, children: text },
@@ -69,17 +96,7 @@ export async function renderCard(card, height) {
       ],
     },
   };
-  const svg = await satori(tree, {
-    width: 1200,
-    height,
-    fonts: [{ name: "Inter", data: fontData, weight: 400, style: "normal" }],
-  });
-  const renderer = new Resvg(svg);
-  try {
-    const rendered=renderer.render();try{return Buffer.from(rendered.asPng());}finally{rendered.free();}
-  } finally {
-    renderer.free();
-  }
+  return rasterScene(tree, 1200, height);
 }
 if (
   process.argv[1] &&

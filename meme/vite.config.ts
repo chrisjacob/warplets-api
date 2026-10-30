@@ -1,11 +1,25 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { securityHeaders } from "./src/shared/securityHeaders";
+import { rootMeta } from "./src/shared/rootMeta";
 const workerPort = Number(process.env.MEME_LOCAL_WORKER_PORT ?? 8797);
 if (!Number.isInteger(workerPort) || workerPort < 1024 || workerPort > 65535)
   throw new Error("Invalid local Worker port");
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    {
+      name: "launchpad-social-meta",
+      transformIndexHtml(html, context) {
+        const origin =
+          process.env.MEME_PUBLIC_ORIGIN ||
+          (context.server
+            ? `http://127.0.0.1:${context.server.config.server.port}`
+            : undefined);
+        return html.replace("<!--launchpad-social-meta-->", rootMeta(origin));
+      },
+    },
+  ],
   define: {
     "import.meta.env.VITE_BASE_ACCOUNT_ENABLED": JSON.stringify("true"),
     "import.meta.env.VITE_WEB_WALLET_ENABLED": JSON.stringify("true"),

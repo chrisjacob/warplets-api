@@ -9,9 +9,9 @@
     "name": "10X.meme",
     "homeUrl": "https://REQUIRES_APPROVED_LAUNCHPAD_ORIGIN/",
     "iconUrl": "https://REQUIRES_APPROVED_LAUNCHPAD_ORIGIN/icon.png",
-    "imageUrl": "https://REQUIRES_APPROVED_LAUNCHPAD_ORIGIN/share/home.png",
+    "imageUrl": "https://REQUIRES_APPROVED_LAUNCHPAD_ORIGIN/social-mini.png",
     "splashImageUrl": "https://REQUIRES_APPROVED_LAUNCHPAD_ORIGIN/icon.png",
     "splashBackgroundColor": "#101512",
-    "webhookUrl": "https://REQUIRES_APPROVED_LAUNCHPAD_ORIGIN/api/meme/integrations/farcaster/webhook"
+    "webhookUrl": "https://REQUIRES_APPROVED_LAUNCHPAD_ORIGIN/api/meme/notifications/webhook"
   }
 }
