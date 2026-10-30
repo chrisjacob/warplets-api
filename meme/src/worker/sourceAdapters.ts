@@ -1,6 +1,7 @@
 import { requireThat, one, type Database, sha } from "./db";
 import { decode58 } from "../shared/base58";
 import type { Receipt } from "./receipts";
+import { requireUnpaused } from "./controls";
 export interface HistoryPage {
   data: (Receipt & {
     transaction: Receipt["transaction"] & { signatures: string[] };
@@ -29,9 +30,10 @@ export async function reserveSource(
     400,
     "Invalid source cost",
   );
+  await requireUnpaused(db, "collection");
   const allowance = await one(
     db,
-    "UPDATE meme_source_budgets SET used=used+? WHERE provider=? AND used+?<=ceiling RETURNING used",
+    "UPDATE meme_source_budgets SET used=used+? WHERE provider=? AND used+?<=ceiling AND EXISTS(SELECT 1 FROM meme_safety_controls WHERE name='collection' AND paused=0) RETURNING used",
     cost,
     provider,
     cost,

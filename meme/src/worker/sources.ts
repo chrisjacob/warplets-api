@@ -20,6 +20,7 @@ import {
 import { type Receipt, receiptDelta, verifyReceipt } from "./receipts";
 import { operator } from "./rounds";
 import type { LedgerEvent } from "../shared/holding";
+import { requireUnpaused } from "./controls";
 interface SourceRun {
   id: string;
   campaign_id: string;
@@ -38,6 +39,7 @@ export async function beginSource(
   wallet: string,
   throughAt: number,
 ) {
+  await requireUnpaused(db, "collection");
   decode58(wallet, 32);
   integer(throughAt, "history cutoff");
   requireThat(
@@ -88,6 +90,7 @@ export async function collectSource(
   );
   requireThat(r, 404, "Source run not found");
   if (r.state === "ready") return { id, state: "ready", rootHash: r.root_hash };
+  await requireUnpaused(db, "collection");
   requireThat(r.state === "collecting", 409, "Source run is blocked");
   const page = await adapter.page({
     wallet: r.wallet,

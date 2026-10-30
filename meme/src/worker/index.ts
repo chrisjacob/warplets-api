@@ -9,6 +9,8 @@ import { sourceRequest } from "./sources";
 import { versionRequest } from "./evidenceVersions";
 import { transactionsRequest } from "./transactions";
 import { readPagesRequest } from "./readPages";
+import { readinessRequest } from "./readiness";
+import { requireUnpaused } from "./controls";
 import { Problem, json as reply } from "./db";
 import { securityHeaders } from "../shared/securityHeaders";
 import { qaRequest, qaResponse, qaTransportRequest } from "./qaAccess";
@@ -87,8 +89,15 @@ export default {
           requestUrl.hostname !== "[::1]";
         if (restricted)
           await qaRequest(env.MEME_DB, request, String(env.MEME_QA_FIDS));
+        if (
+          ["GET", "HEAD"].includes(request.method) &&
+          requestUrl.pathname.startsWith("/api/meme/") &&
+          !requestUrl.pathname.startsWith("/api/meme/operator/")
+        )
+          await requireUnpaused(env.MEME_DB, "serving");
         const response =
           (await authRequest(env.MEME_DB, request)) ??
+          (await readinessRequest(env.MEME_DB, request)) ??
           (await readPagesRequest(env.MEME_DB, request)) ??
           (await transactionsRequest(env.MEME_DB, request)) ??
           (await operationsRequest(env.MEME_DB, request)) ??

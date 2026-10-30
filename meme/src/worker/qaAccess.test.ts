@@ -9,6 +9,13 @@ import {
   qaRoute,
 } from "./qaAccess";
 test("paged QA reads are allowlisted without permitting writes or arbitrary paths", () => {
+  for (const path of [
+    "/api/meme/operator/operations/health",
+    "/api/meme/operator/operations/controls",
+  ]) {
+    assert.equal(qaRoute(path, "GET"), false);
+    assert.equal(qaRoute(path, "POST"), false);
+  }
   for (const path of ["/api/meme/history", "/api/meme/rewards"]) {
     assert.equal(qaRoute(path, "GET"), true);
     assert.equal(qaRoute(path, "POST"), false);
