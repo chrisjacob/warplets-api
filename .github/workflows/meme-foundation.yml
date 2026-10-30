@@ -36,8 +36,12 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm --dir packages/meme-qa check
-      - name: Build compiled restricted QA app
-        run: pnpm --dir meme qa:build && pnpm --dir meme qa:migrate
+      - name: Build offline gateway fixture
+        # CI never opens a tunnel or connects real wallets. Public supervised
+        # QA uses qa:build, whose configuration preflight is tested separately.
+        env:
+          VITE_WALLETCONNECT_PROJECT_ID: ''
+        run: pnpm --dir meme exec vite build --outDir .tmp/restricted-qa-web && pnpm --dir meme qa:migrate
       - name: Real local gateway and Worker proof round-trip (no tunnel)
         shell: bash
         run: |
