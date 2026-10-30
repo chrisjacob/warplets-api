@@ -40,6 +40,7 @@ test("restricted compiled gateway requires access, expires sessions and cannot p
   let now = Date.now(),
     fid = null,
     writes = 0;
+  let revokedSession = false;
   const invitation = issueGrant(1431382, now);
   const config = {
     origin,
@@ -57,7 +58,14 @@ test("restricted compiled gateway requires access, expires sessions and cannot p
     fetcher: async (url, init) => {
       assert.equal(init.headers.get("x-qa-principal"), null);
       if (url.pathname === "/api/auth/session")
-        return Response.json({ farcasterFid: fid });
+        return revokedSession
+          ? Response.json({ error: "Account outside cohort" }, { status: 403 })
+          : Response.json({ farcasterFid: fid });
+      if (url.pathname === "/api/auth/logout") {
+        revokedSession = false;
+        fid = null;
+        return Response.json({ ok: true });
+      }
       if (url.pathname === "/api/auth/wallet/challenge")
         return Response.json({ error: "Expired proof" }, { status: 401 });
       writes++;
@@ -162,6 +170,12 @@ test("restricted compiled gateway requires access, expires sessions and cannot p
         })
       ).status,
       401,
+    );
+    revokedSession = true;
+    assert.equal(
+      (await call("/api/auth/logout", { cookie, method: "POST", body: "x=y" }))
+        .status,
+      200,
     );
     now = invitation.grant.expiresAt + 1;
     assert.equal((await call("/", { cookie })).status, 401);

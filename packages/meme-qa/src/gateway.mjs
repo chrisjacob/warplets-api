@@ -168,7 +168,7 @@ export function createGateway(
         });
         return send(303, "", "text/plain", {
           location: "/",
-            "set-cookie": `__Host-meme_qa=${token}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${Math.floor((grant.expiresAt - now()) / 1000)}`,
+          "set-cookie": `__Host-meme_qa=${token}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${Math.floor((grant.expiresAt - now()) / 1000)}`,
         });
       }
       const token =
@@ -198,24 +198,25 @@ export function createGateway(
         headers.set("host", u.host);
         headers.set("x-meme-qa-gateway", config.upstreamToken);
         // Never forward client-supplied principal/operator/forwarded headers.
-        const current = await boundedJson(
-          await fetcher(new URL("/api/auth/session", config.worker), {
-            headers: new Headers({
-              host: u.host,
-              "x-meme-qa-gateway": config.upstreamToken,
-              cookie: headers.get("cookie") ?? "",
+        if (u.pathname !== "/api/auth/logout") {
+          const current = await boundedJson(
+            await fetcher(new URL("/api/auth/session", config.worker), {
+              headers: new Headers({
+                host: u.host,
+                "x-meme-qa-gateway": config.upstreamToken,
+                cookie: headers.get("cookie") ?? "",
+              }),
+              redirect: "error",
+              signal: AbortSignal.timeout(15000),
             }),
-            redirect: "error",
-            signal: AbortSignal.timeout(15000),
-          }),
-          65536,
-        );
-        if (
-          current.farcasterFid != null &&
-          current.farcasterFid !== access.fid &&
-          u.pathname !== "/api/auth/logout"
-        )
-          return send(403, "Use the invited Farcaster account");
+            65536,
+          );
+          if (
+            current.farcasterFid != null &&
+            current.farcasterFid !== access.fid
+          )
+            return send(403, "Use the invited Farcaster account");
+        }
         const response = await fetcher(new URL(u.pathname, config.worker), {
           method,
           headers,
