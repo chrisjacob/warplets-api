@@ -37,7 +37,25 @@ The additive local migration records immutable plans/business keys, expected eff
 1. Provision dedicated holder/non-holder Farcaster identities and approved Base wallet links. Any account purchase or Warplet transfer is a separate human action. Complete browser extension and Base smart-account setup without exporting personal keys.
 2. Specify OG mint, numeric price range, opening fees, authorities, treasury/reserve handling and actual 2-of-3 custody. The approved participation and Jito timing policies do not need approval again unless changed.
 3. Prepare exact transactions, run read-only simulations, and present separate ETH/SOL costs: execution gas, Base L1 data fee, Solana priority fee, new-account rent, creation fees and bounded retry allowance. Token/NFT purchases, liquidity and permanent locks are separate line items and approvals. `estimateBudget` uses exact integer wei/lamports and rounds contingency upward; it is an estimator, not a live fee quote or funding authorization.
-4. Only after owner approval and portable recovery verification, request the scoped deposit. The user performs final financial wallet confirmations. Resume automatic receipt/state reconciliation afterward; an ambiguous result blocks resubmission.
+4. Only after owner approval and portable recovery verification, request the scoped deposit. The user performs final financial wallet confirmations. Resume automatic receipt/state reconciliation afterward; an ambiguous result blocks resubmission. The owner approved exactly **one raw OG unit** for pool initialization on 30 October; include it separately, with the chosen mint and decimals, rather than treating it as gas or rounding it to zero.
 5. Record actual browser/wallet versions, test commit, real-account and physical iOS/Android outcomes. Real mainnet +240h timing is a separate observation; accelerated simulator tests are not that proof.
 
-Live full-cohort history/price reconciliation, funded application UI and claim-all adapters, production multisig integration, wider swap decoding, alerts/on-call procedures, reserve/dispute policy and production activation remain gated. Reports must distinguish local execution, live reads, mainnet writes and physical-device checks. No missing-access check is a pass.
+The local suite now joins real protocol execution to the actual Worker: executed pool launch, cryptographic Solana identity, vote, immutable settlement, distributor creation, funding, released claim and lost-response recovery. A separate suite exercises 100 distributors and all releases across ten campaigns. The bounded claim-all controller processes at most ten intents per call and reconciles ambiguous outcomes before continuing. These are local tests with substituted Farcaster assertions, fixture economics and disposable single-signature custody; they do not certify live identities, mainnet, production custody or real market conditions.
+
+Existing entitlement fields remain unchanged. Additive read fields distinguish `finality`, `fundingState`, `releaseState`, `claimState`, `executionMode` and `allocationId`; `claimable` stays false. Simulated funding/claim states come only from locally verified receipts. The UI groups unlike states separately and uses short labels. The production app still has no financial submission path.
+
+### Read-only fee reference
+
+Observed at 13:21:55 AEDT on 30 October, finalized slot 463114728, using four public RPC reads:
+
+| Item | Native cost |
+| --- | --- |
+| Base / Solana identity message signing | 0 ETH / 0 SOL |
+| One-signature Solana base transaction fee, zero priority fee | 0.000005 SOL |
+| Standard SPL mint rent, 82 bytes | 0.0010668 SOL |
+| Standard SPL token-account rent, 165 bytes | 0.00148844 SOL |
+| Illustrative one-mint/one-token-account/one-fee total, including 25% contingency | 0.0032003 SOL |
+
+This is a reference, **not the launch budget or a funding request**. It excludes priority fees, other program accounts and creation fees, Base L1/execution fees for any proposed write, purchases and liquidity. Run `pnpm --dir packages/meme-qa fees --public-read-only <public-Solana-address> <ignored-output-file>` to obtain a new dated reference; it has no signer/broadcast path. The exact controlled transaction packet and chosen OG remain prerequisites for a funding estimate.
+
+Live full-cohort history/price reconciliation, real extension/smart-wallet/phone QA, mainnet financial adapters, production multisig integration, wider swap decoding, alerts/on-call procedures, reserve/dispute policy and production activation remain gated. Reports must distinguish local execution, live reads, mainnet writes and physical-device checks. No missing-access check is a pass.

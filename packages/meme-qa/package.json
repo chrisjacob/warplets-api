@@ -3,7 +3,9 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "test": "node --test test/*.test.mjs",
     "wallets": "node src/wallets.mjs",
@@ -11,6 +13,8 @@
     "test:browser": "playwright test",
     "test:chains": "node ../../meme/node_modules/tsx/dist/cli.mjs --test chains/*.test.mjs chains/*.test.ts",
     "capture": "node src/capture.mjs",
+    "fees": "node src/fee-quote.mjs",
+    "accounts": "node src/accounts.mjs",
     "check": "pnpm test && pnpm report"
   },
   "devDependencies": {

@@ -16,6 +16,9 @@ on:
       - '.github/workflows/meme-foundation.yml'
 permissions:
   contents: read
+concurrency:
+  group: meme-foundation-${{ github.ref }}
+  cancel-in-progress: true
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 jobs:

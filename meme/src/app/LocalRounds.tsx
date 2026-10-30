@@ -61,6 +61,9 @@ export interface LocalState {
     mode: string;
     symbol: string;
     decimals: number;
+    fundingState?: "unfunded" | "funded";
+    releaseState?: "scheduled" | "vesting" | "released";
+    claimState?: "unclaimed" | "claimed";
   }[];
 }
 const isVisible = () => document.visibilityState !== "hidden";

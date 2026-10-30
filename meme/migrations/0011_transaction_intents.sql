@@ -38,3 +38,9 @@ CREATE TABLE meme_financial_receipts (
 );
 CREATE TRIGGER meme_financial_receipts_immutable BEFORE UPDATE ON meme_financial_receipts
 BEGIN SELECT RAISE(ABORT,'Financial receipt is immutable'); END;
+CREATE TRIGGER meme_transaction_plan_no_delete BEFORE DELETE ON meme_transaction_intents
+BEGIN SELECT RAISE(ABORT,'Transaction intent is immutable'); END;
+CREATE TRIGGER meme_transaction_events_no_delete BEFORE DELETE ON meme_transaction_events
+BEGIN SELECT RAISE(ABORT,'Transaction evidence is immutable'); END;
+CREATE TRIGGER meme_financial_receipts_no_delete BEFORE DELETE ON meme_financial_receipts
+BEGIN SELECT RAISE(ABORT,'Financial receipt is immutable'); END;

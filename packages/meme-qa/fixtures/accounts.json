@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "collection": "0x780446dd12e080ae0db762fcd4daf313f3e359de",
+  "cases": [
+    {
+      "id": "warpmoji",
+      "username": "warpmoji.eth",
+      "fid": 1431382,
+      "userControlled": true,
+      "access": "public-read-and-supervised-local-signin",
+      "expectedOwnership": "holder",
+      "completeLinkedWalletScope": false,
+      "ethereum": ["0xf2916b54cc0a01d78118ae7f8146217f1cd80b86"],
+      "solana": ["9qpNUXfjVxscqneKPDmRUjkyE9BfZj4VbRTA6PNZ65e"],
+      "history": "Owner-provided original minter with buy/sell/transfer history; requires independent reconciliation",
+      "financialUseAllowed": false,
+      "accountChangesAllowed": false
+    },
+    {
+      "id": "balajis",
+      "username": "balajis.eth",
+      "fid": 37,
+      "userControlled": false,
+      "access": "public-read-only",
+      "expectedOwnership": "non-holder",
+      "completeLinkedWalletScope": false,
+      "ethereum": ["0x1a21c1f29fabebce8cc160bd48f9802a30d9608e", "0x0916c04994849c676ab2667ce5bbdf7ccc94310a", "0x167491c09adf80df6b2aee06d3be7f29954968db"],
+      "solana": ["BxBMsDqmfj34tze3XSzna8if7KKWJsudWpD2yR4Yz5yt"],
+      "history": "Public reference only. User mentioned three additional Ethereum wallets but supplied two; full scope is unverified",
+      "financialUseAllowed": false,
+      "accountChangesAllowed": false
+    }
+  ]
+}

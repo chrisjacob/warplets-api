@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { tokenAmount, rewardTotals } from "./rewards";
+import { tokenAmount, rewardTotals, rewardStatus } from "./rewards";
 test("token totals retain exact decimals and separate frozen destinations and evidence modes", () => {
   assert.equal(
     tokenAmount("12345678901234567890123456789", 9),
@@ -29,4 +29,34 @@ test("token totals retain exact decimals and separate frozen destinations and ev
   assert.equal(totals[0].amount, "1000000000000000000");
   assert.equal(totals[0].release_at, 2);
   assert.equal(base.amount, "999999999999999999");
+});
+test("funded, scheduled and claimed amounts never become one misleading reward total", () => {
+  const row = {
+    edition_id: "a",
+    symbol: "A",
+    decimals: 0,
+    amount: "100",
+    release_at: 1,
+    state: "finalized_unfunded",
+    reward_wallet: "one",
+    mode: "simulated",
+  };
+  const totals = rewardTotals([
+    row,
+    { ...row, fundingState: "funded", releaseState: "scheduled" },
+    { ...row, fundingState: "funded", releaseState: "released" },
+    {
+      ...row,
+      fundingState: "funded",
+      releaseState: "released",
+      claimState: "claimed",
+    },
+  ]);
+  assert.equal(totals.length, 4);
+  assert.deepEqual(totals.map(rewardStatus), [
+    "Unfunded",
+    "Scheduled",
+    "Released",
+    "Claimed",
+  ]);
 });

@@ -7,6 +7,9 @@ export interface Entitlement {
   state: string;
   reward_wallet: string;
   mode: string;
+  fundingState?: "unfunded" | "funded";
+  releaseState?: "scheduled" | "vesting" | "released";
+  claimState?: "unclaimed" | "claimed";
 }
 export function tokenAmount(raw: string, decimals: number) {
   if (
@@ -27,7 +30,14 @@ export function tokenAmount(raw: string, decimals: number) {
 export function rewardTotals(rows: Entitlement[]) {
   const result = new Map<string, Entitlement>();
   for (const row of rows) {
-    const key = JSON.stringify([row.edition_id, row.reward_wallet, row.mode]);
+    const key = JSON.stringify([
+      row.edition_id,
+      row.reward_wallet,
+      row.mode,
+      row.fundingState,
+      row.releaseState,
+      row.claimState,
+    ]);
     const old = result.get(key);
     if (old) {
       if (old.decimals !== row.decimals)
@@ -37,4 +47,13 @@ export function rewardTotals(rows: Entitlement[]) {
     } else result.set(key, { ...row });
   }
   return [...result.values()];
+}
+export function rewardStatus(row: Entitlement) {
+  if (row.claimState === "claimed") return "Claimed";
+  if (row.fundingState !== "funded") return "Unfunded";
+  return row.releaseState === "released"
+    ? "Released"
+    : row.releaseState === "vesting"
+      ? "Releasing"
+      : "Scheduled";
 }
