@@ -238,6 +238,45 @@ if (command === "init") {
       }),
     );
   }
+} else if (
+  [
+    "market-register",
+    "market-import",
+    "market-publish",
+    "market-correct",
+  ].includes(command)
+) {
+  const fileJSON = (file) => {
+    if (!file) throw Error("A JSON file is required");
+    const bytes = readFileSync(resolve(file));
+    if (bytes.length > 64000) throw Error("Market input exceeds 64 KiB");
+    return JSON.parse(bytes.toString("utf8"));
+  };
+  let body;
+  if (command === "market-register")
+    body = { action: "register", market: fileJSON(args[0]) };
+  if (command === "market-import")
+    body = {
+      action: "append",
+      marketId: args[0],
+      observations: fileJSON(args[1]),
+      key: args[2],
+    };
+  if (command === "market-publish")
+    body = { action: "publish", marketId: args[0], window: args[1] ?? "24h" };
+  if (command === "market-correct") {
+    const review = fileJSON(args[0]);
+    body = {
+      action: "correct",
+      key: review.key,
+      oldId: review.oldId,
+      newId: review.newId,
+      reason: review.reason,
+    };
+  }
+  console.log(
+    JSON.stringify(await send("/api/meme/operator/markets", body), null, 2),
+  );
 } else if (command === "tick" || command === "run") {
   const once = command === "tick";
   let lastReport = "",
