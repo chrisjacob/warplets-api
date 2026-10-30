@@ -10,7 +10,7 @@ import {
   getAssociatedTokenAddressSync,
 } from "@solana/spl-token";
 import { JITO_COMMIT } from "./distributor.mjs";
-import policyProposal from "../policy/jito-locked-v1-proposal.json" with { type: "json" };
+import approvedPolicy from "../policy/jito-locked-v1.json" with { type: "json" };
 
 export const JITO_PROGRAM = new PublicKey(
   "mERKcfxMC5SqJn4Ld4BUris3WKZZ1ojjWJ3A3J5CKxv",
@@ -94,8 +94,10 @@ export function verifyJitoProof(recipient, root) {
   return current.equals(bytes32(root));
 }
 
-/** Hypothesis for review. None of these numerical or custody choices is owner-approved yet. */
-export const JITO_POLICY_PROPOSAL = Object.freeze(policyProposal);
+/** Owner-approved policy definition; custody accounts, execution and activation remain gated. */
+export const JITO_POLICY = Object.freeze(approvedPolicy);
+// Compatibility for the original offline lab export.
+export const JITO_POLICY_PROPOSAL = JITO_POLICY;
 
 export function planLockedJito(input) {
   if (input.simulated !== true)
@@ -127,11 +129,11 @@ export function planLockedJito(input) {
   );
   timestamp(releaseAt);
   const start = releaseAt,
-    end = start + JITO_POLICY_PROPOSAL.vestingSeconds;
+    end = start + JITO_POLICY.vestingSeconds;
   const clawback =
     Math.ceil((input.launchedAtMs + 10 * 86400000) / 1000) +
     1 +
-    JITO_POLICY_PROPOSAL.clawbackDaysAfterFinalRelease * 86400;
+    JITO_POLICY.clawbackDaysAfterFinalRelease * 86400;
   timestamp(clawback);
   if (start <= input.preparedAt)
     throw Error(
@@ -214,7 +216,7 @@ export function planLockedJito(input) {
   });
   return {
     mode: "offline-unsigned",
-    policy: JITO_POLICY_PROPOSAL.id,
+    policy: JITO_POLICY.id,
     sourceCommit: JITO_COMMIT,
     allocationId: input.allocationId,
     inputHash: input.inputHash,
@@ -222,7 +224,7 @@ export function planLockedJito(input) {
     expected,
     recipients: tree.recipients,
     creation,
-    policyApproved: false,
+    policyApproved: JITO_POLICY.status === "approved",
     executionProof: false,
     productionApproved: false,
   };
@@ -245,7 +247,7 @@ export function buildLockedClaimInstructions(
 ) {
   if (typeof claimStatusExists !== "boolean")
     throw Error("Observed claim-status existence required");
-  if (plan?.mode !== "offline-unsigned" || plan.policyApproved !== false)
+  if (plan?.mode !== "offline-unsigned" || plan.productionApproved !== false)
     throw Error("Offline evaluation plan required");
   const claimant = new PublicKey(wallet),
     r = plan.recipients.find((r) => r.wallet === claimant.toBase58());

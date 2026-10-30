@@ -1,6 +1,6 @@
 # Decisions required before functional delivery
 
-The owner authorized building milestones 1–3 on 30 October 2026 with commits/PRs and no deployment. The working defaults below are implemented as `local-v1` for local verification; they require explicit economic, abuse and operating review before production. They do not resolve the later protocol/distribution decisions.
+The owner authorized building milestones 1–3 on 30 October 2026 with commits/PRs and no deployment. The defaults below remain implemented as `local-v1` for local verification. The participation design and subsequent concrete Jito policy are approved in the linked decision records; public abuse/operating review and actual deployment readiness remain separate gates. They do not resolve the later protocol/distribution decisions.
 
 | Local-v1 policy | Implementation evidence | Remaining production gate |
 |---|---|---|
@@ -11,7 +11,7 @@ The owner authorized building milestones 1–3 on 30 October 2026 with commits/P
 | Zero qualifiers reserve the release; no offered round needs an explicit reasoned reserve; no silent reassignment | Empty/unoffered reserve tests | Treasury handling/disclosure of reserves |
 | Closing round serves releases in `(close, close +24h]`; actual launch starts ten releases at +24h through +240h | Boundary/delay and HTTP journey tests | Final delays/overlap operations and distributor feasibility |
 
-On 30 October 2026 the owner approved proceeding with the current participation design for the controlled cohort and selected fully locked Jito evaluation. [The approval record](approvals/2026-10-30-design.json) binds that decision to the reviewed packet. Generic participation-design approval is complete; unspecified public abuse/dispute procedures, reserve custody, physical-wallet QA, source access and financial activation remain separate gates. The specific Jito timing/custody proposal is in [JITO-LOCKED-PROPOSAL.md](JITO-LOCKED-PROPOSAL.md).
+On 30 October 2026 the owner approved proceeding with the current participation design for the controlled cohort and selected fully locked Jito evaluation. [The approval record](approvals/2026-10-30-design.json) binds that decision to the reviewed packet. Generic participation-design approval is complete; unspecified public abuse/dispute procedures, reserve custody, physical-wallet QA, source access and financial activation remain separate gates. The exact Jito policy was subsequently approved in [the follow-up record](approvals/2026-10-30-jito-policy.json); actual custody accounts and executed proof remain pending. See [JITO-LOCKED-PROPOSAL.md](JITO-LOCKED-PROPOSAL.md).
 
 The remaining register is reviewed against those local rules; nothing below silently adopts an archived economic setting.
 
@@ -27,7 +27,7 @@ The remaining register is reviewed against those local rules; nothing below sile
 | Ongoing fee | Demonstrate intended 1% buy/sell fee collection in OG with the pinned Meteora integration. | Protocol feasibility |
 | Permanent lock | Supported lock configuration and authorities, fee-claim authority and irreversible-action review. | Protocol feasibility; production |
 | Treasury | Fee allocation, custody, disclosure, conversion and sales policy. | Complete cycle; production |
-| Claims | Supported distributor, funding proofs, fee/token-account costs, multi-transaction claim-all behavior and recovery. Jito is a candidate, not a selection. | Protocol feasibility; complete cycle |
+| Claims | Supported distributor, funding proofs, fee/token-account costs, multi-transaction claim-all behavior and recovery. The fully locked Jito timing/custody policy is approved; actual program execution and custody accounts remain to be validated. | Protocol feasibility; complete cycle |
 | Operating readiness | Source/RPC budgets, indexing freshness, operator/key authority, observability, incident response and production release checks. | Production |
 
 Record decisions with date, rationale, affected specification sections, supporting protocol/source evidence and acceptance tests. Confirmed product rules in SPEC.md take precedence over archived research and experimental models.

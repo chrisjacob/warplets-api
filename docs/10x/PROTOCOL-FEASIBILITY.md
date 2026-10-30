@@ -1,6 +1,6 @@
 # Launch and distributor feasibility
 
-Reviewed 30 October 2026. **No configuration is approved, signed, funded, deployed or executed on a Solana cluster.** The offline lab is deliberately separate from the browser, Worker and production app build graphs.
+Reviewed 30 October 2026. **The intended Jito policy is approved. No complete financial configuration has been activated, signed, funded, deployed or executed on a Solana cluster.** The offline lab is deliberately separate from the browser, Worker and production app build graphs.
 
 ## Pinned evidence
 
@@ -26,7 +26,7 @@ An SDK instruction is not evidence of successful execution. Before selecting thi
 
 ## Distributor findings and decision
 
-The owner selected **Jito with fully locked rewards for further evaluation** on 30 October 2026. Production selection and the concrete vesting/clawback/custody configuration remain gated. Its `new_claim` transfers the Merkle leaf's `amount_unlocked` without enforcing `start_ts`. Putting a future start time on such a distributor does not protect scheduled allocations. The lab rejects any scheduled configuration with a nonzero unlocked amount.
+The owner selected **Jito with fully locked rewards for further evaluation** on 30 October 2026. The owner approved the concrete one-second/365-day/2-of-3 policy on 30 October; custody accounts, executed proof and production activation remain gated. Its `new_claim` transfers the Merkle leaf's `amount_unlocked` without enforcing `start_ts`. Putting a future start time on such a distributor does not protect scheduled allocations. The lab rejects any scheduled configuration with a nonzero unlocked amount.
 
 An alternative using only locked amounts could begin vesting at the release timestamp and finish later, but the program requires `start < end`; it is not an exact instantaneous release primitive. It also requires a clawback timestamp at least one day after vesting ends. Admin and clawback receiver are mutable. No-expiry accumulated claims, custody and recovery therefore require explicit review. The program's claim-status PDA prevents repeating `new_claim` for the same claimant/distributor; execution, locked-withdrawal retries, underfunding, cost and upgrade-authority checks still need real program tests. The license needs assessment before copying or modifying its code; none has been vendored here.
 
@@ -37,11 +37,11 @@ The owner chose option 1 for further evaluation:
 
 There is no silent substitute for exact release/no-expiry requirements. These gaps block the controlled launch-to-claim milestone.
 
-The [fully locked proposal](JITO-LOCKED-PROPOSAL.md) and offline instruction planner now make option 1 reviewable. A one-second vesting interval, a common clawback timestamp 365 days after the last release ends, and 2-of-3 vault custody are proposed, not approved. The pinned clawback instruction is permissionless after its timestamp. Funded direct claims cannot be paused through an application flag. Those details require explicit acceptance and executed program tests.
+The [fully locked proposal](JITO-LOCKED-PROPOSAL.md) and offline instruction planner now make option 1 reviewable. A one-second vesting interval, a common clawback timestamp 365 days after the last release ends, and 2-of-3 vault custody are now approved in [the policy decision](approvals/2026-10-30-jito-policy.json). The pinned clawback instruction is permissionless after its timestamp. Funded direct claims cannot be paused through an application flag. The owner accepted those policy details; executed program tests and actual custody validation remain required.
 
 ## Configuration packet required before execution
 
-Still undecided: OG mints/token programs; exact initial price/FDV methodology and OG bounds; opening fee and decay; liquidity stress tests; LP/position ownership and fee-claim authority; mint/freeze authorities; treasury policy; distributor, funding custody, claim expiry and recovery. A packet must specify every authority and supported version, include its test results and cost estimates, and be approved before it can become a launch adapter configuration.
+Still undecided: OG mints/token programs; exact initial price/FDV methodology and OG bounds; opening fee and decay; liquidity stress tests; LP/position ownership and fee-claim authority; mint/freeze authorities; treasury policy; actual distributor custody accounts, funding infrastructure and recovery. A packet must specify every authority and supported version, include its test results and cost estimates, and be approved before it can become a launch adapter configuration.
 
 Source integration references: [Helius complete-history semantics and owner-metadata limits](https://www.helius.dev/docs/rpc/gettransactionsforaddress), [Pyth historical endpoint implementation](https://github.com/pyth-network/pyth-crosschain/blob/main/apps/hermes/server/src/api/rest/v2/timestamp_price_updates.rs). Neither establishes that every OG mint has a historical USD feed or authorizes a new provider budget.
 

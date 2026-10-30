@@ -1,7 +1,7 @@
 import { buildLaunchProof, feeSchedule } from "./meteora.mjs";
 import { evaluateJito } from "./distributor.mjs";
 import { fixture } from "./fixture.mjs";
-import { planLockedJito, JITO_POLICY_PROPOSAL } from "./jito-locked.mjs";
+import { planLockedJito, JITO_POLICY } from "./jito-locked.mjs";
 const proof = await buildLaunchProof(fixture),
   fees = feeSchedule(fixture.fees);
 const locked = planLockedJito({
@@ -48,11 +48,11 @@ console.log(
         clawbackAt: locked.expected.clawbackAt,
         requireNoExpiry: false,
       }),
-      lockedProposal: {
-        policy: JITO_POLICY_PROPOSAL,
+      lockedPolicy: {
+        policy: JITO_POLICY,
         expected: locked.expected,
         initializationBytes: locked.creation.data.length,
-        policyApproved: false,
+        policyApproved: locked.policyApproved,
       },
       executionProof: false,
       productionApproved: false,
