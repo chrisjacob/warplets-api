@@ -9,6 +9,10 @@
   font-weight: 400;
   line-height: 1.55;
 }
+[aria-label="Trader profile"] code {
+  overflow-wrap: anywhere;
+  word-break: break-all;
+}
 .notification-choice {
   display: flex;
   align-items: center;

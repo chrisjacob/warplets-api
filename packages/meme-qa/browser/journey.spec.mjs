@@ -1,4 +1,31 @@
 import { test, expect } from "@playwright/test";
+test("public trader profiles show only the pinned published metrics and recover from unknown identities", async ({
+  page,
+}, testInfo) => {
+  await page.goto("/?view=Leaders");
+  await page.getByRole("button", { name: "Trading", exact: true }).click();
+  await page.getByRole("button", { name: "#1 · FID 42", exact: true }).click();
+  const profile = page.getByRole("region", { name: "Trader profile" });
+  await expect(profile.getByText("$38.50", { exact: true })).toBeVisible();
+  await expect(
+    profile.getByRole("link", { name: "Farcaster profile" }),
+  ).toHaveAttribute("href", "https://farcaster.xyz/~/profiles/42");
+  await profile.getByText("Cost & OG gains", { exact: true }).click();
+  await expect(profile.getByText(/23.5 OG units/)).toBeVisible();
+  await page.screenshot({
+    path: testInfo.outputPath("trader-profile.png"),
+    fullPage: true,
+  });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBeTruthy();
+  await profile.getByRole("button", { name: "Back to leaders" }).click();
+  await page.getByLabel("Farcaster ID", { exact: true }).fill("999");
+  await page.getByRole("button", { name: "View trader", exact: true }).click();
+  await expect(profile.getByText(/No published trading profile/)).toBeVisible();
+});
 test("onboarding stays dismissed across tabs when its storage key is unavailable", async ({
   page,
 }) => {

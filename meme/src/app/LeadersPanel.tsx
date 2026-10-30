@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "./client";
 import SocialShare from "./SocialShare";
+import TraderProfile from "./TraderProfile";
 import type { TradingMetrics, TradingWindow } from "../shared/trading";
 import type { LocalState } from "./LocalRounds";
 type Board = {
@@ -9,6 +10,7 @@ type Board = {
   mode: string;
   stale: boolean;
   cohort: number;
+  sourceHash: string;
   items: (TradingMetrics & { rank: number })[];
 };
 const dollars = (n: string) =>
@@ -18,14 +20,27 @@ const dollars = (n: string) =>
     maximumFractionDigits: 2,
   }).format(Number(n));
 export default function LeadersPanel({ data }: { data: LocalState | null }) {
-  const [kind, setKind] = useState("Rewards"),
-    [window, setWindow] = useState<TradingWindow>("24h"),
+  const [profileFid, setProfileFid] = useState<number | null>(() => {
+      const raw = new URLSearchParams(location.search).get("trader");
+      return raw &&
+        /^[1-9]\d{0,15}$/.test(raw) &&
+        Number.isSafeInteger(Number(raw))
+        ? Number(raw)
+        : null;
+    }),
+    [lookup, setLookup] = useState(""),
+    [lookupError, setLookupError] = useState("");
+  const [kind, setKind] = useState(() => (profileFid ? "Trading" : "Rewards")),
+    [window, setWindow] = useState<TradingWindow>(() => {
+      const w = new URLSearchParams(location.search).get("window");
+      return w === "30d" || w === "all" ? w : "24h";
+    }),
     [board, setBoard] = useState<Board | null>(null),
     [busy, setBusy] = useState(false),
     [error, setError] = useState<string | null>(null),
     [revision, setRevision] = useState(0);
   useEffect(() => {
-    if (kind !== "Trading") return;
+    if (kind !== "Trading" || profileFid) return;
     const controller = new AbortController();
     setBusy(true);
     setBoard(null);
@@ -48,7 +63,7 @@ export default function LeadersPanel({ data }: { data: LocalState | null }) {
         if (!controller.signal.aborted) setBusy(false);
       });
     return () => controller.abort();
-  }, [kind, window, revision]);
+  }, [kind, window, revision, profileFid]);
   return (
     <section className="card" aria-label="Leaderboards">
       <h2>Top 100</h2>
@@ -59,7 +74,19 @@ export default function LeadersPanel({ data }: { data: LocalState | null }) {
           </button>
         ))}
       </div>
-      {kind === "Rewards" ? (
+      {kind === "Trading" && profileFid ? (
+        <TraderProfile
+          fid={profileFid}
+          window={window}
+          onBack={() => {
+            setProfileFid(null);
+            const url = new URL(location.href);
+            url.searchParams.delete("board");
+            url.searchParams.delete("trader");
+            history.replaceState(null, "", url);
+          }}
+        />
+      ) : kind === "Rewards" ? (
         <>
           <p className="fine">
             {data?.settlement?.state === "finalized" ? "Final" : "Provisional"}{" "}
@@ -102,6 +129,33 @@ export default function LeadersPanel({ data }: { data: LocalState | null }) {
             Realized net USD P&amp;L · ATTN only · fees included. All verified
             traders are public.
           </p>
+          <form
+            className="market-controls"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (
+                !/^[1-9]\d{0,15}$/.test(lookup) ||
+                !Number.isSafeInteger(Number(lookup))
+              ) {
+                setLookupError("Enter a valid Farcaster ID.");
+                return;
+              }
+              setLookupError("");
+              setProfileFid(Number(lookup));
+            }}
+          >
+            <label>
+              Farcaster ID{" "}
+              <input
+                inputMode="numeric"
+                value={lookup}
+                onChange={(e) => setLookup(e.target.value)}
+                maxLength={16}
+              />
+            </label>
+            <button type="submit">View trader</button>
+          </form>
+          {lookupError && <p role="alert">{lookupError}</p>}
           {busy && <p role="status">Loading ranks…</p>}
           {error && <p role="alert">{error}</p>}
           {!busy && !board && !error && (
@@ -120,7 +174,12 @@ export default function LeadersPanel({ data }: { data: LocalState | null }) {
                   <li key={r.fid}>
                     <div>
                       <strong>
-                        #{r.rank} · FID {r.fid}
+                        <button
+                          className="text-button"
+                          onClick={() => setProfileFid(r.fid)}
+                        >
+                          #{r.rank} · FID {r.fid}
+                        </button>
                       </strong>
                       <p className="fine">
                         {r.sells} sales · ROI{" "}
@@ -149,6 +208,7 @@ export default function LeadersPanel({ data }: { data: LocalState | null }) {
                       subject="trading"
                       window={window}
                       fid={r.fid}
+                      sourceHash={board.sourceHash}
                     />
                   </li>
                 ))}
