@@ -25,11 +25,14 @@
     "@farcaster/quick-auth": "0.0.6",
     "@farcaster/auth-client": "0.7.1",
     "viem": "^2.55.19",
-    "@wallet-standard/app": "1.1.0"
+    "@wallet-standard/app": "1.1.0",
+    "canvas-confetti": "1.9.4",
+    "@farcaster/miniapp-sdk": "0.3.0"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "5.20261028.1",
     "@types/react": "^19",
+    "@types/canvas-confetti": "1.9.0",
     "@types/react-dom": "^19",
     "@vitejs/plugin-react": "^4",
     "tsx": "4.21.0",

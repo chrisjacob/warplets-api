@@ -245,12 +245,18 @@ importers:
       '@farcaster/auth-client':
         specifier: 0.7.1
         version: 0.7.1(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@4.6.6)
+      '@farcaster/miniapp-sdk':
+        specifier: 0.3.0
+        version: 0.3.0(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@4.6.6)
       '@farcaster/quick-auth':
         specifier: 0.0.6
         version: 0.0.6(typescript@5.9.3)
       '@wallet-standard/app':
         specifier: 1.1.0
         version: 1.1.0
+      canvas-confetti:
+        specifier: 1.9.4
+        version: 1.9.4
       react:
         specifier: 19.2.5
         version: 19.2.5
@@ -264,6 +270,9 @@ importers:
       '@cloudflare/workers-types':
         specifier: 5.20261028.1
         version: 5.20261028.1
+      '@types/canvas-confetti':
+        specifier: 1.9.0
+        version: 1.9.0
       '@types/react':
         specifier: ^19
         version: 19.2.14

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { mkdtempSync, writeFileSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { request as http } from "node:http";
@@ -50,6 +50,10 @@ test("restricted compiled gateway requires access, expires sessions and cannot p
     upstreamToken: "t".repeat(43),
   };
   writeFileSync(join(dir, "index.html"), "compiled QA");
+  writeFileSync(
+    join(dir, "base.webp"),
+    readFileSync(new URL("../../../meme/public/base.webp", import.meta.url)),
+  );
   assert.throws(() =>
     validateGateway({ ...config, origin: "https://app-local.10x.meme" }),
   );
@@ -143,6 +147,9 @@ test("restricted compiled gateway requires access, expires sessions and cannot p
       /HttpOnly; Secure; SameSite=Lax/,
     );
     assert.equal((await call("/", { cookie })).body, "compiled QA");
+    const image = await call("/base.webp", { cookie });
+    assert.equal(image.status, 200);
+    assert.equal(image.headers["content-type"], "image/webp");
     for (const path of [
       "/api/meme/operator/rounds",
       "/api/meme/claims",

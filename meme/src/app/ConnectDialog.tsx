@@ -1,4 +1,5 @@
-import { lazy, Suspense, useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState, useRef } from "react";
+import { AppViewport } from "@10x/connect/AppViewport";
 import { WebConnectModal } from "@10x/connect/WebConnectModal";
 import { configureConnectHost } from "@10x/connect/host";
 import { logoutAppPrincipal } from "@10x/connect/appSession";
@@ -6,10 +7,15 @@ import { restoreWebWallet } from "@10x/connect/walletController";
 import { getWallets } from "@wallet-standard/app";
 import { encode58 } from "../shared/base58";
 import "@10x/connect/styles";
+import { connectionSuccessEffects, miniAppSuccess } from "./connectionEffects";
 const FarcasterSignInControl = lazy(
   () => import("@10x/connect/FarcasterSignInControl"),
 );
-configureConnectHost({ name: () => "10X.meme", icon: () => "/base.webp" });
+configureConnectHost({
+  name: () => "10X.meme",
+  icon: () => "/base.webp",
+  success: () => miniAppSuccess(),
+});
 import { api, type Identity } from "./client";
 type SolanaAccount = { address: string; chains: readonly string[] };
 type SolanaWallet = { name: string; features: Record<string, unknown> };
@@ -27,17 +33,37 @@ export default function ConnectDialog({
   identity: Identity | null;
 }) {
   const [role, setRole] = useState("reward");
+  const [notice, setNotice] = useState<{ message: string; id: number } | null>(
+    null,
+  );
+  const celebrated = useRef(new Map<string, string>());
   const [identity, setIdentity] = useState<Identity | null>(initialIdentity),
     [error, setError] = useState<string | null>(null),
     [busy, setBusy] = useState(false),
     [wallets, setWallets] = useState<readonly SolanaWallet[]>([]),
     [selected, setSelected] = useState("");
-  useEffect(() => setIdentity(initialIdentity), [initialIdentity]);
+  useEffect(() => {
+    setIdentity(initialIdentity);
+    if (!initialIdentity?.farcasterFid) celebrated.current.delete("farcaster");
+    if (!initialIdentity?.walletAddress) celebrated.current.delete("base");
+  }, [initialIdentity]);
+  useEffect(() => {
+    if (!notice) return;
+    const timer = setTimeout(() => setNotice(null), 5000);
+    return () => clearTimeout(timer);
+  }, [notice]);
+  function connected(kind: string, key: string, message: string) {
+    if (celebrated.current.get(kind) === key) return;
+    celebrated.current.set(kind, key);
+    setNotice((previous) => ({ message, id: (previous?.id ?? 0) + 1 }));
+    void connectionSuccessEffects();
+  }
   const refresh = async () => {
     try {
       const next = (await api("/api/auth/session")) as Identity;
       setIdentity(next);
       onIdentity(next);
+      return next;
     } catch (e) {
       setError(e instanceof Error ? e.message : "Local API unavailable");
     }
@@ -101,7 +127,22 @@ export default function ConnectDialog({
         nonce: challenge.nonce,
         signature: encode58(result[0].signature),
       });
-      await refresh();
+      const next = await refresh();
+      if (
+        next?.wallets.some(
+          (w) =>
+            w.chain === "solana" &&
+            w.address === account.address &&
+            w.role === role,
+        )
+      )
+        connected(
+          "solana:" + role,
+          account.address,
+          role === "reward"
+            ? "Reward wallet verified."
+            : "Holding wallet verified.",
+        );
     } catch (e) {
       setError(e instanceof Error ? e.message : "Wallet verification failed");
     } finally {
@@ -120,12 +161,28 @@ export default function ConnectDialog({
         identityConnected={!!identity?.farcasterFid}
         identityError={error}
         onClearIdentityError={() => setError(null)}
-        onWalletConnected={() => void refresh()}
+        onWalletConnected={(address) =>
+          void refresh().then((next) => {
+            if (next?.walletAddress?.toLowerCase() === address.toLowerCase())
+              connected("base", address.toLowerCase(), "Wallet connected.");
+          })
+        }
         farcasterControl={
           <Suspense fallback={<span>Loading…</span>}>
             <FarcasterSignInControl
               connected={!!identity?.farcasterFid}
-              onAuthenticated={() => void refresh()}
+              onAuthenticated={(authenticated) =>
+                void refresh().then((next) => {
+                  if (next?.farcasterFid === authenticated.fid) {
+                    connected(
+                      "farcaster",
+                      String(authenticated.fid),
+                      "Farcaster connected.",
+                    );
+                    onClose();
+                  }
+                })
+              }
               onError={setError}
               onDisconnect={async () => {
                 await logoutAppPrincipal("farcaster");
@@ -201,6 +258,22 @@ export default function ConnectDialog({
           </section>
         }
       />
+      {notice && (
+        <AppViewport
+          className="web-connect-progress-toast connect-success-toast"
+          role="status"
+          aria-live="polite"
+        >
+          <span key={notice.id}>{notice.message}</span>
+          <button
+            type="button"
+            aria-label="Dismiss connection message"
+            onClick={() => setNotice(null)}
+          >
+            ×
+          </button>
+        </AppViewport>
+      )}
     </>
   );
 }

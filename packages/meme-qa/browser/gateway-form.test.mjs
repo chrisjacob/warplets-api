@@ -44,8 +44,15 @@ test("native access form reproduces null Origin under no-referrer and succeeds w
   try {
     writeFileSync(
       join(dir, "index.html"),
-      "<!doctype html><title>QA fixture</title><h1>QA ready</h1>",
+      '<!doctype html><title>QA fixture</title><h1>QA ready</h1><img src="/base.webp" alt="Base"><img src="/farcaster.webp" alt="Farcaster"><img src="/trust.webp" alt="Wallets">',
     );
+    for (const name of ["base", "farcaster", "trust"])
+      writeFileSync(
+        join(dir, name + ".webp"),
+        readFileSync(
+          new URL("../../../meme/public/" + name + ".webp", import.meta.url),
+        ),
+      );
     let openssl = "openssl";
     if (process.platform === "win32") {
       const git = execFileSync("where.exe", ["git"], {
@@ -154,6 +161,14 @@ test("native access form reproduces null Origin under no-referrer and succeeds w
     expect(origins).toEqual(["null", origin]);
     expect(statuses).toEqual([403, 303]);
     expect(page.url()).toBe(origin + "/");
+    for (const name of ["Base", "Farcaster", "Wallets"])
+      await expect
+        .poll(() =>
+          page
+            .getByAltText(name, { exact: true })
+            .evaluate((img) => img.complete && img.naturalWidth > 0),
+        )
+        .toBe(true);
     expect(
       (await context.cookies()).some(
         (c) => c.name === "__Host-meme_qa" && c.secure && c.httpOnly,

@@ -1,4 +1,5 @@
 export interface Identity {
+  walletAddress?: string | null;
   farcasterFid: number | null;
   solanaWallet: string | null;
   baseWallets: string[];

@@ -62,6 +62,12 @@ This is a reference, **not the launch budget or a funding request**. It excludes
 
 Live full-cohort history/price reconciliation, real extension/smart-wallet/phone QA, mainnet financial adapters, production multisig integration, wider swap decoding, alerts/on-call procedures, reserve/dispute policy and production activation remain gated. Reports must distinguish local execution, live reads, mainnet writes and physical-device checks. No missing-access check is a pass.
 
+### Supervised iOS Safari progress — 30 October 2026
+
+The owner reports successful Farcaster sign-in on physical iOS Safari: the control changed to **Disconnect** and the application showed account **1431382**. This is owner-reported sign-in coverage; Base/Solana wallet handoffs and mini-app haptics remain pending.
+
+The reported broken Connect icons were caused by the restricted gateway's missing WebP MIME entry, not missing assets. Regression checks now decode the actual provider icons through the HTTPS gateway in Chromium and WebKit. Successful server-verified connections use the shared toast styling, existing 10X confetti palette and capability-checked mini-app success haptics. Effects load on demand, respect reduced motion and do not run on session restoration or failed/cancelled authentication. Standalone Safari does not invoke mini-app haptics.
+
 ### Supplied real-account cases
 
 The owner controls FID **1431382** (`warpmoji.eth`), not FID **37** (`balajis.eth`). `fixtures/accounts.json` restricts access accordingly. The generated QA keys remain separate from both accounts. `accounts --public-read-only <ignored-output-file>` makes seven public Base calls at one finalized block and never changes an account or imports a key.
