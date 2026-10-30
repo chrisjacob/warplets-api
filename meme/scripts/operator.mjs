@@ -4,6 +4,11 @@ import { fileURLToPath } from "node:url";
 import { randomBytes, createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { readOwnership } from "./ownership-source.mjs";
+import {
+  operatorRequest,
+  statusExitCode,
+  controlRequestBody,
+} from "./operator-client.mjs";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const target = process.env.MEME_OPERATOR_TARGET ?? "preview";
 if (!["preview", "restricted-qa"].includes(target))
@@ -24,24 +29,17 @@ mkdirSync(state, { recursive: true });
 const tokenFile = resolve(state, "operator-token");
 const [command, ...args] = process.argv.slice(2),
   hash = (v) => createHash("sha256").update(v).digest("hex");
-async function send(path, body) {
+async function send(path, body, method = "POST") {
   if (!path.startsWith("/api/meme/operator/"))
     throw Error("Operator route required");
   if (!existsSync(tokenFile)) throw Error("Run operator init first");
-  const r = await fetch(apiOrigin + path, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      origin: apiOrigin,
-      authorization: "Bearer " + readFileSync(tokenFile, "utf8").trim(),
-    },
-    body: JSON.stringify(body),
-    signal: AbortSignal.timeout(60000),
-    redirect: "manual",
-  });
-  const result = await r.json();
-  if (!r.ok) throw Error(result.error ?? "Operator request failed");
-  return result;
+  return operatorRequest(
+    apiOrigin,
+    readFileSync(tokenFile, "utf8").trim(),
+    path,
+    body,
+    method,
+  );
 }
 if (command === "init") {
   if (existsSync(tokenFile)) {
@@ -71,6 +69,75 @@ if (command === "init") {
       "Registered local operator. Token saved outside Git: " + tokenFile,
     );
   }
+} else if (command === "status") {
+  if (args.some((arg) => arg !== "--check"))
+    throw Error("Usage: operator status [--check]");
+  const report = await send(
+    "/api/meme/operator/operations/health",
+    undefined,
+    "GET",
+  );
+  console.log(JSON.stringify(report, null, 2));
+  if (args.includes("--check")) process.exitCode = statusExitCode(report);
+} else if (command === "pause" || command === "resume") {
+  if (
+    !["serving", "participation", "operations", "collection"].includes(
+      args[0],
+    ) ||
+    !args[1]
+  )
+    throw Error("Provide a non-financial control and a short reason");
+  const { controls } = await send(
+    "/api/meme/operator/operations/controls",
+    undefined,
+    "GET",
+  );
+  const current = controls.find((c) => c.name === args[0]);
+  if (!current) throw Error("Control configuration is incomplete");
+  const request = {
+    key: randomBytes(18).toString("base64url"),
+    name: args[0],
+    paused: command === "pause",
+    expectedVersion: current.version,
+    reason: args.slice(1).join(" "),
+  };
+  const directory = resolve(state, "control-requests");
+  mkdirSync(directory, { recursive: true });
+  const file = resolve(directory, request.key + ".json");
+  writeFileSync(
+    file,
+    JSON.stringify({
+      version: 1,
+      target,
+      origin: apiOrigin,
+      workspace: root,
+      request,
+    }),
+    { flag: "wx", mode: 0o600 },
+  );
+  console.log("Saved control retry request: " + file);
+  console.log(
+    JSON.stringify(
+      await send("/api/meme/operator/operations/controls", request),
+      null,
+      2,
+    ),
+  );
+} else if (command === "control-retry") {
+  if (args.length !== 1) throw Error("Provide the saved control request file");
+  const request = controlRequestBody(
+    JSON.parse(readFileSync(resolve(args[0]), "utf8")),
+    target,
+    apiOrigin,
+    root,
+  );
+  console.log(
+    JSON.stringify(
+      await send("/api/meme/operator/operations/controls", request),
+      null,
+      2,
+    ),
+  );
 } else if (command === "request") {
   console.log(
     JSON.stringify(
@@ -173,10 +240,17 @@ if (command === "init") {
   }
 } else if (command === "tick" || command === "run") {
   const once = command === "tick";
+  let lastReport = "",
+    lastPrintedAt = 0;
   do {
     const result = await send("/api/meme/operator/operations/tick", {});
-    console.log(JSON.stringify(result));
-    if (args[0]) {
+    const report = JSON.stringify(result);
+    if (once || report !== lastReport || Date.now() - lastPrintedAt >= 60000) {
+      console.log(report);
+      lastReport = report;
+      lastPrintedAt = Date.now();
+    }
+    if (args[0] && result.state !== "paused") {
       const response = await fetch(apiOrigin + "/api/meme/state", {
         signal: AbortSignal.timeout(15000),
       });
@@ -206,5 +280,5 @@ if (command === "init") {
   } while (!once);
 } else
   throw Error(
-    "Commands: init | demo | settle <round-id> | collect <source-run-id> | request <operator-route> <json-file> | ownership-export <warplets-sqlite-path> | ownership-freeze <sqlite> <round> | tick | run [authoritative-sqlite]",
+    "Commands: init | status [--check] | pause <control> <reason> | resume <control> <reason> | control-retry <request-file> | demo | settle <round-id> | collect <source-run-id> | request <operator-route> <json-file> | ownership-export <warplets-sqlite-path> | ownership-freeze <sqlite> <round> | tick | run [authoritative-sqlite]",
   );

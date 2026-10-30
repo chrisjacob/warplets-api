@@ -1,5 +1,7 @@
 # Evidence and daily operations
 
+See [local safety controls and diagnostics](LOCAL-OPERATIONS.md) for private `operator status`, audited pause/resume, lost-response recovery and migration 0015. These controls preserve local-only and disabled-financial boundaries; production activation and monitoring delivery remain separate gates.
+
 This is local infrastructure. The owner approved the versioned participation design and Jito timing/custody policy; real-wallet/device QA and production activation remain gated. No deployment, cron registration, remote binding, key reuse or provider allowance is implied. See [QA access](QA-ACCESS.md), [evidence checkpoints](EVIDENCE-CHECKPOINTS.md), [transaction recovery](TRANSACTION-RECOVERY.md) and the unapproved [configuration proposal](CONFIGURATION-PROPOSAL.md).
 
 ## Local startup

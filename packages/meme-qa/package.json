@@ -18,6 +18,7 @@
     "accounts": "node src/accounts.mjs",
     "gateway": "node src/gateway.mjs",
     "gateway:probe": "node src/probe-gateway.mjs",
+    "operations:probe": "node src/probe-operations.mjs",
     "benchmark": "node ../../meme/node_modules/tsx/dist/cli.mjs load/pilot.ts",
     "benchmark:reads": "node ../../meme/node_modules/tsx/dist/cli.mjs load/readHistory.ts",
     "check": "pnpm test && pnpm report"

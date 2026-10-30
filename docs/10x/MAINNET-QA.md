@@ -6,6 +6,8 @@ The [evening review](READ-REVIEW-2026-10-30.md) expands the suite to twenty-two 
 
 ## Wallet custody and recovery
 
+The subsequent [operations controls](LOCAL-OPERATIONS.md) add private diagnostics, versioned local pauses and a paused-voting journey, bringing the automated suite to twenty-four desktop/mobile journeys. They grant no mainnet authority. Apply migration 0015 to the isolated QA database before the next supervised session; the saved database has not been altered by these tests.
+
 The follow-on [restricted QA and owner recovery procedure](QA-ACCESS.md), [attempt/finality journal](TRANSACTION-RECOVERY.md), [large-history checkpoints](EVIDENCE-CHECKPOINTS.md), [local pilot benchmark](PILOT-PERFORMANCE.md) and [unapproved Splits/native-Solana configuration proposal](CONFIGURATION-PROPOSAL.md) extend this baseline. The [production ownership audit](OWNERSHIP-SOURCE-AUDIT.md) confirms a full cached token roster but insufficient checked freshness for a financial freeze. No physical wallet, mainnet transaction or production readiness is inferred from those local passes.
 
 Dedicated public addresses, generated with secure library randomness:

@@ -157,6 +157,26 @@ test("Other wallets SDK loads only on demand or to restore its previous connecto
   await page.getByRole("button", { name: /^Account/ }).click();
   await expect.poll(() => bridges.length).toBeGreaterThan(0);
 });
+test("an operator participation pause is visible without opening a wallet", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await expect(page.getByText("Voting open", { exact: true })).toBeVisible();
+  expect(
+    (await page.request.post("http://127.0.0.1:8798/__qa/pause-voting")).ok(),
+  ).toBeTruthy();
+  await page.evaluate(() =>
+    document.dispatchEvent(new Event("visibilitychange")),
+  );
+  await expect(page.getByText("Voting paused", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Verify wallet", exact: true }),
+  ).toHaveCount(0);
+  for (const button of await page
+    .getByRole("button", { name: "Vote", exact: true })
+    .all())
+    await expect(button).toBeDisabled();
+});
 test("history reaches older rounds and a failed next page retries without duplicates", async ({
   page,
 }) => {
