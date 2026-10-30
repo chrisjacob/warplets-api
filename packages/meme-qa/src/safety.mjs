@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { reservePublicRead } from "./public-read-budget.mjs";
 export const hash = (value) =>
   createHash("sha256")
     .update(
@@ -40,6 +41,10 @@ export async function boundedJson(response, maxBytes = 1024 * 1024) {
   return JSON.parse(Buffer.concat(chunks).toString("utf8"));
 }
 export async function rpc(url, method, params = []) {
+  const endpoint = new URL(url);
+  if (!["127.0.0.1", "localhost", "[::1]"].includes(endpoint.hostname))
+    reservePublicRead(url, method, params);
+  else loopback(url);
   const response = await fetch(url, {
     method: "POST",
     redirect: "error",
