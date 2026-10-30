@@ -76,10 +76,13 @@ async function send(connection, payer, instructions, signers = []) {
     skipPreflight: false,
     maxRetries: 0,
   });
-  const result = await connection.getSignatureStatus(sig, {
-    searchTransactionHistory: true,
-  });
-  assert.equal(result.value?.err, null);
+  const deadline=performance.now()+10000;
+  for(;;){
+    const result=await connection.getSignatureStatus(sig,{searchTransactionHistory:true});
+    if(result.value){assert.equal(result.value.err,null);if(result.value.confirmationStatus==="finalized")break;}
+    if(performance.now()>=deadline)throw Error("Local signature finality not yet observed; transaction was not resent");
+    await new Promise(resolve=>setTimeout(resolve,25));
+  }
   return sig;
 }
 async function clock(connection) {
