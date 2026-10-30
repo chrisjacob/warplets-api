@@ -6,6 +6,7 @@ import {
   type TraderEvidence,
   type TradingMetrics,
   type TradingWindow,
+  type TradingProfile,
 } from "../shared/trading";
 import {
   one,
@@ -265,6 +266,11 @@ export async function publishTrading(
         .bind(b.id, b.window, b.asOf, canonical(b)),
       db
         .prepare(
+          "INSERT OR IGNORE INTO meme_trading_board_sources SELECT ?,fid,id FROM meme_trading_sources WHERE id IN(SELECT value FROM json_each(?))",
+        )
+        .bind(b.id, JSON.stringify(sources.map((s) => s.id))),
+      db
+        .prepare(
           "INSERT INTO meme_trading_board_heads VALUES(?,?,?) ON CONFLICT(window) DO UPDATE SET board_id=excluded.board_id,as_of=excluded.as_of WHERE excluded.as_of>=meme_trading_board_heads.as_of",
         )
         .bind(b.window, b.id, b.asOf),
@@ -291,6 +297,43 @@ export async function tradingRequest(
   request: Request,
 ): Promise<Response | null> {
   const url = new URL(request.url);
+  const profile = url.pathname.match(
+    /^\/api\/meme\/trading\/profiles\/([1-9]\d{0,15})$/,
+  );
+  if (profile) {
+    requireThat(
+      ["GET", "HEAD"].includes(request.method),
+      405,
+      "Method not allowed",
+    );
+    requireThat(
+      [...url.searchParams.keys()].every(
+        (k) =>
+          ["window", "board"].includes(k) &&
+          url.searchParams.getAll(k).length === 1,
+      ),
+      400,
+      "Invalid profile parameters",
+    );
+    const fid = Number(profile[1]),
+      window = url.searchParams.get("window") ?? "24h",
+      board = url.searchParams.get("board");
+    requireThat(
+      Number.isSafeInteger(fid) &&
+        ["24h", "30d", "all"].includes(window) &&
+        (board === null || /^board:[a-f0-9]{64}$/.test(board)),
+      400,
+      "Invalid public profile",
+    );
+    const value = await readTradingProfile(
+      db,
+      fid,
+      window as TradingWindow,
+      board,
+    );
+    requireThat(value, 404, "No published trading profile for this snapshot");
+    return json(value);
+  }
   if (url.pathname === "/api/meme/operator/trading") {
     await operator(db, request);
     requireThat(request.method === "POST", 405, "Method not allowed");
@@ -331,4 +374,34 @@ export async function tradingRequest(
     "Invalid trading window",
   );
   return json({ board: await readTrading(db, window as TradingWindow) });
+}
+export async function readTradingProfile(
+  db: Database,
+  fid: number,
+  window: TradingWindow,
+  boardId: string | null = null,
+): Promise<TradingProfile | null> {
+  const row = await one<{ board: string; metrics: string }>(
+    db,
+    `SELECT b.payload board,p.payload metrics FROM meme_trading_boards b ${boardId === null ? "JOIN meme_trading_board_heads h ON h.board_id=b.id" : ""} JOIN meme_trading_board_sources s ON s.board_id=b.id JOIN meme_trading_projections p ON p.source_id=s.source_id AND p.window=b.window AND p.as_of=b.as_of WHERE b.window=? AND s.fid=? ${boardId === null ? "" : "AND b.id=?"}`,
+    window,
+    fid,
+    ...(boardId === null ? [] : [boardId]),
+  );
+  if (!row) return null;
+  const board = JSON.parse(row.board) as TradingBoard,
+    metrics = JSON.parse(row.metrics) as TradingMetrics;
+  return {
+    version: 1,
+    boardId: board.id,
+    asOf: board.asOf,
+    window,
+    mode: board.mode,
+    cohort: board.cohort,
+    sourceHash: board.sourceHash,
+    rank: board.items.find((i) => i.fid === fid)?.rank ?? null,
+    metrics,
+    stale: Date.now() - board.asOf > 3600000,
+    historical: boardId !== null,
+  };
 }

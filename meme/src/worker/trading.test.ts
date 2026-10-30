@@ -2,7 +2,13 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { testDb } from "./testDb";
 import { registerMarket } from "./markets";
-import { importTrading, publishTrading, readTrading } from "./trading";
+import {
+  importTrading,
+  publishTrading,
+  readTrading,
+  readTradingProfile,
+} from "./trading";
+import { createCard } from "./shares";
 import { encode58 } from "../shared/base58";
 import type { TraderEvidence } from "../shared/trading";
 const wallet = encode58(new Uint8Array(32).fill(1)),
@@ -56,6 +62,89 @@ const source: TraderEvidence = {
     },
   ],
 };
+test("every verified cohort member has a public frozen profile, including outside top 100; corrections preserve historical profiles", async () => {
+  const t = testDb();
+  try {
+    const now = Date.now();
+    await registerMarket(t.db, {
+      id: "m",
+      symbol: "ATTN",
+      ogSymbol: "OG",
+      attnMint: wallet,
+      ogMint: og,
+      pool: null,
+      launchedAt: 0,
+      mode: "simulated",
+    });
+    let lastSource: TraderEvidence = source,
+      lastId = "",
+      lastWallet = "";
+    for (let i = 0; i < 101; i++) {
+      const bytes = new Uint8Array(32).fill(6);
+      new DataView(bytes.buffer).setUint32(28, i);
+      const traderWallet = encode58(bytes),
+        input = {
+          ...source,
+          fid: 1000 + i,
+          wallets: [traderWallet],
+          throughAt: now,
+          events: source.events.map((e) => ({ ...e, wallet: traderWallet })),
+        };
+      const imported = await importTrading(
+        t.db,
+        input,
+        null,
+        "Complete simulated profile cohort",
+        now,
+      );
+      lastSource = input;
+      lastId = imported.id;
+      lastWallet = traderWallet;
+    }
+    const boards = await publishTrading(t.db, now, now),
+      oldBoard = boards.find((b) => b.window === "all")!;
+    assert.equal(oldBoard.items.length, 100);
+    t.queries.length = 0;
+    const outside = await readTradingProfile(t.db, 1100, "all");
+    assert.equal(t.queries.length, 1);
+    assert.equal(outside!.rank, null);
+    assert.equal(outside!.metrics.pnlUsd, "14");
+    assert(!JSON.stringify(outside).includes(lastWallet));
+    const card = await createCard(t.db, "pnl", "trading", "all", 1100, now);
+    assert(card.lines[0].includes("verified trader"));
+    assert(card.targetPath.includes("trader=1100"));
+    await assert.rejects(
+      createCard(t.db, "rank", "trading", "all", 1100, now),
+      /rank\/profile/,
+    );
+    await importTrading(
+      t.db,
+      {
+        ...lastSource,
+        events: lastSource.events.map((e) =>
+          e.id === "sell" ? { ...e, usd: "30" } : e,
+        ),
+      },
+      lastId,
+      "Corrected simulated sell evidence",
+      now,
+    );
+    await publishTrading(t.db, now, now + 1);
+    assert.equal((await readTradingProfile(t.db, 1100, "all"))!.rank, 1);
+    assert.equal(
+      (await readTradingProfile(t.db, 1100, "all", oldBoard.id))!.metrics
+        .pnlUsd,
+      "14",
+    );
+    assert.equal(await readTradingProfile(t.db, 999, "all"), null);
+    assert.throws(
+      () => t.raw.exec("DELETE FROM meme_trading_board_sources"),
+      /Immutable/,
+    );
+  } finally {
+    t.close();
+  }
+});
 test("projection publication resumes after its committed response is lost and refuses a different cohort time", async () => {
   const t = testDb();
   try {

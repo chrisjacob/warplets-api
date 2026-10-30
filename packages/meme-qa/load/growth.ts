@@ -12,6 +12,7 @@ import {
   importTrading,
   publishTrading,
   readTrading,
+  readTradingProfile,
 } from "../../../meme/src/worker/trading";
 import { encode58 } from "../../../meme/src/shared/base58";
 import type {
@@ -116,9 +117,11 @@ try {
   for (let n = 0; n < 40; n++) {
     const before = performance.now(),
       value =
-        n % 2
-          ? await readTrading(t.db, "all")
-          : await readMarket(t.db, market.id, "all");
+        n % 3 === 0
+          ? await readTradingProfile(t.db, 2001000, "all")
+          : n % 3 === 1
+            ? await readTrading(t.db, "all")
+            : await readMarket(t.db, market.id, "all");
     timings.push(performance.now() - before);
     maxBytes = Math.max(maxBytes, Buffer.byteLength(JSON.stringify(value)));
   }

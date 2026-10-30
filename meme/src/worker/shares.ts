@@ -1,7 +1,7 @@
 import { canonical } from "../shared/canonical";
 import { cardPage, type ShareCard, type CardKind } from "../shared/shareCards";
 import { readMarket } from "./markets";
-import { readTrading } from "./trading";
+import { readTrading, readTradingProfile } from "./trading";
 import type { MarketWindow } from "../shared/markets";
 import { one, sha, json, payload, requireThat, type Database } from "./db";
 import { operator } from "./rounds";
@@ -35,8 +35,13 @@ export async function createCard(
       409,
       "Fresh published trading snapshot required",
     );
-    const trader = board.items.find((r) => r.fid === fid);
-    requireThat(trader, 404, "Trader is outside this published top 100");
+    const profile = await readTradingProfile(db, fid!, window, board.id);
+    requireThat(
+      profile && (kind === "pnl" || profile.rank !== null),
+      404,
+      "No matching published trading rank/profile",
+    );
+    const trader = { ...profile.metrics, rank: profile.rank };
     body = {
       kind,
       subject,
@@ -47,14 +52,21 @@ export async function createCard(
           ? `#${trader.rank} · ATTN trading`
           : `$${Number(trader.pnlUsd).toLocaleString("en-US", { maximumFractionDigits: 2 })} realized P&L`,
       lines: [
-        `FID ${fid} · ${window} · rank #${trader.rank}`,
-        `Net USD P&L · fees included · ${trader.sells} sales`,
+        `FID ${fid} · ${window} · ${trader.rank === null ? "verified trader" : "rank #" + trader.rank}`,
+        `Net USD P&L · fees included · ${trader.sells} ${trader.sells === 1 ? "sale" : "sales"}`,
         `ROI ${trader.roiPercent === null ? "unknown" : Number(trader.roiPercent).toFixed(2) + "%"} · moving average cost`,
       ],
       asOf: board.asOf,
       mode: board.mode,
       sourceHash: board.sourceHash,
-      targetPath: "/?view=Leaders",
+      targetPath:
+        "/?" +
+        new URLSearchParams({
+          view: "Leaders",
+          trader: String(fid),
+          window,
+          board: board.id,
+        }),
     };
   } else {
     requireThat(
@@ -207,7 +219,7 @@ export async function sharesRequest(
     requireThat(
       [...url.searchParams.keys()].every(
         (k) =>
-          ["kind", "subject", "window", "fid"].includes(k) &&
+          ["kind", "subject", "window", "fid", "sourceHash"].includes(k) &&
           url.searchParams.getAll(k).length === 1,
       ),
       400,
@@ -216,7 +228,8 @@ export async function sharesRequest(
     const kind = url.searchParams.get("kind"),
       subject = url.searchParams.get("subject"),
       window = url.searchParams.get("window") ?? "24h",
-      fid = Number(url.searchParams.get("fid") ?? 0);
+      fid = Number(url.searchParams.get("fid") ?? 0),
+      sourceHash = url.searchParams.get("sourceHash");
     requireThat(
       ["candidate", "launch", "performance", "rank", "pnl"].includes(
         kind ?? "",
@@ -225,17 +238,19 @@ export async function sharesRequest(
         subject.length <= 120 &&
         ["24h", "30d", "all"].includes(window) &&
         Number.isSafeInteger(fid) &&
-        fid >= 0,
+        fid >= 0 &&
+        (sourceHash === null || /^[a-f0-9]{64}$/.test(sourceHash)),
       400,
       "Invalid share lookup",
     );
     const row = await one<{ payload: string }>(
       db,
-      "SELECT c.payload FROM meme_share_cards c WHERE kind=? AND subject=? AND window=? AND fid=? AND (SELECT count(*) FROM meme_share_images i WHERE i.card_id=c.id)=2 ORDER BY created_at DESC,id DESC LIMIT 1",
+      `SELECT c.payload FROM meme_share_cards c WHERE kind=? AND subject=? AND window=? AND fid=? ${sourceHash === null ? "" : "AND json_extract(c.payload,'$.sourceHash')=?"} AND (SELECT count(*) FROM meme_share_images i WHERE i.card_id=c.id)=2 ORDER BY created_at DESC,id DESC LIMIT 1`,
       kind,
       subject,
       window,
       fid,
+      ...(sourceHash === null ? [] : [sourceHash]),
     );
     return json({ card: row ? JSON.parse(row.payload) : null });
   }

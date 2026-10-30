@@ -60,6 +60,19 @@ export interface TradingMetrics {
   ogGains: { mint: string; amount: string }[];
   exactPnl: { numerator: string; denominator: string };
 }
+export interface TradingProfile {
+  version: 1;
+  boardId: string;
+  asOf: number;
+  window: TradingWindow;
+  mode: "simulated" | "observed";
+  cohort: number;
+  sourceHash: string;
+  rank: number | null;
+  metrics: TradingMetrics;
+  stale: boolean;
+  historical: boolean;
+}
 const nonnegative = (s: string | undefined) => {
   const n = Exact.decimal(s ?? "");
   if (n.n < 0n) throw Error("Negative trade value");

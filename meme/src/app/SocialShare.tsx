@@ -7,11 +7,13 @@ export default function SocialShare({
   subject,
   window,
   fid,
+  sourceHash,
 }: {
   kind: CardKind;
   subject: string;
   window: "24h" | "30d" | "all";
   fid?: number;
+  sourceHash?: string;
 }) {
   const [busy, setBusy] = useState(false),
     [message, setMessage] = useState("");
@@ -27,6 +29,7 @@ export default function SocialShare({
             subject,
             window,
             ...(fid ? { fid: String(fid) } : {}),
+            ...(sourceHash ? { sourceHash } : {}),
           }),
       )) as { card: ShareCard | null };
       if (!card) throw Error("Share card isn’t published yet.");

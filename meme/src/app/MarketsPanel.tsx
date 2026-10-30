@@ -249,6 +249,7 @@ export default function MarketsPanel() {
             kind={view.market.attnMint ? "performance" : "candidate"}
             subject={view.market.id}
             window={window}
+            sourceHash={view.inputHash}
           />
           <dl className="market-returns">
             <div>
