@@ -1,8 +1,25 @@
 import { buildLaunchProof, feeSchedule } from "./meteora.mjs";
 import { evaluateJito } from "./distributor.mjs";
 import { fixture } from "./fixture.mjs";
+import { planLockedJito, JITO_POLICY_PROPOSAL } from "./jito-locked.mjs";
 const proof = await buildLaunchProof(fixture),
   fees = feeSchedule(fixture.fees);
+const locked = planLockedJito({
+  simulated: true,
+  state: "finalized_unfunded",
+  allocationId: "fixture:release:1",
+  inputHash: "a".repeat(64),
+  resultHash: "b".repeat(64),
+  version: "1",
+  mint: fixture.editionMint,
+  admin: fixture.creator,
+  receiverOwner: fixture.creator,
+  launchedAtMs: 1800000000000,
+  releaseIndex: 1,
+  preparedAt: 1800000100,
+  expectedAmount: "100",
+  recipients: [{ wallet: fixture.ogMint, amount: "100" }],
+});
 console.log(
   JSON.stringify(
     {
@@ -24,13 +41,19 @@ console.log(
         numerator: fees.at(seconds).toString(),
       })),
       distributor: evaluateJito({
-        amountUnlocked: "100",
-        releaseAt: 1800086400,
-        startVestingAt: 1800086400,
-        endVestingAt: 1800086401,
-        clawbackAt: 1800172801,
-        requireNoExpiry: true,
+        amountUnlocked: "0",
+        releaseAt: locked.expected.startVestingAt,
+        startVestingAt: locked.expected.startVestingAt,
+        endVestingAt: locked.expected.endVestingAt,
+        clawbackAt: locked.expected.clawbackAt,
+        requireNoExpiry: false,
       }),
+      lockedProposal: {
+        policy: JITO_POLICY_PROPOSAL,
+        expected: locked.expected,
+        initializationBytes: locked.creation.data.length,
+        policyApproved: false,
+      },
       executionProof: false,
       productionApproved: false,
     },

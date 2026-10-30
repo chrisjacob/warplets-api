@@ -11,6 +11,8 @@ The owner authorized building milestones 1–3 on 30 October 2026 with commits/P
 | Zero qualifiers reserve the release; no offered round needs an explicit reasoned reserve; no silent reassignment | Empty/unoffered reserve tests | Treasury handling/disclosure of reserves |
 | Closing round serves releases in `(close, close +24h]`; actual launch starts ten releases at +24h through +240h | Boundary/delay and HTTP journey tests | Final delays/overlap operations and distributor feasibility |
 
+On 30 October 2026 the owner approved proceeding with the current participation design for the controlled cohort and selected fully locked Jito evaluation. [The approval record](approvals/2026-10-30-design.json) binds that decision to the reviewed packet. Generic participation-design approval is complete; unspecified public abuse/dispute procedures, reserve custody, physical-wallet QA, source access and financial activation remain separate gates. The specific Jito timing/custody proposal is in [JITO-LOCKED-PROPOSAL.md](JITO-LOCKED-PROPOSAL.md).
+
 The remaining register is reviewed against those local rules; nothing below silently adopts an archived economic setting.
 
 | Decision | Required resolution | Blocks |
