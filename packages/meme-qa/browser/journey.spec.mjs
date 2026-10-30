@@ -1,4 +1,28 @@
 import { test, expect } from "@playwright/test";
+test("root discovery metadata uses the actual local origin and prepared PNG assets", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const value = await page
+      .locator('meta[name="fc:miniapp"]')
+      .getAttribute("content"),
+    embed = JSON.parse(value);
+  expect(embed.imageUrl).toBe("http://127.0.0.1:5196/social-mini.png");
+  expect(embed.button.action.url).toBe("http://127.0.0.1:5196/");
+  expect(
+    await page.locator('meta[property="og:image"]').getAttribute("content"),
+  ).toBe("http://127.0.0.1:5196/social-og.png");
+  for (const [path, width, height] of [
+    ["icon.png", 512, 512],
+    ["social-mini.png", 1200, 800],
+    ["social-og.png", 1200, 630],
+  ]) {
+    const response = await page.request.get("/" + path),
+      bytes = await response.body();
+    expect(bytes.readUInt32BE(16)).toBe(width);
+    expect(bytes.readUInt32BE(20)).toBe(height);
+  }
+});
 test("public trader profiles show only the pinned published metrics and recover from unknown identities", async ({
   page,
 }, testInfo) => {
