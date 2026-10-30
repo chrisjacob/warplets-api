@@ -239,6 +239,12 @@ export default function MarketsPanel() {
             {view.coverage.limited ? " · limited history" : ""}
           </p>
           <Chart view={view} />
+          {view.coverage.fromAt !== null && (
+            <p className="fine">
+              Compared from {new Date(view.coverage.fromAt).toLocaleString()}.
+              Both prices use that same start.
+            </p>
+          )}
           <SocialShare
             kind={view.market.attnMint ? "performance" : "candidate"}
             subject={view.market.id}

@@ -238,6 +238,20 @@ if (command === "init") {
       }),
     );
   }
+} else if (command === "swap-status") {
+  if (!/^swap:[a-f0-9]{64}$/.test(args[0] ?? ""))
+    throw Error("Provide the immutable swap review id");
+  console.log(
+    JSON.stringify(
+      await send(
+        "/api/meme/operator/swaps/" + encodeURIComponent(args[0]),
+        undefined,
+        "GET",
+      ),
+      null,
+      2,
+    ),
+  );
 } else if (command === "share-publish") {
   const card = await send("/api/meme/operator/shares", {
     action: "create",

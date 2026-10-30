@@ -15,6 +15,7 @@ import { packetsRequest } from "./packets";
 import { tradingRequest } from "./trading";
 import { sharesRequest } from "./shares";
 import { notificationsRequest } from "./notifications";
+import { swapsRequest } from "./swaps";
 import { requireUnpaused } from "./controls";
 import { Problem, json as reply } from "./db";
 import { securityHeaders } from "../shared/securityHeaders";
@@ -108,6 +109,7 @@ export default {
           (await sharesRequest(env.MEME_DB, request)) ??
           (await notificationsRequest(env.MEME_DB, request)) ??
           (await packetsRequest(env.MEME_DB, request)) ??
+          (await swapsRequest(env.MEME_DB, request)) ??
           (await readPagesRequest(env.MEME_DB, request)) ??
           (await transactionsRequest(env.MEME_DB, request)) ??
           (await operationsRequest(env.MEME_DB, request)) ??

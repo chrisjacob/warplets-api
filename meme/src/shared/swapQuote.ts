@@ -26,6 +26,8 @@ export interface SwapQuote {
     accountRentLamports: string;
     inputFeeUnits: string;
     inputFeeIncluded: true;
+    outputFeeUnits: string;
+    outputFeeIncluded: true;
   };
 }
 export interface SwapRisk {
@@ -82,7 +84,7 @@ export function reviewSwapQuote(
     throw Error("Quote units do not match verified mint metadata");
   if (
     minimum > expected ||
-    minimum < (expected * BigInt(10000 - q.slippageBps)) / 10000n
+    minimum < (expected * BigInt(10000 - q.slippageBps) + 9999n) / 10000n
   )
     throw Error("Minimum output weakens the reviewed slippage protection");
   if (
@@ -128,6 +130,8 @@ export function reviewSwapQuote(
     throw Error("Direct route does not match the verified pool");
   if (
     q.fees?.inputFeeIncluded !== true ||
+    q.fees.outputFeeIncluded !== true ||
+    natural(q.fees.outputFeeUnits) > 2n ** 64n - 1n ||
     natural(q.fees.inputFeeUnits) > amount ||
     natural(q.fees.networkLamports) > natural(risk.maximumNetworkLamports) ||
     natural(q.fees.accountRentLamports) > natural(risk.maximumRentLamports)
