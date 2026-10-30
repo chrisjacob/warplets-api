@@ -30,7 +30,7 @@ test('Meteora rejects unfunded OG; approved one-unit minimum executes pool creat
     await send(connection,payer,instructions,[nft]);
     const pool=await connection.getAccountInfo(new PublicKey(proof.pool));assert(pool?.owner.equals(new PublicKey(proof.program)));
     const position=await connection.getAccountInfo(new PublicKey(proof.position));assert(position?.owner.equals(new PublicKey(proof.program)));
-    const state=cpAmmCoder.accounts.decode('position',position.data);
+    const state=cpAmmCoder.accounts.decode('Position',position.data);
     assert.equal(state.permanentLockedLiquidity.toString(),proof.liquidityDelta);
     assert.equal(state.unlockedLiquidity.toString(),'0');
     const amm=new CpAmm(connection),ps=await amm.fetchPoolState(new PublicKey(proof.pool));

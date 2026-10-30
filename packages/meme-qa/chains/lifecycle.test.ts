@@ -33,7 +33,7 @@ test('actual local launch → signed vote → immutable settlement → verified 
       await recordSignature(storage.db,intent.id,signature);const receipt=await reconcileIntent(storage.db,intent.id,adapter);assert.equal(receipt.state,'confirmed');assert.equal((await reconcileIntent(storage.db,intent.id,adapter)).state,'confirmed');return receipt;
     }
     const launchInstructions=proof.instructions.map(i=>new TransactionInstruction({programId:new PublicKey(i.program),keys:i.accounts.map(a=>({pubkey:new PublicKey(a.pubkey),isSigner:a.signer,isWritable:a.writable})),data:Buffer.from(i.data,'hex')}));
-    await execute('launch','edition',launchInstructions,[payer,nft],{pool:proof.pool,mint:mint.toBase58(),permanentLockedLiquidity:proof.liquidityDelta},async()=>{const a=await connection.getAccountInfo(new PublicKey(proof.position));const p=cpAmmCoder.accounts.decode('position',a!.data);return {pool:p.pool.toBase58(),mint:mint.toBase58(),permanentLockedLiquidity:p.permanentLockedLiquidity.toString()};});
+    await execute('launch','edition',launchInstructions,[payer,nft],{pool:proof.pool,mint:mint.toBase58(),permanentLockedLiquidity:proof.liquidityDelta},async()=>{const a=await connection.getAccountInfo(new PublicKey(proof.position));const p=cpAmmCoder.accounts.decode('Position',a!.data);return {pool:p.pool.toBase58(),mint:mint.toBase58(),permanentLockedLiquidity:p.permanentLockedLiquidity.toString()};});
     const launchedAt=await chainTime(connection);
     context.mock.timers.setTime(launchedAt+20*3600000);
     const token='disposable-cycle-session',operator='disposable-cycle-operator';
