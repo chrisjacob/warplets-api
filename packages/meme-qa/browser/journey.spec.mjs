@@ -1,4 +1,55 @@
 import { test, expect } from "@playwright/test";
+test("onboarding stays dismissed across tabs when its storage key is unavailable", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    for (const method of ["getItem", "setItem"]) {
+      const original = Storage.prototype[method];
+      Storage.prototype[method] = function (key, ...args) {
+        if (key === "10x:launchpad:onboarding:v1")
+          throw new DOMException("Storage denied");
+        return original.call(this, key, ...args);
+      };
+    }
+  });
+  await page.goto("/");
+  const guide = page.getByRole("region", { name: "Getting started" });
+  await guide.getByRole("button", { name: "Skip", exact: true }).click();
+  await page.getByRole("tab", { name: "Rewards", exact: true }).click();
+  await page.getByRole("tab", { name: "Today", exact: true }).click();
+  await expect(guide).toHaveCount(0);
+  await page.getByRole("button", { name: "How it works" }).click();
+  await expect(guide).toBeVisible();
+});
+test("an expired session stops automatic polling and a manual retry recovers", async ({
+  page,
+}) => {
+  let rejected = true,
+    calls = 0;
+  await page.clock.install();
+  await page.route("**/api/meme/state?view=today", async (route) => {
+    calls++;
+    if (rejected)
+      await route.fulfill({
+        status: 401,
+        contentType: "application/json",
+        body: '{"error":"Expired"}',
+      });
+    else await route.continue();
+  });
+  await page.goto("/");
+  await expect(
+    page.getByText("Sign in again to continue.", { exact: true }),
+  ).toBeVisible();
+  const before = calls;
+  await page.clock.runFor(180000);
+  expect(calls).toBe(before);
+  rejected = false;
+  await page.getByRole("button", { name: "Retry", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Cast", exact: true }),
+  ).toBeVisible();
+});
 test("notification topics save without requesting host permission or sending messages", async ({
   page,
 }) => {

@@ -56,6 +56,65 @@ const source: TraderEvidence = {
     },
   ],
 };
+test("projection publication resumes after its committed response is lost and refuses a different cohort time", async () => {
+  const t = testDb();
+  try {
+    await registerMarket(t.db, {
+      id: "m",
+      symbol: "ATTN",
+      ogSymbol: "OG",
+      attnMint: wallet,
+      ogMint: og,
+      pool: null,
+      launchedAt: 0,
+      mode: "simulated",
+    });
+    let batches = 0;
+    const interrupted: Pick<D1Database, "prepare" | "batch"> = {
+      prepare: t.db.prepare,
+      batch: async <T = unknown>(statements: D1PreparedStatement[]) => {
+        if (++batches === 2) t.interruptNextBatch();
+        return t.db.batch<T>(statements);
+      },
+    };
+    await assert.rejects(
+      importTrading(
+        interrupted,
+        source,
+        null,
+        "Interrupted projection fixture",
+        10000,
+      ),
+      /lost response/,
+    );
+    assert.equal(
+      (
+        await importTrading(
+          t.db,
+          source,
+          null,
+          "Interrupted projection fixture",
+          10000,
+        )
+      ).replayed,
+      true,
+    );
+    t.queries.length = 0;
+    await publishTrading(t.db, 10000, 10000);
+    assert(!t.queries.some((q) => q.includes("SELECT s.id,s.payload")));
+    assert.equal((await readTrading(t.db, "all"))!.items[0].pnlUsd, "14");
+    await assert.rejects(
+      publishTrading(t.db, 9000, 10000),
+      /matching complete coverage/,
+    );
+    assert.throws(
+      () => t.raw.exec("DELETE FROM meme_trading_projections"),
+      /Immutable/,
+    );
+  } finally {
+    t.close();
+  }
+});
 test("trading source corrections and snapshots recover lost responses; public reads never replay ledger history", async () => {
   const t = testDb();
   try {

@@ -4,6 +4,7 @@ import {
   completeOnboarding,
 } from "@10x/connect/miniAppContext";
 export const onboardingKey = "10x:launchpad:onboarding:v1";
+let completedThisPage = false;
 function storage() {
   try {
     return localStorage;
@@ -33,10 +34,13 @@ export default function Onboarding({
   onDone?: () => void;
 }) {
   const [visible, setVisible] = useState(
-    () => replay || !onboardingComplete(storage(), onboardingKey),
+    () =>
+      replay ||
+      !(completedThisPage || onboardingComplete(storage(), onboardingKey)),
   );
   const [step, setStep] = useState(0);
   function done() {
+    completedThisPage = true;
     completeOnboarding(storage(), onboardingKey);
     setVisible(false);
     onDone?.();
@@ -76,7 +80,8 @@ export default function Onboarding({
             />
           </svg>
           <p className="fine">
-            <span style={{color:"#00ff00"}}>OG</span> · <span style={{color:"#c1b4ff"}}>ATTN</span> · Illustration
+            <span style={{ color: "#00ff00" }}>OG</span> ·{" "}
+            <span style={{ color: "#c1b4ff" }}>ATTN</span> · Illustration
           </p>
           <p className="fine">Gains and losses can be amplified.</p>
         </>

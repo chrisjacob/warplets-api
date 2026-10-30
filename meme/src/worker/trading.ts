@@ -34,6 +34,39 @@ export interface TradingBoard {
   financialEvidence: false;
   stale?: boolean;
 }
+function traderProjections(input: TraderEvidence) {
+  const projected = (["24h", "30d", "all"] as const).map((window) => ({
+    window,
+    payload: canonical(tradingMetrics(input, window, input.throughAt)),
+  }));
+  requireThat(
+    projected.every((p) => p.payload.length <= 32768),
+    413,
+    "Trader projection exceeds its bounded publication budget",
+  );
+  return projected;
+}
+async function projectTrader(
+  db: Database,
+  id: string,
+  input: TraderEvidence,
+  projected: ReturnType<typeof traderProjections>,
+) {
+  await db.batch([
+    ...projected.map((p) =>
+      db
+        .prepare(
+          "INSERT OR IGNORE INTO meme_trading_projections VALUES(?,?,?,?)",
+        )
+        .bind(id, input.throughAt, p.window, p.payload),
+    ),
+    ...input.wallets.map((wallet) =>
+      db
+        .prepare("INSERT OR IGNORE INTO meme_trading_wallet_scope VALUES(?,?)")
+        .bind(id, wallet),
+    ),
+  ]);
+}
 export async function importTrading(
   db: Database,
   input: TraderEvidence,
@@ -87,13 +120,17 @@ export async function importTrading(
     413,
     "Trading source too large; use a complete bounded cohort export",
   );
+  const projected = traderProjections(input);
   const id = "trading:" + (await sha(canonical({ input, parentId, reason })));
   const head = await one<{ source_id: string }>(
     db,
     "SELECT source_id FROM meme_trading_source_heads WHERE fid=?",
     input.fid,
   );
-  if (head?.source_id === id) return { id, replayed: true };
+  if (head?.source_id === id) {
+    await projectTrader(db, id, input, projected);
+    return { id, replayed: true };
+  }
   requireThat(
     (head?.source_id ?? null) === parentId,
     409,
@@ -134,6 +171,7 @@ export async function importTrading(
     409,
     "Trading source publication conflicted",
   );
+  await projectTrader(db, id, input, projected);
   return { id, replayed: false };
 }
 export async function publishTrading(
@@ -146,37 +184,60 @@ export async function publishTrading(
     400,
     "Invalid common cohort time",
   );
-  const sources = await rows<{ id: string; payload: string }>(
+  const sources = await rows<{
+    id: string;
+    mode: "observed" | "simulated";
+    through_at: number;
+  }>(
     db,
-    "SELECT s.id,s.payload FROM meme_trading_source_heads h JOIN meme_trading_sources s ON s.id=h.source_id ORDER BY h.fid LIMIT 1001",
+    "SELECT s.id,s.through_at,json_extract(s.payload,'$.mode') mode FROM meme_trading_source_heads h JOIN meme_trading_sources s ON s.id=h.source_id ORDER BY h.fid LIMIT 1001",
   );
   requireThat(
     sources.length > 0 && sources.length <= 1000,
     409,
     "Cohort must contain 1–1000 complete sources",
   );
-  const inputs = sources.map((s) => JSON.parse(s.payload) as TraderEvidence),
-    mode = inputs[0].mode;
+  const mode = sources[0].mode;
   requireThat(
-    inputs.every(
-      (i) => i.mode === mode && i.throughAt >= asOf && i.verifiedAt <= asOf,
-    ),
+    sources.every((i) => i.mode === mode && i.through_at === asOf),
     409,
     "Every cohort member needs matching complete coverage",
   );
-  const wallets = new Set<string>();
-  for (const i of inputs)
-    for (const wallet of i.wallets) {
-      requireThat(
-        !wallets.has(wallet),
-        409,
-        "One wallet cannot rank under multiple identities",
-      );
-      wallets.add(wallet);
-    }
+  const scope = await one<{ total: number; uniqueWallets: number }>(
+    db,
+    "SELECT COUNT(*) total,COUNT(DISTINCT wallet) uniqueWallets FROM meme_trading_wallet_scope WHERE source_id IN(SELECT value FROM json_each(?))",
+    JSON.stringify(sources.map((s) => s.id)),
+  );
+  requireThat(
+    scope &&
+      scope.total >= sources.length &&
+      scope.total === scope.uniqueWallets,
+    409,
+    "One wallet cannot rank under multiple identities; complete projected scope required",
+  );
   const sourceHash = await sha(canonical(sources.map((s) => s.id))),
     boards: TradingBoard[] = [];
   for (const window of ["24h", "30d", "all"] as const) {
+    let leaders: (TradingMetrics & { rank: number })[] = [];
+    for (let offset = 0; offset < sources.length; offset += 64) {
+      const ids = sources.slice(offset, offset + 64).map((s) => s.id),
+        page = await rows<{ payload: string }>(
+          db,
+          "SELECT payload FROM meme_trading_projections WHERE source_id IN(SELECT value FROM json_each(?)) AND window=? AND as_of=?",
+          JSON.stringify(ids),
+          window,
+          asOf,
+        );
+      requireThat(
+        page.length === ids.length,
+        409,
+        "Resume source import to complete bounded projections",
+      );
+      leaders = rankTraders([
+        ...leaders,
+        ...page.map((p) => JSON.parse(p.payload) as TradingMetrics),
+      ]);
+    }
     const body = {
       version: 1 as const,
       window,
@@ -184,12 +245,17 @@ export async function publishTrading(
       generatedAt: now,
       sourceHash,
       mode,
-      cohort: inputs.length,
-      items: rankTraders(inputs.map((i) => tradingMetrics(i, window, asOf))),
+      cohort: sources.length,
+      items: leaders,
       coverage: "complete" as const,
       rules: "moving-average-v1" as const,
       financialEvidence: false as const,
     };
+    requireThat(
+      canonical(body).length <= 786432,
+      413,
+      "Published leaderboard exceeds the response budget",
+    );
     boards.push({ id: "board:" + (await sha(canonical(body))), ...body });
   }
   await db.batch(
