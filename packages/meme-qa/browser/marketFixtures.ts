@@ -9,6 +9,8 @@ import {
 } from "../../../meme/src/worker/trading";
 import type { Database } from "../../../meme/src/worker/db";
 import { encode58 } from "../../../meme/src/shared/base58";
+import { createCard, attachCardImage } from "../../../meme/src/worker/shares";
+import { renderCard } from "../../../meme/scripts/render-share.mjs";
 export async function seedMarkets(db: Database, now = Date.now()) {
   const og = encode58(new Uint8Array(32).fill(2)),
     attn = encode58(new Uint8Array(32).fill(3)),
@@ -95,4 +97,20 @@ export async function seedMarkets(db: Database, now = Date.now()) {
     now,
   );
   await publishTrading(db, now, now);
+  for (const [kind, subject, fid] of [
+    ["performance", "fixture-alpha", null],
+    ["pnl", "trading", 42],
+  ] as const) {
+    const card = await createCard(db, kind, subject, "24h", fid, now);
+    for (const [format, height] of [
+      ["mini", 800],
+      ["og", 630],
+    ] as const)
+      await attachCardImage(
+        db,
+        card.id,
+        format,
+        (await renderCard(card, height)).toString("base64"),
+      );
+  }
 }

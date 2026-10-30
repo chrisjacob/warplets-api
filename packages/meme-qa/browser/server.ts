@@ -44,6 +44,8 @@ async function call(path: string, body?: unknown) {
 const nativeFetch = globalThis.fetch;
 globalThis.fetch = (input, init) => {
   const u = new URL(input instanceof Request ? input.url : String(input));
+  // Bundled WASM data URLs are in-memory inputs, not external provider requests.
+  if(u.protocol==="data:" && u.href.length<=8*1024*1024)return nativeFetch(input,init);
   if (!["127.0.0.1", "localhost"].includes(u.hostname))
     throw Error("External providers disabled in disposable browser regression");
   return nativeFetch(input, init);

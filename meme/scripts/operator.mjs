@@ -238,6 +238,34 @@ if (command === "init") {
       }),
     );
   }
+} else if (command === "share-publish") {
+  const card = await send("/api/meme/operator/shares", {
+    action: "create",
+    kind: args[0],
+    subject: args[1],
+    window: args[2] ?? "24h",
+    fid: args[3] ? Number(args[3]) : null,
+  });
+  const { renderCard } = await import("./render-share.mjs");
+  for (const [format, height] of [
+    ["mini", 800],
+    ["og", 630],
+  ]) {
+    const png = await renderCard(card, height);
+    await send("/api/meme/operator/shares", {
+      action: "image",
+      id: card.id,
+      format,
+      png: png.toString("base64"),
+    });
+  }
+  console.log(
+    JSON.stringify({
+      id: card.id,
+      path: "/api/meme/share/" + card.id,
+      sourceHash: card.sourceHash,
+    }),
+  );
 } else if (command === "trading-import" || command === "trading-publish") {
   let body;
   if (command === "trading-import") {

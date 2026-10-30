@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "./client";
+import SocialShare from "./SocialShare";
 import type { TradingMetrics, TradingWindow } from "../shared/trading";
 import type { LocalState } from "./LocalRounds";
 type Board = {
@@ -129,6 +130,12 @@ export default function LeadersPanel({ data }: { data: LocalState | null }) {
                       </p>
                     </div>
                     <strong>{dollars(r.pnlUsd)}</strong>
+                    <SocialShare
+                      kind="pnl"
+                      subject="trading"
+                      window={window}
+                      fid={r.fid}
+                    />
                   </li>
                 ))}
               </ol>

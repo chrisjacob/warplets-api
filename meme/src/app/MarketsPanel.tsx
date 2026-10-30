@@ -5,6 +5,7 @@ import type {
   MarketWindow,
 } from "../shared/markets";
 import { api } from "./client";
+import SocialShare from "./SocialShare";
 const percent = (value: string | null) =>
   value === null
     ? "—"
@@ -238,6 +239,11 @@ export default function MarketsPanel() {
             {view.coverage.limited ? " · limited history" : ""}
           </p>
           <Chart view={view} />
+          <SocialShare
+            kind={view.market.attnMint ? "performance" : "candidate"}
+            subject={view.market.id}
+            window={window}
+          />
           <dl className="market-returns">
             <div>
               <dt>{view.market.symbol} · USD</dt>
