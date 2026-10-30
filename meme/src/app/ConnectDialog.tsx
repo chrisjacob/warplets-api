@@ -18,6 +18,7 @@ configureConnectHost({
   success: () => miniAppSuccess(),
 });
 import { api, type Identity } from "./client";
+import { miniRuntime, nativeAccount, nativeSignature } from "./miniRuntime";
 type SolanaAccount = { address: string; chains: readonly string[] };
 type SolanaWallet = { name: string; features: Record<string, unknown> };
 export default function ConnectDialog({
@@ -34,6 +35,19 @@ export default function ConnectDialog({
   identity: Identity | null;
 }) {
   const [role, setRole] = useState("reward");
+  const [nativeSolana, setNativeSolana] = useState(false);
+  useEffect(() => {
+    let active = true;
+    void miniRuntime().then((runtime) => {
+      if (active)
+        setNativeSolana(
+          runtime?.capabilities.includes("wallet.getSolanaProvider") === true,
+        );
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
   const [notice, setNotice] = useState<{ message: string; id: number } | null>(
     null,
   );
@@ -99,10 +113,43 @@ export default function ConnectDialog({
       offUnregister();
     };
   }, []);
-  async function solana() {
+  async function solana(native = false) {
     setBusy(true);
     setError(null);
     try {
+      if (native) {
+        const runtime = await miniRuntime();
+        if (!runtime?.capabilities.includes("wallet.getSolanaProvider"))
+          throw Error("Solana wallet is unavailable in this host.");
+        const provider = await runtime.sdk.wallet.getSolanaProvider();
+        if (!provider)
+          throw Error("Solana wallet is unavailable in this host.");
+        const address = await nativeAccount(provider);
+        const challenge = await api("/api/auth/solana/challenge", {
+          address,
+          role,
+        });
+        const signed = await provider.signMessage(challenge.message);
+        await api("/api/auth/solana/verify", {
+          nonce: challenge.nonce,
+          signature: nativeSignature(signed.signature),
+        });
+        const next = await refresh();
+        if (
+          next?.wallets.some(
+            (w) =>
+              w.chain === "solana" && w.address === address && w.role === role,
+          )
+        )
+          connected(
+            "solana:" + role,
+            address,
+            role === "reward"
+              ? "Reward wallet verified."
+              : "Holding wallet verified.",
+          );
+        return;
+      }
       const wallet = wallets.find((w) => w.name === selected) ?? wallets[0];
       if (!wallet)
         throw Error("Install a Solana Wallet Standard compatible wallet.");
@@ -211,6 +258,15 @@ export default function ConnectDialog({
                 : "Solana reward wallet"}
             </h3>
             <p>Sign a message. No funds move.</p>
+            <p className="fine">Verified ATTN trading results are public.</p>
+            {nativeSolana && (
+              <button
+                disabled={!identity?.farcasterFid || busy}
+                onClick={() => void solana(true)}
+              >
+                {busy ? "Verifying…" : "Use Farcaster Solana wallet"}
+              </button>
+            )}
             {identity?.solanaWallet && (
               <p className="fine">
                 Verified · {identity.solanaWallet.slice(0, 6)}…
