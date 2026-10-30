@@ -200,10 +200,14 @@ function TrustConnectSession({ onConnected, onDismiss, onError, openRequested, r
 }
 
 export default function TrustConnectBridge({ onConnected, onDismiss = () => undefined, onError, openRequested = true, restoreOnly = false }: { onConnected: () => void; onDismiss?: () => void; onError: (message: string) => void; openRequested?: boolean; restoreOnly?: boolean }) {
+  const projectId = import.meta.env.VITE_WALLETCONNECT_PROJECT_ID?.trim();
+  useEffect(() => {
+    if (openRequested && !projectId)
+      onError("Other wallets are temporarily unavailable. Please try again later.");
+  }, [openRequested, projectId, onError]);
   const config = useMemo(() => {
     const chains = import.meta.env.DEV ? [base, baseSepolia] : [base];
     const namespaces = [createEIP155({ chains })];
-    const projectId = import.meta.env.VITE_WALLETCONNECT_PROJECT_ID?.trim();
     const services = projectId ? [createWalletConnect({
       projectId,
       metadata: {
@@ -214,7 +218,7 @@ export default function TrustConnectBridge({ onConnected, onDismiss = () => unde
       },
     })] : [];
     return { namespaces, services };
-  }, []);
+  }, [projectId]);
   useEffect(() => {
     appendWalletConnectDiagnostic("trustconnect.config_created", {
       hasProjectId: Boolean(import.meta.env.VITE_WALLETCONNECT_PROJECT_ID?.trim()),
@@ -223,6 +227,10 @@ export default function TrustConnectBridge({ onConnected, onDismiss = () => unde
     });
   }, []);
 
+  // The picker calls WalletConnect hooks even for its initial wallet list.
+  // Do not mount it without the service: that throws during rendering and
+  // would otherwise take the surrounding Farcaster/Solana dialog with it.
+  if (!projectId) return null;
   return (
     <TrustConnectProvider config={config} theme="dark">
       <QueryClientProvider client={queryClient}>

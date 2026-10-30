@@ -66,7 +66,9 @@ Live full-cohort history/price reconciliation, real extension/smart-wallet/phone
 
 The owner reports successful Farcaster sign-in on physical iOS Safari: the control changed to **Disconnect** and the application showed account **1431382**. This is owner-reported sign-in coverage; Base/Solana wallet handoffs and mini-app haptics remain pending.
 
-The reported broken Connect icons were caused by the restricted gateway's missing WebP MIME entry, not missing assets. Regression checks now decode the actual provider icons through the HTTPS gateway in Chromium and WebKit. Successful server-verified connections use the shared toast styling, existing 10X confetti palette and capability-checked mini-app success haptics. Effects load on demand, respect reduced motion and do not run on session restoration or failed/cancelled authentication. Standalone Safari does not invoke mini-app haptics.
+The reported broken Connect icons were caused by the restricted gateway's missing WebP MIME entry, not missing assets. Regression checks now decode the actual provider icons through the HTTPS gateway in Chromium and WebKit. Successful server-verified connections use the shared toast styling, existing 10X confetti palette and capability-checked mini-app success haptics. Effects load on demand, respect reduced motion and do not run on session restoration or failed/cancelled authentication. Standalone Safari does not invoke mini-app haptics. The owner subsequently confirmed these UI fixes worked.
+
+Coinbase email delivery did not complete during the owner's check. Other wallets initially crashed because the QA build lacked the existing public WalletConnect project setting. The configured compiled picker now opens in Chromium and WebKit and presents **Trust Wallet → Connect** under an iPhone Safari user agent. The setting remains in ignored local configuration; no new project or remote setting was created. Missing configuration now returns a recoverable inline message, with desktop/mobile regression coverage. Actual Trust Wallet handoff, message signing and Safari return remain pending owner verification.
 
 ### Supplied real-account cases
 

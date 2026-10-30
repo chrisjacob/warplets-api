@@ -86,6 +86,17 @@ test.beforeEach(async ({ page }) => {
   const r = await page.request.post("http://127.0.0.1:8798/__qa/reset");
   expect(r.ok(), await r.text()).toBeTruthy();
 });
+test("an unavailable wallet picker keeps sign-in and other wallet options usable", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: /^Account/ }).click();
+  const other = page.locator(".web-connect-provider-card").filter({ hasText: "Other wallets" });
+  await other.getByRole("button", { name: "Connect", exact: true }).click();
+  await expect(page.getByText("Other wallets are temporarily unavailable. Please try again later.", { exact: true })).toBeVisible();
+  await expect(page.getByText("Couldn’t open Connect.", { exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Disconnect", exact: true })).toBeVisible();
+  await expect(other.getByRole("button", { name: "Connect", exact: true })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Verify reward wallet", exact: true })).toBeVisible();
+});
 test("real Solana proof, changed vote, operator selection and history use the actual local Worker", async ({
   page,
 }) => {
