@@ -29,6 +29,8 @@ export function evaluateJito({
     candidate: "jito-distributor",
     commit: JITO_COMMIT,
     license: "GPL-3.0",
+    clawbackPermissionless: true,
+    onChainClaimsPause: false,
     supported: gaps.length === 0,
     gaps,
     productionApproved: false,

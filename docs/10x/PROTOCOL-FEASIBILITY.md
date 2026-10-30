@@ -26,16 +26,18 @@ An SDK instruction is not evidence of successful execution. Before selecting thi
 
 ## Distributor findings and decision
 
-Jito is **not selected**. Its `new_claim` transfers the Merkle leaf's `amount_unlocked` without enforcing `start_ts`. Putting a future start time on such a distributor does not protect scheduled allocations. The lab rejects any scheduled configuration with a nonzero unlocked amount.
+The owner selected **Jito with fully locked rewards for further evaluation** on 30 October 2026. Production selection and the concrete vesting/clawback/custody configuration remain gated. Its `new_claim` transfers the Merkle leaf's `amount_unlocked` without enforcing `start_ts`. Putting a future start time on such a distributor does not protect scheduled allocations. The lab rejects any scheduled configuration with a nonzero unlocked amount.
 
 An alternative using only locked amounts could begin vesting at the release timestamp and finish later, but the program requires `start < end`; it is not an exact instantaneous release primitive. It also requires a clawback timestamp at least one day after vesting ends. Admin and clawback receiver are mutable. No-expiry accumulated claims, custody and recovery therefore require explicit review. The program's claim-status PDA prevents repeating `new_claim` for the same claimant/distributor; execution, locked-withdrawal retries, underfunding, cost and upgrade-authority checks still need real program tests. The license needs assessment before copying or modifying its code; none has been vendored here.
 
-Options requiring a product decision:
+The owner chose option 1 for further evaluation:
 
 1. Evaluate Jito with zero unlocked amounts, vesting beginning no earlier than release, an explicitly approved vesting interval, finite clawback policy, custody and GPL implications.
 2. Require an audited distributor with exact release-time cliffs and no expiry, then evaluate another implementation or commission a small purpose-built program. Audit and custody work are prerequisites; this is not permission to deploy a new contract.
 
 There is no silent substitute for exact release/no-expiry requirements. These gaps block the controlled launch-to-claim milestone.
+
+The [fully locked proposal](JITO-LOCKED-PROPOSAL.md) and offline instruction planner now make option 1 reviewable. A one-second vesting interval, a common clawback timestamp 365 days after the last release ends, and 2-of-3 vault custody are proposed, not approved. The pinned clawback instruction is permissionless after its timestamp. Funded direct claims cannot be paused through an application flag. Those details require explicit acceptance and executed program tests.
 
 ## Configuration packet required before execution
 
