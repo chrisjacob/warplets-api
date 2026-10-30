@@ -160,7 +160,7 @@ export async function prepareLocalPacket(
 ) {
   requireLocal(connection, plan);
   const genesisHash = await connection.getGenesisHash(),
-    latest = await connection.getLatestBlockhashAndContext("confirmed");
+    latest = await connection.getLatestBlockhashAndContext("finalized");
   const tx = new Transaction({
     feePayer: new PublicKey(plan.signers[0]),
     ...latest.value,
