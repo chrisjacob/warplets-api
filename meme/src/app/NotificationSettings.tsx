@@ -72,7 +72,8 @@ export default function NotificationSettings({ fid }: { fid: number }) {
           </label>
         ))}
       </fieldset>
-      <button disabled>Enable in Farcaster · not registered</button>
+      <button disabled>Enable notifications · not registered</button>
+      <p className="fine">Farcaster or Base · separate opt-in.</p>
       <p role="status">{message}</p>
       {loading && message && (
         <button onClick={() => setRevision((n) => n + 1)}>

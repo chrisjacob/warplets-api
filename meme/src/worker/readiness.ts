@@ -146,6 +146,15 @@ export async function readiness(db: Database, now = Date.now()) {
     "SELECT COALESCE(SUM(state IN('queued','retry')),0) queued,COALESCE(SUM(state='unknown'),0) unknown,COALESCE(SUM(state='processing' AND lease_until<=?),0) expiredLeases,(SELECT paused FROM meme_notification_control WHERE id=1) paused FROM meme_notification_outbox",
     now,
   );
+  const baseNotifications = await one<{
+    queued: number;
+    unknown: number;
+    expiredLeases: number;
+  }>(
+    db,
+    "SELECT COALESCE(SUM(state IN('queued','retry')),0) queued,COALESCE(SUM(state='unknown'),0) unknown,COALESCE(SUM(state='processing' AND lease_until<=?),0) expiredLeases FROM meme_base_notification_outbox",
+    now,
+  );
   const swaps = await one<{
     prepared: number;
     handedOff: number;
@@ -183,7 +192,12 @@ export async function readiness(db: Database, now = Date.now()) {
   if (trading?.stale) add("trading-snapshots-stale", "warning");
   if (swaps?.unknown || swaps?.staleSubmitted)
     add("swaps-need-reconciliation", "critical");
-  if (notifications?.unknown || notifications?.expiredLeases)
+  if (
+    notifications?.unknown ||
+    notifications?.expiredLeases ||
+    baseNotifications?.unknown ||
+    baseNotifications?.expiredLeases
+  )
     add("notification-outcomes-unresolved", "warning");
   if (heartbeat?.outcome === "error" && !paused("operations"))
     add("runner-error", "warning");
@@ -258,6 +272,11 @@ export async function readiness(db: Database, now = Date.now()) {
     },
     transactions,
     growth: {
+      baseNotifications: {
+        ...baseNotifications,
+        registered: false,
+        realDeliveryEnabled: false,
+      },
       swaps: { ...swaps, mainnetEnabled: false },
       markets,
       trading,

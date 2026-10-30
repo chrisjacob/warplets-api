@@ -223,14 +223,19 @@ export async function setNotificationSettings(
               "UPDATE meme_notification_outbox SET state='cancelled',lease=NULL,lease_until=NULL WHERE fid=? AND state IN('queued','retry')",
             )
             .bind(fid),
+          db
+            .prepare(
+              "UPDATE meme_base_notification_outbox SET state='cancelled',lease=NULL,lease_until=NULL WHERE fid=? AND state IN('queued','retry')",
+            )
+            .bind(fid),
         ]
       : []),
   ]);
   return settings;
 }
-async function deriveNotice(
+export async function deriveNotice(
   db: Database,
-  c: NotificationConfig,
+  c: Pick<NotificationConfig, "scope" | "origin">,
   kind: EventKind,
   subject: string,
   fid: number,
@@ -640,6 +645,10 @@ export async function notificationsRequest(
       settings: await notificationSettings(db, fid),
       registered: false,
       deliveryEnabled: false,
+      channels: {
+        farcaster: { registered: false },
+        base: { registered: false },
+      },
     });
   requireThat(request.method === "POST", 405, "Method not allowed");
   const p = await payload(request, ["enabled", "voting", "launch", "rewards"]);
@@ -652,5 +661,6 @@ export async function notificationsRequest(
     settings: await setNotificationSettings(db, fid, p as Settings),
     registered: false,
     deliveryEnabled: false,
+    channels: { farcaster: { registered: false }, base: { registered: false } },
   });
 }
