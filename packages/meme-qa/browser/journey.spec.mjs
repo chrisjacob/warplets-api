@@ -15,14 +15,20 @@ test("an empty market list can discover newly published pairs without reloading 
   await expect(
     panel.getByText("No published markets yet.", { exact: true }),
   ).toBeVisible();
-  await expect(panel.getByLabel("Pair", { exact: true })).toBeDisabled();
-  await expect(panel.getByLabel("Period", { exact: true })).toBeDisabled();
+  await expect(
+    panel.getByRole("combobox", { name: "Pair", exact: true }),
+  ).toBeDisabled();
+  await expect(
+    panel.getByRole("combobox", { name: "Period", exact: true }),
+  ).toBeDisabled();
   const before = calls;
   published = true;
   await panel
     .getByRole("button", { name: "Refresh prices", exact: true })
     .click();
-  await expect(panel.getByLabel("Pair", { exact: true })).toBeEnabled();
+  await expect(
+    panel.getByRole("combobox", { name: "Pair", exact: true }),
+  ).toBeEnabled();
   await expect(
     panel.getByText("Simulated prices", { exact: false }),
   ).toBeVisible();
