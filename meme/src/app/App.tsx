@@ -7,6 +7,8 @@ import { IdentityPanel } from "./IdentityPanel";
 import { Tabs, type Tab as LaunchTab } from "./Tabs";
 const HistoryPanel = lazy(() => import("./HistoryPanel"));
 const RewardsPanel = lazy(() => import("./RewardsPanel"));
+const MarketsPanel = lazy(() => import("./MarketsPanel"));
+const LeadersPanel = lazy(() => import("./LeadersPanel"));
 type Tab = "Today" | "Rewards" | "Launches";
 function FixtureApp() {
   const [tab, setTab] = useState<Tab>("Today");
@@ -265,13 +267,23 @@ export function App() {
           aria-labelledby={"tab-" + tab}
         >
           {tab === "Today" && (
-            <LocalRounds
-              data={data}
-              identity={identity}
-              refresh={refresh}
-              onConnect={() => setConnectOpen(true)}
-              stale={!!error}
-            />
+            <>
+              <LocalRounds
+                data={data}
+                identity={identity}
+                refresh={refresh}
+                onConnect={() => setConnectOpen(true)}
+                stale={!!error}
+              />
+              <Suspense fallback={<p role="status">Loading markets…</p>}>
+                <MarketsPanel />
+              </Suspense>
+            </>
+          )}
+          {tab === "Leaders" && (
+            <Suspense fallback={<p role="status">Loading leaders…</p>}>
+              <LeadersPanel data={data} />
+            </Suspense>
           )}
           {tab === "Rewards" &&
             (identity?.farcasterFid ? (

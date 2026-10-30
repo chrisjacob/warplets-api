@@ -1,4 +1,4 @@
-export type Tab = "Today" | "Rewards" | "History";
+export type Tab = "Today" | "Rewards" | "Leaders" | "History";
 export function Tabs({
   value,
   onChange,
@@ -6,7 +6,7 @@ export function Tabs({
   value: Tab;
   onChange: (value: Tab) => void;
 }) {
-  const tabs: Tab[] = ["Today", "Rewards", "History"];
+  const tabs: Tab[] = ["Today", "Rewards", "Leaders", "History"];
   return (
     <nav aria-label="Launchpad">
       <div role="tablist" aria-label="Launchpad views">
