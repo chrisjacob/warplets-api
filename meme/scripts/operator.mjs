@@ -11,20 +11,28 @@ import {
 } from "./operator-client.mjs";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const target = process.env.MEME_OPERATOR_TARGET ?? "preview";
-if (!["preview", "restricted-qa"].includes(target))
+if (!["preview", "restricted-qa", "review"].includes(target))
   throw Error("Unknown local operator target");
 const persistence =
-  target === "restricted-qa"
-    ? ".wrangler/restricted-qa-state"
-    : ".wrangler/state";
+  target === "review"
+    ? ".wrangler/review-state"
+    : target === "restricted-qa"
+      ? ".wrangler/restricted-qa-state"
+      : ".wrangler/state";
 const state = resolve(
   root,
-  target === "restricted-qa" ? ".wrangler/restricted-qa-operator" : ".wrangler",
+  target === "review"
+    ? ".wrangler/review-operator"
+    : target === "restricted-qa"
+      ? ".wrangler/restricted-qa-operator"
+      : ".wrangler",
 );
 const apiOrigin =
-  target === "restricted-qa"
-    ? "http://127.0.0.1:8799"
-    : "http://127.0.0.1:8797";
+  target === "review"
+    ? "http://127.0.0.1:8800"
+    : target === "restricted-qa"
+      ? "http://127.0.0.1:8799"
+      : "http://127.0.0.1:8797";
 mkdirSync(state, { recursive: true });
 const tokenFile = resolve(state, "operator-token");
 const [command, ...args] = process.argv.slice(2),

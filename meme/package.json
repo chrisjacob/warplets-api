@@ -6,6 +6,9 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1 --port 5194 --strictPort",
     "dev:worker": "wrangler dev --local --ip 127.0.0.1 --port 8797 --persist-to .wrangler/state",
+    "review:dev": "vite --host 127.0.0.1 --port 5198 --strictPort",
+    "review:worker": "wrangler dev --local --ip 127.0.0.1 --port 8800 --persist-to .wrangler/review-state",
+    "review:migrate": "wrangler d1 migrations apply meme-local --local --persist-to .wrangler/review-state",
     "qa:build": "node scripts/check-qa-env.mjs && vite build --outDir .tmp/restricted-qa-web",
     "qa:migrate": "wrangler d1 migrations apply meme-local --local --persist-to .wrangler/restricted-qa-state",
     "db:migrate": "wrangler d1 migrations apply meme-local --local --persist-to .wrangler/state",

@@ -2,6 +2,10 @@
 
 Recorded 31 October 2026 (Sydney). The owner approved one shared maximum of 50 public blockchain requests, including failures/retries. The first checks consumed **17**: seven supplied-account balance reads, two ownership-checkpoint initialization calls, one canonicality check plus five ownerOf calls, and two program-capture calls. No paid credential, Network provider allowance, account setting, production record or chain state changed.
 
+Final overnight consumption is **24/50**: add one Solana genesis-hash call, two Squads capture calls and four fee/rent reference calls. The single persistent ledger is at the repository root `.tmp/launchpad-public-reads-2026-10-31.json`; it is shared across worktrees and must never be reset. No financial transaction was submitted. The full Solana mainnet genesis hash was verified as `5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpKuc147dw2N9d`.
+
+The Squads observation and source mismatch are documented in [CUSTODY-SOURCE-PROOF.md](CUSTODY-SOURCE-PROOF.md). At **02:38:17 AEDT**, finalized Solana slot **463338512**, reference observations were 5,000 lamports for a zero-priority single-signature message, 1,066,800 for an 82-byte mint rent exemption and 1,488,440 for a 165-byte token account. These are dated references, not an itemized launch quote. See [QA-COST-EVIDENCE.md](QA-COST-EVIDENCE.md). No funding is requested.
+
 The account observation at 00:58:58 AEDT used finalized Base block **53289199**, actually timestamped **00:42:25 AEDT**. Warpmoji remains a holder in the supplied wallet scope. Balajis has zero in the supplied scope, while complete linked-wallet scope remains unknown. The 993-second finalized-block age remains explicit.
 
 The new ownership collector successfully read five tokens at one finalized block using block-hash/canonicality-pinned calls. It remains **5/10,000** complete, with 9,995 unresolved records. Financial-freeze eligibility is false. A full fresh run at 20 owners per step requires at least 10,502 calls before retries (10,000 ownerOf, 500 canonicality checks, two initial calls), beyond this allowance. Its complete-roster proof is synthetic/offline, not a full live certification.
