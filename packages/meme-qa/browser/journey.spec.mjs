@@ -113,7 +113,7 @@ test("notification topics save without requesting host permission or sending mes
     page.getByText("Preferences saved.", { exact: true }),
   ).toBeVisible();
   await expect(
-    page.getByRole("button", { name: /Enable in Farcaster/ }),
+    page.getByRole("button", { name: /Enable notifications/ }),
   ).toBeDisabled();
   const response = await page.request.get("/api/meme/notifications"),
     value = await response.json();
