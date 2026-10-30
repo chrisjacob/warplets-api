@@ -5,6 +5,7 @@ import { campaigns } from "./holding";
 import { receiptDelta, verifyReceipt, type Receipt } from "./receipts";
 import { requireIndependentQuote } from "./sources";
 import type { EvidenceVersion } from "./evidenceVersions";
+import { sealPagedVersion } from "./pagedEvidence";
 interface Check {
   wallet_index: number;
   signature: string;
@@ -25,6 +26,20 @@ export async function sealVersion(db: Database, id: string, preview = false) {
     return { id, state: "ready", manifestHash: v.manifest_hash };
   const campaign = (await campaigns(db)).find((c) => c.id === v.campaign_id)!,
     wallets = JSON.parse(v.scope_wallets) as string[];
+  // Close inserts before reading the manifest. A concurrent append cannot be omitted.
+  await db.batch([
+    db
+      .prepare(
+        "UPDATE meme_evidence_versions SET state='checking' WHERE id=? AND state='building'",
+      )
+      .bind(id),
+  ]);
+  const count = await one<{ n: number }>(
+    db,
+    "SELECT COUNT(*) n FROM meme_version_events WHERE version_id=?",
+    id,
+  );
+  if (count!.n > 5000) return sealPagedVersion(db, v, campaign, preview);
   const all = await rows<{ payload: string; payload_hash: string }>(
     db,
     "SELECT payload,payload_hash FROM meme_version_events WHERE version_id=? ORDER BY slot,signature,event_index LIMIT 5001",
