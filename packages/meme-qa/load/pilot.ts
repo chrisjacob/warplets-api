@@ -2,6 +2,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { createHash } from "node:crypto";
+import { execFileSync } from "node:child_process";
 import { testDb } from "../../../meme/src/worker/testDb";
 import {
   startVersion,
@@ -218,6 +219,19 @@ const results = [];
 for (const n of [100, 1200]) results.push(await benchmark(n));
 const report = {
   version: 1,
+  layer: "local",
+  build: execFileSync("git", ["rev-parse", "HEAD"], {
+    cwd: resolve(import.meta.dirname, "../../.."),
+    encoding: "utf8",
+    windowsHide: true,
+  }).trim(),
+  workingTreeModified:
+    execFileSync("git", ["status", "--porcelain", "--untracked-files=no"], {
+      cwd: resolve(import.meta.dirname, "../../.."),
+      encoding: "utf8",
+      windowsHide: true,
+    }).trim().length > 0,
+  ciRun: process.env.GITHUB_RUN_ID ?? null,
   generatedAt: new Date().toISOString(),
   node: process.version,
   platform: process.platform,

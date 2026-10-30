@@ -4,6 +4,8 @@ param(
   [string]$Destination
 )
 $ErrorActionPreference = 'Stop'
+$qaPriorEncoding = $OutputEncoding
+$OutputEncoding = [Text.UTF8Encoding]::new($false)
 # Owner runs this in a private terminal. Never put passphrases in arguments/environment/chat.
 $qaSecret = Read-Host 'Portable backup passphrase (20+ characters)' -AsSecureString
 $qaPointer = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($qaSecret)
@@ -22,4 +24,5 @@ try {
   [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($qaPointer)
   $qaSecret.Dispose()
   $qaPhrase = $null
+  $OutputEncoding = $qaPriorEncoding
 }
