@@ -1,4 +1,17 @@
 import { test, expect } from "@playwright/test";
+test("share opens only a user-initiated sheet with an immutable server card and real PNGs",async({page})=>{
+ await page.addInitScript(()=>{Object.defineProperty(navigator,"share",{configurable:true,value:async data=>{window.__qaShared=data;}});});
+ await page.goto("/");const market=page.getByRole("region",{name:"Token performance"});
+ await expect(market.getByRole("button",{name:"Share",exact:true})).toBeVisible();
+ expect(await page.evaluate(()=>window.__qaShared)).toBeUndefined();
+ await market.getByRole("button",{name:"Share",exact:true}).click();
+ await expect.poll(()=>page.evaluate(()=>window.__qaShared?.url)).toMatch(/\/api\/meme\/share\/[a-f0-9]{64}$/);
+ const url=await page.evaluate(()=>window.__qaShared.url),html=await page.request.get(url);
+ expect(html.status()).toBe(200);expect(await html.text()).toContain("fc:miniapp");expect(await html.text()).toContain("Simulated");
+ for(const [format,height] of [["mini",800],["og",630]]){const image=await page.request.get(url+"/"+format+".png"),bytes=await image.body();expect(image.headers()["content-type"]).toBe("image/png");expect(bytes.subarray(0,8).toString("hex")).toBe("89504e470d0a1a0a");expect(bytes.readUInt32BE(16)).toBe(1200);expect(bytes.readUInt32BE(20)).toBe(height);}
+ await page.getByRole("tab",{name:"Leaders",exact:true}).click();await page.getByRole("button",{name:"Trading",exact:true}).click();
+ await page.getByRole("button",{name:"Share P&L",exact:true}).click();await expect.poll(()=>page.evaluate(()=>window.__qaShared?.title)).toContain("realized P&L");
+});
 test("matched markets and separate trading ranks stay readable and never enable financial actions", async ({
   page,
 }, testInfo) => {

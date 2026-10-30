@@ -210,7 +210,11 @@ export function App() {
   const [fixture, setFixture] = useState(
       new URLSearchParams(location.search).has("fixture"),
     ),
-    [tab, setTab] = useState<LaunchTab>("Today"),
+    [tab, setTab] = useState<LaunchTab>(() =>
+      new URLSearchParams(location.search).get("view") === "Leaders"
+        ? "Leaders"
+        : "Today",
+    ),
     [connectOpen, setConnectOpen] = useState(false);
   const { data, identity, error, refresh, onIdentity } =
     useLocalState(!fixture);
