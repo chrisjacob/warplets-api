@@ -19,20 +19,21 @@
     "operator": "node scripts/operator.mjs"
   },
   "dependencies": {
-    "react": "19.2.5",
-    "react-dom": "19.2.5",
     "@10x/connect": "workspace:*",
-    "@farcaster/quick-auth": "0.0.6",
     "@farcaster/auth-client": "0.7.1",
-    "viem": "^2.55.19",
+    "@farcaster/miniapp-node": "0.2.0",
+    "@farcaster/miniapp-sdk": "0.3.0",
+    "@farcaster/quick-auth": "0.0.6",
     "@wallet-standard/app": "1.1.0",
     "canvas-confetti": "1.9.4",
-    "@farcaster/miniapp-sdk": "0.3.0"
+    "react": "19.2.5",
+    "react-dom": "19.2.5",
+    "viem": "^2.55.19"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "5.20261028.1",
-    "@types/react": "^19",
     "@types/canvas-confetti": "1.9.0",
+    "@types/react": "^19",
     "@types/react-dom": "^19",
     "@vitejs/plugin-react": "^4",
     "tsx": "4.21.0",

@@ -249,6 +249,9 @@ importers:
       '@farcaster/auth-client':
         specifier: 0.7.1
         version: 0.7.1(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@4.6.6)
+      '@farcaster/miniapp-node':
+        specifier: 0.2.0
+        version: 0.2.0(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)
       '@farcaster/miniapp-sdk':
         specifier: 0.3.0
         version: 0.3.0(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@4.6.6)
@@ -8462,8 +8465,8 @@ snapshots:
   '@farcaster/miniapp-node@0.2.0(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)':
     dependencies:
       '@farcaster/miniapp-core': 0.6.0(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)
-      '@noble/curves': 1.9.1
-      ox: 0.14.13(typescript@5.9.3)(zod@4.6.6)
+      '@noble/curves': 1.9.7
+      ox: 0.14.34(typescript@5.9.3)(zod@4.6.6)
       zod: 4.6.6
     transitivePeerDependencies:
       - bufferutil

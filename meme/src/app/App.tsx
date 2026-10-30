@@ -9,6 +9,7 @@ const HistoryPanel = lazy(() => import("./HistoryPanel"));
 const RewardsPanel = lazy(() => import("./RewardsPanel"));
 const MarketsPanel = lazy(() => import("./MarketsPanel"));
 const LeadersPanel = lazy(() => import("./LeadersPanel"));
+const NotificationSettings = lazy(() => import("./NotificationSettings"));
 type Tab = "Today" | "Rewards" | "Launches";
 function FixtureApp() {
   const [tab, setTab] = useState<Tab>("Today");
@@ -210,10 +211,11 @@ export function App() {
   const [fixture, setFixture] = useState(
       new URLSearchParams(location.search).has("fixture"),
     ),
-    [tab, setTab] = useState<LaunchTab>(() =>
-      new URLSearchParams(location.search).get("view") === "Leaders"
-        ? "Leaders"
-        : "Today",
+    [tab, setTab] = useState<LaunchTab>(
+      () =>
+        (["Rewards", "Leaders", "History"] as LaunchTab[]).find(
+          (v) => v === new URLSearchParams(location.search).get("view"),
+        ) ?? "Today",
     ),
     [connectOpen, setConnectOpen] = useState(false);
   const { data, identity, error, refresh, onIdentity } =
@@ -292,10 +294,16 @@ export function App() {
           {tab === "Rewards" &&
             (identity?.farcasterFid ? (
               <Suspense fallback={<p role="status">Loading rewards…</p>}>
-                <RewardsPanel
-                  key={identity.farcasterFid}
-                  fid={identity.farcasterFid}
-                />
+                <>
+                  <RewardsPanel
+                    key={"rewards:" + identity.farcasterFid}
+                    fid={identity.farcasterFid}
+                  />
+                  <NotificationSettings
+                    key={"notifications:" + identity.farcasterFid}
+                    fid={identity.farcasterFid}
+                  />
+                </>
               </Suspense>
             ) : (
               <section className="card" aria-label="Rewards">
