@@ -12,7 +12,7 @@ import {
   boundedJson,
 } from "../src/safety.mjs";
 import { estimateBudget } from "../src/budget.mjs";
-import { ownershipConclusion } from "../src/accounts.mjs";
+import { ownershipConclusion, observeAccounts } from "../src/accounts.mjs";
 test("independent cryptographic wallet keys roundtrip without a plaintext file", () => {
   const a = createWalletMaterial(),
     b = createWalletMaterial();
@@ -90,4 +90,31 @@ test("an incomplete wallet list cannot establish that a Farcaster identity owns 
     "non-holder-in-verified-scope",
   );
   assert.throws(() => ownershipConclusion(["unknown"], true));
+});
+test("a recent observation cannot disguise a finalized block from before a purchase", async () => {
+  const beforePurchase = Date.parse("2026-10-30T01:58:27Z"),
+    observed = Date.parse("2026-10-30T02:35:00Z");
+  const block = {
+    number: "0x" + (53268080).toString(16),
+    hash: "0x" + "a".repeat(64),
+    timestamp: "0x" + (beforePurchase / 1000).toString(16),
+  };
+  let requests = 0;
+  const report = await observeAccounts({
+    now: () => observed,
+    request: async (_url, method, params) => {
+      requests++;
+      if (method === "eth_chainId") return "0x2105";
+      if (method === "eth_getBlockByNumber") return block;
+      assert.equal(method, "eth_call");
+      assert.equal(params[1], block.number);
+      return "0x0";
+    },
+  });
+  assert.equal(requests, 7);
+  assert.equal(report.asOf, "2026-10-30T01:58:27.000Z");
+  assert.equal(report.observedAt, "2026-10-30T02:35:00.000Z");
+  assert.equal(report.blockAgeSeconds, 2193);
+  assert.equal(report.finality, "finalized");
+  assert.match(report.scope, /newer transfers are not included/);
 });

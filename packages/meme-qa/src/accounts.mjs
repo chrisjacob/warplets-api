@@ -17,7 +17,7 @@ export function ownershipConclusion(walletCounts, completeScope) {
     : "zero-in-supplied-wallets-full-scope-unknown";
 }
 /** Seven public Base calls at one finalized block. No account sign-in or writes. */
-export async function observeAccounts() {
+export async function observeAccounts({ request = rpc, now = Date.now } = {}) {
   const roster = JSON.parse(
       readFileSync(
         new URL("../fixtures/accounts.json", import.meta.url),
@@ -25,16 +25,22 @@ export async function observeAccounts() {
       ),
     ),
     url = "https://mainnet.base.org";
-  if ((await rpc(url, "eth_chainId")) !== "0x2105")
+  if ((await request(url, "eth_chainId")) !== "0x2105")
     throw Error("Unexpected Base chain");
-  const block = await rpc(url, "eth_getBlockByNumber", ["finalized", false]);
-  if (!block?.hash || !block.number)
+  const block = await request(url, "eth_getBlockByNumber", [
+    "finalized",
+    false,
+  ]);
+  if (!block?.hash || !block.number || !/^0x[0-9a-f]+$/i.test(block.timestamp))
     throw Error("Finalized Base context unavailable");
+  const blockAt = Number(BigInt(block.timestamp)) * 1000;
+  if (!Number.isSafeInteger(blockAt) || blockAt <= 0 || blockAt > now())
+    throw Error("Invalid finalized Base timestamp");
   const cases = [];
   for (const subject of roster.cases) {
     const wallets = [];
     for (const address of subject.ethereum) {
-      const value = await rpc(url, "eth_call", [
+      const value = await request(url, "eth_call", [
         {
           to: roster.collection,
           data: "0x70a08231" + address.slice(2).padStart(64, "0"),
@@ -57,11 +63,19 @@ export async function observeAccounts() {
       financialUseAllowed: false,
     });
   }
-  const after = await rpc(url, "eth_getBlockByNumber", [block.number, false]);
+  const after = await request(url, "eth_getBlockByNumber", [
+    block.number,
+    false,
+  ]);
   if (after.hash !== block.hash) throw Error("Base context changed");
   return {
-    version: 1,
-    asOf: new Date().toISOString(),
+    version: 2,
+    asOf: new Date(blockAt).toISOString(),
+    observedAt: new Date(now()).toISOString(),
+    finality: "finalized",
+    blockAgeSeconds: Math.floor((now() - blockAt) / 1000),
+    scope:
+      "Balances at the specified finalized block; newer transfers are not included",
     network: "base-mainnet",
     collection: roster.collection,
     blockNumber: BigInt(block.number).toString(),

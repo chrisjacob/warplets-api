@@ -13,6 +13,20 @@
       "ethereum": ["0xf2916b54cc0a01d78118ae7f8146217f1cd80b86"],
       "solana": ["9qpNUXfjVxscqneKPDmRUjkyE9BfZj4VbRTA6PNZ65e"],
       "history": "Owner-provided original minter with buy/sell/transfer history; requires independent reconciliation",
+      "verifiedOwnershipObservation": {
+        "verifiedOn": "2026-10-30",
+        "tokenId": 9425,
+        "balance": "1",
+        "latestBlock": 53270163,
+        "finalizedBlock": 53269613,
+        "purchaseTransaction": "0xadbfd5b3060e0599efe22de28f0a92ba7c1aa8a9b1264ca97885104ea2062114",
+        "purchaseBlock": 53268924,
+        "purchasedAt": "2026-10-30T02:26:35.000Z",
+        "receiptStatus": "success",
+        "productionOwnerFid": 1431382,
+        "source": "Base ownerOf/balanceOf and verified ERC721 Transfer receipt; production Warplet UI/API agrees",
+        "note": "Historical observation, not a substitute for a fresh ownership freeze"
+      },
       "financialUseAllowed": false,
       "accountChangesAllowed": false
     },
@@ -24,7 +38,11 @@
       "access": "public-read-only",
       "expectedOwnership": "non-holder",
       "completeLinkedWalletScope": false,
-      "ethereum": ["0x1a21c1f29fabebce8cc160bd48f9802a30d9608e", "0x0916c04994849c676ab2667ce5bbdf7ccc94310a", "0x167491c09adf80df6b2aee06d3be7f29954968db"],
+      "ethereum": [
+        "0x1a21c1f29fabebce8cc160bd48f9802a30d9608e",
+        "0x0916c04994849c676ab2667ce5bbdf7ccc94310a",
+        "0x167491c09adf80df6b2aee06d3be7f29954968db"
+      ],
       "solana": ["BxBMsDqmfj34tze3XSzna8if7KKWJsudWpD2yR4Yz5yt"],
       "history": "Public reference only. User mentioned three additional Ethereum wallets but supplied two; full scope is unverified",
       "financialUseAllowed": false,

@@ -18,7 +18,7 @@ console.log(
       generatedAt: new Date().toISOString(),
       results,
       pending: [
-        "Supervised owner-controlled warpmoji login/signing; verified current-holder scope",
+        "Supervised owner-controlled warpmoji login/signing and a fresh pre-round ownership freeze",
         "Real extension and Base smart-account signing",
         "Physical iOS/Android handoffs",
         "Approved provider allowance and live history reconciliation",
