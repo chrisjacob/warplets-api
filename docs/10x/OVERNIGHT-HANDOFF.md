@@ -1,6 +1,6 @@
 # Overnight handoff — 31 October 2026
 
-The independently executable overnight scope is implemented on `codex/10x-reviewed-overnight`, with focused PRs **#107–120** retained for review. This complete branch targets released `main`, not another feature branch. Nothing was merged, deployed, publicly exposed, registered with a host, posted socially or submitted financially on mainnet. Existing products, local previews, archived discovery references and provider caps are preserved.
+The independently executable overnight scope is implemented in [draft integration PR #121](https://github.com/chrisjacob/warplets-api/pull/121) on `codex/10x-reviewed-overnight`, with focused PRs **#107–120** retained for review. This complete branch targets released `main`, not another feature branch. Nothing was merged, deployed, publicly exposed, registered with a host, posted socially or submitted financially on mainnet. Existing products, local previews, archived discovery references and provider caps are preserved.
 
 ## What is ready to review
 
@@ -19,11 +19,11 @@ The [focused delivery record](OVERNIGHT-DELIVERY.md) maps each change to its PR.
 | Layer | Result | Practical limit |
 | --- | --- | --- |
 | Foundation | 116 core + 11 script tests; typechecks, isolated boundaries, app build and Worker dry-run pass | No deployment |
-| Browser | 40 desktop/mobile viewport journeys pass; Chromium/WebKit gateway regressions run in CI | No claim of physical iPhone/Android, wallet handoff or registered-host certification |
+| Browser | 44 desktop/mobile viewport journeys pass; Chromium/WebKit gateway regressions run in CI | No claim of physical iPhone/Android, wallet handoff or registered-host certification |
 | Linux protocol | Actual captured-program launch→settlement→fund→timed claim, local buy/sell, recovery and 100 allocations across ten overlapping campaigns | Disposable keys, local clock and accounts; not mainnet execution or +240h observation |
 | Custody | Actual source-built vault/Jito proof passed run [41087980837](https://github.com/chrisjacob/warplets-api/actions/runs/41087980837) | Source ELF differs from captured mainnet ELF; provider/source correspondence and actual custody pending |
 | Scale | 1,000 traders/40,000 events, paged publication; one-SELECT market/board/profile reads; 365-campaign reward/history suite | SQLite lab timings, not production D1 certification |
-| Startup | 71.6 KiB gzip against 80 KiB budget | No field Core Web Vitals; DevTools trace tooling unavailable |
+| Startup | 71.7 KiB gzip against 80 KiB budget | No field Core Web Vitals; DevTools trace tooling unavailable |
 | Security | Production audit has one unpatched low deepmerge finding and two existing ignored high browser-installer findings; no unignored moderate/high/critical | No new audit exceptions; reassess dependencies before production |
 | Public blockchain | 24 of 50 approved attempts consumed in one persistent ledger; dated account/program/fee/rent evidence retained | Full ownership only 5/10,000; no paid-source increase; no mainnet writes |
 | Existing production | Network, dashboard, thesis, existing-product URLs, legal pages and August archive URLs returned HTTP 200 at 03:47 AEDT | HTTP/API smoke only; Network still stale/incomplete |
@@ -54,7 +54,7 @@ $env:MEME_OPERATOR_TARGET='review'
 pnpm --dir meme operator status --check
 ```
 
-The demo round is intentionally time-bounded and may be closed by morning. It is not a production round and must not be relabeled as observed evidence. Ordinary regression uses fresh disposable SQLite and ports 5196/8798, with no live authentication bypass in the app.
+The demo round is intentionally time-bounded and may be closed by morning. A frozen/prepared round past its scheduled opening now says **Opening delayed**, never enables a vote implicitly, and shows **Voting closed** after the window. Empty market lists can discover newly published pairs with Refresh prices; unavailable controls stay disabled. Both recoveries have desktop/mobile regressions. The demo is not a production round and must not be relabeled as observed evidence. Ordinary regression uses fresh disposable SQLite and ports 5196/8798, with no live authentication bypass in the app.
 
 ## Next phases and external gates
 

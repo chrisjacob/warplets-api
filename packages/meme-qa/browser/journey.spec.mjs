@@ -1,4 +1,65 @@
 import { test, expect } from "@playwright/test";
+test("an empty market list can discover newly published pairs without reloading the app", async ({
+  page,
+}) => {
+  let calls = 0,
+    published = false;
+  await page.route("**/api/meme/markets", async (route) => {
+    calls++;
+    if (!published)
+      await route.fulfill({ json: { items: [], nextCursor: null } });
+    else await route.continue();
+  });
+  await page.goto("/");
+  const panel = page.getByRole("region", { name: "Token performance" });
+  await expect(
+    panel.getByText("No published markets yet.", { exact: true }),
+  ).toBeVisible();
+  await expect(panel.getByLabel("Pair", { exact: true })).toBeDisabled();
+  await expect(panel.getByLabel("Period", { exact: true })).toBeDisabled();
+  const before = calls;
+  published = true;
+  await panel
+    .getByRole("button", { name: "Refresh prices", exact: true })
+    .click();
+  await expect(panel.getByLabel("Pair", { exact: true })).toBeEnabled();
+  await expect(
+    panel.getByText("Simulated prices", { exact: false }),
+  ).toBeVisible();
+  expect(calls).toBeGreaterThan(before);
+});
+test("a delayed operator opening never looks upcoming forever or enables voting", async ({
+  page,
+}) => {
+  await page.clock.install();
+  await page.route("**/api/meme/state?view=today", async (route) => {
+    const response = await route.fetch(),
+      body = await response.json();
+    body.round.state = "frozen";
+    body.round.opens_at = body.serverTime + 1000;
+    body.round.closes_at = body.serverTime + 2000;
+    body.identity.solanaWallet = "1".repeat(32);
+    await route.fulfill({ response, json: body });
+  });
+  await page.goto("/");
+  const round = page.getByRole("region", { name: "Today’s round" });
+  await expect(round.getByText("Upcoming", { exact: true })).toBeVisible();
+  await page.clock.fastForward(1100);
+  await expect(
+    round.getByText("Opening delayed", { exact: true }),
+  ).toBeVisible();
+  await expect(round.getByText(/Scheduled opening/)).toBeVisible();
+  for (const button of await round
+    .getByRole("button", { name: "Vote", exact: true })
+    .all())
+    await expect(button).toBeDisabled();
+  await page.clock.fastForward(1000);
+  await expect(round.getByText("Voting closed", { exact: true })).toBeVisible();
+  for (const button of await round
+    .getByRole("button", { name: "Vote", exact: true })
+    .all())
+    await expect(button).toBeDisabled();
+});
 test("root discovery metadata uses the actual local origin and prepared PNG assets", async ({
   page,
 }) => {

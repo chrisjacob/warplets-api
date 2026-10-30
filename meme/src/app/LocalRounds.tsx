@@ -212,9 +212,10 @@ export function LocalRounds({
         {data && <p>Check back for the next vote.</p>}
       </section>
     );
-  const upcoming =
-    r.state === "prepared" || r.state === "frozen" || now < r.opens_at;
-  const boundary = upcoming ? r.opens_at : r.closes_at;
+  const waiting = r.state === "prepared" || r.state === "frozen",
+    upcoming = now < r.opens_at,
+    delayed = waiting && !upcoming && now < r.closes_at;
+  const boundary = upcoming || delayed ? r.opens_at : r.closes_at;
   const live = r.state === "open" && now >= r.opens_at && now < r.closes_at,
     final = data?.settlement?.state === "finalized";
   const label =
@@ -228,12 +229,15 @@ export function LocalRounds({
         skipped: "Skipped",
       } as Record<string, string>
     )[r.state] ?? r.state;
-  const displayLabel =
-    r.state === "open" && !live
-      ? now < r.opens_at
-        ? "Upcoming"
-        : "Voting closed"
-      : label;
+  const displayLabel = delayed
+    ? "Opening delayed"
+    : waiting && now >= r.closes_at
+      ? "Voting closed"
+      : r.state === "open" && !live
+        ? now < r.opens_at
+          ? "Upcoming"
+          : "Voting closed"
+        : label;
   return (
     <section aria-label="Today’s round" className="round-content">
       <div className="round-heading">
@@ -250,7 +254,13 @@ export function LocalRounds({
         </span>
       </div>
       <p className="fine">
-        {upcoming ? "Opens " : live ? "Closes " : "Closed "}
+        {delayed
+          ? "Scheduled opening "
+          : upcoming
+            ? "Opens "
+            : live
+              ? "Closes "
+              : "Closed "}
         <time
           dateTime={new Date(boundary).toISOString()}
           title={new Date(boundary).toUTCString()}

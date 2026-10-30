@@ -182,8 +182,11 @@ export default function MarketsPanel() {
         <h2>ATTN vs OG</h2>
         <button
           className="text-button"
-          disabled={busy}
-          onClick={() => setRevision((r) => r + 1)}
+          disabled={busy || listBusy}
+          onClick={() => {
+            if (!items.length) void list();
+            setRevision((r) => r + 1);
+          }}
         >
           Refresh prices
         </button>
@@ -191,7 +194,11 @@ export default function MarketsPanel() {
       <div className="market-controls">
         <label>
           Pair{" "}
-          <select value={market} onChange={(e) => setMarket(e.target.value)}>
+          <select
+            disabled={!items.length}
+            value={market}
+            onChange={(e) => setMarket(e.target.value)}
+          >
             <option value="">Choose a pair</option>
             {items.map((m) => (
               <option key={m.id} value={m.id}>
@@ -204,6 +211,7 @@ export default function MarketsPanel() {
         <label>
           Period{" "}
           <select
+            disabled={!market}
             value={window}
             onChange={(e) => setWindow(e.target.value as MarketWindow)}
           >
