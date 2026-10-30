@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import {Connection,Keypair,PublicKey,Transaction,TransactionInstruction,ComputeBudgetProgram,SYSVAR_CLOCK_PUBKEY,SystemProgram} from '@solana/web3.js';
-import {createMint,getOrCreateAssociatedTokenAccount,mintTo,getAccount,getMint,TOKEN_PROGRAM_ID,createTransferInstruction,createSetAuthorityInstruction,AuthorityType} from '@solana/spl-token';
+import {createMint,getOrCreateAssociatedTokenAccount,mintTo,getAccount,getMint,TOKEN_PROGRAM_ID,createTransferInstruction,createMintToInstruction,createSetAuthorityInstruction,AuthorityType} from '@solana/spl-token';
 import {installPrograms} from '../src/programs.mjs';
 import {loopback} from '../src/safety.mjs';
 import {planLockedJito,buildLockedClaimInstructions,assertJitoAccount,JITO_PROGRAM} from '../../meme-protocol/src/jito-locked.mjs';
@@ -25,7 +25,7 @@ test('Meteora rejects unfunded OG; approved one-unit minimum executes pool creat
     await assert.rejects(send(connection,payer,instructions,[nft]),/insufficient funds/);
     assert.equal(await connection.getAccountInfo(new PublicKey(proof.pool)),null);
     const quoteAta=await getOrCreateAssociatedTokenAccount(connection,payer,og,payer.publicKey);
-    await mintTo(connection,payer,og,quoteAta.address,payer,1n);
+    await send(connection,payer,[createMintToInstruction(og,quoteAta.address,payer.publicKey,1n)]);
     // Approved on 30 October: exactly one raw OG unit, recorded separately from gas/rent.
     await send(connection,payer,instructions,[nft]);
     const pool=await connection.getAccountInfo(new PublicKey(proof.pool));assert(pool?.owner.equals(new PublicKey(proof.program)));
@@ -36,7 +36,7 @@ test('Meteora rejects unfunded OG; approved one-unit minimum executes pool creat
     const amm=new CpAmm(connection),ps=await amm.fetchPoolState(new PublicKey(proof.pool));
     assert.equal(ps.tokenAMint.toBase58(),mint.toBase58());assert.equal(ps.tokenBMint.toBase58(),og.toBase58());assert.equal(ps.collectFeeMode,1);
     assert.equal((await getAccount(connection,ps.tokenBVault)).amount,1n);
-    await mintTo(connection,payer,og,quoteAta.address,payer,1000000000n);
+    await send(connection,payer,[createMintToInstruction(og,quoteAta.address,payer.publicKey,1000000000n)]);
     const swap=(input,output,amount)=>amm.swap({payer:payer.publicKey,pool:new PublicKey(proof.pool),inputTokenMint:input,outputTokenMint:output,amountIn:new BN(amount),minimumAmountOut:new BN(1),tokenAMint:mint,tokenBMint:og,tokenAVault:ps.tokenAVault,tokenBVault:ps.tokenBVault,tokenAProgram:TOKEN_PROGRAM_ID,tokenBProgram:TOKEN_PROGRAM_ID,referralTokenAccount:null,poolState:ps});
     await assert.rejects(send(connection,payer,(await swap(og,mint,'1000000')).instructions),/./);
     net.timeTravelToTimestamp((now+61)*1000);
