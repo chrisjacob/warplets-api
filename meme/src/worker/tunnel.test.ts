@@ -13,12 +13,14 @@ function environment(db: D1Database, tunnel = ""): Env {
     LOCAL_OPERATIONS_ENABLED: "false",
     MEME_QA_ORIGIN: "",
     MEME_QA_FIDS: "",
+    MEME_QA_GATEWAY_TOKEN: "",
     HELIUS_API_KEY: "",
     PYTH_API_KEY: "",
   };
   return Object.assign(env, {
     MEME_QA_ORIGIN: tunnel,
     MEME_QA_FIDS: "1431382",
+    MEME_QA_GATEWAY_TOKEN: "t".repeat(43),
   });
 }
 function request(path: string, body?: unknown, cookie = "") {
@@ -29,6 +31,7 @@ function request(path: string, body?: unknown, cookie = "") {
       "sec-fetch-site": "same-origin",
       "content-type": "application/json",
       cookie,
+      "x-meme-qa-gateway": "t".repeat(43),
     },
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
@@ -90,8 +93,14 @@ test("tunnel preserves cross-origin, operator and disabled-action checks", async
   try {
     const env = environment(t.db, origin);
     for (const headers of [
-      new Headers({ origin: "https://evil.test" }),
-      new Headers({ "sec-fetch-site": "cross-site" }),
+      new Headers({
+        origin: "https://evil.test",
+        "x-meme-qa-gateway": "t".repeat(43),
+      }),
+      new Headers({
+        "sec-fetch-site": "cross-site",
+        "x-meme-qa-gateway": "t".repeat(43),
+      }),
     ]) {
       assert.equal(
         (
@@ -113,7 +122,10 @@ test("tunnel preserves cross-origin, operator and disabled-action checks", async
             "http://isolated-qa.trycloudflare.com/api/auth/wallet/challenge",
             {
               method: "POST",
-              headers: { "content-type": "application/json" },
+              headers: {
+                "content-type": "application/json",
+                "x-meme-qa-gateway": "t".repeat(43),
+              },
               body: "{}",
             },
           ),

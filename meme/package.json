@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1 --port 5194 --strictPort",
     "dev:worker": "wrangler dev --local --ip 127.0.0.1 --port 8797 --persist-to .wrangler/state",
-    "qa:build": "vite build --outDir .tmp/restricted-qa-web",
+    "qa:build": "node scripts/check-qa-env.mjs && vite build --outDir .tmp/restricted-qa-web",
     "qa:migrate": "wrangler d1 migrations apply meme-local --local --persist-to .wrangler/restricted-qa-state",
     "db:migrate": "wrangler d1 migrations apply meme-local --local --persist-to .wrangler/state",
     "types": "wrangler types worker-configuration.d.ts --include-runtime false",
@@ -25,11 +25,14 @@
     "@farcaster/quick-auth": "0.0.6",
     "@farcaster/auth-client": "0.7.1",
     "viem": "^2.55.19",
-    "@wallet-standard/app": "1.1.0"
+    "@wallet-standard/app": "1.1.0",
+    "canvas-confetti": "1.9.4",
+    "@farcaster/miniapp-sdk": "0.3.0"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "5.20261028.1",
     "@types/react": "^19",
+    "@types/canvas-confetti": "1.9.0",
     "@types/react-dom": "^19",
     "@vitejs/plugin-react": "^4",
     "tsx": "4.21.0",

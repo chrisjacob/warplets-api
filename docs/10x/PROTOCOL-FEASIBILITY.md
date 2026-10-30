@@ -26,22 +26,24 @@ The existing Ubuntu CI now runs Surfpool offline against checksummed deployed pr
 
 ## Distributor findings and decision
 
-The owner selected **Jito with fully locked rewards for further evaluation** on 30 October 2026. The owner approved the concrete one-second/365-day/2-of-3 policy on 30 October; custody accounts, executed proof and production activation remain gated. Its `new_claim` transfers the Merkle leaf's `amount_unlocked` without enforcing `start_ts`. Putting a future start time on such a distributor does not protect scheduled allocations. The lab rejects any scheduled configuration with a nonzero unlocked amount.
+The owner selected **Jito with fully locked rewards** and approved the concrete one-second/365-day/2-of-3 policy on 30 October. Captured-program local execution now passes; actual custody, complete mainnet adapters and production activation remain gated. Its `new_claim` transfers the Merkle leaf's `amount_unlocked` without enforcing `start_ts`. Putting a future start time on such a distributor does not protect scheduled allocations. The lab rejects any scheduled configuration with a nonzero unlocked amount.
 
-An alternative using only locked amounts could begin vesting at the release timestamp and finish later, but the program requires `start < end`; it is not an exact instantaneous release primitive. It also requires a clawback timestamp at least one day after vesting ends. Admin and clawback receiver are mutable. No-expiry accumulated claims, custody and recovery therefore require explicit review. The program's claim-status PDA prevents repeating `new_claim` for the same claimant/distributor; execution, locked-withdrawal retries, underfunding, cost and upgrade-authority checks still need real program tests. The license needs assessment before copying or modifying its code; none has been vendored here.
+The program requires `start < end`; the approved policy therefore uses a one-second fully locked vesting interval. Its finite clawback policy and mutable admin/receiver are explicit accepted design constraints. Executed local tests cover early-release rejection, duplicate claims/withdrawals, underfunding, authority changes and permissionless clawback. Actual custody CPI integration, source/binary correspondence, exhaustive fees and a current cost packet remain gates. The GPL license still needs assessment before copying/modifying program code; none has been vendored here.
 
 The owner chose option 1 for further evaluation:
 
 1. Evaluate Jito with zero unlocked amounts, vesting beginning no earlier than release, an explicitly approved vesting interval, finite clawback policy, custody and GPL implications.
 2. Require an audited distributor with exact release-time cliffs and no expiry, then evaluate another implementation or commission a small purpose-built program. Audit and custody work are prerequisites; this is not permission to deploy a new contract.
 
-There is no silent substitute for exact release/no-expiry requirements. These gaps block the controlled launch-to-claim milestone.
+The selected/approved one-second and finite-clawback policy supersedes the no-expiry alternative; it is not an unresolved decision. Mainnet and custody verification still block the controlled financial cycle.
 
-The [fully locked proposal](JITO-LOCKED-PROPOSAL.md) and offline instruction planner now make option 1 reviewable. A one-second vesting interval, a common clawback timestamp 365 days after the last release ends, and 2-of-3 vault custody are now approved in [the policy decision](approvals/2026-10-30-jito-policy.json). The pinned clawback instruction is permissionless after its timestamp. Funded direct claims cannot be paused through an application flag. The owner accepted those policy details; executed program tests and actual custody validation remain required.
+The [fully locked proposal](JITO-LOCKED-PROPOSAL.md) and offline instruction planner implement option 1. A one-second vesting interval, a common clawback timestamp 365 days after the last release ends, and 2-of-3 vault custody are approved in [the policy decision](approvals/2026-10-30-jito-policy.json). The pinned clawback instruction is permissionless after its timestamp. Funded direct claims cannot be paused through an application flag. Local program tests pass; actual multisig integration, custody validation and mainnet readiness remain required.
 
-## Configuration packet required before execution
+## Configuration packet required before mainnet execution
 
 Still undecided: OG mints/token programs; exact initial price/FDV methodology and OG bounds; opening fee and decay; liquidity stress tests; LP/position ownership and fee-claim authority; mint/freeze authorities; treasury policy; actual distributor custody accounts, funding infrastructure and recovery. A packet must specify every authority and supported version, include its test results and cost estimates, and be approved before it can become a launch adapter configuration.
+
+[CONFIGURATION-PROPOSAL.md](CONFIGURATION-PROPOSAL.md) now provides explicit **unapproved** values for simulation and owner review, including 3%→1% fees and Splits EVM treasury preference. The pinned SDK test verifies exact six-second fee steps and unsigned instruction construction; selected-OG economics, actual custody and the full cost packet are still pending.
 
 Source integration references: [Helius complete-history semantics and owner-metadata limits](https://www.helius.dev/docs/rpc/gettransactionsforaddress), [Pyth historical endpoint implementation](https://github.com/pyth-network/pyth-crosschain/blob/main/apps/hermes/server/src/api/rest/v2/timestamp_price_updates.rs). Neither establishes that every OG mint has a historical USD feed or authorizes a new provider budget.
 

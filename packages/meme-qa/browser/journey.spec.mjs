@@ -86,6 +86,17 @@ test.beforeEach(async ({ page }) => {
   const r = await page.request.post("http://127.0.0.1:8798/__qa/reset");
   expect(r.ok(), await r.text()).toBeTruthy();
 });
+test("an unavailable wallet picker keeps sign-in and other wallet options usable", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: /^Account/ }).click();
+  const other = page.locator(".web-connect-provider-card").filter({ hasText: "Other wallets" });
+  await other.getByRole("button", { name: "Connect", exact: true }).click();
+  await expect(page.getByText("Other wallets are temporarily unavailable. Please try again later.", { exact: true })).toBeVisible();
+  await expect(page.getByText("Couldn’t open Connect.", { exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Disconnect", exact: true })).toBeVisible();
+  await expect(other.getByRole("button", { name: "Connect", exact: true })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Verify reward wallet", exact: true })).toBeVisible();
+});
 test("real Solana proof, changed vote, operator selection and history use the actual local Worker", async ({
   page,
 }) => {
@@ -101,6 +112,10 @@ test("real Solana proof, changed vote, operator selection and history use the ac
     .getByRole("button", { name: "Verify reward wallet", exact: true })
     .click();
   await expect(page.getByText(/Verified ·/)).toBeVisible();
+  await expect(
+    page.getByRole("status").filter({ hasText: "Reward wallet verified." }),
+  ).toBeVisible();
+  await expect(page.locator("canvas")).toHaveCount(1);
   await page.keyboard.press("Escape");
   const alpha = page
     .locator("article.candidate")
@@ -119,6 +134,9 @@ test("real Solana proof, changed vote, operator selection and history use the ac
   const selected = await page.request.post("http://127.0.0.1:8798/__qa/select");
   expect(selected.ok(), await selected.text()).toBeTruthy();
   await page.reload();
+  await expect(
+    page.getByText("Reward wallet verified.", { exact: true }),
+  ).toHaveCount(0);
   await expect(
     page.getByRole("heading", { name: "Selected: Beta" }),
   ).toBeVisible();
@@ -149,6 +167,10 @@ test("wallet cancellation stays recoverable and skip is clear", async ({
     page.getByText("User rejected the request", { exact: true }),
   ).toBeVisible();
   await expect(
+    page.getByText("Reward wallet verified.", { exact: true }),
+  ).toHaveCount(0);
+  await expect(page.locator("canvas")).toHaveCount(0);
+  await expect(
     page.getByRole("button", { name: "Verify reward wallet", exact: true }),
   ).toBeEnabled();
   await page.keyboard.press("Escape");
@@ -158,6 +180,30 @@ test("wallet cancellation stays recoverable and skip is clear", async ({
   await expect(
     page.getByRole("heading", { name: "No launch today" }),
   ).toBeVisible();
+});
+
+test("reduced-motion wallet success is announced without animation and can be dismissed", async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await installWallet(page);
+  await page.goto("/");
+  await page
+    .getByRole("button", { name: "Verify wallet", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Verify reward wallet", exact: true })
+    .click();
+  await expect(
+    page.getByText("Reward wallet verified.", { exact: true }),
+  ).toBeVisible();
+  await expect(page.locator("canvas")).toHaveCount(0);
+  await page
+    .getByRole("button", { name: "Dismiss connection message" })
+    .click();
+  await expect(
+    page.getByText("Reward wallet verified.", { exact: true }),
+  ).toHaveCount(0);
 });
 test("test harness and financial actions do not enter the production Worker routes", async ({
   page,

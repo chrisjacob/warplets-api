@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { mkdtempSync, writeFileSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { request as http } from "node:http";
@@ -40,14 +40,20 @@ test("restricted compiled gateway requires access, expires sessions and cannot p
   let now = Date.now(),
     fid = null,
     writes = 0;
+  let revokedSession = false;
   const invitation = issueGrant(1431382, now);
   const config = {
     origin,
     worker: "http://127.0.0.1:8799",
     staticDirectory: dir,
     grants: [invitation.grant],
+    upstreamToken: "t".repeat(43),
   };
   writeFileSync(join(dir, "index.html"), "compiled QA");
+  writeFileSync(
+    join(dir, "base.webp"),
+    readFileSync(new URL("../../../meme/public/base.webp", import.meta.url)),
+  );
   assert.throws(() =>
     validateGateway({ ...config, origin: "https://app-local.10x.meme" }),
   );
@@ -56,7 +62,16 @@ test("restricted compiled gateway requires access, expires sessions and cannot p
     fetcher: async (url, init) => {
       assert.equal(init.headers.get("x-qa-principal"), null);
       if (url.pathname === "/api/auth/session")
-        return Response.json({ farcasterFid: fid });
+        return revokedSession
+          ? Response.json({ error: "Account outside cohort" }, { status: 403 })
+          : Response.json({ farcasterFid: fid });
+      if (url.pathname === "/api/auth/logout") {
+        revokedSession = false;
+        fid = null;
+        return Response.json({ ok: true });
+      }
+      if (url.pathname === "/api/auth/wallet/challenge")
+        return Response.json({ error: "Expired proof" }, { status: 401 });
       writes++;
       return Response.json({ ok: true });
     },
@@ -105,8 +120,22 @@ test("restricted compiled gateway requires access, expires sessions and cannot p
       r.end(body);
     });
   try {
-    assert.equal((await call("/")).status, 401);
+    const entry = await call("/");
+    assert.equal(entry.status, 401);
+    assert.equal(entry.headers["referrer-policy"], "same-origin");
     assert.equal((await call("/", { host: "evil.test" })).status, 403);
+    for (const originHeader of ["null", "https://evil.test", ""]) {
+      assert.equal(
+        (
+          await call("/qa/access", {
+            method: "POST",
+            body: new URLSearchParams({ code: invitation.code }).toString(),
+            extra: { origin: originHeader },
+          })
+        ).status,
+        403,
+      );
+    }
     const login = await call("/qa/access", {
       method: "POST",
       body: new URLSearchParams({ code: invitation.code }).toString(),
@@ -115,9 +144,12 @@ test("restricted compiled gateway requires access, expires sessions and cannot p
     const cookie = login.headers["set-cookie"][0].split(";")[0];
     assert.match(
       login.headers["set-cookie"][0],
-      /HttpOnly; Secure; SameSite=Strict/,
+      /HttpOnly; Secure; SameSite=Lax/,
     );
     assert.equal((await call("/", { cookie })).body, "compiled QA");
+    const image = await call("/base.webp", { cookie });
+    assert.equal(image.status, 200);
+    assert.equal(image.headers["content-type"], "image/webp");
     for (const path of [
       "/api/meme/operator/rounds",
       "/api/meme/claims",
@@ -148,6 +180,22 @@ test("restricted compiled gateway requires access, expires sessions and cannot p
           extra: { "x-qa-principal": "admin" },
         })
       ).status,
+      200,
+    );
+    assert.equal(
+      (
+        await call("/api/auth/wallet/challenge", {
+          cookie,
+          method: "POST",
+          body: "x=y",
+        })
+      ).status,
+      401,
+    );
+    revokedSession = true;
+    assert.equal(
+      (await call("/api/auth/logout", { cookie, method: "POST", body: "x=y" }))
+        .status,
       200,
     );
     now = invitation.grant.expiresAt + 1;

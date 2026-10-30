@@ -27,7 +27,7 @@ The remaining register is reviewed against those local rules; nothing below sile
 | Ongoing fee | Demonstrate intended 1% buy/sell fee collection in OG with the pinned Meteora integration. | Protocol feasibility |
 | Permanent lock | Supported lock configuration and authorities, fee-claim authority and irreversible-action review. | Protocol feasibility; production |
 | Treasury | Fee allocation, custody, disclosure, conversion and sales policy. | Complete cycle; production |
-| Claims | Supported distributor, funding proofs, fee/token-account costs, multi-transaction claim-all behavior and recovery. The fully locked Jito timing/custody policy is approved; actual program execution and custody accounts remain to be validated. | Protocol feasibility; complete cycle |
+| Claims | Fully locked Jito timing/custody policy is approved and captured program execution passes locally. Mainnet adapters, actual multisig integration, costs and custody addresses still require validation. | Protocol feasibility; complete cycle |
 | Operating readiness | Source/RPC budgets, indexing freshness, operator/key authority, observability, incident response and production release checks. | Production |
 
 Record decisions with date, rationale, affected specification sections, supporting protocol/source evidence and acceptance tests. Confirmed product rules in SPEC.md take precedence over archived research and experimental models.

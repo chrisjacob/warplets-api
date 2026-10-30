@@ -1,10 +1,33 @@
 :root {
+  --app-fixed-top-offset: env(safe-area-inset-top, 0px);
   font-family: "DM Sans", system-ui, sans-serif;
   color: #e7eee5;
   background: #101512;
   font-synthesis: none;
   font-weight: 400;
   line-height: 1.55;
+}
+.web-connect-progress-toast.connect-success-toast {
+  top: calc(env(safe-area-inset-top, 0px) + 12px);
+  width: min(calc(100vw - 24px), 480px);
+  border: 1px solid #00ff00;
+  border-radius: 12px;
+  animation: connect-success-enter 220ms ease-out both;
+}
+@keyframes connect-success-enter {
+  from { opacity: 0; transform: translate(-50%, -8px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .web-connect-progress-toast.connect-success-toast { animation: none; }
+}
+.connect-success-toast button {
+  min-width: 40px;
+  min-height: 40px;
+  padding: 4px;
+  color: inherit;
+  background: transparent;
+  border: none;
 }
 * {
   box-sizing: border-box;

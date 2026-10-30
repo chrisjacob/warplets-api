@@ -10,7 +10,7 @@ import { versionRequest } from "./evidenceVersions";
 import { transactionsRequest } from "./transactions";
 import { Problem, json as reply } from "./db";
 import { securityHeaders } from "../shared/securityHeaders";
-import { qaRequest, qaResponse, qaOrigin } from "./qaAccess";
+import { qaRequest, qaResponse, qaTransportRequest } from "./qaAccess";
 const json = (data: unknown, status = 200) =>
   Response.json(data, {
     status,
@@ -43,17 +43,26 @@ export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     if (env.LOCAL_PREVIEW_ONLY !== "true")
       return json({ error: "Local fixture preview is disabled" }, 404);
-    const requestUrl = new URL(request.url);
-    if (!["localhost", "127.0.0.1", "[::1]"].includes(requestUrl.hostname)) {
-      // Only an explicitly pinned, isolated QA origin. Forwarded headers are not trusted.
-      const origin = qaOrigin(String(env.MEME_QA_ORIGIN));
-      if (!origin || requestUrl.host !== new URL(origin).host)
+    try {
+      if (request.headers.has("x-meme-qa-gateway"))
+        request = qaTransportRequest(
+          request,
+          String(env.MEME_QA_ORIGIN),
+          String(env.MEME_QA_GATEWAY_TOKEN),
+        );
+      else if (
+        !["localhost", "127.0.0.1", "[::1]"].includes(
+          new URL(request.url).hostname,
+        )
+      )
         return json({ error: "Local application only" }, 404);
-      // cloudflared terminates HTTPS; bind proofs, sessions and Secure cookies
-      // to the public HTTPS origin rather than the local HTTP transport.
-      requestUrl.protocol = "https:";
-      request = new Request(requestUrl.toString(), request);
+    } catch (error) {
+      return json(
+        { error: "QA gateway unavailable" },
+        error instanceof Problem ? error.status : 403,
+      );
     }
+    const requestUrl = new URL(request.url);
     if (
       env.LOCAL_PARTICIPATION_ENABLED === "true" &&
       new URL(request.url).pathname.startsWith("/api/")

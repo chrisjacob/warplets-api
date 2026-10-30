@@ -4,6 +4,8 @@ Implemented on 30 October 2026 (Sydney). This is an isolated test system, not de
 
 ## Wallet custody and recovery
 
+The follow-on [restricted QA and owner recovery procedure](QA-ACCESS.md), [attempt/finality journal](TRANSACTION-RECOVERY.md), [large-history checkpoints](EVIDENCE-CHECKPOINTS.md), [local pilot benchmark](PILOT-PERFORMANCE.md) and [unapproved Splits/native-Solana configuration proposal](CONFIGURATION-PROPOSAL.md) extend this baseline. The [production ownership audit](OWNERSHIP-SOURCE-AUDIT.md) confirms a full cached token roster but insufficient checked freshness for a financial freeze. No physical wallet, mainnet transaction or production readiness is inferred from those local passes.
+
 Dedicated public addresses, generated with secure library randomness:
 
 | Network | QA address |
@@ -59,6 +61,14 @@ Observed at 13:21:55 AEDT on 30 October, finalized slot 463114728, using four pu
 This is a reference, **not the launch budget or a funding request**. It excludes priority fees, other program accounts and creation fees, Base L1/execution fees for any proposed write, purchases and liquidity. Run `pnpm --dir packages/meme-qa fees --public-read-only <public-Solana-address> <ignored-output-file>` to obtain a new dated reference; it has no signer/broadcast path. The exact controlled transaction packet and chosen OG remain prerequisites for a funding estimate.
 
 Live full-cohort history/price reconciliation, real extension/smart-wallet/phone QA, mainnet financial adapters, production multisig integration, wider swap decoding, alerts/on-call procedures, reserve/dispute policy and production activation remain gated. Reports must distinguish local execution, live reads, mainnet writes and physical-device checks. No missing-access check is a pass.
+
+### Supervised iOS Safari progress — 30 October 2026
+
+The owner reports successful Farcaster sign-in on physical iOS Safari: the control changed to **Disconnect** and the application showed account **1431382**. This is owner-reported sign-in coverage; Base/Solana wallet handoffs and mini-app haptics remain pending.
+
+The reported broken Connect icons were caused by the restricted gateway's missing WebP MIME entry, not missing assets. Regression checks now decode the actual provider icons through the HTTPS gateway in Chromium and WebKit. Successful server-verified connections use the shared toast styling, existing 10X confetti palette and capability-checked mini-app success haptics. Effects load on demand, respect reduced motion and do not run on session restoration or failed/cancelled authentication. Standalone Safari does not invoke mini-app haptics. The owner subsequently confirmed these UI fixes worked.
+
+Coinbase email delivery did not complete during the owner's check. Other wallets initially crashed because the QA build lacked the existing public WalletConnect project setting. The configured compiled picker now opens in Chromium and WebKit and presents **Trust Wallet → Connect** under an iPhone Safari user agent. The setting remains in ignored local configuration; no new project or remote setting was created. Missing configuration now returns a recoverable inline message, with desktop/mobile regression coverage. Actual Trust Wallet handoff, message signing and Safari return remain pending owner verification.
 
 ### Supplied real-account cases
 

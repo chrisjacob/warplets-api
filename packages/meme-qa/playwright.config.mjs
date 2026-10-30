@@ -34,7 +34,11 @@ export default defineConfig({
       url: "http://127.0.0.1:5196",
       reuseExistingServer: false,
       timeout: 60000,
-      env: { MEME_LOCAL_WORKER_PORT: "8798" },
+      env: {
+        MEME_LOCAL_WORKER_PORT: "8798",
+        // Keep ordinary regression offline, regardless of local QA settings.
+        VITE_WALLETCONNECT_PROJECT_ID: "",
+      },
     },
   ],
 });

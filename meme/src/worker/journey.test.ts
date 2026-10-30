@@ -19,6 +19,7 @@ test("HTTP journey verifies a Solana proof, votes, seals evidence, settles and r
     LOCAL_OPERATIONS_ENABLED: "false",
     MEME_QA_ORIGIN: "",
     MEME_QA_FIDS: "",
+    MEME_QA_GATEWAY_TOKEN: "",
     HELIUS_API_KEY: "",
     PYTH_API_KEY: "",
   };
@@ -185,6 +186,7 @@ test("runtime rejects remote hosts, cross-origin mutations, missing principals, 
       LOCAL_OPERATIONS_ENABLED: "false",
       MEME_QA_ORIGIN: "",
       MEME_QA_FIDS: "",
+      MEME_QA_GATEWAY_TOKEN: "",
       HELIUS_API_KEY: "",
       PYTH_API_KEY: "",
     };

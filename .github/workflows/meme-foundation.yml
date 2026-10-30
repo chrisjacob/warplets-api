@@ -36,9 +36,35 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm --dir packages/meme-qa check
+      - name: Build offline gateway fixture
+        # CI never opens a tunnel or connects real wallets. Public supervised
+        # QA uses qa:build, whose configuration preflight is tested separately.
+        env:
+          VITE_WALLETCONNECT_PROJECT_ID: ''
+        run: pnpm --dir meme exec vite build --outDir .tmp/restricted-qa-web && pnpm --dir meme qa:migrate
+      - name: Real local gateway and Worker proof round-trip (no tunnel)
+        shell: bash
+        run: |
+          set -euo pipefail
+          qa_private="$RUNNER_TEMP/meme-restricted-qa"
+          pnpm --dir packages/meme-qa gateway prepare "$qa_private" https://isolated-qa.trycloudflare.com 1431382
+          pnpm --dir meme exec wrangler dev --config "$qa_private/wrangler.jsonc" --local --ip 127.0.0.1 --port 8799 --persist-to .wrangler/restricted-qa-state > "$RUNNER_TEMP/meme-qa-worker.log" 2>&1 &
+          qa_pid=$!
+          trap 'kill "$qa_pid" 2>/dev/null || true' EXIT
+          ready=false
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:8799/health > /dev/null; then ready=true; break; fi
+            sleep 1
+          done
+          if [ "$ready" != true ]; then echo 'Local QA Worker failed to start'; exit 1; fi
+          pnpm --dir packages/meme-qa gateway:probe "$qa_private/gateway.json"
+      - name: Local 100-account pilot and 1200-account stress benchmark
+        run: pnpm --dir packages/meme-qa benchmark
       - name: Execute captured protocol binaries offline
         run: pnpm --dir packages/meme-qa test:chains
-      - run: pnpm --dir packages/meme-qa exec playwright install --with-deps chromium
+      - run: pnpm --dir packages/meme-qa exec playwright install --with-deps chromium webkit
+      - name: Native access form origin regression in Chromium and WebKit
+        run: pnpm --dir packages/meme-qa test:gateway-browser
       - name: Desktop and mobile viewport journeys against the isolated Worker
         run: pnpm --dir packages/meme-qa test:browser
       - uses: actions/upload-artifact@v4
