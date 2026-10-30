@@ -18,7 +18,7 @@ console.log(
       generatedAt: new Date().toISOString(),
       results,
       pending: [
-        "Dedicated Farcaster holder/non-holder identities",
+        "Supervised owner-controlled warpmoji login/signing; verified current-holder scope",
         "Real extension and Base smart-account signing",
         "Physical iOS/Android handoffs",
         "Approved provider allowance and live history reconciliation",

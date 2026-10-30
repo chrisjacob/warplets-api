@@ -339,13 +339,8 @@ test(
       await send(connection, payer, [
         setAdmin(payer.publicKey, replacement.publicKey),
       ]);
-      assert.throws(
-        () =>
-          assertJitoAccount(plan, {
-            ...plan.expected,
-            admin: replacement.publicKey.toBase58(),
-            clawedBack: false,
-          }),
+      await assert.rejects(
+        async () => assertJitoAccount(plan, await observe()),
         /admin/,
       );
       await send(connection, replacement, [
