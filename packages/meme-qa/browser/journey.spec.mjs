@@ -1,4 +1,33 @@
 import { test, expect } from "@playwright/test";
+test("onboarding is brief, persistent and replayable without blocking Connect", async ({
+  page,
+}, testInfo) => {
+  await page.goto("/");
+  const guide = page.getByRole("region", { name: "Getting started" });
+  await expect(guide).toBeVisible();
+  await guide.getByRole("button", { name: "Next", exact: true }).click();
+  await expect(
+    guide.getByRole("img", {
+      name: "Illustrative paths show both gains and losses",
+    }),
+  ).toBeVisible();
+  await page.screenshot({
+    path: testInfo.outputPath("onboarding.png"),
+    fullPage: true,
+  });
+  await guide.getByRole("button", { name: "Next", exact: true }).click();
+  await expect(
+    guide.getByText(/Verified trading ranks are public/),
+  ).toBeVisible();
+  await guide.getByRole("button", { name: "Got it" }).click();
+  await expect(guide).toHaveCount(0);
+  await page.reload();
+  await expect(guide).toHaveCount(0);
+  await page.getByRole("button", { name: "How it works" }).click();
+  await expect(guide).toBeVisible();
+  await guide.getByRole("button", { name: "Skip", exact: true }).click();
+  await expect(guide).toHaveCount(0);
+});
 async function installWallet(page, { cancel = false } = {}) {
   await page.addInitScript(
     async ({ cancel }) => {

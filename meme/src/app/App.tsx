@@ -1,4 +1,6 @@
-import { lazy, Suspense, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
+import Onboarding from "./Onboarding";
+import { miniRuntime } from "./miniRuntime";
 import { preview } from "../shared/fixtures";
 import { LocalRounds, OperatorPanel, useLocalState } from "./LocalRounds";
 import { IdentityPanel } from "./IdentityPanel";
@@ -199,6 +201,10 @@ function FixtureApp() {
 }
 
 export function App() {
+  const [help, setHelp] = useState(false);
+  useEffect(() => {
+    void miniRuntime();
+  }, []);
   const [fixture, setFixture] = useState(
       new URLSearchParams(location.search).has("fixture"),
     ),
@@ -240,6 +246,13 @@ export function App() {
           No funds move. Launches and claims are disabled.
         </p>
         <Tabs value={tab} onChange={setTab} />
+        {(tab === "Today" || help) && (
+          <Onboarding
+            key={help ? "help" : "first"}
+            replay={help}
+            onDone={() => setHelp(false)}
+          />
+        )}
         {error && (
           <div className="error-notice" role="alert">
             <span>{error}</span>
@@ -292,6 +305,9 @@ export function App() {
       </main>
       <footer>
         <span>Solana · Warplets · Farcaster</span>
+        <button className="text-button" onClick={() => setHelp(true)}>
+          How it works
+        </button>
         <button className="text-button" onClick={() => setFixture(true)}>
           Design preview
         </button>

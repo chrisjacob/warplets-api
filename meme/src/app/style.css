@@ -1,4 +1,6 @@
 :root {
+  --mini-safe-top: 0px;
+  --mini-safe-bottom: 0px;
   --app-fixed-top-offset: env(safe-area-inset-top, 0px);
   font-family: "DM Sans", system-ui, sans-serif;
   color: #e7eee5;
@@ -15,11 +17,19 @@
   animation: connect-success-enter 220ms ease-out both;
 }
 @keyframes connect-success-enter {
-  from { opacity: 0; transform: translate(-50%, -8px); }
-  to { opacity: 1; transform: translate(-50%, 0); }
+  from {
+    opacity: 0;
+    transform: translate(-50%, -8px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
 }
 @media (prefers-reduced-motion: reduce) {
-  .web-connect-progress-toast.connect-success-toast { animation: none; }
+  .web-connect-progress-toast.connect-success-toast {
+    animation: none;
+  }
 }
 .connect-success-toast button {
   min-width: 40px;
@@ -34,6 +44,26 @@
 }
 body {
   margin: 0;
+  padding-top: var(--mini-safe-top);
+  padding-bottom: var(--mini-safe-bottom);
+}
+.onboarding {
+  margin: 16px 0;
+}
+.onboarding h2 {
+  margin: 8px 0;
+}
+.onboarding-chart {
+  display: block;
+  width: min(100%, 420px);
+  height: 80px;
+  margin-top: 12px;
+}
+.onboarding-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 16px;
 }
 button,
 a {
@@ -639,15 +669,25 @@ footer span:first-child {
   gap: 12px;
   margin-bottom: 10px;
 }
-.list-heading h2 { margin-bottom: 0; }
-.list-heading .text-button { min-height: 44px; padding-left: 12px; }
+.list-heading h2 {
+  margin-bottom: 0;
+}
+.list-heading .text-button {
+  min-height: 44px;
+  padding-left: 12px;
+}
 .local-app .reward-row {
   margin-top: 0;
   border-top: 0;
   padding: 18px 0;
 }
-.local-app .reward-row strong { overflow-wrap: anywhere; }
-.local-app .history-row > p { min-width: 0; overflow-wrap: anywhere; }
+.local-app .reward-row strong {
+  overflow-wrap: anywhere;
+}
+.local-app .history-row > p {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
 .history-row h3 {
   margin: 0;
 }
