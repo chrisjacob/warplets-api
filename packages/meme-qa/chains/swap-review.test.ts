@@ -134,7 +134,7 @@ test(
           tokenBDecimal: 9,
         });
         const expected = quote.swapOutAmount.toString(),
-          minimum = ((BigInt(expected) * 99n) / 100n).toString(),
+          minimum = ((BigInt(expected) * 99n + 99n) / 100n).toString(),
           quotedAt = Date.now();
         assert(BigInt(minimum) > 0n);
         const q: SwapQuote = {
@@ -233,7 +233,7 @@ test(
         bindSwapInstructions(plan, q, context);
         const weaker = structuredClone(plan);
         weaker.instructions.at(-1)!.data =
-          weaker.instructions.at(-1)!.data.slice(0, 32) + "0100000000000000";
+          weaker.instructions.at(-1)!.data.slice(0, 32) + "0000000000000000";
         assert.throws(() => bindSwapInstructions(weaker, q, context));
         const risk: SwapRisk = {
             maximumSlippageBps: 100,

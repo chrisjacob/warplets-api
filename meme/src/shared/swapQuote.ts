@@ -84,7 +84,7 @@ export function reviewSwapQuote(
     throw Error("Quote units do not match verified mint metadata");
   if (
     minimum > expected ||
-    minimum < (expected * BigInt(10000 - q.slippageBps)) / 10000n
+    minimum < (expected * BigInt(10000 - q.slippageBps) + 9999n) / 10000n
   )
     throw Error("Minimum output weakens the reviewed slippage protection");
   if (
