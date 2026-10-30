@@ -2,6 +2,11 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { reviewSwapQuote, type SwapQuote, type SwapRisk } from "./swapQuote";
 import type { MarketDefinition } from "./markets";
+test("dust-unit slippage rounds minimum received UP so a nominal 1% limit cannot permit a 50% loss",()=>{
+ const small={...quote,expectedOutput:"2",minimumOutput:"1"};
+ assert.throws(()=>reviewSwapQuote(small,market,quote.wallet,risk,11000),/slippage/);
+ assert.equal(reviewSwapQuote({...small,minimumOutput:"2"},market,quote.wallet,risk,11000).quote.minimumOutput,"2");
+});
 const market: MarketDefinition = {
   id: "fixture",
   symbol: "ATTN",
