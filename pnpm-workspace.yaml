@@ -3,6 +3,7 @@ packages:
   - meme
   - packages/connect
   - packages/meme-protocol
+  - packages/meme-qa
   - web
   - snap
   - bots

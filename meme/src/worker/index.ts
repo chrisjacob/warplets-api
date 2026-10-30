@@ -7,6 +7,7 @@ import { settlementRequest } from "./settlement";
 import { operationsRequest, tick } from "./operations";
 import { sourceRequest } from "./sources";
 import { versionRequest } from "./evidenceVersions";
+import { transactionsRequest } from "./transactions";
 import { Problem, json as reply } from "./db";
 import { securityHeaders } from "../shared/securityHeaders";
 const json = (data: unknown, status = 200) =>
@@ -66,6 +67,7 @@ export default {
           return reply({ error: "Origin mismatch" }, 403);
         return (
           (await authRequest(env.MEME_DB, request)) ??
+          (await transactionsRequest(env.MEME_DB, request)) ??
           (await operationsRequest(env.MEME_DB, request)) ??
           (await sourceRequest(env.MEME_DB, request, {
             helius: env.HELIUS_API_KEY ?? "",
