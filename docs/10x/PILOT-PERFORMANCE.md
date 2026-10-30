@@ -1,5 +1,7 @@
 # Local pilot and stress benchmark
 
+See the subsequent [read-model review](READ-REVIEW-2026-10-30.md) for one-year reward/history coverage, compact polling measurements, local Worker startup profiling and the current 69.0 KiB frontend startup result. Run `pnpm --dir packages/meme-qa benchmark:reads` for its separate report; the cohort benchmark below remains unchanged.
+
 Measured 30 October 2026, Node 22.22.3 on this Windows workstation. Run `pnpm --dir packages/meme-qa benchmark`; the report is `.tmp/meme-qa/pilot-load.json` and Linux CI uploads it with the other QA artifacts. Fixtures use isolated in-memory SQLite, ten daily overlapping campaigns, simulated accepted acquisition evidence, immutable settlement and public Worker projections. There are no provider requests, real identities or financial transactions.
 
 | Cohort | Campaigns / classified events | Public read p95 at offered 20 req/s | Snapshot | Final settlement |

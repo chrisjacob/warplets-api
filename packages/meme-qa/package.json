@@ -19,6 +19,7 @@
     "gateway": "node src/gateway.mjs",
     "gateway:probe": "node src/probe-gateway.mjs",
     "benchmark": "node ../../meme/node_modules/tsx/dist/cli.mjs load/pilot.ts",
+    "benchmark:reads": "node ../../meme/node_modules/tsx/dist/cli.mjs load/readHistory.ts",
     "check": "pnpm test && pnpm report"
   },
   "devDependencies": {

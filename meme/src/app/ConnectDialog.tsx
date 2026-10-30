@@ -8,6 +8,7 @@ import { getWallets } from "@wallet-standard/app";
 import { encode58 } from "../shared/base58";
 import "@10x/connect/styles";
 import { connectionSuccessEffects, miniAppSuccess } from "./connectionEffects";
+import { latestRequest } from "./latestRequest";
 const FarcasterSignInControl = lazy(
   () => import("@10x/connect/FarcasterSignInControl"),
 );
@@ -37,12 +38,18 @@ export default function ConnectDialog({
     null,
   );
   const celebrated = useRef(new Map<string, string>());
+  const identityRequests = useRef(latestRequest());
+  const accountScope = useRef(initialIdentity?.farcasterFid);
   const [identity, setIdentity] = useState<Identity | null>(initialIdentity),
     [error, setError] = useState<string | null>(null),
     [busy, setBusy] = useState(false),
     [wallets, setWallets] = useState<readonly SolanaWallet[]>([]),
     [selected, setSelected] = useState("");
   useEffect(() => {
+    if (accountScope.current !== initialIdentity?.farcasterFid) {
+      identityRequests.current.cancel();
+      accountScope.current = initialIdentity?.farcasterFid;
+    }
     setIdentity(initialIdentity);
     if (!initialIdentity?.farcasterFid) celebrated.current.delete("farcaster");
     if (!initialIdentity?.walletAddress) celebrated.current.delete("base");
@@ -59,14 +66,18 @@ export default function ConnectDialog({
     void connectionSuccessEffects();
   }
   const refresh = async () => {
-    try {
-      const next = (await api("/api/auth/session")) as Identity;
-      setIdentity(next);
-      onIdentity(next);
-      return next;
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Local API unavailable");
-    }
+    let verified: Identity | undefined;
+    await identityRequests.current.run(
+      (signal) =>
+        api("/api/auth/session", undefined, "GET", signal) as Promise<Identity>,
+      (next) => {
+        verified = next;
+        setIdentity(next);
+        onIdentity(next);
+      },
+      (e) => setError(e instanceof Error ? e.message : "Local API unavailable"),
+    );
+    return verified;
   };
   useEffect(() => {
     onReady();
@@ -83,6 +94,7 @@ export default function ConnectDialog({
     const offRegister = registry.on("register", update),
       offUnregister = registry.on("unregister", update);
     return () => {
+      identityRequests.current.cancel();
       offRegister();
       offUnregister();
     };
@@ -210,6 +222,7 @@ export default function ConnectDialog({
                 Wallet
                 <select
                   aria-label="Solana wallet"
+                  disabled={busy}
                   value={selected}
                   onChange={(e) => setSelected(e.target.value)}
                 >
@@ -239,6 +252,7 @@ export default function ConnectDialog({
                 Use for
                 <select
                   aria-label="Solana wallet purpose"
+                  disabled={busy}
                   value={role}
                   onChange={(e) => setRole(e.target.value)}
                 >

@@ -58,6 +58,7 @@ export function WebConnectModal({ open, onClose, farcasterControl, identityConne
   const wallet = useWalletController();
   const dialogRef=useRef<HTMLElement>(null),closeRequest=useRef(onClose);closeRequest.current=onClose;
   const [showOtherWallets, setShowOtherWallets] = useState(false);
+  const [trustActivated, setTrustActivated] = useState(() => lastWalletConnectorId()?.startsWith("trustconnect-") === true);
   const [disconnectingWallet, setDisconnectingWallet] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
   const [identitiesLinked, setIdentitiesLinked] = useState(false);
@@ -188,7 +189,7 @@ export function WebConnectModal({ open, onClose, farcasterControl, identityConne
   };
   const trustConnectEnabled = import.meta.env.VITE_TRUSTCONNECT_ENABLED === "true";
   const restoreTrustConnect = !open && lastWalletConnectorId()?.startsWith("trustconnect-") === true;
-  const persistentTrustConnect = trustConnectEnabled ? (
+  const persistentTrustConnect = trustConnectEnabled && trustActivated ? (
     <div hidden aria-hidden="true">
       <Suspense fallback={null}>
         <TrustConnectBridge
@@ -326,6 +327,7 @@ export function WebConnectModal({ open, onClose, farcasterControl, identityConne
                         setLocalError(null);
                         clearWalletConnectionError();
                         onClearIdentityError?.();
+                        setTrustActivated(true);
                         setShowOtherWallets(true);
                       }}>
                         {disconnectingWallet && trustWalletConnected ? "Disconnecting…" : trustWalletConnected ? "Disconnect" : showOtherWallets ? "Connecting…" : "Connect"}

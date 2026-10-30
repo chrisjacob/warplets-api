@@ -573,6 +573,10 @@ export async function outcome(
   return { selectedCandidate: candidate, skipped: skip };
 }
 export async function state(db: Database, request: Request) {
+  const view = new URL(request.url).searchParams.get("view");
+  requireThat(view === null || view === "today", 400, "Unknown state view");
+  const compact = view === "today",
+    serverTime = Date.now();
   const identity = await sessionView(db, request),
     current = await one<StoredRound>(
       db,
@@ -582,13 +586,24 @@ export async function state(db: Database, request: Request) {
       Date.now(),
       Date.now(),
     );
-  const history = await rows<StoredRound & { selected_name: string | null }>(
-    db,
-    "SELECT r.*,c.name selected_name FROM meme_rounds r LEFT JOIN meme_candidates c ON c.round_id=r.id AND c.id=r.selected_candidate WHERE r.state IN('closed','selected','skipped') ORDER BY r.closes_at DESC LIMIT 30",
-  );
-  const entitlements = await ownEntitlements(db, identity.farcasterFid);
+  const history = compact
+    ? []
+    : await rows<StoredRound & { selected_name: string | null }>(
+        db,
+        "SELECT r.*,c.name selected_name FROM meme_rounds r LEFT JOIN meme_candidates c ON c.round_id=r.id AND c.id=r.selected_candidate WHERE r.state IN('closed','selected','skipped') ORDER BY r.closes_at DESC LIMIT 30",
+      );
+  const entitlements = compact
+    ? []
+    : await ownEntitlements(db, identity.farcasterFid);
   if (!current)
-    return { mode: "local", identity, round: null, history, entitlements };
+    return {
+      mode: "local",
+      serverTime,
+      identity,
+      round: null,
+      history,
+      entitlements,
+    };
   const candidates = await rows<{
       id: string;
       name: string;
@@ -636,6 +651,7 @@ export async function state(db: Database, request: Request) {
         : null;
   return {
     mode: "local",
+    serverTime,
     ...(scoring?.view ?? {}),
     ...(settlement?.state === "finalized"
       ? { leaderboard: settlement.leaderboard }

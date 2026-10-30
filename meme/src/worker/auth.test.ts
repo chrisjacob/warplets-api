@@ -164,3 +164,69 @@ test("Solana proof binds FID, origin, role and session, consumes once and preser
     t.close();
   }
 });
+test("a pending Base proof cannot attach to a replacement account session", async () => {
+  const t = testDb();
+  try {
+    const account = privateKeyToAccount(
+      ("0x" + "12".repeat(32)) as `0x${string}`,
+    );
+    for (const [token, fid] of [
+      ["first", 42],
+      ["second", 43],
+    ] as const)
+      t.raw
+        .prepare("INSERT INTO meme_sessions VALUES(?,?,?,?,?)")
+        .run(await sha(token), origin, fid, null, Date.now() + 60000);
+    const c = (await (await authRequest(
+      t.db,
+      request(
+        "/api/auth/wallet/challenge",
+        { address: account.address, chainId: 8453 },
+        "meme_session=first",
+      ),
+    ))!.json()) as { message: string };
+    const signature = await account.signMessage({ message: c.message });
+    for (const cookie of ["meme_session=second", ""])
+      await assert.rejects(
+        authRequest(
+          t.db,
+          request(
+            "/api/auth/wallet/verify",
+            { message: c.message, signature },
+            cookie,
+          ),
+        ),
+        /Account changed/,
+      );
+    assert.equal(
+      (
+        await sessionView(
+          t.db,
+          request("/api/auth/session", undefined, "meme_session=second"),
+        )
+      ).walletAddress,
+      null,
+    );
+    const accepted = await authRequest(
+      t.db,
+      request(
+        "/api/auth/wallet/verify",
+        { message: c.message, signature },
+        "meme_session=first",
+      ),
+    );
+    assert.equal(accepted?.status, 200);
+    const restored = await sessionView(
+      t.db,
+      request(
+        "/api/auth/session",
+        undefined,
+        accepted!.headers.get("set-cookie")!.split(";")[0],
+      ),
+    );
+    assert.equal(restored.farcasterFid, 42);
+    assert.equal(restored.walletAddress, account.address.toLowerCase());
+  } finally {
+    t.close();
+  }
+});

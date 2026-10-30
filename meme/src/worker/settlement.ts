@@ -540,9 +540,14 @@ export async function settledWeights(db: Database, id: string) {
     weights.map((v) => [v.candidate, decimal(BigInt(v.points) / 10n)]),
   );
 }
-export async function ownEntitlements(db: Database, fid: number | null) {
+export async function ownEntitlements(
+  db: Database,
+  fid: number | null,
+  page?: { campaignIds: string[]; throughAt: number },
+) {
   if (!fid) return [];
   const result = await rows<{
+    edition_id: string;
     amount: string;
     reward_wallet: string;
     release_at: number;
@@ -550,10 +555,11 @@ export async function ownEntitlements(db: Database, fid: number | null) {
     [key: string]: unknown;
   }>(
     db,
-    "SELECT a.id allocationId,a.campaign_id edition_id,c.symbol,c.decimals,a.release_index,a.release_at,e.amount,e.state,e.reward_wallet,a.round_id,a.mode,'finalized' finality,CASE WHEN f.intent_id IS NOT NULL THEN 'funded' ELSE 'unfunded' END fundingState,CASE WHEN ?<a.release_at THEN 'scheduled' WHEN ?<(CAST((a.release_at+999)/1000 AS INTEGER)*1000+1000) THEN 'vesting' ELSE 'released' END releaseState,CASE WHEN cl.intent_id IS NOT NULL THEN 'claimed' ELSE 'unclaimed' END claimState,'local-only' executionMode,0 claimable FROM meme_entitlements e JOIN meme_allocations a ON a.id=e.allocation_id JOIN meme_settlements s ON s.round_id=a.round_id JOIN meme_campaigns c ON c.id=a.campaign_id LEFT JOIN meme_financial_receipts f ON a.mode='simulated' AND f.business_key=('solana-local:fund:'||a.id) LEFT JOIN meme_financial_receipts cl ON a.mode='simulated' AND cl.business_key=('solana-local:claim:'||a.id||':'||e.fid) WHERE e.fid=? AND s.state='finalized' ORDER BY a.release_at,a.id",
+    `SELECT a.id allocationId,a.campaign_id edition_id,c.symbol,c.decimals,a.release_index,a.release_at,e.amount,e.state,e.reward_wallet,a.round_id,a.mode,'finalized' finality,CASE WHEN f.intent_id IS NOT NULL THEN 'funded' ELSE 'unfunded' END fundingState,CASE WHEN ?<a.release_at THEN 'scheduled' WHEN ?<(CAST((a.release_at+999)/1000 AS INTEGER)*1000+1000) THEN 'vesting' ELSE 'released' END releaseState,CASE WHEN cl.intent_id IS NOT NULL THEN 'claimed' ELSE 'unclaimed' END claimState,'local-only' executionMode,0 claimable FROM ${page ? "meme_campaigns c CROSS JOIN meme_allocations a ON a.campaign_id=c.id CROSS JOIN meme_entitlements e ON e.allocation_id=a.id" : "meme_entitlements e JOIN meme_allocations a ON a.id=e.allocation_id JOIN meme_campaigns c ON c.id=a.campaign_id"} JOIN meme_settlements s ON s.round_id=a.round_id LEFT JOIN meme_financial_receipts f ON a.mode='simulated' AND f.business_key=('solana-local:fund:'||a.id) LEFT JOIN meme_financial_receipts cl ON a.mode='simulated' AND cl.business_key=('solana-local:claim:'||a.id||':'||e.fid) WHERE e.fid=? AND s.state='finalized' ${page ? "AND c.id IN(SELECT value FROM json_each(?)) AND s.finalized_at<=?" : ""} ORDER BY a.release_at,a.id`,
     Date.now(),
     Date.now(),
     fid,
+    ...(page ? [canonical(page.campaignIds), page.throughAt] : []),
   );
   return result.map((row) => ({ ...row, claimable: false }));
 }

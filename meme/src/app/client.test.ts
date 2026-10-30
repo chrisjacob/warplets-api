@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { api } from "./client";
+import { api, ApiError } from "./client";
 test("API requests stop on account cancellation or timeout without newer AbortSignal helpers", async (context) => {
   context.mock.timers.enable({ apis: ["setTimeout"] });
   context.mock.method(
@@ -29,5 +29,11 @@ test("API requests stop on account cancellation or timeout without newer AbortSi
     await assert.rejects(stalled, /timed out/);
   } finally {
     context.mock.timers.reset();
+  }
+});
+test("expired access preserves its status for HTML and empty JSON error responses", async (context) => {
+  for (const [status, body] of [[401, "<form>Sign in</form>"], [403, "null"]] as const) {
+    context.mock.method(globalThis, "fetch", async () => new Response(body, { status }));
+    await assert.rejects(api("/api/meme/rewards"), error => error instanceof ApiError && error.status === status);
   }
 });

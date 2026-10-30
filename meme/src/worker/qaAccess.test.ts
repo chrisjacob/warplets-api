@@ -6,7 +6,15 @@ import {
   qaResponse,
   qaRequest,
   qaTransportRequest,
+  qaRoute,
 } from "./qaAccess";
+test("paged QA reads are allowlisted without permitting writes or arbitrary paths", () => {
+  for (const path of ["/api/meme/history", "/api/meme/rewards"]) {
+    assert.equal(qaRoute(path, "GET"), true);
+    assert.equal(qaRoute(path, "POST"), false);
+    assert.equal(qaRoute(path + "/private", "GET"), false);
+  }
+});
 import { sha } from "./db";
 test("QA transport pins HTTPS only with the private gateway token, preserving the browser Origin", () => {
   const origin = "https://private-qa.trycloudflare.com",

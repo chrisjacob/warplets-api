@@ -632,6 +632,22 @@ footer span:first-child {
   border-bottom: 1px solid #344137;
   padding: 14px 0;
 }
+.list-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.list-heading h2 { margin-bottom: 0; }
+.list-heading .text-button { min-height: 44px; padding-left: 12px; }
+.local-app .reward-row {
+  margin-top: 0;
+  border-top: 0;
+  padding: 18px 0;
+}
+.local-app .reward-row strong { overflow-wrap: anywhere; }
+.local-app .history-row > p { min-width: 0; overflow-wrap: anywhere; }
 .history-row h3 {
   margin: 0;
 }

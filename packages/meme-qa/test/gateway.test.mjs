@@ -182,6 +182,13 @@ test("restricted compiled gateway requires access, expires sessions and cannot p
       ).status,
       200,
     );
+    for (const path of ["/api/meme/history", "/api/meme/rewards"]) {
+      assert.equal((await call(path, { cookie })).status, 200);
+      assert.equal(
+        (await call(path, { cookie, method: "POST", body: "x=y" })).status,
+        404,
+      );
+    }
     assert.equal(
       (
         await call("/api/auth/wallet/challenge", {
