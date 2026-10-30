@@ -8,6 +8,7 @@ import { runClaimBatch } from "./claimBatch";
 import type {
   TransactionPlan,
   TransactionReadAdapter,
+  ChainObservation,
 } from "../shared/transactions";
 import {
   prepareIntent,
@@ -60,6 +61,7 @@ function adapter(
     }),
     inspect: async (_, h, s) => ({
       status: "finalized",
+      commitment: "finalized",
       network: p.network,
       planHash: h,
       signature: s,
@@ -125,6 +127,7 @@ test("confirmed claims are idempotent, append-only and cannot be confirmed by un
         adapter(p, {
           inspect: async () => ({
             status: "finalized",
+            commitment: "finalized",
             network: "base-mainnet",
             planHash: "changed",
             signature,
@@ -201,6 +204,7 @@ test("simulation exceeding the budget and incomplete absence cannot authorize a 
     const a = adapter(p, {
       inspect: async (_, h) => ({
         status: "absent",
+        commitment: "unknown",
         network: p.network,
         planHash: h,
         signature: null,
@@ -228,6 +232,7 @@ test("only a completely reconciled chain failure permits an explicit retry", asy
     const failed = adapter(p, {
       inspect: async (_, h, s) => ({
         status: "failed",
+        commitment: "finalized",
         network: p.network,
         planHash: h,
         signature: s,
@@ -253,6 +258,51 @@ test("only a completely reconciled chain failure permits an explicit retry", asy
     t.close();
   }
 });
+test("malformed, oversized and non-final failure evidence cannot alter an uncertain submission", async () => {
+  const t = testDb();
+  try {
+    const p = plan(),
+      a = adapter(p),
+      i = await prepareIntent(t.db, p);
+    await simulateIntent(t.db, i.id, a);
+    await beginHandoff(t.db, i.id);
+    await recordSignature(t.db, i.id, signature);
+    const good = await a.inspect(p, i.plan_hash, signature);
+    for (const change of [
+      { complete: "true" },
+      { expired: 1 },
+      { context: 42 },
+      { context: "  " },
+      { commitment: undefined },
+      { status: "success" },
+      { signature: {} },
+      { extra: "x".repeat(8192) },
+      { status: "failed", commitment: "confirmed" },
+      { status: "finalized", commitment: "confirmed" },
+      { status: "confirmed", commitment: "processed" },
+      { status: "failed", complete: false },
+    ]) {
+      await assert.rejects(
+        reconcileIntent(
+          t.db,
+          i.id,
+          adapter(p, {
+            inspect: async () =>
+              ({ ...good, ...change }) as unknown as ChainObservation,
+          }),
+        ),
+      );
+      assert.equal((await getIntent(t.db, i.id)).state, "submitted");
+    }
+    assert.equal(
+      t.raw.prepare("SELECT COUNT(*) n FROM meme_financial_receipts").get()!.n,
+      0,
+    );
+    assert.equal((await reconcileIntent(t.db, i.id, a)).state, "confirmed");
+  } finally {
+    t.close();
+  }
+});
 test("claim-all preserves partial success and reconciles a lost submission without calling the wallet twice", async () => {
   const t = testDb();
   try {
@@ -268,6 +318,7 @@ test("claim-all preserves partial success and reconciles a lost submission witho
         pending && p.subject === "release:2"
           ? {
               status: "pending",
+              commitment: "unknown",
               network: p.network,
               planHash: h,
               signature: s,

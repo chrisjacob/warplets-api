@@ -564,6 +564,23 @@ export async function reconcileIntent(
   const plan = JSON.parse(intent.plan) as TransactionPlan,
     result = await adapter.inspect(plan, intent.plan_hash, intent.signature);
   requireThat(
+    result &&
+      ["pending", "confirmed", "finalized", "failed", "absent"].includes(
+        result.status,
+      ) &&
+      ["unknown", "processed", "confirmed", "finalized"].includes(
+        result.commitment,
+      ) &&
+      typeof result.complete === "boolean" &&
+      typeof result.expired === "boolean" &&
+      (result.signature === null || typeof result.signature === "string") &&
+      typeof result.context === "string" &&
+      result.context.trim().length > 0 &&
+      canonical(result).length <= 8192,
+    409,
+    "Malformed chain evidence",
+  );
+  requireThat(
     result.network === plan.network &&
       result.planHash === intent.plan_hash &&
       result.expectedHash === (await sha(canonical(plan.expected))) &&
@@ -584,7 +601,9 @@ export async function reconcileIntent(
   }
   if (result.status === "confirmed") {
     requireThat(
-      result.signature && intent.signature === result.signature,
+      ["confirmed", "finalized"].includes(result.commitment) &&
+        result.signature &&
+        intent.signature === result.signature,
       409,
       "Recover and record the observed signature before confirmation",
     );
@@ -594,13 +613,16 @@ export async function reconcileIntent(
   }
   if (result.status === "absent")
     requireThat(
-      Date.now() >= plan.expiresAt,
+      result.commitment === "finalized" && Date.now() >= plan.expiresAt,
       409,
       "Cannot prove absence before intent expiry",
     );
   if (result.status === "finalized") {
     requireThat(
-      result.complete && result.signature && Date.now() >= plan.notBefore,
+      result.commitment === "finalized" &&
+        result.complete &&
+        result.signature &&
+        Date.now() >= plan.notBefore,
       409,
       "Incomplete or premature confirmation",
     );
@@ -642,6 +664,7 @@ export async function reconcileIntent(
   }
   requireThat(
     (result.status === "failed" &&
+      result.commitment === "finalized" &&
       result.complete &&
       result.signature !== null) ||
       result.status === "absent",

@@ -6,6 +6,7 @@ import {
   getOrCreateAssociatedTokenAccount,
   mintTo,
   getAccount,
+  unpackAccount,
   createTransferInstruction,
   createMintToInstruction,
 } from "@solana/spl-token";
@@ -97,7 +98,10 @@ test(
         instructions: TransactionInstruction[],
         signers: Keypair[],
         expected: Record<string, string>,
-        observe: () => Promise<Record<string, string>>,
+        observe: (
+          plan: TransactionPlan,
+          read: { commitment: "finalized"; minContextSlot: number },
+        ) => Promise<Record<string, string>>,
         notBefore = Date.now(),
         loseResponse = false,
         beforeHandoff?: () => Promise<{
@@ -182,9 +186,10 @@ test(
           mint: mint.toBase58(),
           permanentLockedLiquidity: proof.liquidityDelta,
         },
-        async () => {
+        async (_, read) => {
           const a = await connection.getAccountInfo(
             new PublicKey(proof.position),
+            read,
           );
           const p = cpAmmCoder.accounts.decode("Position", a!.data);
           return {
@@ -386,9 +391,10 @@ test(
         [plan.creation],
         [payer],
         { owner: plan.expected.program },
-        async () => ({
+        async (_, read) => ({
           owner: (await connection.getAccountInfo(
             distributor,
+            read,
           ))!.owner.toBase58(),
         }),
       );
@@ -405,13 +411,16 @@ test(
         ],
         [payer],
         { mint: mint.toBase58(), amount: entitlement.amount, preconditionHash },
-        async () => {
-          const a = await getAccount(connection, vault);
+        async (_, read) => {
+          const a = unpackAccount(
+            vault,
+            await connection.getAccountInfo(vault, read),
+          );
           assertJitoAccount(
             plan,
             decodeDistributor(
               plan,
-              await connection.getAccountInfo(distributor),
+              await connection.getAccountInfo(distributor, read),
             ),
           );
           return {
@@ -459,8 +468,11 @@ test(
         buildLockedClaimInstructions(plan, claimant.publicKey.toBase58()),
         [claimant],
         { amount: entitlement.amount, wallet: claimant.publicKey.toBase58() },
-        async () => {
-          const a = await getAccount(connection, destination.address);
+        async (_, read) => {
+          const a = unpackAccount(
+            destination.address,
+            await connection.getAccountInfo(destination.address, read),
+          );
           return { amount: a.amount.toString(), wallet: a.owner.toBase58() };
         },
         entitlement.release_at,

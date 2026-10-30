@@ -10,15 +10,23 @@ Local approval reservations bind the active attempt, plan hash and simulation ha
 
 ## Compatible states
 
-| Field | Meaning |
-| --- | --- |
-| `state: submitted`, `chain_status: confirmed` | Transaction observed; no finalized financial receipt yet |
-| `state: submitted`, `chain_status: pending` | Confirmation was lost or has not reached required finality; keep reconciling |
-| `state: confirmed`, `chain_status: finalized` | Legacy-compatible terminal state, backed by finalized matching evidence |
-| `chain_status: legacy-local-confirmed` | Migrated local harness observation; not recertified as finalized |
-| `state: failed` | Completely reconciled failure/expired absence; explicit local recovery may prepare another attempt |
+| Field                                         | Meaning                                                                                            |
+| --------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `state: submitted`, `chain_status: confirmed` | Transaction observed; no finalized financial receipt yet                                           |
+| `state: submitted`, `chain_status: pending`   | Confirmation was lost or has not reached required finality; keep reconciling                       |
+| `state: confirmed`, `chain_status: finalized` | Legacy-compatible terminal state, backed by finalized matching evidence                            |
+| `chain_status: legacy-local-confirmed`        | Migrated local harness observation; not recertified as finalized                                   |
+| `state: failed`                               | Completely reconciled failure/expired absence; explicit local recovery may prepare another attempt |
 
-Only finalized matching evidence creates the immutable receipt used by local funded/claimed projections. The Solana harness now checks `getSignatureStatuses` with `searchTransactionHistory: true`, matches its slot to the decoded transaction and waits for actual reported finality. It no longer labels a confirmed transaction finalized. See [Solana status RPC](https://solana.com/docs/rpc/http/getsignaturestatuses) and [transaction RPC](https://solana.com/docs/rpc/http/gettransaction).
+Only finalized matching evidence creates the immutable receipt used by local funded/claimed projections. Reconciliation observations now carry an explicit `commitment`, separately from `status` and `complete`. Both terminal successes and terminal failures require `finalized` commitment and complete evidence; a malformed Boolean, missing commitment, oversized observation or processed-only confirmation fails closed. Existing terminal journal entries are retained, not reinterpreted or used to recalculate historical allocations.
+
+The read-only Solana simulator adapter checks the exact requested signature against the decoded, cryptographically verified transaction, its fee payer, complete signer set, instructions and message-wide account privileges. A different valid transaction with identical instructions cannot impersonate the requested signature. It rejects unsafe slot/fee values and fees exceeding the plan's native ceiling. The fee check does not constitute a complete launch/rent/liquidity cost estimate.
+
+It requests `getSignatureStatuses` with `searchTransactionHistory: true`, checks the RPC context, and matches both slot and execution error to the decoded transaction. A finalized status requires a second `getTransaction` read at `finalized`; the body, signature, slot, execution error and fee must agree. Successful finalization then reads independently decoded account state at finalized commitment with a minimum context slot. Confirmed errors remain pending until finalized failure evidence exists. See [Solana status RPC](https://solana.com/docs/rpc/http/getsignaturestatuses) and [transaction RPC](https://solana.com/docs/rpc/http/gettransaction).
+
+Null transaction/status/finalized-body results and transport errors remain unresolved; they never establish expired absence or authorize another handoff. The adapter accepts only loopback simulator endpoints, legacy transaction encoding and `solana-local` plans. Unsupported versioned messages fail closed. It adds no mainnet read adapter, signer, broadcaster or public route. Actual recent-blockhash/nonce lifetime capture and complete missing-signature discovery remain explicit future gates.
+
+Run `pnpm --dir packages/meme-qa test:chains` for signed offline RPC fixtures and the supported local simulators. The new fixtures cover signature substitution, incorrect signer/instruction privileges, inconsistent slots/errors/fees, missing finalized bodies, RPC/account-read outages, expired app timers and confirmation loss. A durable-controller scenario proves that concurrent finalization after an outage creates one immutable receipt under the original attempt/approval. Linux CI separately runs the captured-program launch-to-claim cycle using these finalized account-read requirements; mocked RPC fixtures alone do not certify actual program execution or mainnet behavior.
 
 ## Funding and batches
 
