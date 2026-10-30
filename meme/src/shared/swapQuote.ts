@@ -26,6 +26,8 @@ export interface SwapQuote {
     accountRentLamports: string;
     inputFeeUnits: string;
     inputFeeIncluded: true;
+    outputFeeUnits: string;
+    outputFeeIncluded: true;
   };
 }
 export interface SwapRisk {
@@ -128,6 +130,8 @@ export function reviewSwapQuote(
     throw Error("Direct route does not match the verified pool");
   if (
     q.fees?.inputFeeIncluded !== true ||
+    q.fees.outputFeeIncluded !== true ||
+    natural(q.fees.outputFeeUnits) > 2n ** 64n - 1n ||
     natural(q.fees.inputFeeUnits) > amount ||
     natural(q.fees.networkLamports) > natural(risk.maximumNetworkLamports) ||
     natural(q.fees.accountRentLamports) > natural(risk.maximumRentLamports)

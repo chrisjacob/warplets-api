@@ -403,7 +403,7 @@ test("readiness is redacted, read-only and reports budget/job/transaction blocke
     assert.equal(report.status, "attention");
     assert.equal(report.productionReady, false);
     assert.equal(JSON.stringify(report).includes(secret), false);
-    assert.equal(t.queries.length, 12);
+    assert.equal(t.queries.length, 13);
     assert.equal(report.growth.notifications.realDeliveryEnabled, false);
     assert.equal(report.growth.notifications.registered, false);
     assert(t.queries.every((q) => q.startsWith("SELECT")));

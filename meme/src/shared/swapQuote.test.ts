@@ -44,6 +44,8 @@ const quote: SwapQuote = {
     accountRentLamports: "0",
     inputFeeUnits: "1",
     inputFeeIncluded: true,
+    outputFeeUnits: "0",
+    outputFeeIncluded: true,
   },
 };
 test("quote review preserves explicit fees and slippage without enabling any signing", () => {

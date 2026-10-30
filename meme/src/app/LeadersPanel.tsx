@@ -130,6 +130,20 @@ export default function LeadersPanel({ data }: { data: LocalState | null }) {
                       </p>
                     </div>
                     <strong>{dollars(r.pnlUsd)}</strong>
+                    {!!r.ogGains.length && (
+                      <details>
+                        <summary>OG gains</summary>
+                        {r.ogGains.map((g) => (
+                          <p className="fine" key={g.mint}>
+                            {Number(g.amount) > 0 ? "+" : ""}
+                            {Number(g.amount).toLocaleString(undefined, {
+                              maximumFractionDigits: 6,
+                            })}{" "}
+                            · {g.mint.slice(0, 4)}…{g.mint.slice(-4)}
+                          </p>
+                        ))}
+                      </details>
+                    )}
                     <SocialShare
                       kind="pnl"
                       subject="trading"
