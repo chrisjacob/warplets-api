@@ -20,3 +20,7 @@ pnpm --dir meme dev:worker
 GET `http://127.0.0.1:8797/health` or `/api/meme/preview` for fixtures. The browser's shared Connect UI uses same-origin `/api/auth/*` routes, with proof verification and one-use challenges. Fixture/financial mutation routes return 405. Database state lives under `meme/.wrangler/state`, separate from the shared app and archived discovery stores. No real database ID is configured and no remote resource is created.
 
 `pnpm --dir meme check` runs typechecks, request-boundary tests, frontend build and a Worker dry-run bundle. `pnpm --dir meme types` regenerates the local Worker environment declaration. There is no deploy script, production route or scheduled trigger. `build:worker` is explicitly dry-run only.
+
+## Restricted phone QA
+
+Use the compiled, access-controlled gateway described in [QA-ACCESS.md](../docs/10x/QA-ACCESS.md). It uses a separate database and exact temporary hostname. No shared product/dev hostname is exposed. Starting a tunnel requires a separate review.

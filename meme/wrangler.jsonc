@@ -14,6 +14,8 @@
     "LOCAL_PREVIEW_ONLY": "true",
     "LOCAL_PARTICIPATION_ENABLED": "true",
     "LOCAL_OPERATIONS_ENABLED": "false",
+    "MEME_QA_ORIGIN": "",
+    "MEME_QA_FIDS": "",
   },
   "d1_databases": [
     {

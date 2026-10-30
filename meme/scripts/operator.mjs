@@ -4,8 +4,22 @@ import { fileURLToPath } from "node:url";
 import { randomBytes, createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { readOwnership } from "./ownership-source.mjs";
-const root = resolve(dirname(fileURLToPath(import.meta.url)), ".."),
-  state = resolve(root, ".wrangler");
+const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const target = process.env.MEME_OPERATOR_TARGET ?? "preview";
+if (!["preview", "restricted-qa"].includes(target))
+  throw Error("Unknown local operator target");
+const persistence =
+  target === "restricted-qa"
+    ? ".wrangler/restricted-qa-state"
+    : ".wrangler/state";
+const state = resolve(
+  root,
+  target === "restricted-qa" ? ".wrangler/restricted-qa-operator" : ".wrangler",
+);
+const apiOrigin =
+  target === "restricted-qa"
+    ? "http://127.0.0.1:8799"
+    : "http://127.0.0.1:8797";
 mkdirSync(state, { recursive: true });
 const tokenFile = resolve(state, "operator-token");
 const [command, ...args] = process.argv.slice(2),
@@ -14,11 +28,11 @@ async function send(path, body) {
   if (!path.startsWith("/api/meme/operator/"))
     throw Error("Operator route required");
   if (!existsSync(tokenFile)) throw Error("Run operator init first");
-  const r = await fetch("http://127.0.0.1:8797" + path, {
+  const r = await fetch(apiOrigin + path, {
     method: "POST",
     headers: {
       "content-type": "application/json",
-      origin: "http://127.0.0.1:8797",
+      origin: apiOrigin,
       authorization: "Bearer " + readFileSync(tokenFile, "utf8").trim(),
     },
     body: JSON.stringify(body),
@@ -43,7 +57,7 @@ if (command === "init") {
         "meme-local",
         "--local",
         "--persist-to",
-        ".wrangler/state",
+        persistence,
         "--command",
         `INSERT INTO meme_operator_tokens VALUES('${hash(token)}','local operator',${Date.now()})`,
         "--json",
@@ -95,9 +109,7 @@ if (command === "init") {
     await new Promise((resolve) => setTimeout(resolve, 1000));
   }
 } else if (command === "demo") {
-  const current = await (
-    await fetch("http://127.0.0.1:8797/api/meme/state")
-  ).json();
+  const current = await (await fetch(apiOrigin + "/api/meme/state")).json();
   if (current.round) {
     console.log("Existing round retained: " + current.round.id);
   } else {

@@ -10,6 +10,7 @@ import { versionRequest } from "./evidenceVersions";
 import { transactionsRequest } from "./transactions";
 import { Problem, json as reply } from "./db";
 import { securityHeaders } from "../shared/securityHeaders";
+import { qaRequest, qaResponse, qaOrigin } from "./qaAccess";
 const json = (data: unknown, status = 200) =>
   Response.json(data, {
     status,
@@ -42,12 +43,17 @@ export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     if (env.LOCAL_PREVIEW_ONLY !== "true")
       return json({ error: "Local fixture preview is disabled" }, 404);
-    if (
-      !["localhost", "127.0.0.1", "[::1]"].includes(
-        new URL(request.url).hostname,
-      )
-    )
-      return json({ error: "Local application only" }, 404);
+    const requestUrl = new URL(request.url);
+    if (!["localhost", "127.0.0.1", "[::1]"].includes(requestUrl.hostname)) {
+      // Only an explicitly pinned, isolated QA origin. Forwarded headers are not trusted.
+      const origin = qaOrigin(String(env.MEME_QA_ORIGIN));
+      if (!origin || requestUrl.host !== new URL(origin).host)
+        return json({ error: "Local application only" }, 404);
+      // cloudflared terminates HTTPS; bind proofs, sessions and Secure cookies
+      // to the public HTTPS origin rather than the local HTTP transport.
+      requestUrl.protocol = "https:";
+      request = new Request(requestUrl.toString(), request);
+    }
     if (
       env.LOCAL_PARTICIPATION_ENABLED === "true" &&
       new URL(request.url).pathname.startsWith("/api/")
@@ -65,7 +71,13 @@ export default {
           request.headers.get("origin") !== new URL(request.url).origin
         )
           return reply({ error: "Origin mismatch" }, 403);
-        return (
+        const restricted =
+          requestUrl.hostname !== "localhost" &&
+          requestUrl.hostname !== "127.0.0.1" &&
+          requestUrl.hostname !== "[::1]";
+        if (restricted)
+          await qaRequest(env.MEME_DB, request, String(env.MEME_QA_FIDS));
+        const response =
           (await authRequest(env.MEME_DB, request)) ??
           (await transactionsRequest(env.MEME_DB, request)) ??
           (await operationsRequest(env.MEME_DB, request)) ??
@@ -78,8 +90,15 @@ export default {
           (await holdingRequest(env.MEME_DB, request)) ??
           (await settlementRequest(env.MEME_DB, request)) ??
           (await roundsRequest(env.MEME_DB, request)) ??
-          handleRequest(request)
-        );
+          handleRequest(request);
+        return restricted
+          ? qaResponse(
+              env.MEME_DB,
+              request,
+              await response,
+              String(env.MEME_QA_FIDS),
+            )
+          : response;
       } catch (error) {
         return reply(
           {
