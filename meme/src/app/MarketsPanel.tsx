@@ -20,7 +20,10 @@ export default function MarketsPanel() {
         new URLSearchParams(location.search).get("market") ??
         (qaEnabled ? (qaContext?.latestMarket ?? "") : ""),
     ),
-    [window, setWindow] = useState<MarketWindow>("24h"),
+    [window, setWindow] = useState<MarketWindow>(() => {
+      const value = new URLSearchParams(location.search).get("marketWindow");
+      return value === "30d" || value === "all" ? value : "24h";
+    }),
     [view, setView] = useState<MarketView | null>(null),
     [error, setError] = useState<string | null>(null),
     [busy, setBusy] = useState(false),
@@ -28,6 +31,13 @@ export default function MarketsPanel() {
     [listError, setListError] = useState<string | null>(null),
     [listBusy, setListBusy] = useState(false);
   const listRequest = useRef<AbortController | null>(null);
+  useEffect(() => {
+    if (!market) return;
+    const url = new URL(location.href);
+    url.searchParams.set("market", market);
+    url.searchParams.set("marketWindow", window);
+    history.replaceState(null, "", url);
+  }, [market, window]);
   async function list(after = "") {
     listRequest.current?.abort();
     const controller = new AbortController();

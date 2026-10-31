@@ -38,7 +38,12 @@ export default function LeadersPanel({
     }),
     [lookup, setLookup] = useState(""),
     [lookupError, setLookupError] = useState("");
-  const [kind, setKind] = useState(() => (profileFid ? "Trading" : "Rewards")),
+  const [kind, setKind] = useState(() =>
+      profileFid ||
+      new URLSearchParams(location.search).get("ranking") === "trading"
+        ? "Trading"
+        : "Rewards",
+    ),
     [window, setWindow] = useState<TradingWindow>(() => {
       const w = new URLSearchParams(location.search).get("window");
       return w === "30d" || w === "all" ? w : "24h";
@@ -77,6 +82,27 @@ export default function LeadersPanel({
   const ownReward = data?.leaderboard
     ?.slice(0, 100)
     .find((r) => r.fid === data.identity?.farcasterFid);
+  function showBoard(nextKind = "Trading") {
+    setKind(nextKind);
+    setProfileFid(null);
+    const url = new URL(location.href);
+    url.searchParams.delete("trader");
+    url.searchParams.delete("board");
+    if (nextKind === "Trading") url.searchParams.set("ranking", "trading");
+    else url.searchParams.delete("ranking");
+    url.searchParams.set("window", window);
+    history.replaceState(null, "", url);
+  }
+  function openProfile(fid: number) {
+    setProfileFid(fid);
+    const url = new URL(location.href);
+    url.searchParams.set("ranking", "trading");
+    url.searchParams.set("trader", String(fid));
+    url.searchParams.set("window", window);
+    if (board?.id) url.searchParams.set("board", board.id);
+    else url.searchParams.delete("board");
+    history.replaceState(null, "", url);
+  }
   return (
     <section className="card" aria-label="Leaderboards">
       <h2>Top 100</h2>
@@ -85,7 +111,11 @@ export default function LeadersPanel({
         aria-label="Leaderboard type"
       >
         {["Rewards", "Trading"].map((k) => (
-          <button key={k} aria-pressed={kind === k} onClick={() => setKind(k)}>
+          <button
+            key={k}
+            aria-pressed={kind === k}
+            onClick={() => showBoard(k)}
+          >
             {k}
           </button>
         ))}
@@ -94,13 +124,7 @@ export default function LeadersPanel({
         <TraderProfile
           fid={profileFid}
           window={window}
-          onBack={() => {
-            setProfileFid(null);
-            const url = new URL(location.href);
-            url.searchParams.delete("board");
-            url.searchParams.delete("trader");
-            history.replaceState(null, "", url);
-          }}
+          onBack={() => showBoard()}
         />
       ) : kind === "Rewards" ? (
         <>
@@ -157,6 +181,11 @@ export default function LeadersPanel({
                 onChange={(e) => {
                   setWindow(e.target.value as TradingWindow);
                   setVisibleTrades(20);
+                  const url = new URL(location.href);
+                  url.searchParams.set("window", e.target.value);
+                  url.searchParams.set("ranking", "trading");
+                  url.searchParams.delete("board");
+                  history.replaceState(null, "", url);
                 }}
               >
                 <option value="24h">24h</option>
@@ -186,7 +215,7 @@ export default function LeadersPanel({
                   return;
                 }
                 setLookupError("");
-                setProfileFid(Number(lookup));
+                openProfile(Number(lookup));
               }}
             >
               <label>
@@ -218,7 +247,10 @@ export default function LeadersPanel({
               {!!data?.identity?.farcasterFid && (
                 <button
                   className="text-button"
-                  onClick={() => setProfileFid(data.identity.farcasterFid)}
+                  onClick={() => {
+                    const fid = data.identity.farcasterFid;
+                    if (fid) openProfile(fid);
+                  }}
                 >
                   View my trading profile →
                 </button>
@@ -235,7 +267,7 @@ export default function LeadersPanel({
                       <strong>
                         <button
                           className="text-button"
-                          onClick={() => setProfileFid(r.fid)}
+                          onClick={() => openProfile(r.fid)}
                         >
                           #{r.rank} · {qaName(r.fid)}
                         </button>

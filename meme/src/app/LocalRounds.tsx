@@ -204,10 +204,16 @@ export function LocalRounds({
     setPendingCandidate(candidateId);
     setError(null);
     try {
-      await api("/api/meme/rounds/" + encodeURIComponent(r.id) + "/vote", {
-        candidateId,
-        key: crypto.randomUUID(),
-      });
+      await api(
+        "/api/meme/rounds/" + encodeURIComponent(r.id) + "/vote",
+        {
+          candidateId,
+          key: crypto.randomUUID(),
+        },
+        "POST",
+        undefined,
+        identity?.farcasterFid,
+      );
       await refresh();
       notify(data?.myVote ? "Vote changed." : "Vote saved.");
       void miniRuntime()
@@ -227,7 +233,13 @@ export function LocalRounds({
   if (!r)
     return (
       <section className="card" aria-live="polite">
-        <h2>{stale ? "Round unavailable" : data ? "No round today" : "Loading today’s round…"}</h2>
+        <h2>
+          {stale
+            ? "Round unavailable"
+            : data
+              ? "No round today"
+              : "Loading today’s round…"}
+        </h2>
         {data && (
           <>
             <p>Check back for the next vote.</p>

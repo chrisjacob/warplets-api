@@ -117,6 +117,9 @@ test("the illustrated guide keeps its actions visible on short phones and restor
   await expect(
     page.getByRole("region", { name: "Getting started" }),
   ).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "Verify wallet", exact: true }),
+  ).toBeFocused();
   const help = page.getByRole("button", { name: "How it works", exact: true });
   await help.click();
   await expect(dialog).toBeVisible();

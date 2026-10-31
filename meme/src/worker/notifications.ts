@@ -667,6 +667,7 @@ export async function notificationsRequest(
   const { fid } = await principal(db, request);
   if (["GET", "HEAD"].includes(request.method))
     return json({
+      viewerFid: fid,
       settings: await notificationSettings(db, fid),
       registered: false,
       deliveryEnabled: false,
@@ -690,6 +691,7 @@ export async function notificationsRequest(
   );
   return json({
     settings: await setNotificationSettings(db, fid, p as Settings),
+    viewerFid: fid,
     registered: false,
     deliveryEnabled: false,
     channels: { farcaster: { registered: false }, base: { registered: false } },

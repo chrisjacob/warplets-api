@@ -194,6 +194,7 @@ const server = createServer(async (req, res) => {
         method,
         body: parsed,
         session,
+        expectedFid: req.headers["x-meme-viewer-fid"],
         persona: url.searchParams.get("persona") ?? "participant",
       });
     }

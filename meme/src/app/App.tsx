@@ -8,11 +8,11 @@ import { IdentityPanel } from "./IdentityPanel";
 import { Tabs, type Tab as LaunchTab } from "./Tabs";
 import { AppHeader } from "./AppHeader";
 import { FeedbackProvider } from "./Feedback";
+import NotificationDisclosure from "./NotificationDisclosure";
 const HistoryPanel = lazy(() => import("./HistoryPanel"));
 const RewardsPanel = lazy(() => import("./RewardsPanel"));
 const MarketsPanel = lazy(() => import("./MarketsPanel"));
 const LeadersPanel = lazy(() => import("./LeadersPanel"));
-const NotificationSettings = lazy(() => import("./NotificationSettings"));
 type Tab = "Today" | "Rewards" | "Launches";
 function FixtureApp() {
   const [tab, setTab] = useState<Tab>("Today");
@@ -354,9 +354,10 @@ function LaunchpadApp() {
                     fid={identity.farcasterFid}
                     onToday={() => changeTab("Today")}
                   />
-                  <NotificationSettings
+                  <NotificationDisclosure
                     key={"notifications:" + identity.farcasterFid}
                     fid={identity.farcasterFid}
+                    onReconnect={openAccount}
                   />
                 </>
               </Suspense>

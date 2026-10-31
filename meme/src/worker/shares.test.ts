@@ -40,6 +40,27 @@ test("share text derives only from immutable published evidence; incomplete card
     const card = await createCard(t.db, "performance", "m", "24h", null, now);
     assert(card.lines[0].includes("-50.00%"));
     assert.equal(
+      new URL(card.targetPath, "http://localhost").searchParams.get(
+        "marketWindow",
+      ),
+      "24h",
+    );
+    await publishMarket(t.db, "m", "30d", now);
+    const monthly = await createCard(
+      t.db,
+      "performance",
+      "m",
+      "30d",
+      null,
+      now,
+    );
+    assert.equal(
+      new URL(monthly.targetPath, "http://localhost").searchParams.get(
+        "marketWindow",
+      ),
+      "30d",
+    );
+    assert.equal(
       (await createCard(t.db, "performance", "m", "24h", null, now)).id,
       card.id,
     );

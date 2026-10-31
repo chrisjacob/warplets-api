@@ -54,8 +54,18 @@ export default function GuideDialog({
       onClose={() => {
         onDone();
         requestAnimationFrame(() => {
-          if (returnFocus.current?.isConnected)
-            returnFocus.current.focus({ preventScroll: true });
+          const target = returnFocus.current?.isConnected
+            ? returnFocus.current
+            : (document.querySelector<HTMLElement>(
+                ".participation-guide button:not(:disabled)",
+              ) ??
+              document.querySelector<HTMLElement>(
+                ".candidate button:not(:disabled)",
+              ) ??
+              document.querySelector<HTMLElement>(
+                '.launch-tabs [aria-selected="true"]',
+              ));
+          target?.focus({ preventScroll: !!returnFocus.current?.isConnected });
         });
       }}
     >

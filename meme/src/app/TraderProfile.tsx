@@ -4,6 +4,7 @@ import type { TradingProfile, TradingWindow } from "../shared/trading";
 import { api } from "./client";
 import SocialShare from "./SocialShare";
 import { miniRuntime } from "./miniRuntime";
+import { direction, percentage } from "./display";
 export default function TraderProfile({
   fid,
   window,
@@ -117,14 +118,14 @@ export default function TraderProfile({
           <dl className="market-returns">
             <div>
               <dt>Realized net P&amp;L</dt>
-              <dd>{money(profile.metrics.pnlUsd)}</dd>
+              <dd className={direction(profile.metrics.pnlUsd)}>
+                {money(profile.metrics.pnlUsd)}
+              </dd>
             </div>
             <div>
               <dt>Realized ROI</dt>
-              <dd>
-                {profile.metrics.roiPercent === null
-                  ? "—"
-                  : Number(profile.metrics.roiPercent).toFixed(2) + "%"}
+              <dd className={direction(profile.metrics.roiPercent)}>
+                {percentage(profile.metrics.roiPercent)}
               </dd>
             </div>
           </dl>

@@ -16,7 +16,7 @@ for (const [key, value] of Object.entries(manifest))
 if (!seen.size) throw Error("Production entry missing");
 if (
   [...seen].some((key) =>
-    /ConnectDialog|TrustConnectBridge|FarcasterSignInControl|HistoryPanel|RewardsPanel|GuideDialog/.test(key),
+    /ConnectDialog|TrustConnectBridge|FarcasterSignInControl|HistoryPanel|RewardsPanel|GuideDialog|NotificationSettings/.test(key),
   )
 )
   throw Error("Deferred wallet or archive views entered the startup graph");

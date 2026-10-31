@@ -71,6 +71,21 @@ export async function session(db: Database, request: Request) {
 export async function principal(db: Database, request: Request) {
   const s = await session(db, request);
   requireThat(s?.fid, 401, "Connect Farcaster first");
+  // An optional caller precondition, never an identity assertion or authentication bypass.
+  const expected = request.headers.get("x-meme-viewer-fid");
+  if (expected !== null) {
+    requireThat(
+      /^[1-9]\d{0,15}$/.test(expected) &&
+        Number.isSafeInteger(Number(expected)),
+      400,
+      "Invalid account identity",
+    );
+    requireThat(
+      Number(expected) === s.fid,
+      409,
+      "Account changed. Reconnect to continue.",
+    );
+  }
   return s as Session & { fid: number };
 }
 async function establish(
