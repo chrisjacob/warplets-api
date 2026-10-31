@@ -1,6 +1,29 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { boundedResponseJson, api, ApiError } from "./client";
+test("account-bound requests carry a strict precondition without replacing JSON headers", async (context) => {
+  const sent: RequestInit[] = [];
+  context.mock.method(
+    globalThis,
+    "fetch",
+    async (_url: unknown, init: RequestInit) => {
+      sent.push(init);
+      return Response.json({ ok: true });
+    },
+  );
+  await api("/api/meme/notifications", { enabled: 0 }, "POST", undefined, 42);
+  assert.equal(new Headers(sent[0].headers).get("x-meme-viewer-fid"), "42");
+  assert.equal(
+    new Headers(sent[0].headers).get("content-type"),
+    "application/json",
+  );
+  for (const fid of [0, -1, Infinity, 1.5, Number.MAX_SAFE_INTEGER + 1])
+    await assert.rejects(
+      api("/api/meme/vote", {}, "POST", undefined, fid),
+      /Invalid account identity/,
+    );
+  assert.equal(sent.length, 1);
+});
 test("API requests stop on account cancellation or timeout without newer AbortSignal helpers", async (context) => {
   context.mock.timers.enable({ apis: ["setTimeout"] });
   context.mock.method(

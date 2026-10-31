@@ -1,5 +1,7 @@
 # Overnight handoff — 31 October 2026
 
+Historical snapshot before the later administration, seeded QA and UI reviews. Start with [REVIEW-TONIGHT.md](REVIEW-TONIGHT.md) for current links, checks, PR stack and owner actions. The empty-state description and test/bundle counts below describe the earlier build, not the current populated review.
+
 The independently executable overnight scope is implemented in [draft integration PR #121](https://github.com/chrisjacob/warplets-api/pull/121) on `codex/10x-reviewed-overnight`, with focused PRs **#107–120** retained for review. This complete branch targets released `main`, not another feature branch. Nothing was merged, deployed, publicly exposed, registered with a host, posted socially or submitted financially on mainnet. Existing products, local previews, archived discovery references and provider caps are preserved.
 
 ## What is ready to review
@@ -16,17 +18,17 @@ The [focused delivery record](OVERNIGHT-DELIVERY.md) maps each change to its PR.
 
 ## Evidence and limits
 
-| Layer | Result | Practical limit |
-| --- | --- | --- |
-| Foundation | 116 core + 11 script tests; typechecks, isolated boundaries, app build and Worker dry-run pass | No deployment |
-| Browser | 44 desktop/mobile viewport journeys pass; Chromium/WebKit gateway regressions run in CI | No claim of physical iPhone/Android, wallet handoff or registered-host certification |
-| Linux protocol | Actual captured-program launch→settlement→fund→timed claim, local buy/sell, recovery and 100 allocations across ten overlapping campaigns | Disposable keys, local clock and accounts; not mainnet execution or +240h observation |
-| Custody | Actual source-built vault/Jito proof passed run [41087980837](https://github.com/chrisjacob/warplets-api/actions/runs/41087980837) | Source ELF differs from captured mainnet ELF; provider/source correspondence and actual custody pending |
-| Scale | 1,000 traders/40,000 events, paged publication; one-SELECT market/board/profile reads; 365-campaign reward/history suite | SQLite lab timings, not production D1 certification |
-| Startup | 71.7 KiB gzip against 80 KiB budget | No field Core Web Vitals; DevTools trace tooling unavailable |
-| Security | Production audit has one unpatched low deepmerge finding and two existing ignored high browser-installer findings; no unignored moderate/high/critical | No new audit exceptions; reassess dependencies before production |
-| Public blockchain | 24 of 50 approved attempts consumed in one persistent ledger; dated account/program/fee/rent evidence retained | Full ownership only 5/10,000; no paid-source increase; no mainnet writes |
-| Existing production | Network, dashboard, thesis, existing-product URLs, legal pages and August archive URLs returned HTTP 200 at 03:47 AEDT | HTTP/API smoke only; Network still stale/incomplete |
+| Layer               | Result                                                                                                                                                 | Practical limit                                                                                         |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------- |
+| Foundation          | 116 core + 11 script tests; typechecks, isolated boundaries, app build and Worker dry-run pass                                                         | No deployment                                                                                           |
+| Browser             | 44 desktop/mobile viewport journeys pass; Chromium/WebKit gateway regressions run in CI                                                                | No claim of physical iPhone/Android, wallet handoff or registered-host certification                    |
+| Linux protocol      | Actual captured-program launch→settlement→fund→timed claim, local buy/sell, recovery and 100 allocations across ten overlapping campaigns              | Disposable keys, local clock and accounts; not mainnet execution or +240h observation                   |
+| Custody             | Actual source-built vault/Jito proof passed run [41087980837](https://github.com/chrisjacob/warplets-api/actions/runs/41087980837)                     | Source ELF differs from captured mainnet ELF; provider/source correspondence and actual custody pending |
+| Scale               | 1,000 traders/40,000 events, paged publication; one-SELECT market/board/profile reads; 365-campaign reward/history suite                               | SQLite lab timings, not production D1 certification                                                     |
+| Startup             | 71.7 KiB gzip against 80 KiB budget                                                                                                                    | No field Core Web Vitals; DevTools trace tooling unavailable                                            |
+| Security            | Production audit has one unpatched low deepmerge finding and two existing ignored high browser-installer findings; no unignored moderate/high/critical | No new audit exceptions; reassess dependencies before production                                        |
+| Public blockchain   | 24 of 50 approved attempts consumed in one persistent ledger; dated account/program/fee/rent evidence retained                                         | Full ownership only 5/10,000; no paid-source increase; no mainnet writes                                |
+| Existing production | Network, dashboard, thesis, existing-product URLs, legal pages and August archive URLs returned HTTP 200 at 03:47 AEDT                                 | HTTP/API smoke only; Network still stale/incomplete                                                     |
 
 Latest focused and full-integration checks are visible on GitHub; an older successful parent run is not treated as the new head's result. CI installs from frozen lockfiles and repeats root/security/shared-Connect/existing-product build and routing checks. Local ignored evidence is under `.tmp/qa-next-stage/`, including final foundation/browser logs, public smoke JSON, program captures and custody artifact. These are not placed in Git. Public address observations and retained binary hashes are summarized in [LIVE-READS-2026-10-31.md](LIVE-READS-2026-10-31.md).
 

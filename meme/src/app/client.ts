@@ -45,7 +45,13 @@ export async function api(
   body?: unknown,
   method = body == null ? "GET" : "POST",
   signal?: AbortSignal,
+  expectedFid?: number | null,
 ) {
+  if (
+    expectedFid != null &&
+    (!Number.isSafeInteger(expectedFid) || expectedFid <= 0)
+  )
+    throw Error("Invalid account identity");
   const controller = new AbortController();
   let timedOut = false;
   const cancel = () => controller.abort();
@@ -60,9 +66,14 @@ export async function api(
       method,
       signal: controller.signal,
       credentials: "same-origin",
+      headers: {
+        ...(body != null ? { "content-type": "application/json" } : {}),
+        ...(expectedFid != null
+          ? { "x-meme-viewer-fid": String(expectedFid) }
+          : {}),
+      },
       ...(body != null
         ? {
-            headers: { "content-type": "application/json" },
             body: JSON.stringify(body),
           }
         : {}),

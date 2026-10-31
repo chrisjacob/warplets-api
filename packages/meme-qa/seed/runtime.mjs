@@ -500,7 +500,12 @@ async function handle(message) {
   };
   const internal = new Request(url, {
     method: message.method,
-    headers,
+    headers: {
+      ...headers,
+      ...(message.expectedFid != null
+        ? { "x-meme-viewer-fid": String(message.expectedFid) }
+        : {}),
+    },
     ...(message.method === "POST"
       ? { body: JSON.stringify(message.body) }
       : {}),

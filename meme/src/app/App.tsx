@@ -8,11 +8,12 @@ import { IdentityPanel } from "./IdentityPanel";
 import { Tabs, type Tab as LaunchTab } from "./Tabs";
 import { AppHeader } from "./AppHeader";
 import { FeedbackProvider } from "./Feedback";
+import NotificationDisclosure from "./NotificationDisclosure";
+import SectionBoundary from "./SectionBoundary";
 const HistoryPanel = lazy(() => import("./HistoryPanel"));
 const RewardsPanel = lazy(() => import("./RewardsPanel"));
 const MarketsPanel = lazy(() => import("./MarketsPanel"));
 const LeadersPanel = lazy(() => import("./LeadersPanel"));
-const NotificationSettings = lazy(() => import("./NotificationSettings"));
 type Tab = "Today" | "Rewards" | "Launches";
 function FixtureApp() {
   const [tab, setTab] = useState<Tab>("Today");
@@ -335,31 +336,41 @@ function LaunchpadApp() {
                 stale={!!error}
                 onRewards={() => changeTab("Rewards")}
               />
-              <Suspense fallback={<p role="status">Loading markets…</p>}>
-                <MarketsPanel />
-              </Suspense>
+              <SectionBoundary label="Markets">
+                <Suspense fallback={<p role="status">Loading markets…</p>}>
+                  <MarketsPanel />
+                </Suspense>
+              </SectionBoundary>
             </>
           )}
           {tab === "Leaders" && (
-            <Suspense fallback={<p role="status">Loading leaders…</p>}>
-              <LeadersPanel data={data} onToday={() => changeTab("Today")} />
-            </Suspense>
+            <SectionBoundary label="Leaders">
+              <Suspense fallback={<p role="status">Loading leaders…</p>}>
+                <LeadersPanel data={data} onToday={() => changeTab("Today")} />
+              </Suspense>
+            </SectionBoundary>
           )}
           {tab === "Rewards" &&
             (identity?.farcasterFid ? (
-              <Suspense fallback={<p role="status">Loading rewards…</p>}>
-                <>
-                  <RewardsPanel
-                    key={"rewards:" + identity.farcasterFid}
-                    fid={identity.farcasterFid}
-                    onToday={() => changeTab("Today")}
-                  />
-                  <NotificationSettings
-                    key={"notifications:" + identity.farcasterFid}
-                    fid={identity.farcasterFid}
-                  />
-                </>
-              </Suspense>
+              <>
+                <SectionBoundary
+                  label="Rewards"
+                  key={"reward-panel:" + identity.farcasterFid}
+                >
+                  <Suspense fallback={<p role="status">Loading rewards…</p>}>
+                    <RewardsPanel
+                      key={"rewards:" + identity.farcasterFid}
+                      fid={identity.farcasterFid}
+                      onToday={() => changeTab("Today")}
+                    />
+                  </Suspense>
+                </SectionBoundary>
+                <NotificationDisclosure
+                  key={"notifications:" + identity.farcasterFid}
+                  fid={identity.farcasterFid}
+                  onReconnect={openAccount}
+                />
+              </>
             ) : (
               <section className="card" aria-label="Rewards">
                 <h2>Your rewards</h2>
@@ -379,9 +390,11 @@ function LaunchpadApp() {
               </section>
             ))}
           {tab === "History" && (
-            <Suspense fallback={<p role="status">Loading rounds…</p>}>
-              <HistoryPanel onToday={() => changeTab("Today")} />
-            </Suspense>
+            <SectionBoundary label="History">
+              <Suspense fallback={<p role="status">Loading rounds…</p>}>
+                <HistoryPanel onToday={() => changeTab("Today")} />
+              </Suspense>
+            </SectionBoundary>
           )}
         </div>
         {!qaEnabled &&

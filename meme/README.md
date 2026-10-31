@@ -1,6 +1,26 @@
-# 10X daily launchpad — local milestones 1–3
+# 10X daily launchpad — local review
 
-Read `../docs/10x/README.md` and `../docs/10x/BUILD.md` first. This package is isolated local development. Its fixture preview is read-only; its separate loopback-only identity APIs support verified participation. Launch execution, funding and claims remain disabled.
+Start with [tonight's review](../docs/10x/REVIEW-TONIGHT.md) for the current walkthrough, owner actions and production gates. This package contains the local identity/rounds, accounting/settlement, markets/trading, mini-app, administration and QA foundation. Real launch execution, funding, claims and notification delivery remain disabled.
+
+## Current populated review
+
+From `.worktrees/10x-operations`, use these in separate terminals only if the corresponding service is stopped:
+
+```powershell
+pnpm --dir meme review:worker
+pnpm --dir meme review:dev
+pnpm --dir packages/meme-qa seed:serve
+```
+
+- Populated app: `http://127.0.0.1:5198/?qa=seeded`
+- Admin: `http://127.0.0.1:5198/__adminhidden/meme?qa=seeded`
+- Real Connect/local state: `http://127.0.0.1:5198/`
+
+The frontend uses normal Worker port 8800 and isolated QA port 8801. Thirty launches, 240 fictional people, synthetic prices/trades/rewards and simulated actions are available in QA mode. Its toolbar changes personas/scenarios; the footer switches QA mode. Current seed storage is `.tmp/meme-qa/seeded-preview`, separate from `meme/.wrangler/review-state`. Preserve both; resetting is not a startup step. Apply pending additive normal-review migrations with `pnpm --dir meme review:migrate` when needed.
+
+Read [ADMIN-AND-SEEDED-QA.md](../docs/10x/ADMIN-AND-SEEDED-QA.md) for QA/admin limits, [the product entry](../docs/10x/README.md) for the specification and [BUILD.md](../docs/10x/BUILD.md) for versioned rules. QA mode does not initialize real Connect or broadcast transactions.
+
+## Earlier minimal preview
 
 From the repository root, install with `pnpm install --frozen-lockfile`, then:
 
@@ -8,7 +28,7 @@ From the repository root, install with `pnpm install --frozen-lockfile`, then:
 pnpm --dir meme dev
 ```
 
-Open `http://127.0.0.1:5194`. Today, Rewards and Launches read persisted local rounds, final entitlements and selection history. `?fixture=1` opens the original read-only design fixtures without an identity or backend. Shared Connect supports Farcaster, Base and wallet verification; the local operator records ownership/holding evidence and resumes settlement. Financial transactions remain disabled.
+Open `http://127.0.0.1:5194`. Today, Rewards, Leaders and History read the separate minimal-preview database. `?fixture=1` opens the original read-only design fixtures without an identity or backend. Shared Connect supports Farcaster, Base and wallet verification; the local operator records ownership/holding evidence and resumes settlement. Financial transactions remain disabled. This older preview is independent of the current 5198 review.
 
 The independent Worker and database can be exercised in a second terminal:
 

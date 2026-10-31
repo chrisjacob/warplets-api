@@ -21,7 +21,7 @@ export default function PerformanceChart({ view }: { view: MarketView }) {
     const min = Math.min(100, ...values),
       max = Math.max(100, ...values),
       padding = (max - min || 8) * 0.12,
-      lo = min - padding,
+      lo = Math.max(0, min - padding),
       hi = max + padding,
       from = points[0]?.at ?? 0,
       span = (points.at(-1)?.at ?? 0) - from || 1;
@@ -92,6 +92,16 @@ export default function PerformanceChart({ view }: { view: MarketView }) {
   };
   const change = (n: string | null) =>
     n === null ? "Unknown" : percentage(String(Number(n) - 100));
+  const endpoint = (at: number) =>
+    plot.to - plot.from <= 86400000
+      ? new Date(at).toLocaleTimeString(undefined, {
+          hour: "numeric",
+          minute: "2-digit",
+        })
+      : new Date(at).toLocaleDateString(undefined, {
+          month: "short",
+          day: "numeric",
+        });
   return (
     <div
       className="chart-explorer"
@@ -192,16 +202,12 @@ export default function PerformanceChart({ view }: { view: MarketView }) {
           </g>
         )}
         <text x="42" y="181" className="chart-label">
-          {new Date(plot.from).toLocaleDateString(undefined, {
-            month: "short",
-            day: "numeric",
-          })}
+          <title>{new Date(plot.from).toLocaleString()}</title>
+          {endpoint(plot.from)}
         </text>
         <text x="346" y="181" textAnchor="end" className="chart-label">
-          {new Date(plot.to).toLocaleDateString(undefined, {
-            month: "short",
-            day: "numeric",
-          })}
+          <title>{new Date(plot.to).toLocaleString()}</title>
+          {endpoint(plot.to)}
         </text>
       </svg>
       <span id={hint} className="sr-only">

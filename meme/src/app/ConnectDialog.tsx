@@ -121,15 +121,27 @@ export default function ConnectDialog({
         if (!provider)
           throw Error("Solana wallet is unavailable in this host.");
         const address = await nativeAccount(provider);
-        const challenge = await api("/api/auth/solana/challenge", {
-          address,
-          role,
-        });
+        const challenge = await api(
+          "/api/auth/solana/challenge",
+          {
+            address,
+            role,
+          },
+          "POST",
+          undefined,
+          identity?.farcasterFid,
+        );
         const signed = await provider.signMessage(challenge.message);
-        await api("/api/auth/solana/verify", {
-          nonce: challenge.nonce,
-          signature: nativeSignature(signed.signature),
-        });
+        await api(
+          "/api/auth/solana/verify",
+          {
+            nonce: challenge.nonce,
+            signature: nativeSignature(signed.signature),
+          },
+          "POST",
+          undefined,
+          identity?.farcasterFid,
+        );
         const next = await refresh();
         if (
           next?.wallets.some(
@@ -169,19 +181,31 @@ export default function ConnectDialog({
         a.chains.some((c) => c.startsWith("solana:")),
       );
       if (!account) throw Error("No Solana account returned");
-      const challenge = await api("/api/auth/solana/challenge", {
-        address: account.address,
-        role,
-      });
+      const challenge = await api(
+        "/api/auth/solana/challenge",
+        {
+          address: account.address,
+          role,
+        },
+        "POST",
+        undefined,
+        identity?.farcasterFid,
+      );
       const result = await signer.signMessage({
         account,
         message: new TextEncoder().encode(challenge.message),
       });
       if (!result[0]) throw Error("No signature returned");
-      await api("/api/auth/solana/verify", {
-        nonce: challenge.nonce,
-        signature: encode58(result[0].signature),
-      });
+      await api(
+        "/api/auth/solana/verify",
+        {
+          nonce: challenge.nonce,
+          signature: encode58(result[0].signature),
+        },
+        "POST",
+        undefined,
+        identity?.farcasterFid,
+      );
       const next = await refresh();
       if (
         next?.wallets.some(

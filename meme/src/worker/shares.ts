@@ -108,7 +108,8 @@ export async function createCard(
       asOf: view.asOf,
       mode: view.market.mode,
       sourceHash: view.inputHash,
-      targetPath: "/?market=" + encodeURIComponent(subject),
+      targetPath:
+        "/?" + new URLSearchParams({ market: subject, marketWindow: window }),
     };
   }
   const card: ShareCard = {
