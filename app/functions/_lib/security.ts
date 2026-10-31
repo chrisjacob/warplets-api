@@ -7,6 +7,8 @@ interface AdminKeyRecord {
 
 interface RequireAdminScopeOptions {
   scope: string;
+  /** Server-selected alternatives, used only for compatible 2FA bootstrap. */
+  anyOfScopes?: readonly string[];
   require2fa?: boolean;
 }
 
@@ -55,7 +57,7 @@ function cloneHeaders(headers?: HeadersInit): Headers {
 
 export function applySecurityHeaders(
   response: Response,
-  options?: { isHtml?: boolean; csp?: string }
+  options?: { isHtml?: boolean; csp?: string },
 ): Response {
   const headers = cloneHeaders(response.headers);
   headers.set("x-content-type-options", "nosniff");
@@ -106,14 +108,22 @@ function compactWhitespace(value: string): string {
   return value.replace(/\s+/g, " ").trim();
 }
 
-function sanitizeAuditText(value: string | null | undefined, maxLength: number): string | null {
+function sanitizeAuditText(
+  value: string | null | undefined,
+  maxLength: number,
+): string | null {
   if (!value) return null;
-  const cleaned = compactWhitespace(value.replace(/[\u0000-\u001F\u007F]/g, ""));
+  const cleaned = compactWhitespace(
+    value.replace(/[\u0000-\u001F\u007F]/g, ""),
+  );
   if (!cleaned) return null;
   return cleaned.slice(0, maxLength);
 }
 
-async function hashAuditIp(ipAddress: string | null | undefined, salt?: string): Promise<string | null> {
+async function hashAuditIp(
+  ipAddress: string | null | undefined,
+  salt?: string,
+): Promise<string | null> {
   if (!ipAddress) return null;
   const normalizedIp = sanitizeAuditText(ipAddress, 128);
   if (!normalizedIp) return null;
@@ -133,7 +143,10 @@ function parseAdminKeyConfig(raw?: string): AdminKeyRecord[] {
         const id = typeof rec.id === "string" ? rec.id.trim() : "";
         const key = typeof rec.key === "string" ? rec.key.trim() : "";
         const scopes = Array.isArray(rec.scopes)
-          ? rec.scopes.filter((scope): scope is string => typeof scope === "string" && scope.length > 0)
+          ? rec.scopes.filter(
+              (scope): scope is string =>
+                typeof scope === "string" && scope.length > 0,
+            )
           : [];
         const active = rec.active !== false;
         if (!id || !key || scopes.length === 0) return null;
@@ -146,7 +159,7 @@ function parseAdminKeyConfig(raw?: string): AdminKeyRecord[] {
   }
 }
 
-function readAdminKeys(env: SecurityEnv): AdminKeyRecord[] {
+export function readAdminKeys(env: SecurityEnv): AdminKeyRecord[] {
   return [
     ...parseAdminKeyConfig(env.ADMIN_API_KEYS_JSON),
     ...parseAdminKeyConfig(env.ADMIN_API_KEYS_JSON_EXTRA),
@@ -169,10 +182,14 @@ export async function rateLimit(
   namespace: string,
   subject: string,
   limit: number,
-  windowSeconds: number
+  windowSeconds: number,
 ): Promise<RateLimitResult> {
   if (!kv) {
-    return { allowed: true, remaining: Math.max(0, limit - 1), retryAfterSeconds: 0 };
+    return {
+      allowed: true,
+      remaining: Math.max(0, limit - 1),
+      retryAfterSeconds: 0,
+    };
   }
 
   try {
@@ -180,9 +197,13 @@ export async function rateLimit(
     const keyHash = await sha256Hex(`${namespace}:${subject}`);
     const key = `rl:v1:${namespace}:${keyHash}`;
     const raw = await kv.get(key, "json");
-    const current = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+    const current =
+      raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
     const count = typeof current.count === "number" ? current.count : 0;
-    const resetAt = typeof current.resetAt === "number" ? current.resetAt : now + windowSeconds * 1000;
+    const resetAt =
+      typeof current.resetAt === "number"
+        ? current.resetAt
+        : now + windowSeconds * 1000;
 
     if (now > resetAt) {
       await kv.put(
@@ -191,9 +212,13 @@ export async function rateLimit(
           count: 1,
           resetAt: now + windowSeconds * 1000,
         }),
-        { expirationTtl: windowSeconds }
+        { expirationTtl: windowSeconds },
       );
-      return { allowed: true, remaining: Math.max(0, limit - 1), retryAfterSeconds: 0 };
+      return {
+        allowed: true,
+        remaining: Math.max(0, limit - 1),
+        retryAfterSeconds: 0,
+      };
     }
 
     const nextCount = count + 1;
@@ -203,7 +228,7 @@ export async function rateLimit(
         count: nextCount,
         resetAt,
       }),
-      { expirationTtl: Math.max(1, Math.ceil((resetAt - now) / 1000)) }
+      { expirationTtl: Math.max(1, Math.ceil((resetAt - now) / 1000)) },
     );
 
     if (nextCount > limit) {
@@ -221,7 +246,11 @@ export async function rateLimit(
     };
   } catch {
     // Never hard-fail request handling due to KV availability/config issues.
-    return { allowed: true, remaining: Math.max(0, limit - 1), retryAfterSeconds: 0 };
+    return {
+      allowed: true,
+      remaining: Math.max(0, limit - 1),
+      retryAfterSeconds: 0,
+    };
   }
 }
 
@@ -236,15 +265,19 @@ export async function logSecurityEvent(
     ipAddress?: string | null;
     route?: string | null;
     details?: string | null;
-  }
+  },
 ): Promise<void> {
   if (!db) return;
   const now = new Date().toISOString();
   try {
-    const hashedIp = await hashAuditIp(payload.ipAddress ?? null, options?.logSalt);
+    const hashedIp = await hashAuditIp(
+      payload.ipAddress ?? null,
+      options?.logSalt,
+    );
     const safeEventType = sanitizeAuditText(payload.eventType, 80) ?? "unknown";
     const safeOutcome = sanitizeAuditText(payload.outcome, 80) ?? "unknown";
-    const safeActorType = sanitizeAuditText(payload.actorType ?? "system", 40) ?? "system";
+    const safeActorType =
+      sanitizeAuditText(payload.actorType ?? "system", 40) ?? "system";
     const safeActorId = sanitizeAuditText(payload.actorId ?? null, 120);
     const safeRoute = sanitizeAuditText(payload.route ?? null, 180);
     const safeDetails = sanitizeAuditText(payload.details ?? null, 1024);
@@ -253,7 +286,7 @@ export async function logSecurityEvent(
       .prepare(
         `INSERT INTO security_audit_events (
            event_type, outcome, actor_type, actor_id, ip_address, route, details, created_on
-         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .bind(
         safeEventType,
@@ -263,7 +296,7 @@ export async function logSecurityEvent(
         hashedIp,
         safeRoute,
         safeDetails,
-        now
+        now,
       )
       .run();
   } catch {
@@ -273,27 +306,40 @@ export async function logSecurityEvent(
 
 export async function requireAdminScope<T extends SecurityEnv>(
   context: { env: T; request: Request },
-  options: RequireAdminScopeOptions
+  options: RequireAdminScopeOptions,
 ): Promise<{ ok: true; keyId: string } | { ok: false; response: Response }> {
   const suppliedToken = context.request.headers.get("x-admin-token")?.trim();
   const requestUrl = new URL(context.request.url);
   const ip = getClientIp(context.request);
 
   if (!suppliedToken) {
-    await logSecurityEvent(context.env.WARPLETS, { logSalt: context.env.SECURITY_LOG_SALT }, {
-      eventType: "admin_auth",
-      outcome: "missing_token",
-      actorType: "admin_key",
-      ipAddress: ip,
-      route: requestUrl.pathname,
-      details: options.scope,
-    });
-    return { ok: false, response: jsonSecure({ error: "Unauthorized" }, { status: 401 }) };
+    await logSecurityEvent(
+      context.env.WARPLETS,
+      { logSalt: context.env.SECURITY_LOG_SALT },
+      {
+        eventType: "admin_auth",
+        outcome: "missing_token",
+        actorType: "admin_key",
+        ipAddress: ip,
+        route: requestUrl.pathname,
+        details: options.scope,
+      },
+    );
+    return {
+      ok: false,
+      response: jsonSecure({ error: "Unauthorized" }, { status: 401 }),
+    };
   }
 
   const keys = readAdminKeys(context.env);
   const validKey = keys.find(
-    (record) => record.active !== false && record.key === suppliedToken && keyHasScope(record.scopes, options.scope)
+    (record) =>
+      record.active !== false &&
+      record.key === suppliedToken &&
+      (keyHasScope(record.scopes, options.scope) ||
+        (options.anyOfScopes ?? []).some((scope) =>
+          keyHasScope(record.scopes, scope),
+        )),
   );
 
   if (validKey) {
@@ -301,47 +347,76 @@ export async function requireAdminScope<T extends SecurityEnv>(
       return { ok: true, keyId: validKey.id };
     }
 
-    const sessionToken = context.request.headers.get("x-admin-session")?.trim() ?? null;
-    const session = await verifyAdminSessionToken(context.env.ACTION_SESSION_SECRET, sessionToken);
+    const sessionToken =
+      context.request.headers.get("x-admin-session")?.trim() ?? null;
+    const session = await verifyAdminSessionToken(
+      context.env.ACTION_SESSION_SECRET,
+      sessionToken,
+    );
     if (!session.valid || session.keyId !== validKey.id) {
-      await logSecurityEvent(context.env.WARPLETS, { logSalt: context.env.SECURITY_LOG_SALT }, {
-        eventType: "admin_auth",
-        outcome: session.valid ? "wrong_2fa_key" : `invalid_2fa:${session.reason}`,
-        actorType: "admin_key",
-        actorId: validKey.id,
-        ipAddress: ip,
-        route: requestUrl.pathname,
-        details: options.scope,
-      });
-      return { ok: false, response: jsonSecure({ error: "2FA required" }, { status: 401 }) };
+      await logSecurityEvent(
+        context.env.WARPLETS,
+        { logSalt: context.env.SECURITY_LOG_SALT },
+        {
+          eventType: "admin_auth",
+          outcome: session.valid
+            ? "wrong_2fa_key"
+            : `invalid_2fa:${session.reason}`,
+          actorType: "admin_key",
+          actorId: validKey.id,
+          ipAddress: ip,
+          route: requestUrl.pathname,
+          details: options.scope,
+        },
+      );
+      return {
+        ok: false,
+        response: jsonSecure({ error: "2FA required" }, { status: 401 }),
+      };
     }
 
     return { ok: true, keyId: validKey.id };
   }
 
-  const authRate = await rateLimit(context.env.WARPLETS_KV, "admin-auth", ip, 20, 60);
+  const authRate = await rateLimit(
+    context.env.WARPLETS_KV,
+    "admin-auth",
+    ip,
+    20,
+    60,
+  );
   if (!authRate.allowed) {
-    const response = jsonSecure({ error: "Too many failed auth attempts" }, { status: 429 });
+    const response = jsonSecure(
+      { error: "Too many failed auth attempts" },
+      { status: 429 },
+    );
     response.headers.set("retry-after", String(authRate.retryAfterSeconds));
     return { ok: false, response };
   }
 
-  await logSecurityEvent(context.env.WARPLETS, { logSalt: context.env.SECURITY_LOG_SALT }, {
-    eventType: "admin_auth",
-    outcome: "invalid_token",
-    actorType: "admin_key",
-    ipAddress: ip,
-    route: requestUrl.pathname,
-    details: options.scope,
-  });
+  await logSecurityEvent(
+    context.env.WARPLETS,
+    { logSalt: context.env.SECURITY_LOG_SALT },
+    {
+      eventType: "admin_auth",
+      outcome: "invalid_token",
+      actorType: "admin_key",
+      ipAddress: ip,
+      route: requestUrl.pathname,
+      details: options.scope,
+    },
+  );
 
-  return { ok: false, response: jsonSecure({ error: "Unauthorized" }, { status: 401 }) };
+  return {
+    ok: false,
+    response: jsonSecure({ error: "Unauthorized" }, { status: 401 }),
+  };
 }
 
 export async function createAdminSessionToken(
   secret: string | undefined,
   keyId: string,
-  ttlSeconds = 1800
+  ttlSeconds = 1800,
 ): Promise<string | null> {
   const trimmed = secret?.trim();
   if (!trimmed) return null;
@@ -351,16 +426,22 @@ export async function createAdminSessionToken(
     exp: Math.floor(Date.now() / 1000) + ttlSeconds,
   };
   const payloadJson = JSON.stringify(payload);
-  const payloadEncoded = arrayBufferToBase64Url(new TextEncoder().encode(payloadJson).buffer);
+  const payloadEncoded = arrayBufferToBase64Url(
+    new TextEncoder().encode(payloadJson).buffer,
+  );
   const key = await importActionKey(trimmed);
-  const signature = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(payloadEncoded));
+  const signature = await crypto.subtle.sign(
+    "HMAC",
+    key,
+    new TextEncoder().encode(payloadEncoded),
+  );
   const sigEncoded = arrayBufferToBase64Url(signature);
   return `${payloadEncoded}.${sigEncoded}`;
 }
 
 export async function verifyAdminSessionToken(
   secret: string | undefined,
-  token: string | null
+  token: string | null,
 ): Promise<{ valid: true; keyId: string } | { valid: false; reason: string }> {
   const trimmed = secret?.trim();
   if (!trimmed) return { valid: false, reason: "missing_secret" };
@@ -371,12 +452,16 @@ export async function verifyAdminSessionToken(
 
   const key = await importActionKey(trimmed);
   const signatureBytes = base64UrlToBytes(sigEncoded);
-  if (!signatureBytes || arrayBufferToBase64Url(signatureBytes.buffer as ArrayBuffer) !== sigEncoded) return { valid: false, reason: "invalid_signature" };
+  if (
+    !signatureBytes ||
+    arrayBufferToBase64Url(signatureBytes.buffer as ArrayBuffer) !== sigEncoded
+  )
+    return { valid: false, reason: "invalid_signature" };
   const verified = await crypto.subtle.verify(
     "HMAC",
     key,
     signatureBytes.buffer as ArrayBuffer,
-    new TextEncoder().encode(payloadEncoded)
+    new TextEncoder().encode(payloadEncoded),
   );
   if (!verified) return { valid: false, reason: "invalid_signature" };
 
@@ -384,11 +469,22 @@ export async function verifyAdminSessionToken(
   if (!payloadBytes) return { valid: false, reason: "invalid_payload" };
 
   try {
-    const payload = JSON.parse(new TextDecoder().decode(payloadBytes)) as AdminSessionTokenPayload;
-    if (!payload || payload.purpose !== "admin_2fa" || typeof payload.keyId !== "string" || !payload.keyId.trim()) {
+    const payload = JSON.parse(
+      new TextDecoder().decode(payloadBytes),
+    ) as AdminSessionTokenPayload;
+    if (
+      !payload ||
+      payload.purpose !== "admin_2fa" ||
+      typeof payload.keyId !== "string" ||
+      !payload.keyId.trim()
+    ) {
       return { valid: false, reason: "invalid_payload" };
     }
-    if (typeof payload.exp !== "number" || !Number.isSafeInteger(payload.exp) || Math.floor(Date.now() / 1000) >= payload.exp) {
+    if (
+      typeof payload.exp !== "number" ||
+      !Number.isSafeInteger(payload.exp) ||
+      Math.floor(Date.now() / 1000) >= payload.exp
+    ) {
       return { valid: false, reason: "expired" };
     }
     return { valid: true, keyId: payload.keyId };
@@ -397,24 +493,32 @@ export async function verifyAdminSessionToken(
   }
 }
 
-export async function readJsonBody<T>(request: Request): Promise<{ ok: true; value: T } | { ok: false; response: Response }> {
+export async function readJsonBody<T>(
+  request: Request,
+): Promise<{ ok: true; value: T } | { ok: false; response: Response }> {
   try {
     const parsed = (await request.json()) as T;
     return { ok: true, value: parsed };
   } catch {
-    return { ok: false, response: jsonSecure({ error: "Invalid JSON" }, { status: 400 }) };
+    return {
+      ok: false,
+      response: jsonSecure({ error: "Invalid JSON" }, { status: 400 }),
+    };
   }
 }
 
 export async function readJsonBodyWithLimit<T>(
   request: Request,
-  maxBytes: number
+  maxBytes: number,
 ): Promise<{ ok: true; value: T } | { ok: false; response: Response }> {
   const contentLengthHeader = request.headers.get("content-length");
   if (contentLengthHeader) {
     const contentLength = Number.parseInt(contentLengthHeader, 10);
     if (Number.isFinite(contentLength) && contentLength > maxBytes) {
-      return { ok: false, response: jsonSecure({ error: "Payload too large" }, { status: 413 }) };
+      return {
+        ok: false,
+        response: jsonSecure({ error: "Payload too large" }, { status: 413 }),
+      };
     }
   }
 
@@ -430,7 +534,13 @@ export async function readJsonBodyWithLimit<T>(
         size += value.byteLength;
         if (size > maxBytes) {
           await reader.cancel().catch(() => undefined);
-          return { ok: false, response: jsonSecure({ error: "Payload too large" }, { status: 413 }) };
+          return {
+            ok: false,
+            response: jsonSecure(
+              { error: "Payload too large" },
+              { status: 413 },
+            ),
+          };
         }
         chunks.push(value);
       }
@@ -439,27 +549,44 @@ export async function readJsonBodyWithLimit<T>(
     }
     const bytes = new Uint8Array(size);
     let offset = 0;
-    for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
+    for (const chunk of chunks) {
+      bytes.set(chunk, offset);
+      offset += chunk.byteLength;
+    }
     const raw = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
     const parsed = JSON.parse(raw) as T;
     return { ok: true, value: parsed };
   } catch {
-    return { ok: false, response: jsonSecure({ error: "Invalid JSON" }, { status: 400 }) };
+    return {
+      ok: false,
+      response: jsonSecure({ error: "Invalid JSON" }, { status: 400 }),
+    };
   }
 }
 
 export function parseObjectPayload<T extends object>(
   value: unknown,
-  allowedKeys: string[]
+  allowedKeys: string[],
 ): { ok: true; payload: T } | { ok: false; response: Response } {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return { ok: false, response: jsonSecure({ error: "Invalid JSON payload" }, { status: 400 }) };
+    return {
+      ok: false,
+      response: jsonSecure({ error: "Invalid JSON payload" }, { status: 400 }),
+    };
   }
 
   const payload = value as Record<string, unknown>;
-  const hasUnexpectedKeys = Object.keys(payload).some((key) => !allowedKeys.includes(key));
+  const hasUnexpectedKeys = Object.keys(payload).some(
+    (key) => !allowedKeys.includes(key),
+  );
   if (hasUnexpectedKeys) {
-    return { ok: false, response: jsonSecure({ error: "Unexpected fields in payload" }, { status: 400 }) };
+    return {
+      ok: false,
+      response: jsonSecure(
+        { error: "Unexpected fields in payload" },
+        { status: 400 },
+      ),
+    };
   }
 
   return { ok: true, payload: payload as T };
@@ -469,7 +596,10 @@ function arrayBufferToBase64Url(buffer: ArrayBuffer): string {
   const bytes = new Uint8Array(buffer);
   let binary = "";
   for (const byte of bytes) binary += String.fromCharCode(byte);
-  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+  return btoa(binary)
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/g, "");
 }
 
 function base64UrlToBytes(value: string): Uint8Array | null {
@@ -491,14 +621,14 @@ async function importActionKey(secret: string): Promise<CryptoKey> {
     new TextEncoder().encode(secret),
     { name: "HMAC", hash: "SHA-256" },
     false,
-    ["sign", "verify"]
+    ["sign", "verify"],
   );
 }
 
 export async function createActionSessionToken(
   secret: string | undefined,
   fid: number,
-  ttlSeconds = 3600
+  ttlSeconds = 3600,
 ): Promise<string | null> {
   const trimmed = secret?.trim();
   if (!trimmed) return null;
@@ -507,16 +637,22 @@ export async function createActionSessionToken(
     exp: Math.floor(Date.now() / 1000) + ttlSeconds,
   };
   const payloadJson = JSON.stringify(payload);
-  const payloadEncoded = arrayBufferToBase64Url(new TextEncoder().encode(payloadJson).buffer);
+  const payloadEncoded = arrayBufferToBase64Url(
+    new TextEncoder().encode(payloadJson).buffer,
+  );
   const key = await importActionKey(trimmed);
-  const signature = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(payloadEncoded));
+  const signature = await crypto.subtle.sign(
+    "HMAC",
+    key,
+    new TextEncoder().encode(payloadEncoded),
+  );
   const sigEncoded = arrayBufferToBase64Url(signature);
   return `${payloadEncoded}.${sigEncoded}`;
 }
 
 export async function verifyActionSessionToken(
   secret: string | undefined,
-  token: string | null
+  token: string | null,
 ): Promise<{ valid: true; fid: number } | { valid: false; reason: string }> {
   const trimmed = secret?.trim();
   if (!trimmed) return { valid: false, reason: "missing_secret" };
@@ -527,12 +663,16 @@ export async function verifyActionSessionToken(
 
   const key = await importActionKey(trimmed);
   const signatureBytes = base64UrlToBytes(sigEncoded);
-  if (!signatureBytes || arrayBufferToBase64Url(signatureBytes.buffer as ArrayBuffer) !== sigEncoded) return { valid: false, reason: "invalid_signature" };
+  if (
+    !signatureBytes ||
+    arrayBufferToBase64Url(signatureBytes.buffer as ArrayBuffer) !== sigEncoded
+  )
+    return { valid: false, reason: "invalid_signature" };
   const verified = await crypto.subtle.verify(
     "HMAC",
     key,
     signatureBytes.buffer as ArrayBuffer,
-    new TextEncoder().encode(payloadEncoded)
+    new TextEncoder().encode(payloadEncoded),
   );
   if (!verified) return { valid: false, reason: "invalid_signature" };
 
@@ -540,11 +680,22 @@ export async function verifyActionSessionToken(
   if (!payloadBytes) return { valid: false, reason: "invalid_payload" };
 
   try {
-    const payload = JSON.parse(new TextDecoder().decode(payloadBytes)) as ActionSessionTokenPayload;
-    if (!payload || typeof payload.fid !== "number" || !Number.isSafeInteger(payload.fid) || payload.fid <= 0) {
+    const payload = JSON.parse(
+      new TextDecoder().decode(payloadBytes),
+    ) as ActionSessionTokenPayload;
+    if (
+      !payload ||
+      typeof payload.fid !== "number" ||
+      !Number.isSafeInteger(payload.fid) ||
+      payload.fid <= 0
+    ) {
       return { valid: false, reason: "invalid_payload" };
     }
-    if (typeof payload.exp !== "number" || !Number.isSafeInteger(payload.exp) || Math.floor(Date.now() / 1000) >= payload.exp) {
+    if (
+      typeof payload.exp !== "number" ||
+      !Number.isSafeInteger(payload.exp) ||
+      Math.floor(Date.now() / 1000) >= payload.exp
+    ) {
       return { valid: false, reason: "expired" };
     }
     return { valid: true, fid: payload.fid };

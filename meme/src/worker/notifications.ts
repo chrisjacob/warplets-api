@@ -26,8 +26,9 @@ type Settings = {
   voting: number;
   launch: number;
   rewards: number;
+  milestones?: number;
 };
-type EventKind = "voting" | "launch" | "rewards";
+type EventKind = "voting" | "launch" | "rewards" | "milestones";
 interface Notice {
   notificationId: string;
   title: string;
@@ -184,9 +185,9 @@ export async function notificationSettings(
   return (
     (await one<Settings>(
       db,
-      "SELECT enabled,voting,launch,rewards FROM meme_notification_settings WHERE fid=?",
+      "SELECT enabled,voting,launch,rewards,milestones FROM meme_notification_settings WHERE fid=?",
       fid,
-    )) ?? { enabled: 0, voting: 1, launch: 1, rewards: 1 }
+    )) ?? { enabled: 0, voting: 1, launch: 1, rewards: 1, milestones: 0 }
   );
 }
 export async function setNotificationSettings(
@@ -198,7 +199,10 @@ export async function setNotificationSettings(
   requireThat(
     Number.isSafeInteger(fid) &&
       fid > 0 &&
-      Object.keys(settings).sort().join() === "enabled,launch,rewards,voting" &&
+      [
+        "enabled,launch,rewards,voting",
+        "enabled,launch,milestones,rewards,voting",
+      ].includes(Object.keys(settings).sort().join()) &&
       Object.values(settings).every((v) => v === 0 || v === 1),
     400,
     "Invalid notification preferences",
@@ -206,7 +210,7 @@ export async function setNotificationSettings(
   await db.batch([
     db
       .prepare(
-        "INSERT INTO meme_notification_settings VALUES(?,?,?,?,?,?) ON CONFLICT(fid) DO UPDATE SET enabled=excluded.enabled,voting=excluded.voting,launch=excluded.launch,rewards=excluded.rewards,updated_at=excluded.updated_at",
+        "INSERT INTO meme_notification_settings(fid,enabled,voting,launch,rewards,updated_at,milestones) VALUES(?,?,?,?,?,?,?) ON CONFLICT(fid) DO UPDATE SET enabled=excluded.enabled,voting=excluded.voting,launch=excluded.launch,rewards=excluded.rewards,milestones=excluded.milestones,updated_at=excluded.updated_at",
       )
       .bind(
         fid,
@@ -215,6 +219,7 @@ export async function setNotificationSettings(
         settings.launch,
         settings.rewards,
         now,
+        settings.milestones ?? 0,
       ),
     ...(!settings.enabled
       ? [
@@ -293,6 +298,26 @@ export async function deriveNotice(
     title = "Launch confirmed";
     body = launch.symbol + " is live. Follow your campaign.";
     expiresAt = launch.launched_at + 86400000;
+  } else if (kind === "milestones") {
+    const crossing = await one<{
+      symbol: string;
+      mode: typeof mode;
+      threshold_usd: string;
+      at: number;
+    }>(
+      db,
+      "SELECT c.symbol,c.mode,m.threshold_usd,m.at FROM meme_milestone_crossings m JOIN meme_campaigns c ON c.id=m.edition_id WHERE m.id=?",
+      subject,
+    );
+    requireThat(
+      crossing && crossing.at <= now,
+      409,
+      "A verified milestone crossing is required",
+    );
+    mode = crossing.mode;
+    title = "FDV milestone";
+    body = crossing.symbol + " crossed $" + crossing.threshold_usd + " FDV.";
+    expiresAt = crossing.at + 3600000;
   } else {
     requireThat(kind === "rewards", 400, "Unsupported notification kind");
     const reward = await one<{
@@ -651,7 +676,13 @@ export async function notificationsRequest(
       },
     });
   requireThat(request.method === "POST", 405, "Method not allowed");
-  const p = await payload(request, ["enabled", "voting", "launch", "rewards"]);
+  const p = await payload(request, [
+    "enabled",
+    "voting",
+    "launch",
+    "rewards",
+    "milestones",
+  ]);
   requireThat(
     p.enabled === 0,
     409,
