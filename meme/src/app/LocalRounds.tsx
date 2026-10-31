@@ -4,6 +4,7 @@ import { latestRequest } from "./latestRequest";
 import { useRoundClock } from "./useRoundClock";
 import { pollDelay } from "./polling";
 import { qaPath } from "./qaMode";
+import { metric } from "./display";
 export interface RoundView {
   id: string;
   state: string;
@@ -177,7 +178,8 @@ export function LocalRounds({
   stale?: boolean;
 }) {
   const [error, setError] = useState<string | null>(null),
-    [busy, setBusy] = useState(false);
+    [busy, setBusy] = useState(false),
+    [pendingCandidate, setPendingCandidate] = useState<string | null>(null);
   const r = data?.round,
     eligible = !!identity?.farcasterFid && !!identity.solanaWallet;
   const now = useRoundClock(data?.serverTime, r?.opens_at, r?.closes_at);
@@ -193,6 +195,7 @@ export function LocalRounds({
     )
       return;
     setBusy(true);
+    setPendingCandidate(candidateId);
     setError(null);
     try {
       await api("/api/meme/rounds/" + encodeURIComponent(r.id) + "/vote", {
@@ -204,6 +207,7 @@ export function LocalRounds({
       setError(e instanceof Error ? e.message : "Vote failed. Try again.");
     } finally {
       setBusy(false);
+      setPendingCandidate(null);
     }
   }
   if (!r)
@@ -217,6 +221,7 @@ export function LocalRounds({
     upcoming = now < r.opens_at,
     delayed = waiting && !upcoming && now < r.closes_at;
   const boundary = upcoming || delayed ? r.opens_at : r.closes_at;
+  const minutesLeft = Math.max(1, Math.ceil((r.closes_at - now) / 60000));
   const live = r.state === "open" && now >= r.opens_at && now < r.closes_at,
     final = data?.settlement?.state === "finalized";
   const label =
@@ -254,7 +259,7 @@ export function LocalRounds({
           {data?.participationPaused && live ? "Voting paused" : displayLabel}
         </span>
       </div>
-      <p className="fine">
+      <p className="fine round-deadline">
         {delayed
           ? "Scheduled opening "
           : upcoming
@@ -274,6 +279,16 @@ export function LocalRounds({
           })}
         </time>
         {r.ownershipMode === "simulated" ? " · Simulated round" : ""}
+        {live && (
+          <strong className="time-left">
+            {minutesLeft >= 60
+              ? Math.floor(minutesLeft / 60) +
+                "h " +
+                (minutesLeft % 60) +
+                "m left"
+              : minutesLeft + "m left"}
+          </strong>
+        )}
       </p>
       {data?.boost && (
         <article className="card compact-boost">
@@ -281,9 +296,19 @@ export function LocalRounds({
             <span className="eyebrow">
               Your {final ? "final" : "estimated"} boost
             </span>
-            <strong>{data.boost.total}×</strong>
+            <strong title={data.boost.total + "×"}>
+              {metric(data.boost.total)}×
+            </strong>
           </div>
-          <p>{data.boost.points} points</p>
+          <p>
+            {data.myVote ? (
+              <>
+                <strong>{metric(data.boost.points)}</strong> points
+              </>
+            ) : (
+              "Vote to earn points"
+            )}
+          </p>
           <details>
             <summary>Boost breakdown</summary>
             <p>
@@ -320,15 +345,39 @@ export function LocalRounds({
           </p>
         )
       )}
+      <div className="shortlist-heading">
+        <h3>{live ? "Choose today’s OG" : "Today’s shortlist"}</h3>
+        <span>
+          {r.candidates
+            .reduce((n, c) => n + c.uniqueVoters, 0)
+            .toLocaleString()}{" "}
+          votes
+        </span>
+      </div>
       <div className="candidates">
-        {r.candidates.map((c) => (
-          <article className="card candidate" key={c.id}>
+        {r.candidates.map((c, index) => (
+          <article
+            className={
+              "card candidate " +
+              (data?.myVote?.candidate_id === c.id ? "is-voted" : "")
+            }
+            key={c.id}
+          >
+            <span
+              className={"token-avatar token-" + (index % 3)}
+              aria-hidden="true"
+            >
+              {c.symbol.slice(0, 2)}
+            </span>
             <div className="candidate-title">
-              <h3>{c.name}</h3>
+              <h3 id={"candidate-name-" + index}>{c.name}</h3>
               <span className="token-symbol">$ {c.symbol}</span>
             </div>
-            <p>
-              {c.uniqueVoters} voters · {c.weightedVotes ?? "0"} weighted
+            <p className="candidate-votes">
+              {c.uniqueVoters.toLocaleString()} voters{" "}
+              <span title={(c.weightedVotes ?? "0") + " weighted votes"}>
+                · {metric(c.weightedVotes ?? "0", 1)} weighted
+              </span>
             </p>
             <button
               className={
@@ -343,9 +392,10 @@ export function LocalRounds({
                 data?.myVote?.candidate_id === c.id
               }
               aria-pressed={data?.myVote?.candidate_id === c.id}
+              aria-describedby={"candidate-name-" + index}
               onClick={() => void cast(c.id)}
             >
-              {busy
+              {busy && pendingCandidate === c.id
                 ? "Saving…"
                 : data?.myVote?.candidate_id === c.id
                   ? "✓ Voted"
@@ -355,7 +405,10 @@ export function LocalRounds({
         ))}
       </div>
       {error && <p role="alert">{error}</p>}
-      <p className="fine">
+      <p
+        className={"fine vote-status " + (data?.myVote ? "has-vote" : "")}
+        role="status"
+      >
         {data?.myVote
           ? live
             ? data?.participationPaused

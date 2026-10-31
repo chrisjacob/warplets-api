@@ -18,6 +18,16 @@ export default defineConfig({
   projects: [
     { name: "desktop", use: { viewport: { width: 1280, height: 900 } } },
     { name: "mobile-viewport", use: { viewport: { width: 390, height: 844 } } },
+    {
+      name: "mobile-webkit",
+      testMatch: "mobile-brand.spec.mjs",
+      use: {
+        browserName: "webkit",
+        viewport: { width: 390, height: 844 },
+        isMobile: true,
+        hasTouch: true,
+      },
+    },
   ],
   webServer: [
     {

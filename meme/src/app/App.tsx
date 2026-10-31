@@ -6,6 +6,7 @@ import { preview } from "../shared/fixtures";
 import { LocalRounds, OperatorPanel, useLocalState } from "./LocalRounds";
 import { IdentityPanel } from "./IdentityPanel";
 import { Tabs, type Tab as LaunchTab } from "./Tabs";
+import { AppHeader } from "./AppHeader";
 const HistoryPanel = lazy(() => import("./HistoryPanel"));
 const RewardsPanel = lazy(() => import("./RewardsPanel"));
 const MarketsPanel = lazy(() => import("./MarketsPanel"));
@@ -205,12 +206,29 @@ function FixtureApp() {
 }
 
 export function App() {
-  const [help, setHelp] = useState(false);
+  const [help, setHelp] = useState(false),
+    [helpRequest, setHelpRequest] = useState(0);
+  useEffect(() => {
+    if (help) {
+      const frame = requestAnimationFrame(() =>
+        document
+          .querySelector<HTMLElement>(".onboarding h2")
+          ?.focus({ preventScroll: true }),
+      );
+      return () => cancelAnimationFrame(frame);
+    }
+  }, [help, helpRequest]);
+  function showHelp() {
+    setHelp(true);
+    setHelpRequest((n) => n + 1);
+    window.scrollTo({ top: 0, behavior: "auto" });
+  }
   useEffect(() => {
     void miniRuntime();
   }, []);
   const [fixture, setFixture] = useState(
-      new URLSearchParams(location.search).has("fixture"),
+      import.meta.env.DEV &&
+        new URLSearchParams(location.search).has("fixture"),
     ),
     [tab, setTab] = useState<LaunchTab>(
       () =>
@@ -221,7 +239,16 @@ export function App() {
     [connectOpen, setConnectOpen] = useState(false);
   const { data, identity, error, refresh, onIdentity } =
     useLocalState(!fixture);
-  if (fixture)
+  function changeTab(next: LaunchTab) {
+    if (next === tab) return;
+    setTab(next);
+    const url = new URL(location.href);
+    if (next === "Today") url.searchParams.delete("view");
+    else url.searchParams.set("view", next);
+    history.replaceState(null, "", url);
+    window.scrollTo({ top: 0, behavior: "auto" });
+  }
+  if (import.meta.env.DEV && fixture)
     return (
       <>
         <button className="mode-toggle" onClick={() => setFixture(false)}>
@@ -232,34 +259,37 @@ export function App() {
     );
   return (
     <div className="shell local-app">
-      <header>
-        <a className="brand" href="#">
-          10X<span>.meme</span>
-        </a>
-        {qaEnabled ? (
-          <button
-            onClick={() => {
-              const controls = document.querySelector<HTMLDetailsElement>(
-                ".qa-toolbar details",
-              );
-              if (controls) controls.open = true;
-            }}
-          >
-            {qaContext?.person?.name ?? "Choose demo account"} · Demo
-          </button>
-        ) : (
-          <IdentityPanel
-            identity={identity}
-            onIdentity={onIdentity}
-            open={connectOpen}
-            onOpenChange={setConnectOpen}
-          />
-        )}
-      </header>
+      <a className="skip-link" href="#launchpad-panel">
+        Skip to content
+      </a>
+      <AppHeader
+        onHelp={showHelp}
+        account={
+          qaEnabled ? (
+            <button
+              onClick={() => {
+                const controls = document.querySelector<HTMLDetailsElement>(
+                  ".qa-toolbar details",
+                );
+                if (controls) controls.open = true;
+              }}
+            >
+              {qaContext?.person?.name ?? "Choose demo account"} · Demo
+            </button>
+          ) : (
+            <IdentityPanel
+              identity={identity}
+              onIdentity={onIdentity}
+              open={connectOpen}
+              onOpenChange={setConnectOpen}
+            />
+          )
+        }
+      />
       <main>
         <div className="page-heading">
           <div>
-            <p className="eyebrow">Daily launchpad</p>
+            <p className="eyebrow">The daily launchpad</p>
             <h1>One launch. Or skip.</h1>
           </div>
           <span className="preview-label">
@@ -271,10 +301,10 @@ export function App() {
             ? "All activity is simulated. No funds move."
             : "No funds move. Launches and claims are disabled."}
         </p>
-        <Tabs value={tab} onChange={setTab} />
+        <Tabs value={tab} onChange={changeTab} />
         {(tab === "Today" || help) && (
           <Onboarding
-            key={help ? "help" : "first"}
+            key={help ? "help:" + helpRequest : "first"}
             replay={help}
             onDone={() => setHelp(false)}
           />
@@ -288,6 +318,7 @@ export function App() {
         <div
           id="launchpad-panel"
           role="tabpanel"
+          tabIndex={-1}
           aria-labelledby={"tab-" + tab}
         >
           {tab === "Today" && (
@@ -386,12 +417,17 @@ export function App() {
           </label>
         )}
         <span>Solana · Warplets · Farcaster</span>
-        <button className="text-button" onClick={() => setHelp(true)}>
+        <button className="text-button" onClick={showHelp}>
           How it works
         </button>
-        <button className="text-button" onClick={() => setFixture(true)}>
-          Design preview
-        </button>
+        {import.meta.env.DEV && (
+          <details className="local-tools">
+            <summary>Local tools</summary>
+            <button className="text-button" onClick={() => setFixture(true)}>
+              Design preview
+            </button>
+          </details>
+        )}
       </footer>
     </div>
   );

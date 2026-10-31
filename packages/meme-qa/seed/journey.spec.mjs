@@ -40,8 +40,21 @@ test("seeded month populates real screens and synthetic profiles without externa
   ).toBeEnabled();
   await expect(page.locator(".reward-row").first()).toBeVisible();
   await page.getByRole("tab", { name: "Leaders", exact: true }).click();
+  await expect(page.locator(".leaderboard>li")).toHaveCount(20);
+  for (const count of [40, 60, 80, 100]) {
+    await page.getByRole("button", { name: "Show more reward ranks" }).click();
+    await expect(page.locator(".leaderboard>li")).toHaveCount(count);
+  }
   await expect(page.locator(".leaderboard>li")).toHaveCount(100);
+  await expect(
+    page.getByRole("button", { name: "Show more reward ranks" }),
+  ).toHaveCount(0);
   await page.getByRole("button", { name: "Trading", exact: true }).click();
+  await expect(page.locator(".leaderboard>li")).toHaveCount(20);
+  for (const count of [40, 60, 80, 100]) {
+    await page.getByRole("button", { name: "Show more trading ranks" }).click();
+    await expect(page.locator(".leaderboard>li")).toHaveCount(count);
+  }
   await expect(page.locator(".leaderboard>li")).toHaveCount(100);
   await page.locator(".leaderboard>li button.text-button").first().click();
   await expect(
@@ -98,6 +111,15 @@ test("vote changes, local trades, claims and share previews stay inside QA", asy
     name: "Simulated performance share card",
   });
   await expect.poll(() => image.evaluate((e) => e.naturalWidth)).toBe(1200);
+  await page.keyboard.press("Escape");
+  await expect(
+    page.getByRole("dialog", { name: "QA share preview" }),
+  ).not.toBeVisible();
+  const share = page
+    .getByRole("region", { name: "Token performance" })
+    .getByRole("button", { name: "Share", exact: true });
+  await expect(share).toBeFocused();
+  await share.click();
   await page.getByRole("button", { name: "Close preview" }).click();
   await page.getByRole("tab", { name: "Rewards", exact: true }).click();
   await page.getByRole("button", { name: "Simulate one claim" }).click();

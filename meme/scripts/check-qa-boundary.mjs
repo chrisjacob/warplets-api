@@ -9,6 +9,9 @@ const forbidden = [
   "Simulate buy",
   "Demo clock paused",
   "QA backend unavailable",
+  "QA share preview",
+  "Connect · fixture",
+  "A daily ritual.",
 ];
 for (const name of readdirSync(directory).filter((name) =>
   name.endsWith(".js"),

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "./client";
 import { qaName } from "./qaMode";
+import { direction } from "./display";
 import SocialShare from "./SocialShare";
 import TraderProfile from "./TraderProfile";
 import type { TradingMetrics, TradingWindow } from "../shared/trading";
@@ -39,7 +40,9 @@ export default function LeadersPanel({ data }: { data: LocalState | null }) {
     [board, setBoard] = useState<Board | null>(null),
     [busy, setBusy] = useState(false),
     [error, setError] = useState<string | null>(null),
-    [revision, setRevision] = useState(0);
+    [revision, setRevision] = useState(0),
+    [visibleRewards, setVisibleRewards] = useState(20),
+    [visibleTrades, setVisibleTrades] = useState(20);
   useEffect(() => {
     if (kind !== "Trading" || profileFid) return;
     const controller = new AbortController();
@@ -65,10 +68,16 @@ export default function LeadersPanel({ data }: { data: LocalState | null }) {
       });
     return () => controller.abort();
   }, [kind, window, revision, profileFid]);
+  const ownReward = data?.leaderboard
+    ?.slice(0, 100)
+    .find((r) => r.fid === data.identity?.farcasterFid);
   return (
     <section className="card" aria-label="Leaderboards">
       <h2>Top 100</h2>
-      <div className="market-controls" aria-label="Leaderboard type">
+      <div
+        className="market-controls leaderboard-types"
+        aria-label="Leaderboard type"
+      >
         {["Rewards", "Trading"].map((k) => (
           <button key={k} aria-pressed={kind === k} onClick={() => setKind(k)}>
             {k}
@@ -93,10 +102,20 @@ export default function LeadersPanel({ data }: { data: LocalState | null }) {
             {data?.settlement?.state === "finalized" ? "Final" : "Provisional"}{" "}
             reward points · this round
           </p>
+          {ownReward && (
+            <p className="rewards-note">
+              Your rank: #{ownReward.rank} · {ownReward.points} pts
+            </p>
+          )}
           {data?.leaderboard?.length ? (
             <ol className="leaderboard">
-              {data.leaderboard.slice(0, 100).map((r) => (
-                <li key={r.fid}>
+              {data.leaderboard.slice(0, visibleRewards).map((r) => (
+                <li
+                  key={r.fid}
+                  className={
+                    r.fid === data?.identity?.farcasterFid ? "is-you" : ""
+                  }
+                >
                   <span>
                     #{r.rank} · {qaName(r.fid)}
                   </span>
@@ -107,6 +126,13 @@ export default function LeadersPanel({ data }: { data: LocalState | null }) {
           ) : (
             <p>No reward rankings yet.</p>
           )}
+          {Math.min(100, data?.leaderboard?.length ?? 0) > visibleRewards && (
+            <button
+              onClick={() => setVisibleRewards((n) => Math.min(100, n + 20))}
+            >
+              Show more reward ranks
+            </button>
+          )}
         </>
       ) : (
         <>
@@ -115,10 +141,13 @@ export default function LeadersPanel({ data }: { data: LocalState | null }) {
               Period{" "}
               <select
                 value={window}
-                onChange={(e) => setWindow(e.target.value as TradingWindow)}
+                onChange={(e) => {
+                  setWindow(e.target.value as TradingWindow);
+                  setVisibleTrades(20);
+                }}
               >
-                <option value="24h">24 hours</option>
-                <option value="30d">30 days</option>
+                <option value="24h">24h</option>
+                <option value="30d">30d</option>
                 <option value="all">All time</option>
               </select>
             </label>
@@ -130,32 +159,35 @@ export default function LeadersPanel({ data }: { data: LocalState | null }) {
             Realized net USD P&amp;L · ATTN only · fees included. All verified
             traders are public.
           </p>
-          <form
-            className="market-controls"
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (
-                !/^[1-9]\d{0,15}$/.test(lookup) ||
-                !Number.isSafeInteger(Number(lookup))
-              ) {
-                setLookupError("Enter a valid Farcaster ID.");
-                return;
-              }
-              setLookupError("");
-              setProfileFid(Number(lookup));
-            }}
-          >
-            <label>
-              Farcaster ID{" "}
-              <input
-                inputMode="numeric"
-                value={lookup}
-                onChange={(e) => setLookup(e.target.value)}
-                maxLength={16}
-              />
-            </label>
-            <button type="submit">View trader</button>
-          </form>
+          <details className="trader-lookup">
+            <summary>Find a trader</summary>
+            <form
+              className="market-controls"
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (
+                  !/^[1-9]\d{0,15}$/.test(lookup) ||
+                  !Number.isSafeInteger(Number(lookup))
+                ) {
+                  setLookupError("Enter a valid Farcaster ID.");
+                  return;
+                }
+                setLookupError("");
+                setProfileFid(Number(lookup));
+              }}
+            >
+              <label>
+                Farcaster ID{" "}
+                <input
+                  inputMode="numeric"
+                  value={lookup}
+                  onChange={(e) => setLookup(e.target.value)}
+                  maxLength={16}
+                />
+              </label>
+              <button type="submit">View trader</button>
+            </form>
+          </details>
           {lookupError && <p role="alert">{lookupError}</p>}
           {busy && <p role="status">Loading ranks…</p>}
           {error && <p role="alert">{error}</p>}
@@ -170,9 +202,22 @@ export default function LeadersPanel({ data }: { data: LocalState | null }) {
                 {board.cohort} verified traders ·{" "}
                 {new Date(board.asOf).toLocaleString()}
               </p>
-              <ol className="leaderboard">
-                {board.items.map((r) => (
-                  <li key={r.fid}>
+              {!!data?.identity?.farcasterFid && (
+                <button
+                  className="text-button"
+                  onClick={() => setProfileFid(data.identity.farcasterFid)}
+                >
+                  View my trading profile →
+                </button>
+              )}
+              <ol className="leaderboard trading-leaderboard">
+                {board.items.slice(0, visibleTrades).map((r) => (
+                  <li
+                    key={r.fid}
+                    className={
+                      r.fid === data?.identity?.farcasterFid ? "is-you" : ""
+                    }
+                  >
                     <div>
                       <strong>
                         <button
@@ -189,7 +234,9 @@ export default function LeadersPanel({ data }: { data: LocalState | null }) {
                           : Number(r.roiPercent).toFixed(2) + "%"}
                       </p>
                     </div>
-                    <strong>{dollars(r.pnlUsd)}</strong>
+                    <strong className={direction(r.pnlUsd)}>
+                      {dollars(r.pnlUsd)}
+                    </strong>
                     {!!r.ogGains.length && (
                       <details>
                         <summary>OG gains</summary>
@@ -210,10 +257,16 @@ export default function LeadersPanel({ data }: { data: LocalState | null }) {
                       window={window}
                       fid={r.fid}
                       sourceHash={board.sourceHash}
+                      compact
                     />
                   </li>
                 ))}
               </ol>
+              {board.items.length > visibleTrades && (
+                <button onClick={() => setVisibleTrades((n) => n + 20)}>
+                  Show more trading ranks
+                </button>
+              )}
               {!board.items.length && (
                 <p>No completed trades in this period.</p>
               )}
