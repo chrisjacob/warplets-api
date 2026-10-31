@@ -27,7 +27,7 @@ The primary journey remains **Connect → vote → follow selection → claim**.
 - `pnpm --dir meme check`: package boundaries, app/Worker typechecks, 125 core regressions, 11 script/asset checks, production build and local Worker dry run.
 - `pnpm --dir packages/meme-qa test:browser`: 53 desktop/mobile browser checks, including three Safari-engine checks, 320/390/500/1280px layout, skip-link/menu focus, reload-safe navigation and keyboard chart inspection without API writes.
 - `pnpm --dir packages/meme-qa seed:browser`: populated month and private admin journeys, progressive access to all 100 ranks, voting, simulated trades/claims and native QA share focus behavior.
-- Final static startup: 73.8 KiB gzip, below the existing 80 KiB limit. Panels and Connect remain lazy-loaded. QA seed data, share-preview UI and legacy design fixtures are excluded from production JavaScript.
+- Final static startup: approximately 74 KiB gzip, below the existing 80 KiB limit. Panels and Connect remain lazy-loaded. QA seed data, share-preview UI and legacy design fixtures are excluded from production JavaScript.
 - Local screenshots inspected for Today, Rewards, Leaders, History and narrow/desktop layouts; no page errors or horizontal overflow in the review harness.
 
 Browser automation uses disposable local accounts and isolated data. Viewport checks do not certify physical iPhone/Android wallet handoffs or mini-app host behavior. Actual phone and real-wallet checks remain in the delivery QA plan. No deployment, production-data mutation, provider collection or financial transaction is part of this review.

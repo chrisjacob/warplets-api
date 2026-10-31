@@ -10,14 +10,14 @@ export function AppHeader({
 }) {
   const [open, setOpen] = useState(false),
     dialog = useRef<HTMLDialogElement>(null),
-    trigger = useRef<HTMLButtonElement>(null);
+    trigger = useRef<HTMLButtonElement>(null),
+    helpAfterClose = useRef(false);
   useEffect(() => {
     if (open && !dialog.current?.open) dialog.current?.showModal();
     else if (!open && dialog.current?.open) dialog.current.close();
   }, [open]);
   function close() {
-    setOpen(false);
-    trigger.current?.focus();
+    dialog.current?.close();
   }
   return (
     <>
@@ -52,7 +52,13 @@ export function AppHeader({
         ref={dialog}
         className="app-menu"
         aria-labelledby="app-menu-title"
-        onClose={close}
+        onClose={() => {
+          setOpen(false);
+          if (helpAfterClose.current) {
+            helpAfterClose.current = false;
+            onHelp();
+          } else trigger.current?.focus();
+        }}
         onClick={(event) => {
           if (event.target === dialog.current) {
             const box = dialog.current.getBoundingClientRect();
@@ -79,8 +85,8 @@ export function AppHeader({
         <button
           className="menu-row"
           onClick={() => {
+            helpAfterClose.current = true;
             close();
-            onHelp();
           }}
         >
           How it works <span aria-hidden="true">→</span>

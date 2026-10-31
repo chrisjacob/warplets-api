@@ -54,6 +54,16 @@ test("mobile chrome fits narrow screens and the menu returns keyboard focus", as
   await menu.getByRole("button", { name: /How it works/ }).click();
   await expect(menu).not.toBeVisible();
   await expect(page.locator(".onboarding h2")).toBeFocused();
+  await page.getByRole("button", { name: "Next", exact: true }).click();
+  await expect(page.locator(".onboarding h2")).toHaveText(
+    "Two prices. One position.",
+  );
+  await trigger.click();
+  await menu.getByRole("button", { name: /How it works/ }).click();
+  await expect(page.locator(".onboarding h2")).toHaveText(
+    "One launch. Or skip.",
+  );
+  await expect(page.locator(".onboarding h2")).toBeFocused();
 });
 
 test("navigation preserves the selected view on reload and keeps controls on screen", async ({

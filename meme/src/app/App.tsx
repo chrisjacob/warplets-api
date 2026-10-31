@@ -206,7 +206,8 @@ function FixtureApp() {
 }
 
 export function App() {
-  const [help, setHelp] = useState(false);
+  const [help, setHelp] = useState(false),
+    [helpRequest, setHelpRequest] = useState(0);
   useEffect(() => {
     if (help) {
       const frame = requestAnimationFrame(() =>
@@ -216,9 +217,10 @@ export function App() {
       );
       return () => cancelAnimationFrame(frame);
     }
-  }, [help]);
+  }, [help, helpRequest]);
   function showHelp() {
     setHelp(true);
+    setHelpRequest((n) => n + 1);
     window.scrollTo({ top: 0, behavior: "auto" });
   }
   useEffect(() => {
@@ -302,7 +304,7 @@ export function App() {
         <Tabs value={tab} onChange={changeTab} />
         {(tab === "Today" || help) && (
           <Onboarding
-            key={help ? "help" : "first"}
+            key={help ? "help:" + helpRequest : "first"}
             replay={help}
             onDone={() => setHelp(false)}
           />
