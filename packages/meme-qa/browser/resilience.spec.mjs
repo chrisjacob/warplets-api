@@ -77,7 +77,9 @@ test("malformed preferences stay recoverable without crashing the account or ena
   await page.getByRole("button", { name: "Retry preferences" }).click();
   await expect(voting).toBeEnabled();
   malformed = true;
-  await voting.uncheck();
+  // The rejected response can restore the checkbox before uncheck() checks its
+  // intermediate state, especially on Linux WebKit. Assert the durable result.
+  await voting.click();
   await expect(
     page.getByText("Couldn’t save preferences. Try again.", { exact: true }),
   ).toBeVisible();
@@ -104,7 +106,7 @@ test("a stale tab cannot save notification preferences into a different signed-i
       new URL(response.url()).pathname === "/api/meme/notifications" &&
       response.request().method() === "POST",
   );
-  await voting.uncheck();
+  await voting.click();
   const result = await write;
   expect(result.status()).toBe(409);
   expect(result.request().headers()["x-meme-viewer-fid"]).toBe("42");
