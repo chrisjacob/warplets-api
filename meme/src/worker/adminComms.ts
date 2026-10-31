@@ -11,7 +11,13 @@ import {
 } from "./db";
 import { canonical } from "../shared/canonical";
 import { Exact } from "../shared/exact";
-function parseThreshold(value:unknown){try{return Exact.decimal(text(value,'threshold',50));}catch{throw new Problem(400,'Use a decimal USD threshold');}}
+function parseThreshold(value: unknown) {
+  try {
+    return Exact.decimal(text(value, "threshold", 50));
+  } catch {
+    throw new Problem(400, "Use a decimal USD threshold");
+  }
+}
 import { enqueueNotification, type NotificationConfig } from "./notifications";
 import { enqueueBaseNotice, type BaseNoticeConfig } from "./baseNotifications";
 function destination(value: unknown) {
@@ -258,7 +264,7 @@ export async function collectNoticeCandidates(db: Database, now = Date.now()) {
       expires: number;
     }>(
       db,
-      "SELECT a.id subject,'rewards' kind,a.release_at+86400000 expires FROM meme_allocations a JOIN meme_financial_receipts f ON f.subject=a.id AND f.operation='fund' JOIN meme_settlements s ON s.round_id=a.round_id AND s.state='finalized' WHERE a.release_at+1000<=? AND a.release_at>? AND f.confirmed_at<=? ORDER BY a.release_at DESC LIMIT 100",
+      "SELECT a.id subject,'rewards' kind,a.release_at+86400000 expires FROM meme_allocations a JOIN meme_financial_receipts f ON f.subject=a.id AND f.operation='fund' JOIN meme_settlements s ON s.round_id=a.round_id AND s.state='finalized' WHERE (CAST((a.release_at+999)/1000 AS INTEGER)*1000+1000)<=? AND a.release_at>? AND f.confirmed_at<=? ORDER BY a.release_at DESC LIMIT 100",
       now,
       now - 86400000,
       now,

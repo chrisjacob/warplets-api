@@ -55,7 +55,11 @@ function permission(actor: AdminActor, scope: string) {
 }
 function day(value: unknown) {
   const key = text(value, "UTC date", 10);
-  try{dailyTimes(key);}catch{throw new Problem(400,'Use a valid UTC calendar date');}
+  try {
+    dailyTimes(key);
+  } catch {
+    throw new Problem(400, "Use a valid UTC calendar date");
+  }
   return key;
 }
 function candidates(value: unknown): AdminCandidate[] {
@@ -69,7 +73,11 @@ function candidates(value: unknown): AdminCandidate[] {
     requireThat(row && typeof row === "object", 400, "Candidate required");
     const c = row as Record<string, unknown>,
       mint = text(c.ogMint, "Solana mint", 64);
-    try{decode58(mint,32);}catch{throw new Problem(400,'Use a valid Solana mint');}
+    try {
+      decode58(mint, 32);
+    } catch {
+      throw new Problem(400, "Use a valid Solana mint");
+    }
     requireThat(!seen.has(mint), 400, "Duplicate candidate mint");
     seen.add(mint);
     requireThat(
@@ -449,7 +457,8 @@ export async function refreshAdminMetrics(db: Database, now = Date.now()) {
     rewardAllocations: rewards.length,
     fundedAllocations: rewards.filter((r) => r.funded).length,
     releasedAllocations: rewards.filter(
-      (r) => r.funded && Number(r.release_at) + 1000 <= now,
+      (r) =>
+        r.funded && Math.ceil(Number(r.release_at) / 1000) * 1000 + 1000 <= now,
     ).length,
     rewardsByEdition,
     cohortVolumeUsd: sourceCount ? tradeVolume.decimal(8) : null,
@@ -546,17 +555,42 @@ export async function adminCommand(
       "Concurrent admin update; reload",
     );
   }
-  const accepted = await one<{ created_at: number;request_hash:string;state:string;result:string|null }>(
+  const accepted = await one<{
+    created_at: number;
+    request_hash: string;
+    state: string;
+    result: string | null;
+  }>(
     db,
     "SELECT created_at,request_hash,state,result FROM meme_admin_commands WHERE id=?",
     id,
   );
   requireThat(accepted, 409, "Command reservation missing");
-  requireThat(accepted.request_hash===fingerprint,409,'Command ID belongs to another intent');
-  if(accepted.state==='done')return {...JSON.parse(accepted.result!),replayed:true};
-  requireThat(accepted.state==='pending',409,'Command failed; review before creating another intent');
-  const lease=crypto.randomUUID();
-  requireThat(await one(db,"UPDATE meme_admin_commands SET lease_token=?,lease_until=? WHERE id=? AND state='pending' AND (lease_until IS NULL OR lease_until<=?) RETURNING id",lease,Date.now()+120000,id,Date.now()),409,'Command is in progress; wait and retry the same action');
+  requireThat(
+    accepted.request_hash === fingerprint,
+    409,
+    "Command ID belongs to another intent",
+  );
+  if (accepted.state === "done")
+    return { ...JSON.parse(accepted.result!), replayed: true };
+  requireThat(
+    accepted.state === "pending",
+    409,
+    "Command failed; review before creating another intent",
+  );
+  const lease = crypto.randomUUID();
+  requireThat(
+    await one(
+      db,
+      "UPDATE meme_admin_commands SET lease_token=?,lease_until=? WHERE id=? AND state='pending' AND (lease_until IS NULL OR lease_until<=?) RETURNING id",
+      lease,
+      Date.now() + 120000,
+      id,
+      Date.now(),
+    ),
+    409,
+    "Command is in progress; wait and retry the same action",
+  );
   const acceptedAt = accepted.created_at;
   let result: unknown;
   try {
@@ -746,7 +780,7 @@ export async function adminCommand(
       );
       result = await options.simulation(command.action, p, id);
     } else throw new Problem(409, "This adapter is not configured");
-    const completed=await run(
+    const completed = await run(
       db,
       "UPDATE meme_admin_commands SET state='done',result=?,completed_at=?,lease_token=NULL,lease_until=NULL WHERE id=? AND lease_token=?",
       canonical({ result, version: expected + 1 }),
@@ -754,7 +788,11 @@ export async function adminCommand(
       id,
       lease,
     );
-    requireThat(completed.meta.changes===1,503,'Execution lease changed; reconcile the same command');
+    requireThat(
+      completed.meta.changes === 1,
+      503,
+      "Execution lease changed; reconcile the same command",
+    );
     await audit(db, actor.id, "admin:" + command.action, id, { reason });
     return { result, version: expected + 1 };
   } catch (error) {
