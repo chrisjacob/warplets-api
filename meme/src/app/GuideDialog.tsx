@@ -10,8 +10,8 @@ const slides = [
   {
     title: "Two prices. One position.",
     lines: [
-      "ATTN trades against its OG. Both prices affect your USD return.",
-      "Gains and losses can be amplified. Trading is optional.",
+      "OG is the original token. ATTN is the new token paired with it.",
+      "Both prices affect your USD return. Gains and losses can be amplified. Trading is optional.",
     ],
   },
   {
