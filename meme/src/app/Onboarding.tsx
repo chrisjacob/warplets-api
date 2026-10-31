@@ -1,4 +1,5 @@
 import { lazy, Suspense, useState, useRef } from "react";
+import SectionBoundary from "./SectionBoundary";
 import {
   onboardingComplete,
   completeOnboarding,
@@ -39,16 +40,34 @@ export default function Onboarding({
   if (!visible) return null;
   if (open)
     return (
-      <Suspense
-        fallback={
-          <section className="card welcome-guide" aria-label="Getting started">
-            <p role="status">Opening the guide…</p>
-            <button onClick={done}>Cancel</button>
-          </section>
-        }
+      <SectionBoundary
+        label="Guide"
+        onDismiss={() => {
+          done();
+          requestAnimationFrame(() => {
+            const target = launcher.current?.isConnected
+              ? launcher.current
+              : document.querySelector<HTMLElement>(
+                  '.launch-tabs [aria-selected="true"]',
+                );
+            target?.focus({ preventScroll: true });
+          });
+        }}
       >
-        <GuideDialog onDone={done} opener={launcher.current} />
-      </Suspense>
+        <Suspense
+          fallback={
+            <section
+              className="card welcome-guide"
+              aria-label="Getting started"
+            >
+              <p role="status">Opening the guide…</p>
+              <button onClick={done}>Cancel</button>
+            </section>
+          }
+        >
+          <GuideDialog onDone={done} opener={launcher.current} />
+        </Suspense>
+      </SectionBoundary>
     );
   return (
     <section className="card welcome-guide" aria-label="Getting started">

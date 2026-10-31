@@ -1,10 +1,12 @@
 # 10X.meme daily launchpad
 
+**Current review:** [REVIEW-TONIGHT.md](REVIEW-TONIGHT.md) contains the latest app/admin links, short walkthrough and the owner decisions/device checks needed before production. [DELIVERY-STATUS.md](DELIVERY-STATUS.md) separates built local proofs from remaining engineering and activation gates. PR #126 is the latest review branch; no merge or deployment is included.
+
 Local review now includes a [populated QA world and scoped admin workspace](ADMIN-AND-SEEDED-QA.md): thirty prior launches, synthetic people/trading/rewards, candidate selection, operational metrics, reviewed communications and safety controls. Use `http://127.0.0.1:5198/?qa=seeded` and `http://127.0.0.1:5198/__adminhidden/meme?qa=seeded`. Financial activation and real delivery remain disabled.
 
 This is the authoritative entry point for the new product. Read [SPEC.md](SPEC.md), [ARCHITECTURE.md](ARCHITECTURE.md), and [DECISIONS.md](DECISIONS.md) before implementation. The specification distinguishes confirmed requirements from working assumptions and unresolved decisions.
 
-Current build and remaining gates: [overnight handoff — 31 October](OVERNIGHT-HANDOFF.md), [delivery status](DELIVERY-STATUS.md), and [focused review record](OVERNIGHT-DELIVERY.md). The new growth, mini-app, trading, social, notification and custody proofs are implemented locally; production/financial activation remains disabled. Earlier milestone descriptions below are historical context.
+Earlier overnight evidence: [overnight handoff — 31 October](OVERNIGHT-HANDOFF.md) and [focused review record](OVERNIGHT-DELIVERY.md). The new growth, mini-app, trading, social, notification and custody proofs are implemented locally; production/financial activation remains disabled. Earlier milestone descriptions below are historical context.
 
 The previous discovery implementation is archived at [`archive/10x-discovery-2026-10-29`](https://github.com/chrisjacob/warplets-api/tree/archive/10x-discovery-2026-10-29). Its [historical PRD](https://github.com/chrisjacob/warplets-api/blob/archive/10x-discovery-2026-10-29/docs/10x/spec/10X_MEME_FULL_PRD_v1_2.md), simulations and research are reference material, not requirements for this rebuild. Network and shared security improvements were released independently before creating this branch.
 

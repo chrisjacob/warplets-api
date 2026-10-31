@@ -2,6 +2,8 @@
 
 Reviewed 31 October 2026, following the Warplet component and guided-experience work in PR #125. This review preserves the mobile-first layout and existing Connect flow.
 
+The final tidy-up and owner/development release checklist are in [REVIEW-TONIGHT.md](REVIEW-TONIGHT.md). PR #126 remains the current review entry; no new review branch or merge is needed for this handoff.
+
 ## Findings and changes
 
 | Area                 | Finding                                                                                                                                                            | Change                                                                                                                                                                                                                                                                                                                                                       |
@@ -17,11 +19,13 @@ The FID header is **not authentication**. A valid origin-bound cookie session is
 
 ## Validation
 
+Optional modules now have small, independent error boundaries. An unavailable market, leaderboard, rewards/history view, notification settings chunk or guide displays a contained reload action instead of unmounting the app. The guide can be dismissed with focus returned to a usable control. Header/navigation and today's round survive; private rewards and preferences do not share a failure boundary. Reload preserves URL context and never retries a participant or financial action automatically. Browser tests deliberately abort each module and exercise recovery; raw exceptions stay out of the UI.
+
 - App and Worker typechecks, import boundaries, 127 core tests and 11 script checks pass. Production frontend build and Worker deployment dry run pass.
-- All 80 browser regressions pass across desktop and mobile Chromium plus targeted mobile WebKit. Added cases exercise collapsed preferences, malformed-response recovery, stale-account preference/vote rejection, market period reloads, and pinned profile/back navigation. Existing onboarding focus coverage now checks the next participation action.
+- All 92 browser regressions pass across desktop and mobile Chromium plus targeted mobile WebKit. Added cases exercise collapsed preferences, malformed-response recovery, stale-account preference/vote rejection, market period reloads, pinned profile/back navigation and failed optional modules. Existing onboarding focus coverage now checks the next participation action.
 - All 10 populated QA/admin journeys pass against the separate synthetic database. The QA transport preserves the account precondition; it supplies no new production authentication path.
 - The request-count regression observes **zero preference reads and zero settings chunks before opening Notifications**, then no extra preference read on a simple close/reopen. The production manifest gate also rejects eager settings imports.
-- Static startup is **75.9 KiB gzip**, below the unchanged 80 KiB limit. QA seed data and simulation UI remain excluded from production JavaScript.
+- Static startup is **76.1 KiB gzip**, below the unchanged 80 KiB limit. QA seed data and simulation UI remain excluded from production JavaScript.
 - Root security preflight, redirect, Solana dependency and rendering regressions pass. The production audit reports no unignored moderate/high/critical findings. Its two existing ignored high browser-installer findings and low Deepmerge CSS-tooling finding remain; see [the security baseline](SECURITY-2026-10-31.md). No new dependency or audit exception was introduced.
 - Local screenshots cover Today, Rewards, Leaders, History, expanded preferences and the matched-price chart at phone widths, plus 320px and desktop layouts. The owned browser harness reports no page exceptions or horizontal overflow. Refreshing the local QA server preserved the active seed manifest and database.
 

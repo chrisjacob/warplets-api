@@ -201,3 +201,102 @@ test("trading periods and snapshot-pinned profiles survive reload and explicit b
   ).toHaveAttribute("aria-pressed", "true");
   await expect(period).toHaveValue("30d");
 });
+
+test("an unavailable market module leaves voting and navigation usable and reload recovers the same chart context", async ({
+  page,
+}) => {
+  const blocked = "**/src/app/MarketsPanel.tsx*";
+  const writes = [];
+  page.on("request", (request) => {
+    if (
+      new URL(request.url()).pathname.startsWith("/api/") &&
+      request.method() === "POST"
+    )
+      writes.push(request.url());
+  });
+  await page.route(blocked, (route) => route.abort());
+  await page.goto("/?market=fixture-alpha&marketWindow=30d");
+  const unavailable = page.getByRole("region", { name: "Markets unavailable" });
+  await expect(unavailable).toBeVisible();
+  await expect(
+    page.getByRole("region", { name: "Today’s round" }),
+  ).toBeVisible();
+  await page.getByRole("tab", { name: "Leaders", exact: true }).click();
+  await expect(
+    page.getByRole("region", { name: "Leaderboards" }),
+  ).toBeVisible();
+  await page.getByRole("tab", { name: "Today", exact: true }).click();
+  await expect(unavailable).toBeVisible();
+  await page.unroute(blocked);
+  await unavailable
+    .getByRole("button", { name: "Reload", exact: true })
+    .click();
+  const panel = page.getByRole("region", { name: "Token performance" });
+  await expect(panel.getByRole("combobox", { name: "Period" })).toHaveValue(
+    "30d",
+  );
+  expect(writes).toEqual([]);
+});
+
+test("failed optional view modules cannot remove the header or prevent returning to today's round", async ({
+  page,
+}) => {
+  for (const [view, module] of [
+    ["Leaders", "LeadersPanel"],
+    ["Rewards", "RewardsPanel"],
+    ["History", "HistoryPanel"],
+  ]) {
+    const blocked = `**/src/app/${module}.tsx*`;
+    await page.route(blocked, (route) => route.abort());
+    await page.goto("/?view=" + view);
+    await expect(
+      page.getByRole("region", { name: view + " unavailable" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Account · 42", exact: true }),
+    ).toBeVisible();
+    await page.getByRole("tab", { name: "Today", exact: true }).click();
+    await expect(
+      page.getByRole("region", { name: "Today’s round" }),
+    ).toBeVisible();
+    await page.unroute(blocked);
+  }
+});
+
+test("a failed guide can be dismissed with useful focus and the round remains accessible", async ({
+  page,
+}) => {
+  await page.route("**/src/app/GuideDialog.tsx*", (route) => route.abort());
+  await page.goto("/");
+  await page.getByRole("button", { name: "Quick tour", exact: true }).click();
+  const unavailable = page.getByRole("region", { name: "Guide unavailable" });
+  await expect(unavailable).toBeVisible();
+  await unavailable.getByRole("button", { name: "Close", exact: true }).click();
+  await expect(unavailable).toHaveCount(0);
+  await expect(
+    page.getByRole("tab", { name: "Today", exact: true }),
+  ).toBeFocused();
+  await expect(
+    page.getByRole("region", { name: "Today’s round" }),
+  ).toBeVisible();
+});
+
+test("a failed notification module is contained inside its disclosure and does not hide private rewards", async ({
+  page,
+}) => {
+  await page.route("**/src/app/NotificationSettings.tsx*", (route) =>
+    route.abort(),
+  );
+  await page.goto("/?view=Rewards");
+  await page.getByText("Notifications", { exact: true }).click();
+  await expect(
+    page.getByRole("region", { name: "Notifications unavailable" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Your rewards", exact: true }),
+  ).toBeVisible();
+  await page.getByRole("tab", { name: "Today", exact: true }).click();
+  await expect(
+    page.getByRole("region", { name: "Today’s round" }),
+  ).toBeVisible();
+});

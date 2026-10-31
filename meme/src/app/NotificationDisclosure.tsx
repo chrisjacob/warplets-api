@@ -1,4 +1,5 @@
 import { lazy, Suspense, useState } from "react";
+import SectionBoundary from "./SectionBoundary";
 const Preferences = lazy(() => import("./NotificationSettings"));
 /** No preference request or settings chunk until the user actually opens this section. */
 export default function NotificationDisclosure({
@@ -18,9 +19,11 @@ export default function NotificationDisclosure({
     >
       <summary>Notifications</summary>
       {activated && (
-        <Suspense fallback={<p role="status">Loading preferences…</p>}>
-          <Preferences fid={fid} onReconnect={onReconnect} />
-        </Suspense>
+        <SectionBoundary label="Notifications">
+          <Suspense fallback={<p role="status">Loading preferences…</p>}>
+            <Preferences fid={fid} onReconnect={onReconnect} />
+          </Suspense>
+        </SectionBoundary>
       )}
     </details>
   );
