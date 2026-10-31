@@ -698,7 +698,7 @@ export async function roundsRequest(
     return json(
       await vote(
         db,
-        match[1],
+        decodeURIComponent(match[1]),
         s.fid,
         text(p.candidateId, "candidate"),
         text(p.key, "key"),
@@ -734,7 +734,7 @@ export async function roundsRequest(
     return json(
       await freezeOwnership(
         db,
-        m[1],
+        decodeURIComponent(m[1]),
         await payload(
           request,
           ["source", "mode", "sourceAt", "checkpoint", "complete", "ownership"],
@@ -746,7 +746,7 @@ export async function roundsRequest(
   return json(
     await outcome(
       db,
-      m[1],
+      decodeURIComponent(m[1]),
       await payload(request, ["skip", "candidateId", "reason"]),
       actor,
     ),

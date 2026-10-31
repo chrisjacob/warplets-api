@@ -1,0 +1,79 @@
+.qa-toolbar {
+  max-width: 1100px;
+  margin: 14px auto 0;
+  padding: 14px 20px;
+  border: 1px solid #718e39;
+  border-radius: 12px;
+  background: #1b2514;
+  color: #ecf8e5;
+  box-sizing: border-box;
+}
+.qa-toolbar details {
+  margin-top: 8px;
+}
+.qa-controls {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+.qa-controls label {
+  display: grid;
+  gap: 6px;
+}
+.qa-controls select,
+.qa-actions input {
+  width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
+}
+.qa-buttons {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.qa-buttons button {
+  flex: 1 1 auto;
+}
+.qa-actions {
+  margin-top: 16px;
+  border-top: 1px solid #345039;
+  padding-top: 12px;
+}
+.qa-share {
+  position: fixed;
+  inset: 10vh 0 auto;
+  margin: auto;
+  max-height: 80vh;
+  overflow: auto;
+  width: min(90vw, 800px);
+  border: 1px solid #6c8c42;
+  border-radius: 16px;
+  background: #121e15;
+  color: #eff8e9;
+  z-index: 50;
+  padding: 20px;
+  box-shadow: 0 0 0 100vmax #000b;
+}
+.qa-share img {
+  width: 100%;
+  height: auto;
+  display: block;
+  margin: 14px 0;
+}
+.qa-toolbar a {
+  color: #d6fd72;
+}
+@media (max-width: 650px) {
+  .qa-toolbar {
+    margin: 8px 12px 0;
+    padding: 12px;
+    max-width: calc(100vw - 24px);
+  }
+  .qa-toolbar .list-heading {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .qa-buttons button {
+    min-width: 100px;
+  }
+}

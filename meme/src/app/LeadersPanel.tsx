@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "./client";
+import { qaName } from "./qaMode";
 import SocialShare from "./SocialShare";
 import TraderProfile from "./TraderProfile";
 import type { TradingMetrics, TradingWindow } from "../shared/trading";
@@ -97,7 +98,7 @@ export default function LeadersPanel({ data }: { data: LocalState | null }) {
               {data.leaderboard.slice(0, 100).map((r) => (
                 <li key={r.fid}>
                   <span>
-                    #{r.rank} · FID {r.fid}
+                    #{r.rank} · {qaName(r.fid)}
                   </span>
                   <strong>{r.points} pts</strong>
                 </li>
@@ -178,7 +179,7 @@ export default function LeadersPanel({ data }: { data: LocalState | null }) {
                           className="text-button"
                           onClick={() => setProfileFid(r.fid)}
                         >
-                          #{r.rank} · FID {r.fid}
+                          #{r.rank} · {qaName(r.fid)}
                         </button>
                       </strong>
                       <p className="fine">

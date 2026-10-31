@@ -1,5 +1,6 @@
 import { detectMiniAppContext } from "@10x/connect/miniAppContext";
 import { decode58, encode58 } from "../shared/base58";
+import { qaEnabled } from "./qaMode";
 
 export interface NativeMessageProvider {
   request(input: { method: "connect" }): Promise<{ publicKey: string }>;
@@ -38,6 +39,7 @@ async function bounded<T>(promise: Promise<T>, fallback: T): Promise<T> {
 }
 /** No RPC, identity assertion, wallet prompt or permission request at startup. */
 export function miniRuntime(): Promise<Runtime | null> {
+  if (qaEnabled) return Promise.resolve(null);
   return (pending ??= (async () => {
     if (
       typeof window === "undefined" ||

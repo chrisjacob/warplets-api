@@ -7,6 +7,9 @@
     "node": ">=22"
   },
   "scripts": {
+    "seed:serve": "node seed/server.mjs",
+    "seed:test": "node ../../meme/node_modules/tsx/dist/cli.mjs --test seed/*.test.ts",
+    "seed:browser": "playwright test --config playwright.seed.config.mjs",
     "benchmark:growth": "node ../../meme/node_modules/tsx/dist/cli.mjs load/growth.ts",
     "test:custody": "node ../../meme/node_modules/tsx/dist/cli.mjs --test custody/*.test.mjs",
     "test": "node --test test/*.test.mjs",

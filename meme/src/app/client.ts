@@ -1,3 +1,4 @@
+import { qaPath } from "./qaMode";
 export interface Identity {
   walletAddress?: string | null;
   farcasterFid: number | null;
@@ -55,7 +56,7 @@ export async function api(
     controller.abort();
   }, 15000);
   try {
-    const response = await fetch(path, {
+    const response = await fetch(qaPath(path), {
       method,
       signal: controller.signal,
       credentials: "same-origin",

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { qaEnabled, qaName } from "./qaMode";
 import type { TradingProfile, TradingWindow } from "../shared/trading";
 import { api } from "./client";
 import SocialShare from "./SocialShare";
@@ -71,24 +72,27 @@ export default function TraderProfile({
       <button className="text-button" onClick={onBack}>
         ← Back to leaders
       </button>
-      <h3>FID {fid}</h3>
+      <h3>{qaName(fid)}</h3>
       <p className="fine">
-        Public verified trading · {window} ·{" "}
-        <a
-          href={"https://farcaster.xyz/~/profiles/" + fid}
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={(event) => {
-            if (host?.capabilities.includes("actions.viewProfile")) {
-              event.preventDefault();
-              void host.sdk.actions
-                .viewProfile({ fid })
-                .catch(() => setError("Couldn’t open Farcaster profile."));
-            }
-          }}
-        >
-          Farcaster profile ↗
-        </a>
+        {qaEnabled ? "Simulated trading" : "Public verified trading"} · {window}{" "}
+        ·{" "}
+        {!qaEnabled && (
+          <a
+            href={"https://farcaster.xyz/~/profiles/" + fid}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(event) => {
+              if (host?.capabilities.includes("actions.viewProfile")) {
+                event.preventDefault();
+                void host.sdk.actions
+                  .viewProfile({ fid })
+                  .catch(() => setError("Couldn’t open Farcaster profile."));
+              }
+            }}
+          >
+            Farcaster profile ↗
+          </a>
+        )}
       </p>
       {!profile && !error && <p role="status">Loading profile…</p>}
       {error && (

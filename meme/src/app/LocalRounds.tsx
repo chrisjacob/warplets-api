@@ -3,6 +3,7 @@ import { api, ApiError, type Identity } from "./client";
 import { latestRequest } from "./latestRequest";
 import { useRoundClock } from "./useRoundClock";
 import { pollDelay } from "./polling";
+import { qaPath } from "./qaMode";
 export interface RoundView {
   id: string;
   state: string;
@@ -397,7 +398,7 @@ export function LocalRounds({
           <summary>{final ? "Scores finalized" : "Finalizing scores…"}</summary>
           <p>
             <a
-              href={"/api/meme/settlements/" + encodeURIComponent(r.id)}
+              href={qaPath("/api/meme/settlements/" + encodeURIComponent(r.id))}
               target="_blank"
               rel="noreferrer"
             >
