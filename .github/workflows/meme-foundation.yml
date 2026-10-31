@@ -1,19 +1,19 @@
 name: Meme foundation
 on:
   push:
-    branches: [codex/10x-daily-launchpad, 'codex/10x-*']
+    branches: [codex/10x-daily-launchpad, "codex/10x-*"]
   pull_request:
     paths:
-      - 'meme/**'
-      - 'packages/connect/**'
-      - 'packages/meme-protocol/**'
-      - 'packages/meme-qa/**'
-      - 'patches/bigint-buffer@1.1.5.patch'
-      - 'package.json'
-      - 'docs/10x/**'
-      - 'pnpm-lock.yaml'
-      - 'pnpm-workspace.yaml'
-      - '.github/workflows/meme-foundation.yml'
+      - "meme/**"
+      - "packages/connect/**"
+      - "packages/meme-protocol/**"
+      - "packages/meme-qa/**"
+      - "patches/bigint-buffer@1.1.5.patch"
+      - "package.json"
+      - "docs/10x/**"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - ".github/workflows/meme-foundation.yml"
 permissions:
   contents: read
 concurrency:
@@ -24,7 +24,7 @@ env:
 jobs:
   qa:
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v5
       - uses: pnpm/action-setup@v5
@@ -32,15 +32,17 @@ jobs:
           version: 10.26.0
       - uses: actions/setup-node@v5
         with:
-          node-version: '24'
+          node-version: "24"
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm --dir packages/meme-qa check
+      - name: Deterministic populated QA seed and accounting boundaries
+        run: pnpm --dir packages/meme-qa seed:test
       - name: Build offline gateway fixture
         # CI never opens a tunnel or connects real wallets. Public supervised
         # QA uses qa:build, whose configuration preflight is tested separately.
         env:
-          VITE_WALLETCONNECT_PROJECT_ID: ''
+          VITE_WALLETCONNECT_PROJECT_ID: ""
         run: pnpm --dir meme exec vite build --outDir .tmp/restricted-qa-web && pnpm --dir meme qa:migrate
       - name: Real local gateway and Worker proof round-trip (no tunnel)
         shell: bash
@@ -75,6 +77,8 @@ jobs:
         run: pnpm --dir packages/meme-qa test:gateway-browser
       - name: Desktop and mobile viewport journeys against the isolated Worker
         run: pnpm --dir packages/meme-qa test:browser
+      - name: Populated local QA and private admin journeys · no providers or sends
+        run: pnpm --dir packages/meme-qa seed:browser
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -90,7 +94,7 @@ jobs:
           version: 10.26.0
       - uses: actions/setup-node@v5
         with:
-          node-version: '24'
+          node-version: "24"
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Check isolated local foundation

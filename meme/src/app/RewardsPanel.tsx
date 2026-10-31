@@ -1,4 +1,11 @@
 import { useReadPage } from "./useReadPage";
+import { lazy, Suspense } from "react";
+import { qaEnabled } from "./qaMode";
+const Claims = import.meta.env.DEV
+  ? lazy(() =>
+      import("./QAInteractions").then((m) => ({ default: m.QAClaims })),
+    )
+  : null;
 import {
   rewardTotals,
   tokenAmount,
@@ -74,7 +81,13 @@ export default function RewardsPanel({ fid }: { fid: number }) {
           Load older rewards
         </button>
       )}
-      <button disabled>Claims coming later</button>
+      {qaEnabled && Claims ? (
+        <Suspense fallback={<p>Loading demo claims…</p>}>
+          <Claims onChanged={() => page.refresh()} />
+        </Suspense>
+      ) : (
+        <button disabled>Claims coming later</button>
+      )}
     </section>
   );
 }

@@ -1,4 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, lazy, Suspense } from "react";
+import { qaEnabled, qaContext } from "./qaMode";
+const QATrade = import.meta.env.DEV
+  ? lazy(() => import("./QAInteractions"))
+  : null;
 import type {
   MarketDefinition,
   MarketView,
@@ -105,7 +109,9 @@ export default function MarketsPanel() {
   const [items, setItems] = useState<MarketDefinition[]>([]),
     [cursor, setCursor] = useState<string | null>(null),
     [market, setMarket] = useState(
-      () => new URLSearchParams(location.search).get("market") ?? "",
+      () =>
+        new URLSearchParams(location.search).get("market") ??
+        (qaEnabled ? (qaContext?.latestMarket ?? "") : ""),
     ),
     [window, setWindow] = useState<MarketWindow>("24h"),
     [view, setView] = useState<MarketView | null>(null),
@@ -200,6 +206,11 @@ export default function MarketsPanel() {
             onChange={(e) => setMarket(e.target.value)}
           >
             <option value="">Choose a pair</option>
+            {view && !items.some((m) => m.id === view.market.id) && (
+              <option value={view.market.id}>
+                {view.market.symbol} / {view.market.ogSymbol}
+              </option>
+            )}
             {items.map((m) => (
               <option key={m.id} value={m.id}>
                 {m.symbol} / {m.ogSymbol}
@@ -300,6 +311,15 @@ export default function MarketsPanel() {
               </>
             )}
           </p>
+          {qaEnabled && QATrade && (
+            <Suspense fallback={<p>Loading demo trading…</p>}>
+              <QATrade
+                key={view.market.id}
+                marketId={view.market.id}
+                symbol={view.market.symbol}
+              />
+            </Suspense>
+          )}
           <details>
             <summary>Price history &amp; coverage</summary>
             <p>

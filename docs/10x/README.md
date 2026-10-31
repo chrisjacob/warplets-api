@@ -1,5 +1,7 @@
 # 10X.meme daily launchpad
 
+Local review now includes a [populated QA world and scoped admin workspace](ADMIN-AND-SEEDED-QA.md): thirty prior launches, synthetic people/trading/rewards, candidate selection, operational metrics, reviewed communications and safety controls. Use `http://127.0.0.1:5198/?qa=seeded` and `http://127.0.0.1:5198/__adminhidden/meme?qa=seeded`. Financial activation and real delivery remain disabled.
+
 This is the authoritative entry point for the new product. Read [SPEC.md](SPEC.md), [ARCHITECTURE.md](ARCHITECTURE.md), and [DECISIONS.md](DECISIONS.md) before implementation. The specification distinguishes confirmed requirements from working assumptions and unresolved decisions.
 
 Current build and remaining gates: [overnight handoff — 31 October](OVERNIGHT-HANDOFF.md), [delivery status](DELIVERY-STATUS.md), and [focused review record](OVERNIGHT-DELIVERY.md). The new growth, mini-app, trading, social, notification and custody proofs are implemented locally; production/financial activation remains disabled. Earlier milestone descriptions below are historical context.

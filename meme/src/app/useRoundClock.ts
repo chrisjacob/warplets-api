@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { qaEnabled } from "./qaMode";
 /** One timer at the next boundary, rather than a per-second render loop.
  * Server time anchors the display; the API remains authoritative for voting. */
 export function useRoundClock(
@@ -10,6 +11,10 @@ export function useRoundClock(
   useEffect(() => {
     const base = serverTime ?? Date.now(),
       started = performance.now();
+    if (qaEnabled) {
+      setNow(base);
+      return;
+    }
     let timer: ReturnType<typeof setTimeout> | undefined;
     const update = () => {
       clearTimeout(timer);

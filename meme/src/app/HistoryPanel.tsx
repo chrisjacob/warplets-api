@@ -1,5 +1,6 @@
 import { useReadPage } from "./useReadPage";
 import type { RoundView } from "./LocalRounds";
+import { qaEnabled } from "./qaMode";
 type HistoryEntry = Pick<
   RoundView,
   | "id"
@@ -10,7 +11,9 @@ type HistoryEntry = Pick<
   | "outcome_reason"
 >;
 export default function HistoryPanel() {
-  const page = useReadPage<HistoryEntry>("/api/meme/history");
+  const page = useReadPage<
+    HistoryEntry & { edition?: { id: string; symbol: string; mint: string } }
+  >("/api/meme/history");
   return (
     <section
       className="card"
@@ -52,6 +55,23 @@ export default function HistoryPanel() {
             </p>
           </div>
           {r.outcome_reason && <p>{r.outcome_reason}</p>}
+          {qaEnabled && r.edition && (
+            <a
+              href={
+                "/?" +
+                new URLSearchParams({
+                  qa: "seeded",
+                  qaPersona:
+                    new URLSearchParams(location.search).get("qaPersona") ??
+                    "participant",
+                  view: "Today",
+                  market: r.edition.id,
+                })
+              }
+            >
+              {r.edition.symbol} · View performance ↗
+            </a>
+          )}
         </article>
       ))}
       {page.loading && <p role="status">Loading rounds…</p>}

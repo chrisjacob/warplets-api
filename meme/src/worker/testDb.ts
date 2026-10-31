@@ -2,23 +2,42 @@ import { DatabaseSync } from "node:sqlite";
 import { readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 /** Real SQLite, transactional batches; only the D1 transport is substituted. */
-export function testDb() {
-  const raw = new DatabaseSync(":memory:");
+export function testDb(options: { file?: string } = {}) {
+  const raw = new DatabaseSync(options.file ?? ":memory:");
+  if (options.file)
+    raw.exec(
+      "PRAGMA journal_mode=WAL;PRAGMA synchronous=NORMAL;PRAGMA busy_timeout=10000",
+    );
   const queries: string[] = [];
   let interrupt = false;
   let batchTail = Promise.resolve();
   raw.exec("PRAGMA foreign_keys=ON");
+  raw.exec(
+    "CREATE TABLE IF NOT EXISTS qa_applied_migrations(name TEXT PRIMARY KEY)",
+  );
   for (const file of readdirSync(
     resolve(import.meta.dirname, "../../migrations"),
   )
     .filter((f) => f.endsWith(".sql"))
     .sort())
-    raw.exec(
-      readFileSync(
-        resolve(import.meta.dirname, "../../migrations", file),
-        "utf8",
-      ),
-    );
+    if (
+      !raw.prepare("SELECT 1 FROM qa_applied_migrations WHERE name=?").get(file)
+    ) {
+      raw.exec("BEGIN");
+      try {
+        raw.exec(
+          readFileSync(
+            resolve(import.meta.dirname, "../../migrations", file),
+            "utf8",
+          ),
+        );
+        raw.prepare("INSERT INTO qa_applied_migrations VALUES(?)").run(file);
+        raw.exec("COMMIT");
+      } catch (error) {
+        raw.exec("ROLLBACK");
+        throw error;
+      }
+    }
   class Statement {
     values: unknown[] = [];
     constructor(readonly sql: string) {}
@@ -54,7 +73,7 @@ export function testDb() {
   }
   const transport = {
     prepare: (sql: string) => {
-      queries.push(sql);
+      if (!options.file || queries.length < 10000) queries.push(sql);
       return new Statement(sql);
     },
     batch: (statements: Statement[]) => {

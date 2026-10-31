@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useState } from "react";
 import Onboarding from "./Onboarding";
 import { miniRuntime } from "./miniRuntime";
+import { qaEnabled, qaContext } from "./qaMode";
 import { preview } from "../shared/fixtures";
 import { LocalRounds, OperatorPanel, useLocalState } from "./LocalRounds";
 import { IdentityPanel } from "./IdentityPanel";
@@ -235,12 +236,25 @@ export function App() {
         <a className="brand" href="#">
           10X<span>.meme</span>
         </a>
-        <IdentityPanel
-          identity={identity}
-          onIdentity={onIdentity}
-          open={connectOpen}
-          onOpenChange={setConnectOpen}
-        />
+        {qaEnabled ? (
+          <button
+            onClick={() => {
+              const controls = document.querySelector<HTMLDetailsElement>(
+                ".qa-toolbar details",
+              );
+              if (controls) controls.open = true;
+            }}
+          >
+            {qaContext?.person?.name ?? "Choose demo account"} · Demo
+          </button>
+        ) : (
+          <IdentityPanel
+            identity={identity}
+            onIdentity={onIdentity}
+            open={connectOpen}
+            onOpenChange={setConnectOpen}
+          />
+        )}
       </header>
       <main>
         <div className="page-heading">
@@ -248,10 +262,14 @@ export function App() {
             <p className="eyebrow">Daily launchpad</p>
             <h1>One launch. Or skip.</h1>
           </div>
-          <span className="preview-label">Local preview</span>
+          <span className="preview-label">
+            {qaEnabled ? "QA simulation" : "Local preview"}
+          </span>
         </div>
         <p className="fine preview-notice">
-          No funds move. Launches and claims are disabled.
+          {qaEnabled
+            ? "All activity is simulated. No funds move."
+            : "No funds move. Launches and claims are disabled."}
         </p>
         <Tabs value={tab} onChange={setTab} />
         {(tab === "Today" || help) && (
@@ -278,7 +296,13 @@ export function App() {
                 data={data}
                 identity={identity}
                 refresh={refresh}
-                onConnect={() => setConnectOpen(true)}
+                onConnect={() => {
+                  if (qaEnabled) {
+                    const url = new URL(location.href);
+                    url.searchParams.set("qaPersona", "participant");
+                    location.href = url.href;
+                  } else setConnectOpen(true);
+                }}
                 stale={!!error}
               />
               <Suspense fallback={<p role="status">Loading markets…</p>}>
@@ -311,7 +335,13 @@ export function App() {
                 <p>Connect to see your rewards.</p>
                 <button
                   className="primary"
-                  onClick={() => setConnectOpen(true)}
+                  onClick={() => {
+                    if (qaEnabled) {
+                      const url = new URL(location.href);
+                      url.searchParams.set("qaPersona", "participant");
+                      location.href = url.href;
+                    } else setConnectOpen(true);
+                  }}
                 >
                   Connect
                 </button>
@@ -323,11 +353,38 @@ export function App() {
             </Suspense>
           )}
         </div>
-        {new URLSearchParams(location.search).get("operator") === "1" && (
-          <OperatorPanel />
-        )}
+        {!qaEnabled &&
+          new URLSearchParams(location.search).get("operator") === "1" && (
+            <OperatorPanel />
+          )}
       </main>
       <footer>
+        {import.meta.env.DEV && (
+          <label
+            className="qa-toggle"
+            style={{ display: "inline-flex", alignItems: "center", gap: 8 }}
+          >
+            <input
+              type="checkbox"
+              checked={qaEnabled}
+              onChange={(e) => {
+                const url = new URL(location.href);
+                for (const key of [
+                  "fixture",
+                  "market",
+                  "trader",
+                  "board",
+                  "qaPersona",
+                ])
+                  url.searchParams.delete(key);
+                if (e.target.checked) url.searchParams.set("qa", "seeded");
+                else url.searchParams.delete("qa");
+                location.href = url.href;
+              }}
+            />{" "}
+            QA data
+          </label>
+        )}
         <span>Solana · Warplets · Farcaster</span>
         <button className="text-button" onClick={() => setHelp(true)}>
           How it works

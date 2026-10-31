@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1 --port 5194 --strictPort",
     "dev:worker": "wrangler dev --local --ip 127.0.0.1 --port 8797 --persist-to .wrangler/state",
-    "review:dev": "vite --host 127.0.0.1 --port 5198 --strictPort",
+    "review:dev": "vite --mode review --host 127.0.0.1 --port 5198 --strictPort",
     "review:worker": "wrangler dev --local --ip 127.0.0.1 --port 8800 --persist-to .wrangler/review-state",
     "review:migrate": "wrangler d1 migrations apply meme-local --local --persist-to .wrangler/review-state",
     "qa:build": "node scripts/check-qa-env.mjs && vite build --outDir .tmp/restricted-qa-web",
@@ -14,7 +14,7 @@
     "db:migrate": "wrangler d1 migrations apply meme-local --local --persist-to .wrangler/state",
     "types": "wrangler types worker-configuration.d.ts --include-runtime false",
     "typecheck": "tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.worker.json",
-    "build": "vite build && node scripts/check-performance.mjs",
+    "build": "vite build && node scripts/check-performance.mjs && node scripts/check-qa-boundary.mjs",
     "build:worker": "wrangler deploy --dry-run --outdir .tmp/worker",
     "test": "tsx --test src/worker/*.test.ts src/shared/*.test.ts src/app/*.test.ts && node --test scripts/*.test.mjs",
     "check": "pnpm boundary && pnpm typecheck && pnpm test && pnpm build && pnpm build:worker",
