@@ -21,7 +21,13 @@ const dollars = (n: string) =>
     currency: "USD",
     maximumFractionDigits: 2,
   }).format(Number(n));
-export default function LeadersPanel({ data }: { data: LocalState | null }) {
+export default function LeadersPanel({
+  data,
+  onToday,
+}: {
+  data: LocalState | null;
+  onToday?: () => void;
+}) {
   const [profileFid, setProfileFid] = useState<number | null>(() => {
       const raw = new URLSearchParams(location.search).get("trader");
       return raw &&
@@ -124,7 +130,14 @@ export default function LeadersPanel({ data }: { data: LocalState | null }) {
               ))}
             </ol>
           ) : (
-            <p>No reward rankings yet.</p>
+            <>
+              <p>No reward rankings yet.</p>
+              {onToday && (
+                <button className="secondary" onClick={onToday}>
+                  Go to today’s vote →
+                </button>
+              )}
+            </>
           )}
           {Math.min(100, data?.leaderboard?.length ?? 0) > visibleRewards && (
             <button

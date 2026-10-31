@@ -138,7 +138,9 @@ test("onboarding stays dismissed across tabs when its storage key is unavailable
   await page.getByRole("tab", { name: "Today", exact: true }).click();
   await expect(guide).toHaveCount(0);
   await page.getByRole("button", { name: "How it works" }).click();
-  await expect(guide).toBeVisible();
+  await expect(
+    page.getByRole("dialog", { name: "How 10X works" }),
+  ).toBeVisible();
 });
 test("an expired session stops automatic polling and a manual retry recovers", async ({
   page,
@@ -276,12 +278,15 @@ test("matched markets and separate trading ranks stay readable and never enable 
     ),
   ).toBeTruthy();
 });
-test("onboarding is brief, persistent and replayable without blocking Connect", async ({
+test("the optional tour is brief, persistent and replayable while the welcome invitation keeps Connect usable", async ({
   page,
 }, testInfo) => {
   await page.goto("/");
-  const guide = page.getByRole("region", { name: "Getting started" });
-  await expect(guide).toBeVisible();
+  const invitation = page.getByRole("region", { name: "Getting started" }),
+    guide = page.getByRole("dialog", { name: "How 10X works" });
+  await expect(invitation).toBeVisible();
+  await expect(page.getByRole("button", { name: /^Account/ })).toBeVisible();
+  await invitation.getByRole("button", { name: "Quick tour" }).click();
   await guide.getByRole("button", { name: "Next", exact: true }).click();
   await expect(
     guide.getByRole("img", {
@@ -299,10 +304,10 @@ test("onboarding is brief, persistent and replayable without blocking Connect", 
   await guide.getByRole("button", { name: "Got it" }).click();
   await expect(guide).toHaveCount(0);
   await page.reload();
-  await expect(guide).toHaveCount(0);
+  await expect(invitation).toHaveCount(0);
   await page.getByRole("button", { name: "How it works" }).click();
   await expect(guide).toBeVisible();
-  await guide.getByRole("button", { name: "Skip", exact: true }).click();
+  await guide.getByRole("button", { name: "Close guide", exact: true }).click();
   await expect(guide).toHaveCount(0);
 });
 async function installWallet(page, { cancel = false } = {}) {
@@ -654,9 +659,21 @@ test("real Solana proof, changed vote, operator selection and history use the ac
     .filter({ has: page.getByRole("heading", { name: "Beta", exact: true }) });
   await alpha.getByRole("button", { name: "Vote", exact: true }).click();
   await expect(alpha.getByRole("button", { name: "✓ Voted" })).toBeVisible();
+  await expect(page.locator(".app-toast")).toHaveText(/Vote saved\./);
+  const nextStep = page.getByRole("region", { name: "Your next step" });
+  await expect(nextStep).toContainText("You chose Alpha.");
+  await page
+    .getByRole("button", { name: "Close message", exact: true })
+    .click();
+  await nextStep.getByRole("button", { name: "View rewards" }).click();
+  await expect(
+    page.getByRole("tab", { name: "Rewards", exact: true }),
+  ).toHaveAttribute("aria-selected", "true");
+  await page.getByRole("tab", { name: "Today", exact: true }).click();
   const first = await (await page.request.get("/api/meme/state")).json();
   await beta.getByRole("button", { name: "Vote", exact: true }).click();
   await expect(beta.getByRole("button", { name: "✓ Voted" })).toBeVisible();
+  await expect(page.locator(".app-toast")).toHaveText(/Vote changed\./);
   const second = await (await page.request.get("/api/meme/state")).json();
   expect(second.myVote.first_valid_at).toBe(first.myVote.first_valid_at);
   expect(second.myVote.reward_wallet).toBe(first.myVote.reward_wallet);
@@ -728,7 +745,7 @@ test("reduced-motion wallet success is announced without animation and can be di
   ).toBeVisible();
   await expect(page.locator("canvas")).toHaveCount(0);
   await page
-    .getByRole("button", { name: "Dismiss connection message" })
+    .getByRole("button", { name: "Close message", exact: true })
     .click();
   await expect(
     page.getByText("Reward wallet verified.", { exact: true }),

@@ -20,7 +20,7 @@ export default defineConfig({
     { name: "mobile-viewport", use: { viewport: { width: 390, height: 844 } } },
     {
       name: "mobile-webkit",
-      testMatch: "mobile-brand.spec.mjs",
+      testMatch: ["mobile-brand.spec.mjs", "guidance.spec.mjs"],
       use: {
         browserName: "webkit",
         viewport: { width: 390, height: 844 },

@@ -9,7 +9,7 @@
   --brand: #00ff00;
   --muted: #91b491;
   --line: rgba(0, 255, 0, 0.24);
-  --surface: rgba(0, 8, 0, 0.92);
+  --surface: #000;
   --positive: #4dff88;
   --negative: #ff91a7;
   font-family: "Roboto Mono", system-ui, sans-serif;
@@ -83,15 +83,16 @@ button.primary,
 .primary {
   border: 1px solid #009900;
   background: var(--brand);
-  color: #003800;
-  box-shadow: 2px 4px 0 #008000;
+  color: #005000;
+  border-radius: 20px;
+  box-shadow: 3px 6px 0 #008000;
 }
 button.primary:not(:disabled):hover {
   background: #36ff36;
 }
 button.primary:not(:disabled):active {
-  transform: translateY(2px);
-  box-shadow: 1px 2px 0 #008000;
+  transform: translate(1px, 3px);
+  box-shadow: 1px 3px 0 #008000;
 }
 input,
 select,
@@ -415,12 +416,14 @@ details[open] > summary {
   min-width: 0;
   padding: 16px;
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: 16px;
   background: var(--surface);
   margin-bottom: 14px;
 }
 .card h2 {
   margin: 0 0 10px;
+  color: var(--brand);
+  font-size: 18px;
 }
 .card h3 {
   margin: 0;
@@ -500,59 +503,6 @@ details[open] > summary {
 }
 .local-app [role="tabpanel"]:focus-visible {
   outline-offset: 5px;
-}
-.onboarding {
-  position: relative;
-  margin: 0 0 18px;
-  padding: 14px;
-  border-color: #00ff003d;
-  background: #031203;
-}
-.onboarding .eyebrow {
-  font-size: 9px;
-  letter-spacing: 0.06em;
-}
-.onboarding h2 {
-  margin: 4px 0 6px;
-  font-size: 17px;
-}
-.onboarding p {
-  margin: 6px 0;
-  font-size: 12px;
-  line-height: 1.5;
-}
-.onboarding .list-heading {
-  margin: 0;
-}
-.onboarding .text-button {
-  min-height: 44px;
-  padding: 2px 6px;
-}
-.onboarding-actions {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-  margin-top: 10px;
-}
-.onboarding-actions button {
-  min-height: 44px;
-  padding: 6px 18px;
-  border-radius: 99px;
-  font-size: 12px;
-}
-.onboarding-actions .primary {
-  min-width: 105px;
-}
-.onboarding-chart {
-  display: block;
-  width: 100%;
-  height: 56px;
-  margin: 8px 0;
-}
-.onboarding-actions button:not(.primary) {
-  border: 0;
-  background: transparent;
 }
 .round-content {
   display: grid;
@@ -1239,7 +1189,7 @@ details[open] > summary {
   font-size: 12px;
   color: #b8d7b8;
 }
-.local-app footer {
+.local-app > footer {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1251,11 +1201,11 @@ details[open] > summary {
   color: #799d79;
   font-size: 10px;
 }
-.local-app footer > span {
+.local-app > footer > span {
   width: 100%;
   text-align: center;
 }
-.local-app footer .text-button {
+.local-app > footer .text-button {
   font-size: 11px;
 }
 .qa-toggle {
@@ -1304,20 +1254,6 @@ details[open] > summary {
 .connect-feedback button {
   min-height: 36px;
   font-size: 11px;
-}
-.web-connect-progress-toast.connect-success-toast {
-  top: calc(env(safe-area-inset-top, 0px) + 12px);
-  width: min(calc(100vw - 24px), 480px);
-  border: 1px solid var(--brand);
-  border-radius: 12px;
-}
-.connect-success-toast button {
-  min-width: 40px;
-  min-height: 40px;
-  padding: 4px;
-  color: inherit;
-  background: transparent;
-  border: none;
 }
 .web-connect-modal p {
   overflow-wrap: anywhere;

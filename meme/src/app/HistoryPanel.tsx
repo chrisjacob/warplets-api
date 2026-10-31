@@ -10,7 +10,9 @@ type HistoryEntry = Pick<
   | "selected_name"
   | "outcome_reason"
 >;
-export default function HistoryPanel() {
+export default function HistoryPanel({
+  onToday,
+}: { onToday?: () => void } = {}) {
   const page = useReadPage<
     HistoryEntry & { edition?: { id: string; symbol: string; mint: string } }
   >("/api/meme/history");
@@ -82,7 +84,14 @@ export default function HistoryPanel() {
         </div>
       )}
       {!page.loading && !page.error && !page.items.length && (
-        <p>No past rounds yet.</p>
+        <>
+          <p>No past rounds yet.</p>
+          {onToday && (
+            <button className="secondary" onClick={onToday}>
+              Go to today’s vote →
+            </button>
+          )}
+        </>
       )}
       {page.hasMore && !page.error && (
         <button disabled={page.loading} onClick={() => void page.more()}>

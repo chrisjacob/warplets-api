@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { api } from "./client";
 import { qaEnabled, qaPath } from "./qaMode";
 import { miniRuntime } from "./miniRuntime";
+import { useFeedback } from "./Feedback";
 import type { ShareCard, CardKind } from "../shared/shareCards";
 export default function SocialShare({
   kind,
@@ -18,6 +19,7 @@ export default function SocialShare({
   sourceHash?: string;
   compact?: boolean;
 }) {
+  const notify = useFeedback();
   const [busy, setBusy] = useState(false),
     [preview, setPreview] = useState<string | null>(null),
     [message, setMessage] = useState("");
@@ -59,10 +61,12 @@ export default function SocialShare({
       else {
         await navigator.clipboard.writeText(url);
         setMessage("Link copied.");
+        notify("Link copied.");
       }
     } catch (e) {
       if (e instanceof Error && e.name === "AbortError") return;
       setMessage(e instanceof Error ? e.message : "Couldn’t share. Try again.");
+      notify("Couldn’t share. Please try again.", "error");
     } finally {
       setBusy(false);
     }

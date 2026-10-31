@@ -4,9 +4,11 @@ import { useRef, useState, useEffect, type ReactNode } from "react";
 export function AppHeader({
   account,
   onHelp,
+  onAccount,
 }: {
   account: ReactNode;
-  onHelp: () => void;
+  onHelp: (opener: HTMLElement | null) => void;
+  onAccount: () => void;
 }) {
   const [open, setOpen] = useState(false),
     dialog = useRef<HTMLDialogElement>(null),
@@ -31,7 +33,19 @@ export function AppHeader({
         >
           <img src="/icon.png" alt="10X" width="56" height="56" />
         </a>
-        <span className="app-title">10X.MEME</span>
+        <button
+          className="app-title"
+          aria-label="10X Meme account"
+          aria-haspopup="dialog"
+          onClick={onAccount}
+        >
+          <span className="app-title-label">
+            10X Meme{" "}
+            <span className="app-title-caret" aria-hidden="true">
+              ⌄
+            </span>
+          </span>
+        </button>
         <div className="header-actions">
           {account}
           <button
@@ -56,7 +70,7 @@ export function AppHeader({
           setOpen(false);
           if (helpAfterClose.current) {
             helpAfterClose.current = false;
-            onHelp();
+            onHelp(trigger.current);
           } else trigger.current?.focus();
         }}
         onClick={(event) => {
@@ -72,7 +86,7 @@ export function AppHeader({
           }
         }}
       >
-        <div className="list-heading">
+        <div className="list-heading modal-heading">
           <h2 id="app-menu-title">Explore 10X</h2>
           <button
             className="icon-button"
@@ -91,22 +105,39 @@ export function AppHeader({
         >
           How it works <span aria-hidden="true">→</span>
         </button>
-        <a
-          className="menu-row"
-          href="https://warplet.10x.meme/"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          10X Warplets <span aria-hidden="true">↗</span>
-        </a>
-        <a
-          className="menu-row"
-          href="https://stonklet.10x.meme/"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          10X Stonklets <span aria-hidden="true">↗</span>
-        </a>
+        <h3 className="menu-section-title">Mini apps</h3>
+        <div className="miniapp-cards">
+          <a
+            className="miniapp-card"
+            href="https://warplet.10x.meme/"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <img
+              src="/warplet-mark.png"
+              alt=""
+              loading="lazy"
+              width="128"
+              height="128"
+            />
+            <span>10X Warplets ↗</span>
+          </a>
+          <a
+            className="miniapp-card"
+            href="https://stonklet.10x.meme/"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <img
+              src="/stonklet-mark.png"
+              alt=""
+              loading="lazy"
+              width="128"
+              height="128"
+            />
+            <span>10X Stonklets ↗</span>
+          </a>
+        </div>
         <a
           className="menu-row"
           href="https://app.10x.meme/"
