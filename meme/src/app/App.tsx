@@ -316,6 +316,7 @@ export function App() {
         <div
           id="launchpad-panel"
           role="tabpanel"
+          tabIndex={-1}
           aria-labelledby={"tab-" + tab}
         >
           {tab === "Today" && (

@@ -21,6 +21,10 @@ test("mobile chrome fits narrow screens and the menu returns keyboard focus", as
   await expect(
     page.getByRole("heading", { name: "Cast", exact: true }),
   ).toBeVisible();
+  const skip = page.getByRole("link", { name: "Skip to content", exact: true });
+  await skip.focus();
+  await skip.press("Enter");
+  await expect(page.getByRole("tabpanel")).toBeFocused();
   for (const width of [320, 390, 500, 1280]) {
     await page.setViewportSize({ width, height: 844 });
     expect(

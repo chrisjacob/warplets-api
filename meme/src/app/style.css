@@ -1470,6 +1470,16 @@ details[open] > summary {
     font-size: 11px;
   }
 }
+@media (max-width: 500px) {
+  select,
+  .market-controls select {
+    font-size: 16px;
+  }
+  .market-panel .market-controls {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 92px;
+  }
+}
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

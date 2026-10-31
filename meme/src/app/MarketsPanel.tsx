@@ -133,8 +133,8 @@ export default function MarketsPanel() {
             value={window}
             onChange={(e) => setWindow(e.target.value as MarketWindow)}
           >
-            <option value="24h">24 hours</option>
-            <option value="30d">30 days</option>
+            <option value="24h">24h</option>
+            <option value="30d">30d</option>
             <option value="all">All time</option>
           </select>
         </label>

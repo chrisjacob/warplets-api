@@ -25,7 +25,7 @@ The primary journey remains **Connect → vote → follow selection → claim**.
 ## Validation
 
 - `pnpm --dir meme check`: package boundaries, app/Worker typechecks, 125 core regressions, 11 script/asset checks, production build and local Worker dry run.
-- `pnpm --dir packages/meme-qa test:browser`: 50 desktop/mobile browser checks, including 320/390/500/1280px layout, menu focus, reload-safe navigation and keyboard chart inspection without API writes.
+- `pnpm --dir packages/meme-qa test:browser`: 53 desktop/mobile browser checks, including three Safari-engine checks, 320/390/500/1280px layout, skip-link/menu focus, reload-safe navigation and keyboard chart inspection without API writes.
 - `pnpm --dir packages/meme-qa seed:browser`: populated month and private admin journeys, progressive access to all 100 ranks, voting, simulated trades/claims and native QA share focus behavior.
 - Static startup budget: 73.7 KiB gzip, below the existing 80 KiB limit. Panels and Connect remain lazy-loaded. QA seed data, share-preview UI and legacy design fixtures are excluded from production JavaScript.
 - Local screenshots inspected for Today, Rewards, Leaders, History and narrow/desktop layouts; no page errors or horizontal overflow in the review harness.
