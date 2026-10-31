@@ -113,6 +113,7 @@ test("public trader profiles show only the pinned published metrics and recover 
     ),
   ).toBeTruthy();
   await profile.getByRole("button", { name: "Back to leaders" }).click();
+  await page.getByText("Find a trader", { exact: true }).click();
   await page.getByLabel("Farcaster ID", { exact: true }).fill("999");
   await page.getByRole("button", { name: "View trader", exact: true }).click();
   await expect(profile.getByText(/No published trading profile/)).toBeVisible();

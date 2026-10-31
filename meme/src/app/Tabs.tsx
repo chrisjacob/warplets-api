@@ -8,7 +8,7 @@ export function Tabs({
 }) {
   const tabs: Tab[] = ["Today", "Rewards", "Leaders", "History"];
   return (
-    <nav aria-label="Launchpad">
+    <nav aria-label="Launchpad" className="launch-tabs">
       <div role="tablist" aria-label="Launchpad views">
         {tabs.map((tab, index) => (
           <button

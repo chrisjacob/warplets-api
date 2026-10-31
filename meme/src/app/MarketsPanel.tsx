@@ -10,101 +10,8 @@ import type {
 } from "../shared/markets";
 import { api } from "./client";
 import SocialShare from "./SocialShare";
-const percent = (value: string | null) =>
-  value === null
-    ? "—"
-    : (Number(value) > 0 ? "+" : "") +
-      Number(value).toLocaleString(undefined, { maximumFractionDigits: 2 }) +
-      "%";
-function Chart({ view }: { view: MarketView }) {
-  const finite = view.points.filter(
-    (p) =>
-      Number.isFinite(Number(p.ogIndex)) &&
-      (p.attnIndex === null || Number.isFinite(Number(p.attnIndex))),
-  );
-  if (finite.length < 2) return <p>Not enough matching price history yet.</p>;
-  const values = finite.flatMap((p) =>
-      p.attnIndex === null
-        ? [Number(p.ogIndex)]
-        : [Number(p.ogIndex), Number(p.attnIndex)],
-    ),
-    lo = Math.min(100, ...values),
-    hi = Math.max(100, ...values),
-    range = hi - lo || 1,
-    from = finite[0].at,
-    span = finite.at(-1)!.at - from || 1;
-  const paths = (key: "ogIndex" | "attnIndex") => {
-    const out: string[] = [];
-    let path = "";
-    for (const p of finite) {
-      if (p[key] === null || p.breakBefore) {
-        if (path) out.push(path);
-        path = "";
-      }
-      if (p[key] !== null) {
-        path +=
-          (path ? " L" : "M") +
-          (20 + ((p.at - from) / span) * 600).toFixed(2) +
-          "," +
-          (180 - ((Number(p[key]) - lo) / range) * 150).toFixed(2);
-      }
-    }
-    if (path) out.push(path);
-    return out;
-  };
-  return (
-    <>
-      <svg
-        className="performance-chart"
-        viewBox="0 0 640 210"
-        role="img"
-        aria-label="Matched price performance, indexed to 100 at the same start time"
-      >
-        <line
-          x1="20"
-          x2="620"
-          y1={180 - ((100 - lo) / range) * 150}
-          y2={180 - ((100 - lo) / range) * 150}
-          stroke="currentColor"
-          strokeDasharray="4 4"
-          opacity=".25"
-        />
-        {paths("ogIndex").map((d, i) => (
-          <path
-            key={"og" + i}
-            d={d}
-            fill="none"
-            stroke="#9b9ba8"
-            strokeWidth="3"
-          />
-        ))}
-        {paths("attnIndex").map((d, i) => (
-          <path
-            key={"attn" + i}
-            d={d}
-            fill="none"
-            stroke="#d6fd72"
-            strokeWidth="3"
-            strokeDasharray="8 3"
-          />
-        ))}
-        <text x="20" y="205" fill="currentColor" fontSize="13">
-          {new Date(from).toLocaleDateString()}
-        </text>
-        <text
-          x="620"
-          y="205"
-          textAnchor="end"
-          fill="currentColor"
-          fontSize="13"
-        >
-          {new Date(finite.at(-1)!.at).toLocaleDateString()}
-        </text>
-      </svg>
-      <p className="fine">● OG · dashed ATTN · same start = 100</p>
-    </>
-  );
-}
+import PerformanceChart from "./PerformanceChart";
+import { percentage as percent, direction } from "./display";
 export default function MarketsPanel() {
   const [items, setItems] = useState<MarketDefinition[]>([]),
     [cursor, setCursor] = useState<string | null>(null),
@@ -257,7 +164,7 @@ export default function MarketsPanel() {
             {view.coverage.state === "partial" ? " · partial coverage" : ""}
             {view.coverage.limited ? " · limited history" : ""}
           </p>
-          <Chart view={view} />
+          <PerformanceChart key={view.inputHash + view.window} view={view} />
           {view.coverage.fromAt !== null && (
             <p className="fine">
               Compared from {new Date(view.coverage.fromAt).toLocaleString()}.
@@ -272,20 +179,26 @@ export default function MarketsPanel() {
           />
           <dl className="market-returns">
             <div>
-              <dt>{view.market.symbol} · USD</dt>
-              <dd>{percent(view.returns.attn)}</dd>
+              <dt>ATTN · USD</dt>
+              <dd className={direction(view.returns.attn)}>
+                {percent(view.returns.attn)}
+              </dd>
             </div>
             <div>
-              <dt>{view.market.ogSymbol} · USD</dt>
-              <dd>{percent(view.returns.og)}</dd>
+              <dt>OG · USD</dt>
+              <dd className={direction(view.returns.og)}>
+                {percent(view.returns.og)}
+              </dd>
             </div>
             <div>
               <dt>ATTN / OG</dt>
-              <dd>{percent(view.returns.pair)}</dd>
+              <dd className={direction(view.returns.pair)}>
+                {percent(view.returns.pair)}
+              </dd>
             </div>
           </dl>
           {view.returns.differencePp !== null && (
-            <p>
+            <p className="performance-comparison">
               {Number(view.returns.differencePp) > 0
                 ? "ATTN ahead by "
                 : Number(view.returns.differencePp) < 0

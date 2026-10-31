@@ -55,7 +55,7 @@ export default function Onboarding({
         </button>
       </div>
       <div aria-live="polite">
-        <h2>{steps[step].title}</h2>
+        <h2 tabIndex={-1}>{steps[step].title}</h2>
         <p>{steps[step].text}</p>
       </div>
       {step === 1 && (
@@ -68,20 +68,20 @@ export default function Onboarding({
           >
             <path
               d="M5 40 L75 32 L135 36 L205 25 L315 15"
-              stroke="#00ff00"
+              stroke="#c1b4ff"
               fill="none"
               strokeWidth="3"
             />
             <path
               d="M5 40 L75 14 L135 42 L205 22 L315 65"
-              stroke="#c1b4ff"
+              stroke="#00ff00"
               fill="none"
               strokeWidth="3"
             />
           </svg>
           <p className="fine">
-            <span style={{ color: "#00ff00" }}>OG</span> ·{" "}
-            <span style={{ color: "#c1b4ff" }}>ATTN</span> · Illustration
+            <span style={{ color: "#00ff00" }}>ATTN</span> ·{" "}
+            <span style={{ color: "#c1b4ff" }}>OG</span> · Illustration
           </p>
           <p className="fine">Gains and losses can be amplified.</p>
         </>

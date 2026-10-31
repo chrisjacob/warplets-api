@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { api } from "./client";
 import { qaEnabled, qaPath } from "./qaMode";
 import { miniRuntime } from "./miniRuntime";
@@ -9,16 +9,24 @@ export default function SocialShare({
   window,
   fid,
   sourceHash,
+  compact = false,
 }: {
   kind: CardKind;
   subject: string;
   window: "24h" | "30d" | "all";
   fid?: number;
   sourceHash?: string;
+  compact?: boolean;
 }) {
   const [busy, setBusy] = useState(false),
     [preview, setPreview] = useState<string | null>(null),
     [message, setMessage] = useState("");
+  const dialog = useRef<HTMLDialogElement>(null),
+    trigger = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (import.meta.env.DEV && preview && !dialog.current?.open)
+      dialog.current?.showModal();
+  }, [preview]);
   async function share() {
     if (busy) return;
     setBusy(true);
@@ -61,12 +69,38 @@ export default function SocialShare({
   }
   return (
     <div className="share-control">
-      <button disabled={busy} onClick={() => void share()}>
-        {busy ? "Preparing…" : kind === "pnl" ? "Share P&L" : "Share"}
+      <button
+        ref={trigger}
+        className={compact ? "compact-share" : ""}
+        aria-label={
+          busy ? "Preparing…" : kind === "pnl" ? "Share P&L" : "Share"
+        }
+        disabled={busy}
+        onClick={() => void share()}
+      >
+        {compact ? (
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 15V3m-4 4 4-4 4 4M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7" />
+          </svg>
+        ) : busy ? (
+          "Preparing…"
+        ) : kind === "pnl" ? (
+          "Share P&L"
+        ) : (
+          "Share"
+        )}
       </button>
       <span role="status">{message}</span>
-      {preview && (
-        <dialog open aria-label="QA share preview" className="qa-share">
+      {import.meta.env.DEV && preview && (
+        <dialog
+          ref={dialog}
+          onClose={() => {
+            setPreview(null);
+            trigger.current?.focus();
+          }}
+          aria-label="QA share preview"
+          className="qa-share"
+        >
           <h3>QA share preview</h3>
           <p>Simulated card · nothing is posted.</p>
           <img
@@ -80,7 +114,7 @@ export default function SocialShare({
             >
               Download PNG
             </a>
-            <button autoFocus onClick={() => setPreview(null)}>
+            <button autoFocus onClick={() => dialog.current?.close()}>
               Close preview
             </button>
           </div>

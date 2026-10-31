@@ -70,8 +70,8 @@ export async function renderCard(card, height) {
       style: {
         width: 1200,
         height,
-        backgroundColor: "#0e1712",
-        color: "#edf8ec",
+        backgroundColor: "#000000",
+        color: "#efffef",
         padding: 64,
         display: "flex",
         flexDirection: "column",
@@ -79,9 +79,9 @@ export async function renderCard(card, height) {
         fontFamily: "Inter",
       },
       children: [
-        div("10X.meme", { fontSize: 38, color: "#d6fd72" }),
+        div("10X.MEME", { fontSize: 38, color: "#00ff00" }),
         div(card.title, { fontSize: 58, lineHeight: 1.2 }),
-        ...card.lines.map((l) => div(l, { fontSize: 26, color: "#bbcebd" })),
+        ...card.lines.map((l) => div(l, { fontSize: 26, color: "#b8d7b8" })),
         div(
           (card.mode === "simulated" ? "SIMULATED · " : "") +
             new Date(card.asOf).toISOString().replace("T", " ").slice(0, 19) +
@@ -91,7 +91,7 @@ export async function renderCard(card, height) {
         div(
           "Past performance does not predict returns. · " +
             card.sourceHash.slice(0, 12),
-          { fontSize: 18, color: "#9eb19f" },
+          { fontSize: 18, color: "#91b491" },
         ),
       ],
     },

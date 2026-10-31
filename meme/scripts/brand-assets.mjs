@@ -1,10 +1,15 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { rasterScene } from "./render-share.mjs";
 globalThis.fetch = async () => {
   throw Error("Brand rendering must remain offline");
 };
 const out = resolve(import.meta.dirname, "../public");
+const mark =
+  "data:image/png;base64," +
+  readFileSync(new URL("./assets/brand-mark.png", import.meta.url)).toString(
+    "base64",
+  );
 mkdirSync(out, { recursive: true });
 const text = (value, size, color) => ({
   type: "div",
@@ -22,8 +27,8 @@ for (const [name, width, height] of [
         style: {
           width,
           height,
-          backgroundColor: "#101512",
-          padding: icon ? 32 : 72,
+          backgroundColor: "#000000",
+          padding: icon ? 0 : 72,
           display: "flex",
           flexDirection: "column",
           justifyContent: icon ? "center" : "space-between",
@@ -31,16 +36,16 @@ for (const [name, width, height] of [
           fontFamily: "Inter",
         },
         children: icon
-          ? [text("10X", 150, "#d6fd72")]
+          ? [{ type: "img", props: { src: mark, width: 512, height: 512 } }]
           : [
-              text("10X.meme", 90, "#d6fd72"),
-              text("One launch. Or skip.", 66, "#edf8ec"),
+              text("10X.MEME", 90, "#00ff00"),
+              text("One launch. Or skip.", 66, "#efffef"),
               text(
                 "Vote for an OG. Follow the launch. Claim rewards.",
                 30,
-                "#bbcebd",
+                "#b8d7b8",
               ),
-              text("Solana · Warplets · Farcaster", 26, "#9eb19f"),
+              text("Solana · Warplets · Farcaster", 26, "#91b491"),
             ],
       },
     };
