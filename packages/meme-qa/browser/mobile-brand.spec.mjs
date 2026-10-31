@@ -58,6 +58,8 @@ test("mobile chrome fits narrow screens and the menu returns keyboard focus", as
   await expect(page.locator(".onboarding h2")).toHaveText(
     "Two prices. One position.",
   );
+  await page.keyboard.press("Escape");
+  await expect(trigger).toBeFocused();
   await trigger.click();
   await menu.getByRole("button", { name: /How it works/ }).click();
   await expect(page.locator(".onboarding h2")).toHaveText(

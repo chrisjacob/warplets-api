@@ -5,6 +5,9 @@ import { useRoundClock } from "./useRoundClock";
 import { pollDelay } from "./polling";
 import { qaPath } from "./qaMode";
 import { metric } from "./display";
+import { ParticipationGuide } from "./ParticipationGuide";
+import { useFeedback } from "./Feedback";
+import { miniRuntime } from "./miniRuntime";
 export interface RoundView {
   id: string;
   state: string;
@@ -169,14 +172,17 @@ export function LocalRounds({
   identity,
   refresh,
   onConnect,
+  onRewards,
   stale = false,
 }: {
   data: LocalState | null;
   identity: Identity | null;
   refresh: () => Promise<void>;
   onConnect: () => void;
+  onRewards?: () => void;
   stale?: boolean;
 }) {
+  const notify = useFeedback();
   const [error, setError] = useState<string | null>(null),
     [busy, setBusy] = useState(false),
     [pendingCandidate, setPendingCandidate] = useState<string | null>(null);
@@ -203,8 +209,16 @@ export function LocalRounds({
         key: crypto.randomUUID(),
       });
       await refresh();
+      notify(data?.myVote ? "Vote changed." : "Vote saved.");
+      void miniRuntime()
+        .then((runtime) => {
+          if (runtime?.capabilities.includes("haptics.notificationOccurred"))
+            return runtime.sdk.haptics.notificationOccurred("success");
+        })
+        .catch(() => {});
     } catch (e) {
       setError(e instanceof Error ? e.message : "Vote failed. Try again.");
+      notify("Couldn’t save your vote. Try again.", "error");
     } finally {
       setBusy(false);
       setPendingCandidate(null);
@@ -213,8 +227,21 @@ export function LocalRounds({
   if (!r)
     return (
       <section className="card" aria-live="polite">
-        <h2>{data ? "No round today" : "Loading today’s round…"}</h2>
-        {data && <p>Check back for the next vote.</p>}
+        <h2>{stale ? "Round unavailable" : data ? "No round today" : "Loading today’s round…"}</h2>
+        {data && (
+          <>
+            <p>Check back for the next vote.</p>
+            <ParticipationGuide
+              data={data}
+              identity={identity}
+              live={false}
+              now={now}
+              stale={stale}
+              onConnect={onConnect}
+              onRewards={onRewards}
+            />
+          </>
+        )}
       </section>
     );
   const waiting = r.state === "prepared" || r.state === "frozen",
@@ -290,6 +317,17 @@ export function LocalRounds({
           </strong>
         )}
       </p>
+      {data && (
+        <ParticipationGuide
+          data={data}
+          identity={identity}
+          live={live}
+          now={now}
+          stale={stale}
+          onConnect={onConnect}
+          onRewards={onRewards}
+        />
+      )}
       {data?.boost && (
         <article className="card compact-boost">
           <div>
@@ -318,20 +356,11 @@ export function LocalRounds({
                 : "+" + data.boost.holding}{" "}
               · Streak +{data.boost.streak}
             </p>
+            <p className="fine">
+              Link a Base wallet in Connect for optional Warplet boosts.
+            </p>
           </details>
         </article>
-      )}
-      {!eligible && live && !data?.participationPaused && (
-        <div className="connect-prompt">
-          <p>
-            {identity?.farcasterFid
-              ? "Add your Solana reward wallet."
-              : "Connect Farcaster to vote."}
-          </p>
-          <button className="primary" onClick={onConnect}>
-            {identity?.farcasterFid ? "Verify wallet" : "Connect to vote"}
-          </button>
-        </div>
       )}
       {data?.scoreSnapshot?.state === "pending" && !final ? (
         <p className="fine" role="status">
@@ -417,22 +446,6 @@ export function LocalRounds({
             : "Vote recorded."
           : "One vote per account. 10X makes the final pick."}
       </p>
-      {(r.state === "selected" ||
-        r.state === "skipped" ||
-        r.state === "closed") && (
-        <article className="card">
-          <h3>
-            {r.state === "skipped"
-              ? "No launch today"
-              : r.selected_candidate
-                ? "Selected: " +
-                  (r.candidates.find((c) => c.id === r.selected_candidate)
-                    ?.name ?? r.selected_candidate)
-                : "Selection pending"}
-          </h3>
-          {r.outcome_reason && <p>{r.outcome_reason}</p>}
-        </article>
-      )}
       {!!data?.leaderboard?.length && (
         <details className="card">
           <summary>{final ? "Final" : "Estimated"} leaderboard</summary>

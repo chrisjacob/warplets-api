@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState, useRef } from "react";
 import Onboarding from "./Onboarding";
 import { miniRuntime } from "./miniRuntime";
 import { qaEnabled, qaContext } from "./qaMode";
@@ -7,6 +7,7 @@ import { LocalRounds, OperatorPanel, useLocalState } from "./LocalRounds";
 import { IdentityPanel } from "./IdentityPanel";
 import { Tabs, type Tab as LaunchTab } from "./Tabs";
 import { AppHeader } from "./AppHeader";
+import { FeedbackProvider } from "./Feedback";
 const HistoryPanel = lazy(() => import("./HistoryPanel"));
 const RewardsPanel = lazy(() => import("./RewardsPanel"));
 const MarketsPanel = lazy(() => import("./MarketsPanel"));
@@ -205,23 +206,14 @@ function FixtureApp() {
   );
 }
 
-export function App() {
+function LaunchpadApp() {
+  const helpOpener = useRef<HTMLElement | null>(null);
   const [help, setHelp] = useState(false),
     [helpRequest, setHelpRequest] = useState(0);
-  useEffect(() => {
-    if (help) {
-      const frame = requestAnimationFrame(() =>
-        document
-          .querySelector<HTMLElement>(".onboarding h2")
-          ?.focus({ preventScroll: true }),
-      );
-      return () => cancelAnimationFrame(frame);
-    }
-  }, [help, helpRequest]);
-  function showHelp() {
+  function showHelp(opener: HTMLElement | null) {
+    helpOpener.current = opener;
     setHelp(true);
     setHelpRequest((n) => n + 1);
-    window.scrollTo({ top: 0, behavior: "auto" });
   }
   useEffect(() => {
     void miniRuntime();
@@ -248,6 +240,17 @@ export function App() {
     history.replaceState(null, "", url);
     window.scrollTo({ top: 0, behavior: "auto" });
   }
+  function openAccount() {
+    if (qaEnabled) {
+      const controls = document.querySelector<HTMLDetailsElement>(
+        ".qa-toolbar details",
+      );
+      if (controls) {
+        controls.open = true;
+        controls.scrollIntoView({ block: "start" });
+      }
+    } else setConnectOpen(true);
+  }
   if (import.meta.env.DEV && fixture)
     return (
       <>
@@ -264,16 +267,10 @@ export function App() {
       </a>
       <AppHeader
         onHelp={showHelp}
+        onAccount={openAccount}
         account={
           qaEnabled ? (
-            <button
-              onClick={() => {
-                const controls = document.querySelector<HTMLDetailsElement>(
-                  ".qa-toolbar details",
-                );
-                if (controls) controls.open = true;
-              }}
-            >
+            <button onClick={openAccount}>
               {qaContext?.person?.name ?? "Choose demo account"} · Demo
             </button>
           ) : (
@@ -306,6 +303,7 @@ export function App() {
           <Onboarding
             key={help ? "help:" + helpRequest : "first"}
             replay={help}
+            opener={helpOpener.current}
             onDone={() => setHelp(false)}
           />
         )}
@@ -335,6 +333,7 @@ export function App() {
                   } else setConnectOpen(true);
                 }}
                 stale={!!error}
+                onRewards={() => changeTab("Rewards")}
               />
               <Suspense fallback={<p role="status">Loading markets…</p>}>
                 <MarketsPanel />
@@ -343,7 +342,7 @@ export function App() {
           )}
           {tab === "Leaders" && (
             <Suspense fallback={<p role="status">Loading leaders…</p>}>
-              <LeadersPanel data={data} />
+              <LeadersPanel data={data} onToday={() => changeTab("Today")} />
             </Suspense>
           )}
           {tab === "Rewards" &&
@@ -353,6 +352,7 @@ export function App() {
                   <RewardsPanel
                     key={"rewards:" + identity.farcasterFid}
                     fid={identity.farcasterFid}
+                    onToday={() => changeTab("Today")}
                   />
                   <NotificationSettings
                     key={"notifications:" + identity.farcasterFid}
@@ -380,7 +380,7 @@ export function App() {
             ))}
           {tab === "History" && (
             <Suspense fallback={<p role="status">Loading rounds…</p>}>
-              <HistoryPanel />
+              <HistoryPanel onToday={() => changeTab("Today")} />
             </Suspense>
           )}
         </div>
@@ -417,9 +417,32 @@ export function App() {
           </label>
         )}
         <span>Solana · Warplets · Farcaster</span>
-        <button className="text-button" onClick={showHelp}>
+        <button
+          className="text-button"
+          onClick={(event) => showHelp(event.currentTarget)}
+        >
           How it works
         </button>
+        <p className="footer-copyright">
+          © 2026 Code Hunt Pty. Ltd. All rights reserved.
+        </p>
+        <nav className="footer-legal" aria-label="Legal">
+          <a
+            href="https://app.10x.meme/terms"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Terms of Service
+          </a>
+          <span aria-hidden="true">｜</span>
+          <a
+            href="https://app.10x.meme/privacy"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Privacy Policy
+          </a>
+        </nav>
         {import.meta.env.DEV && (
           <details className="local-tools">
             <summary>Local tools</summary>
@@ -430,5 +453,12 @@ export function App() {
         )}
       </footer>
     </div>
+  );
+}
+export function App() {
+  return (
+    <FeedbackProvider>
+      <LaunchpadApp />
+    </FeedbackProvider>
   );
 }

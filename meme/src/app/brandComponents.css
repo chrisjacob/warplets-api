@@ -1,0 +1,483 @@
+/* Reviewed Warplet component patterns, kept inside the isolated launchpad package. */
+.secondary {
+  border-radius: 20px;
+  border-color: #00ff0059;
+  background: #000;
+  box-shadow: 3px 6px #00ff0059;
+}
+.secondary:active:not(:disabled) {
+  transform: translate(1px, 3px);
+  box-shadow: 1px 3px #00ff0059;
+}
+.app-header {
+  height: 60px;
+  grid-template-columns: 64px minmax(0, 1fr) auto;
+}
+.app-title {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  justify-self: center;
+  min-height: 44px;
+  padding: 0;
+  font-size: 14px;
+  font-weight: 700;
+  border: 0;
+  background: transparent;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.app-title-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 10px;
+  border: 1px solid #00ff00b3;
+  border-radius: 999px;
+  background: #00ff001f;
+  max-width: 100%;
+  min-width: 0;
+  white-space: nowrap;
+}
+.app-title:not(:disabled):hover {
+  background: transparent;
+}
+.app-title:hover .app-title-label {
+  border-color: var(--brand);
+  background: #00ff0026;
+}
+.app-title .app-title-caret {
+  font-size: 16px;
+}
+.header-actions > .identity-controls > button,
+.header-actions > button:not(.icon-button) {
+  border-radius: 8px;
+  font-size: 12px;
+}
+.app-menu {
+  padding: 0;
+  border-radius: 16px;
+  border-color: #00ff0059;
+  background: #000;
+}
+.modal-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex: none;
+  margin: 0;
+  padding: 12px 16px;
+  border-bottom: 1px solid #00ff0033;
+  background: #000;
+}
+.modal-heading h2 {
+  margin: 0;
+  color: var(--brand);
+  font-size: 16px;
+  line-height: 1.4;
+  letter-spacing: -0.01em;
+}
+.modal-heading .icon-button {
+  border: 1px solid #00ff0059;
+  border-radius: 8px;
+  width: 44px;
+  min-width: 44px;
+}
+.app-menu > .modal-heading {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+.app-menu > .menu-row {
+  width: calc(100% - 32px);
+  margin: 0 16px;
+}
+.menu-section-title {
+  margin: 16px 16px 12px;
+  font-size: 12px;
+  color: #b7ffb7;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.miniapp-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0 16px 16px;
+}
+.miniapp-card {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid #00ff0040;
+  border-radius: 18px;
+  background: #041204;
+}
+.miniapp-card img {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1;
+  object-fit: contain;
+  background: #000;
+}
+.miniapp-card > span {
+  display: grid;
+  place-items: center;
+  padding: 12px 4px;
+  min-height: 44px;
+  background: var(--brand);
+  color: #005000;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+}
+.miniapp-card:hover {
+  border-color: var(--brand);
+  box-shadow: 0 0 12px #00ff004d;
+}
+.app-menu .menu-legal {
+  padding: 8px 16px 16px;
+}
+.menu-legal a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  text-decoration: underline;
+}
+.welcome-guide {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  background: #041204;
+}
+.welcome-guide h2 {
+  font-size: 16px;
+  margin: 0 0 4px;
+}
+.welcome-guide p {
+  font-size: 12px;
+  margin: 0;
+}
+.welcome-guide-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.welcome-guide-actions .secondary {
+  font-size: 12px;
+}
+.guide-dialog {
+  width: min(448px, calc(100vw - 32px));
+  max-height: calc(
+    100dvh - 32px - var(--mini-safe-top) - var(--mini-safe-bottom)
+  );
+  margin: auto;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid #00ff0059;
+  border-radius: 16px;
+  background: #000;
+  color: #efffef;
+  box-shadow: 0 24px 70px #000c;
+}
+.guide-dialog[open] {
+  display: flex;
+  flex-direction: column;
+}
+.guide-dialog::backdrop {
+  background: #000c;
+  backdrop-filter: blur(3px);
+}
+.guide-body {
+  padding: 16px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  min-height: 0;
+}
+.guide-info {
+  margin: 8px 0;
+  padding: 10px 12px;
+  border: 1px solid #00ff0026;
+  border-radius: 8px;
+  background: #041204;
+  color: #8bbf8b;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.guide-preview {
+  margin-bottom: 0;
+  text-align: center;
+  font-size: 11px;
+}
+.guide-chart {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin: 10px 0 16px;
+  border-radius: 10px;
+  background: #041204;
+  padding: 10px;
+}
+.guide-choices {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  align-items: center;
+  padding: 22px 12px;
+  margin-bottom: 16px;
+  border: 1px solid #00ff003f;
+  border-radius: 10px;
+  background: #041204;
+}
+.guide-choices > span {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  border: 1px solid #00ff0040;
+  border-radius: 50%;
+  color: #8bbf8b;
+  font-size: 24px;
+  font-weight: 800;
+}
+.guide-choices .guide-choice {
+  color: #005000;
+  background: var(--brand);
+  box-shadow: 0 0 20px #00ff004d;
+}
+.guide-choices strong {
+  grid-column: 1/-1;
+  text-align: center;
+  color: var(--brand);
+  font-size: 14px;
+}
+.guide-release {
+  text-align: center;
+  padding: 18px 8px;
+  color: #8bbf8b;
+}
+.guide-release strong {
+  display: block;
+  color: var(--brand);
+  font-size: 42px;
+}
+.guide-release span {
+  display: block;
+  font-size: 12px;
+}
+.guide-release > div {
+  display: flex;
+  gap: 5px;
+  margin: 16px 0;
+}
+.guide-release i {
+  flex: 1;
+  height: 12px;
+  background: var(--brand);
+  border-radius: 4px;
+}
+.guide-footer {
+  flex: none;
+  padding: 8px 16px 20px;
+  margin: 0;
+  border-top: 1px solid #00ff0033;
+  background: #000;
+}
+.guide-dots {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 4px;
+}
+.guide-dots button {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 8px;
+  border: 0;
+  background: transparent;
+}
+.guide-dots span {
+  display: block;
+  width: 8px;
+  height: 8px;
+  border-radius: 8px;
+  background: #00ff0040;
+}
+.guide-dots [aria-current="step"] span {
+  width: 24px;
+  background: var(--brand);
+}
+.guide-actions {
+  display: flex;
+  gap: 12px;
+}
+.guide-actions > button {
+  flex: 1;
+  min-width: 0;
+  min-height: 48px;
+  font-size: 14px;
+}
+.participation-guide {
+  padding: 14px;
+  border: 1px solid #00ff003f;
+  border-radius: 12px;
+  background: #041204;
+}
+.participation-guide h3 {
+  margin: 0;
+  font-size: 16px;
+  color: var(--brand);
+}
+.participation-guide p {
+  margin: 7px 0;
+  font-size: 13px;
+  color: #8bbf8b;
+  line-height: 1.5;
+}
+.participation-guide > button {
+  width: 100%;
+  margin: 8px 0 6px;
+}
+.participation-steps {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+}
+.participation-steps li {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  font-size: 10px;
+  color: #8bbf8b;
+}
+.participation-steps li > span {
+  display: grid;
+  place-items: center;
+  width: 21px;
+  height: 21px;
+  border: 1px solid #00ff0040;
+  border-radius: 50%;
+  font-size: 10px;
+  flex: none;
+}
+.participation-steps .is-complete {
+  color: var(--brand);
+}
+.participation-steps .is-complete > span {
+  background: #00ff0026;
+  border-color: #00ff0080;
+}
+.footer-copyright {
+  width: 100%;
+  margin: 6px 0 0;
+  color: #8bbf8b;
+  font-size: 11px;
+  line-height: 1.7;
+  text-align: center;
+}
+.footer-legal {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  flex-wrap: wrap;
+  font-size: 11px;
+}
+.footer-legal a {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  font-weight: 700;
+}
+.app-toast {
+  position: fixed;
+  z-index: 160;
+  top: var(--app-fixed-top-offset);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: min(100vw, 500px);
+  min-height: 60px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--brand);
+  background: #041204;
+  color: var(--brand);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.4;
+  box-shadow: 0 14px 28px #0008;
+  animation: toast-in 180ms ease-out;
+}
+.app-toast > span {
+  flex: 1;
+  min-width: 0;
+}
+.app-toast button {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  font-size: 22px;
+  background: #0004;
+  color: inherit;
+  border: 1px solid #00ff007a;
+  border-radius: 8px;
+}
+.app-toast-danger {
+  background: #480000;
+  color: #ff6b6b;
+  border-color: #ff3b3b;
+}
+.app-toast-danger button {
+  border-color: #ff3b3b9e;
+}
+@keyframes toast-in {
+  from {
+    transform: translate(-50%, -100%);
+  }
+  to {
+    transform: translate(-50%, 0);
+  }
+}
+@media (max-width: 350px) {
+  .app-title-label {
+    font-size: 12px;
+    padding-inline: 6px;
+  }
+  .participation-steps {
+    gap: 3px;
+  }
+  .participation-steps li {
+    font-size: 9px;
+    gap: 4px;
+  }
+  .participation-steps li > span {
+    width: 18px;
+    height: 18px;
+  }
+}
+html:has(dialog[open]),
+body:has(dialog[open]) {
+  overflow: hidden;
+}
+@media (min-width: 501px) {
+  html {
+    scrollbar-gutter: stable;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .app-toast {
+    animation: none;
+  }
+}

@@ -12,7 +12,13 @@ import {
   rewardStatus,
   type Entitlement,
 } from "./rewards";
-export default function RewardsPanel({ fid }: { fid: number }) {
+export default function RewardsPanel({
+  fid,
+  onToday,
+}: {
+  fid: number;
+  onToday?: () => void;
+}) {
   const page = useReadPage<{
     id: string;
     launchedAt: number;
@@ -144,7 +150,14 @@ export default function RewardsPanel({ fid }: { fid: number }) {
         </div>
       )}
       {!page.loading && !page.error && !totals.length && (
-        <p>No rewards yet. Vote in the next round.</p>
+        <>
+          <p>No rewards yet. Vote in the next round.</p>
+          {onToday && (
+            <button className="secondary" onClick={onToday}>
+              Go to today’s vote →
+            </button>
+          )}
+        </>
       )}
       {page.hasMore && !page.error && (
         <button disabled={page.loading} onClick={() => void page.more()}>

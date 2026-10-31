@@ -1,5 +1,4 @@
 import { lazy, Suspense, useEffect, useState, useRef } from "react";
-import { AppViewport } from "@10x/connect/AppViewport";
 import { WebConnectModal } from "@10x/connect/WebConnectModal";
 import { configureConnectHost } from "@10x/connect/host";
 import { logoutAppPrincipal } from "@10x/connect/appSession";
@@ -9,6 +8,7 @@ import { encode58 } from "../shared/base58";
 import "@10x/connect/styles";
 import { connectionSuccessEffects, miniAppSuccess } from "./connectionEffects";
 import { latestRequest } from "./latestRequest";
+import { useFeedback } from "./Feedback";
 const FarcasterSignInControl = lazy(
   () => import("@10x/connect/FarcasterSignInControl"),
 );
@@ -34,7 +34,11 @@ export default function ConnectDialog({
   onClose: () => void;
   identity: Identity | null;
 }) {
+  const notify = useFeedback();
   const [role, setRole] = useState("reward");
+  useEffect(() => {
+    if (open) setRole("reward");
+  }, [open]);
   const [nativeSolana, setNativeSolana] = useState(false);
   useEffect(() => {
     let active = true;
@@ -48,9 +52,6 @@ export default function ConnectDialog({
       active = false;
     };
   }, []);
-  const [notice, setNotice] = useState<{ message: string; id: number } | null>(
-    null,
-  );
   const celebrated = useRef(new Map<string, string>());
   const identityRequests = useRef(latestRequest());
   const accountScope = useRef(initialIdentity?.farcasterFid);
@@ -68,15 +69,10 @@ export default function ConnectDialog({
     if (!initialIdentity?.farcasterFid) celebrated.current.delete("farcaster");
     if (!initialIdentity?.walletAddress) celebrated.current.delete("base");
   }, [initialIdentity]);
-  useEffect(() => {
-    if (!notice) return;
-    const timer = setTimeout(() => setNotice(null), 5000);
-    return () => clearTimeout(timer);
-  }, [notice]);
   function connected(kind: string, key: string, message: string) {
     if (celebrated.current.get(kind) === key) return;
     celebrated.current.set(kind, key);
-    setNotice((previous) => ({ message, id: (previous?.id ?? 0) + 1 }));
+    notify(message);
     void connectionSuccessEffects();
   }
   const refresh = async () => {
@@ -290,7 +286,15 @@ export default function ConnectDialog({
                 </select>
               </label>
             ) : (
-              <p>No Solana wallet found.</p>
+              <>
+                <p>No Solana wallet found.</p>
+                {!nativeSolana && (
+                  <p className="fine">
+                    Use your wallet’s in-app browser, or a browser with a Solana
+                    wallet installed.
+                  </p>
+                )}
+              </>
             )}
             <button
               disabled={!identity?.farcasterFid || busy || !wallets.length}
@@ -328,22 +332,6 @@ export default function ConnectDialog({
           </section>
         }
       />
-      {notice && (
-        <AppViewport
-          className="web-connect-progress-toast connect-success-toast"
-          role="status"
-          aria-live="polite"
-        >
-          <span key={notice.id}>{notice.message}</span>
-          <button
-            type="button"
-            aria-label="Dismiss connection message"
-            onClick={() => setNotice(null)}
-          >
-            ×
-          </button>
-        </AppViewport>
-      )}
     </>
   );
 }

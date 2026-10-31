@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { lazy, Suspense, useState, useRef } from "react";
 import {
   onboardingComplete,
   completeOnboarding,
 } from "@10x/connect/miniAppContext";
+const GuideDialog = lazy(() => import("./GuideDialog"));
 export const onboardingKey = "10x:launchpad:onboarding:v1";
 let completedThisPage = false;
 function storage() {
@@ -12,89 +13,61 @@ function storage() {
     return null;
   }
 }
-const steps = [
-  {
-    title: "One launch. Or skip.",
-    text: "Vote for today’s OG. The operator makes the final selection.",
-  },
-  {
-    title: "Two prices. One position.",
-    text: "ATTN trades against its OG. Both prices affect your USD return.",
-  },
-  {
-    title: "Vote. Follow. Claim.",
-    text: "Voting earns points. Trading is optional. Verified trading ranks are public.",
-  },
-];
 export default function Onboarding({
   replay,
   onDone,
+  opener,
 }: {
   replay?: boolean;
   onDone?: () => void;
+  opener?: HTMLElement | null;
 }) {
+  const launcher = useRef<HTMLElement | null>(opener ?? null);
   const [visible, setVisible] = useState(
-    () =>
-      replay ||
-      !(completedThisPage || onboardingComplete(storage(), onboardingKey)),
-  );
-  const [step, setStep] = useState(0);
+      () =>
+        !!replay ||
+        !(completedThisPage || onboardingComplete(storage(), onboardingKey)),
+    ),
+    [open, setOpen] = useState(!!replay);
   function done() {
     completedThisPage = true;
     completeOnboarding(storage(), onboardingKey);
     setVisible(false);
+    setOpen(false);
     onDone?.();
   }
   if (!visible) return null;
+  if (open)
+    return (
+      <Suspense
+        fallback={
+          <section className="card welcome-guide" aria-label="Getting started">
+            <p role="status">Opening the guide…</p>
+            <button onClick={done}>Cancel</button>
+          </section>
+        }
+      >
+        <GuideDialog onDone={done} opener={launcher.current} />
+      </Suspense>
+    );
   return (
-    <section className="card onboarding" aria-label="Getting started">
-      <div className="list-heading">
-        <span className="eyebrow">How it works · {step + 1}/3</span>
+    <section className="card welcome-guide" aria-label="Getting started">
+      <div>
+        <h2>New to 10X?</h2>
+        <p>Connect. Vote. Follow the launch.</p>
+      </div>
+      <div className="welcome-guide-actions">
+        <button
+          className="secondary"
+          onClick={(event) => {
+            launcher.current = event.currentTarget;
+            setOpen(true);
+          }}
+        >
+          Quick tour
+        </button>
         <button className="text-button" onClick={done}>
           Skip
-        </button>
-      </div>
-      <div aria-live="polite">
-        <h2 tabIndex={-1}>{steps[step].title}</h2>
-        <p>{steps[step].text}</p>
-      </div>
-      {step === 1 && (
-        <>
-          <svg
-            viewBox="0 0 320 80"
-            role="img"
-            aria-label="Illustrative paths show both gains and losses"
-            className="onboarding-chart"
-          >
-            <path
-              d="M5 40 L75 32 L135 36 L205 25 L315 15"
-              stroke="#c1b4ff"
-              fill="none"
-              strokeWidth="3"
-            />
-            <path
-              d="M5 40 L75 14 L135 42 L205 22 L315 65"
-              stroke="#00ff00"
-              fill="none"
-              strokeWidth="3"
-            />
-          </svg>
-          <p className="fine">
-            <span style={{ color: "#00ff00" }}>ATTN</span> ·{" "}
-            <span style={{ color: "#c1b4ff" }}>OG</span> · Illustration
-          </p>
-          <p className="fine">Gains and losses can be amplified.</p>
-        </>
-      )}
-      <div className="onboarding-actions">
-        {step > 0 && (
-          <button onClick={() => setStep((s) => s - 1)}>Back</button>
-        )}
-        <button
-          className="primary"
-          onClick={() => (step === 2 ? done() : setStep((s) => s + 1))}
-        >
-          {step === 2 ? "Got it" : "Next"}
         </button>
       </div>
     </section>
