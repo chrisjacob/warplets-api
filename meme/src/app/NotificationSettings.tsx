@@ -6,6 +6,7 @@ export default function NotificationSettings({ fid }: { fid: number }) {
       voting: 1,
       launch: 1,
       rewards: 1,
+      milestones: 0,
     }),
     [busy, setBusy] = useState(false),
     [message, setMessage] = useState(""),
@@ -27,7 +28,7 @@ export default function NotificationSettings({ fid }: { fid: number }) {
     return () => controller.abort();
   }, [fid, revision]);
   async function change(
-    key: "voting" | "launch" | "rewards",
+    key: "voting" | "launch" | "rewards" | "milestones",
     enabled: boolean,
   ) {
     if (busy) return;
@@ -60,6 +61,7 @@ export default function NotificationSettings({ fid }: { fid: number }) {
             ["voting", "Voting opens"],
             ["launch", "Launch confirmed"],
             ["rewards", "Rewards released"],
+            ["milestones", "FDV milestones · all editions"],
           ] as const
         ).map(([key, label]) => (
           <label className="notification-choice" key={key}>

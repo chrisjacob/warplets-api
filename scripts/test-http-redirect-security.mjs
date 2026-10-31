@@ -3,6 +3,7 @@ import { createServer } from "node:http";
 import { createRequire } from "node:module";
 import { once } from "node:events";
 import test from "node:test";
+import {runInNewContext} from 'node:vm';
 
 // Exercise the actual Base account -> CDP -> axios dependency path, rather
 // than adding a separate test-only copy of follow-redirects.
@@ -39,6 +40,10 @@ async function redirectHeaders(t, headers, { sameOrigin = false, sensitiveHeader
 }
 
 const credentials = { Authorization: "synthetic-bearer", Cookie: "synthetic-cookie", "Proxy-Authorization": "synthetic-proxy", "X-Public": "public" };
+for(const form of ['object','array'])test(`cross-realm sensitive header lists protect ${form}-form custom credentials`,{timeout:5000},async t=>{
+ const sensitiveHeaders=runInNewContext("['X-API-Key']");assert.equal(Array.isArray(sensitiveHeaders),true);assert.equal(sensitiveHeaders instanceof Array,false);
+ const input={'X-API-Key':'synthetic-cross-realm-key','X-Public':'public'},headers=await redirectHeaders(t,form==='array'?Object.entries(input).flat():input,{sensitiveHeaders});assert.equal(headers['x-api-key'],undefined);assert.equal(headers['x-public'],'public');
+});
 for (const form of ["object", "array"]) {
   test(`cross-origin redirect strips ${form}-form credential headers`, { timeout: 5_000 }, async t => {
     const headers = await redirectHeaders(t, form === "array" ? Object.entries(credentials).flat() : { ...credentials });

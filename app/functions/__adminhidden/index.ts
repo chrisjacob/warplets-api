@@ -63,6 +63,7 @@ export const onRequestGet: PagesFunction = () => {
   </style>
 </head>
 <body>
+  <nav style="margin-bottom:1rem"><a href="/__adminhidden/meme" style="color:#d6fd72">10X Launchpad admin ↗</a></nav>
 
 <!-- LOGIN -->
 <div id="login">

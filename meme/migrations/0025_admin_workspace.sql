@@ -1,0 +1,22 @@
+-- Launchpad-only administrative state; no shared product records or financial authority.
+CREATE TABLE meme_admin_state(id INTEGER PRIMARY KEY CHECK(id=1),version INTEGER NOT NULL DEFAULT 0);
+INSERT INTO meme_admin_state VALUES(1,0);
+CREATE TABLE meme_admin_commands(id TEXT PRIMARY KEY,request_hash TEXT NOT NULL,actor TEXT NOT NULL,action TEXT NOT NULL,request TEXT NOT NULL,state TEXT NOT NULL CHECK(state IN('pending','done','failed')),result TEXT,created_at INTEGER NOT NULL,completed_at INTEGER);
+CREATE INDEX meme_admin_pending ON meme_admin_commands(state,created_at);
+CREATE TABLE meme_admin_drafts(day TEXT PRIMARY KEY,version INTEGER NOT NULL,candidates TEXT NOT NULL,status TEXT NOT NULL CHECK(status IN('draft','published')),round_id TEXT,publish_key TEXT,updated_at INTEGER NOT NULL,actor TEXT NOT NULL,last_command_id TEXT);
+CREATE TABLE meme_gmgn_snapshots(id TEXT PRIMARY KEY,window TEXT NOT NULL,as_of INTEGER NOT NULL,payload TEXT NOT NULL);
+CREATE TABLE meme_gmgn_heads(window TEXT PRIMARY KEY,snapshot_id TEXT NOT NULL REFERENCES meme_gmgn_snapshots(id));
+CREATE TABLE meme_gmgn_allowance(id INTEGER PRIMARY KEY CHECK(id=1),ceiling INTEGER NOT NULL DEFAULT 0,used INTEGER NOT NULL DEFAULT 0,next_at INTEGER NOT NULL DEFAULT 0);
+INSERT INTO meme_gmgn_allowance VALUES(1,0,0,0);
+CREATE TABLE meme_admin_daily(day TEXT PRIMARY KEY,payload TEXT NOT NULL,as_of INTEGER NOT NULL);
+CREATE TABLE meme_admin_metrics_meta(id INTEGER PRIMARY KEY CHECK(id=1),payload TEXT NOT NULL,as_of INTEGER NOT NULL);
+CREATE TABLE meme_social_drafts(id TEXT PRIMARY KEY,version INTEGER NOT NULL,title TEXT NOT NULL,body TEXT NOT NULL,target_path TEXT NOT NULL,state TEXT NOT NULL CHECK(state IN('draft','approved','composer_opened','posted','unknown','failed')),source_event TEXT,card_id TEXT,approved_by TEXT,created_at INTEGER NOT NULL,updated_at INTEGER NOT NULL,cast_hash TEXT);
+CREATE TABLE meme_comms_controls(id INTEGER PRIMARY KEY CHECK(id=1),social_paused INTEGER NOT NULL DEFAULT 1);
+INSERT INTO meme_comms_controls VALUES(1,1);
+CREATE TABLE meme_milestone_rules(id TEXT PRIMARY KEY,edition_id TEXT NOT NULL REFERENCES meme_campaigns(id),threshold_usd TEXT NOT NULL,enabled INTEGER NOT NULL DEFAULT 0,version INTEGER NOT NULL,created_at INTEGER NOT NULL,updated_at INTEGER NOT NULL,UNIQUE(edition_id,threshold_usd));
+CREATE TABLE meme_milestone_crossings(id TEXT PRIMARY KEY,rule_id TEXT NOT NULL REFERENCES meme_milestone_rules(id),edition_id TEXT NOT NULL,threshold_usd TEXT NOT NULL,at INTEGER NOT NULL,evidence_hash TEXT NOT NULL,payload TEXT NOT NULL,UNIQUE(edition_id,threshold_usd));
+CREATE TABLE meme_milestone_progress(rule_id TEXT PRIMARY KEY REFERENCES meme_milestone_rules(id),last_at INTEGER NOT NULL,state TEXT NOT NULL CHECK(state IN('baseline','below','confirming','fired')),first_above INTEGER,payload TEXT NOT NULL);
+CREATE TABLE meme_admin_notice_candidates(id TEXT PRIMARY KEY,kind TEXT NOT NULL,subject TEXT NOT NULL,priority INTEGER NOT NULL,created_at INTEGER NOT NULL,expires_at INTEGER NOT NULL,state TEXT NOT NULL CHECK(state IN('pending','queued','suppressed','blocked')),reason TEXT);
+CREATE TRIGGER meme_gmgn_immutable BEFORE UPDATE ON meme_gmgn_snapshots BEGIN SELECT RAISE(ABORT,'Immutable discovery snapshot');END;
+CREATE TRIGGER meme_crossing_immutable BEFORE UPDATE ON meme_milestone_crossings BEGIN SELECT RAISE(ABORT,'Immutable milestone event');END;
+CREATE TRIGGER meme_crossing_no_delete BEFORE DELETE ON meme_milestone_crossings BEGIN SELECT RAISE(ABORT,'Immutable milestone event');END;
