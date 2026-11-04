@@ -28,7 +28,8 @@ import {
 import { scheduleTasks, type ScheduledTasks } from "./scheduled-runner";
 import { runStonkletsDailyNotifications, type StonkletsDailyNotificationEnv } from "../app/functions/_lib/stonkletsDailyNotifications";
 import { scheduleStonkletNews, type NewsEnv } from "../app/functions/_lib/stonkletNews";
-import { advanceNetwork } from "../app/functions/_lib/network/ingest";
+import { advanceNetwork, advanceNetworkWallets } from "../app/functions/_lib/network/ingest";
+import { importNetworkActivity } from "../app/functions/_lib/network/activity";
 import type { NetworkEnv } from "../app/functions/_lib/network/store";
 
 export type ProductionScheduledEnv = OpenseaSyncEnv &
@@ -62,5 +63,9 @@ export function scheduleProductionTasks(
 	tasks: ProductionScheduledTasks = productionScheduledTasks,
 ): void {
 	scheduleTasks(env, ctx, tasks);
-  if (env.NETWORK_INGEST_ENABLED === 'true') ctx.waitUntil(advanceNetwork(env).catch(() => console.error('network_ingestion_failed')));
+  if (env.NETWORK_INGEST_ENABLED === 'true') {
+    ctx.waitUntil(advanceNetwork(env,{coreOnly:true}).catch(() => console.error('network_ingestion_failed')));
+    ctx.waitUntil(advanceNetworkWallets(env).catch(() => console.error('network_wallet_refresh_failed')));
+    ctx.waitUntil(importNetworkActivity(env).catch(() => console.error('network_activity_refresh_failed')));
+  }
 }

@@ -38,6 +38,8 @@ existing reorg checks. Source attempts are capped at 500k/day and 3M/month.
 Alchemy allocation is 6M CU/day and 20M/month, leaving 10M outside Network
 within its published 30M free allowance; the ten-RPC/s gate is unchanged.
 No provider plan or billing setting is changed.
+Profile/chain collection, wallet refresh and activity now have independent cron
+leases; a slow portfolio or credit pause cannot hold up daily profile freshness.
 Neynar requests share a four-request/s gate, below the observed 300-request/min
 key limit; that rate limit is distinct from the monthly credit allocation.
 
