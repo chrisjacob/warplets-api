@@ -29,7 +29,7 @@ or a remaining balance. Observed `x-ratelimit-*` headers concern request rate;
 they are not monthly credits. These caps therefore remain explicit app-side
 allocations, never presented as live account-wide usage.
 
-Production now refreshes 60 profiles and up to 200 wallets per invocation,
+Production now refreshes 100 profiles and up to 500 wallets per invocation,
 with four readers, shared leases and existing global Alchemy pacing. Ingestion
 renews its lease during long batches. Finalized contract logs use a validated
 public Base RPC with configurable ranges up to 1,000 blocks; every range still
