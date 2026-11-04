@@ -18,6 +18,7 @@ if(account!=='3f3a7e7d6b29f0389b841af63623becd'||database!=='45a4cc4c-788e-48dd-
 const oauthFile=resolve(process.env.APPDATA??'', 'xdg.config/.wrangler/config/default.toml');
 function token(){return process.env.CLOUDFLARE_API_TOKEN??readFileSync(oauthFile,'utf8').match(/^oauth_token\s*=\s*"([^"]+)"/m)?.[1];}
 type Statement={sql:string;params:(string|number|null)[]};
+let nextQueryAt=0;
 function literal(value:string|number|null){if(value===null)return 'NULL';if(typeof value==='number'){if(!Number.isFinite(value))throw Error('Non-finite SQL value');return String(value);}return "'"+value.replaceAll("'","''")+"'";}
 function inline({sql,params}:Statement,encode=literal){let index=0;const result=sql.replace(/'(?:''|[^'])*'|"(?:""|[^"])*"|\?/g,part=>{if(part!=='?')return part;if(index>=params.length)throw Error('SQL binding count mismatch');return encode(params[index++]);});if(index!==params.length)throw Error('SQL binding count mismatch');return result;}
 async function query(statements:Statement[],retry=true):Promise<D1Result[]> {
@@ -37,6 +38,9 @@ async function query(statements:Statement[],retry=true):Promise<D1Result[]> {
   }
   body={sql,params:[]};
  }
+ // Operator REST traffic must leave room for the public app and scheduled jobs.
+ const startAt=Math.max(Date.now(),nextQueryAt);nextQueryAt=startAt+250;
+ if(startAt>Date.now())await new Promise(resolve=>setTimeout(resolve,startAt-Date.now()));
  const response=await fetch(`https://api.cloudflare.com/client/v4/accounts/${account}/d1/database/${database}/query`,{
   method:'POST',redirect:'error',headers:{authorization:`Bearer ${token()}`,'content-type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(90_000),
  });
