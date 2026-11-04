@@ -140,7 +140,9 @@ export async function advanceNetwork(env: NetworkEnv, options: { publish?: boole
             await db.prepare('DELETE FROM network_profile_failures WHERE fid=?').bind(fid).run();
             profilesSaved++;
           } catch (error) {
-            await db.prepare('INSERT INTO network_profile_failures(fid,retry_after) VALUES(?,?) ON CONFLICT(fid) DO UPDATE SET retry_after=excluded.retry_after').bind(fid, Date.now() + 3_600_000).run();
+            const notFound=error instanceof Error&&error.message==='Network source HTTP 404';
+            if(notFound)await db.prepare("UPDATE network_profiles SET opt_in_status='unavailable',quality='not_returned' WHERE fid=?").bind(fid).run();
+            await db.prepare('INSERT INTO network_profile_failures(fid,retry_after) VALUES(?,?) ON CONFLICT(fid) DO UPDATE SET retry_after=excluded.retry_after').bind(fid, Date.now() + (notFound?86_400_000:3_600_000)).run();
             if (error instanceof Error && error.message.includes('429')) { paused = true; await syncSet(db, 'official_cooldown', Date.now() + 900_000); throw error; }
           }
         }

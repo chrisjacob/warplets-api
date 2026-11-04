@@ -41,7 +41,7 @@ export async function saveProfile(db: D1Database, p: NetworkProfile) {
     ON CONFLICT(fid) DO UPDATE SET username=excluded.username,display_name=excluded.display_name,avatar_url=excluded.avatar_url,observed_at=excluded.observed_at,source=excluded.source`)
     .bind(p.fid, p.username, p.displayName, p.avatarUrl, p.observedAt),
   db.prepare(`INSERT INTO network_profiles(fid,country,location_status,token_id,token_status,token_name,token_symbol,opt_in_status,observed_at) VALUES(?,?,?,?,?,?,?,?,?)
-    ON CONFLICT(fid) DO UPDATE SET country=excluded.country,location_status=excluded.location_status,token_id=excluded.token_id,token_status=excluded.token_status,token_name=excluded.token_name,token_symbol=excluded.token_symbol,opt_in_status=excluded.opt_in_status,observed_at=excluded.observed_at`)
+    ON CONFLICT(fid) DO UPDATE SET country=excluded.country,location_status=excluded.location_status,token_id=excluded.token_id,token_status=excluded.token_status,token_name=excluded.token_name,token_symbol=excluded.token_symbol,opt_in_status=excluded.opt_in_status,observed_at=excluded.observed_at,quality='observed'`)
     .bind(p.fid, p.country, p.locationStatus, p.token, p.tokenStatus, p.tokenName, p.tokenSymbol, p.vote, p.observedAt)]);
 }
 export async function publishSnapshot(db: D1Database, force = false): Promise<NetworkSnapshot | null> {

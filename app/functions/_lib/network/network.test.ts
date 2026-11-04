@@ -111,6 +111,21 @@ describe('durable storage and bounded ingestion', () => {
     const s = JSON.parse(String(db.prepare('SELECT payload FROM network_snapshots ORDER BY created_at DESC LIMIT 1').get()?.payload));
     expect(s.population).toBe(1); expect(s.adoption).toEqual([]); expect(s.sources.candidatesObserved).toBe(3);
   });
+  it('preserves acceptance and cached fields across an explicit missing profile, then allows re-entry',async()=>{
+    const {env,db}=database();env.NETWORK_PROFILE_BATCH='1';
+    db.exec("INSERT INTO network_confirmed(fid,observed_at) VALUES(7,1);INSERT INTO network_profiles(fid,country,location_status,token_status,opt_in_status,observed_at) VALUES(7,'AU','known','none','opted_in',1)");
+    db.prepare("INSERT INTO network_sync VALUES('candidate_refresh',?,?)").run(JSON.stringify(Date.now()),Date.now());
+    vi.stubGlobal('fetch',vi.fn(async()=>new Response('Not found',{status:404})));
+    await advanceNetwork(env,{profilesOnly:true,publish:true});
+    expect(db.prepare('SELECT country,opt_in_status,observed_at,quality FROM network_profiles WHERE fid=7').get()).toEqual({country:'AU',opt_in_status:'unavailable',observed_at:1,quality:'not_returned'});
+    expect(db.prepare('SELECT fid FROM network_confirmed').all()).toEqual([{fid:7}]);
+    expect((await publishSnapshot(env.WARPLETS,true))?.population).toBe(0);
+    db.exec('UPDATE network_profile_failures SET retry_after=0');
+    vi.stubGlobal('fetch',vi.fn(async()=>Response.json({result:{user:{fid:7,profile:{},viewerContext:{optInStatus:'opted_in'}}}})));
+    await advanceNetwork(env,{profilesOnly:true,publish:true});
+    expect(db.prepare('SELECT opt_in_status,quality FROM network_profiles WHERE fid=7').get()).toEqual({opt_in_status:'opted_in',quality:'observed'});
+    expect((await publishSnapshot(env.WARPLETS,true))?.population).toBe(1);
+  });
   it('replays do not duplicate FIDs and publication freezes the snapshot', async () => {
     const { env, db } = database();
     const fetcher = vi.fn(async (_url: string, init?: RequestInit) => { const request = init?.body ? JSON.parse(String(init.body)) : null; let result: unknown;

@@ -70,6 +70,7 @@ const env:NetworkEnv={WARPLETS:db,NETWORK_INGEST_ENABLED:'true',NETWORK_WALLETS_
 const task=process.argv.find(a=>a.startsWith('--task='))?.slice(7)??'status';
 const steps=Number(process.argv.find(a=>a.startsWith('--steps='))?.slice(8)??1);
 if(!Number.isSafeInteger(steps)||steps<1||steps>1000)throw Error('steps must be 1..1000');
+if(task==='profiles'&&process.argv.includes('--retry-failures'))await db.prepare('UPDATE network_profile_failures SET retry_after=0').run();
 if(task==='status'){
  const queries={
  sync:"SELECT key,value FROM network_sync WHERE key NOT LIKE 'bootstrap:%'",

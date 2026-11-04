@@ -17,6 +17,12 @@ cast hashes never masquerade as reaction-message hashes. No observation is
 inferred from an empty result. Activity remains a positive-evidence lower bound,
 including while every selected member-month has been checked.
 
+An explicit official-client profile 404 marks current status unavailable and
+excludes that FID from the current-member cohort. Acceptance events, historical
+snapshots and cached profile fields/timestamps remain intact; no opt-out or zero
+value is inferred. Missing profiles retry daily, and a later successful profile
+restores observed quality and can establish current membership again.
+
 The documented billing endpoint returned HTTP 401 with the existing API key.
 Its official schema exposes subscription/plan details, not credit consumption
 or a remaining balance. Observed `x-ratelimit-*` headers concern request rate;
