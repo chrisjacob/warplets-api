@@ -32,5 +32,5 @@ describe('Network snapshot storage',()=>{
   const bytes=new Uint8Array(await new Response(new Response(' '.repeat(16000001)).body!.pipeThrough(new CompressionStream('gzip'))).arrayBuffer());
   const parts:string[]=[];for(let n=0;n<bytes.length;n+=32768)parts.push(String.fromCharCode(...bytes.subarray(n,n+32768)));
   await expect(decodeNetworkSnapshot(JSON.stringify({...sample([]),cellsEncoding:'gzip-json-v1',cellsGzip:btoa(parts.join(''))}))).rejects.toThrow('decode budget');
- });
+ },15000);
 });

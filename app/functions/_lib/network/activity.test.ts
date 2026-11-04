@@ -4,7 +4,7 @@ import {readFileSync} from 'node:fs';
 import {networkManMonths,previousMonth} from '../../../shared/network/activity';
 import {parseNetworkFilters,type NetworkCell,type NetworkSnapshot} from '../../../shared/network/model';
 import {buildNetworkDashboard} from './aggregate';
-import {activityEvidence,importNetworkActivity} from './activity';
+import {activityEvidence,importNetworkActivity,indexedActivityEvidence} from './activity';
 import {sqliteD1} from '../sqliteTestDb';
 const now=Date.parse('2026-12-16T00:00:00Z');
 const base:NetworkCell={country:'AU',location:'known',token:null,tokenStatus:'none',vote:'opted_in',acceptedDay:'2026-10-17',count:1};
@@ -46,6 +46,18 @@ describe('Man-Months',()=>{
   expect(()=>activityEvidence(msg('2026-11-01',8),7,acceptedAt,'2026-11',['MESSAGE_TYPE_CAST_ADD'],now)).toThrow();
   expect(()=>activityEvidence(msg('2026-11-01',7,'WALLET_TRANSFER'),7,acceptedAt,'2026-11',['MESSAGE_TYPE_CAST_ADD'],now)).toThrow();
  });
+ it('uses cheap indexed reaction hints but saves the confirmed protocol message hash',async()=>{
+  const env={NEYNAR_API_KEY:'test'};
+  const {neynarRead}=await import('./wallets');
+  const spy=vi.spyOn(await import('./wallets'),'neynarRead');
+  const target='0x'+'b'.repeat(40),proof=msg('2026-11-01',7,'MESSAGE_TYPE_REACTION_ADD');
+  spy.mockResolvedValueOnce({reactions:[{user:{fid:7},reaction_type:'like',reaction_timestamp:'2026-11-01T00:00:00.000Z',cast:{hash:target,author:{fid:9}}}]}).mockResolvedValueOnce(proof);
+  try{
+   expect(await indexedActivityEvidence(env as Parameters<typeof neynarRead>[0],7,Date.parse('2026-10-17'),'2026-11',now)).toMatchObject({hash:proof.hash,type:'MESSAGE_TYPE_REACTION_ADD'});
+   expect(spy.mock.calls.map(call=>[call[1],call[2]])).toEqual([['/v2/farcaster/reactions/user/?fid=7&type=all&limit=1',2],[`/v1/reactionById?fid=7&reaction_type=Like&target_fid=9&target_hash=${target}`,1]]);
+   expect(proof.hash).not.toBe(target);
+  }finally{spy.mockRestore();}
+ });
  it('saves one positive month, skips signing-month API reads, and respects the shared cap',async()=>{
   const db=new DatabaseSync(':memory:');
   try{
@@ -54,13 +66,15 @@ describe('Man-Months',()=>{
    db.exec("INSERT INTO network_profiles(fid,location_status,token_status,opt_in_status,observed_at) VALUES(7,'unknown','none','opted_in',1)");
    const env={WARPLETS:sqliteD1(db),NEYNAR_API_KEY:'test',NETWORK_WALLET_CREDITS:'200'};
    vi.useFakeTimers();vi.setSystemTime(new Date('2026-10-20'));
-   const fetcher=vi.fn(async()=>Response.json({messages:[msg('2026-11-01')],nextPageToken:''}));vi.stubGlobal('fetch',fetcher);
+   const fetcher=vi.fn(async()=>Response.json({messages:[msg('2026-11-01',7,'MESSAGE_TYPE_USER_DATA_ADD')],nextPageToken:''}));vi.stubGlobal('fetch',fetcher);
    expect((await importNetworkActivity(env)).status).toBe('complete');expect(fetcher).not.toHaveBeenCalled();
    vi.setSystemTime(new Date('2026-11-05'));
    expect((await importNetworkActivity(env)).status).toBe('observed');
    expect((await importNetworkActivity(env)).status).toBe('complete');expect(fetcher).toHaveBeenCalledTimes(1);
    expect(db.prepare('SELECT fid,month FROM network_activity_months').all()).toEqual([{fid:7,month:'2026-11'}]);
    db.prepare('DELETE FROM network_activity_months').run();
+   db.prepare('DELETE FROM network_activity_checks').run();
+   env.NETWORK_WALLET_CREDITS='1';
    await expect(importNetworkActivity(env)).rejects.toThrow('credit cap');expect(fetcher).toHaveBeenCalledTimes(1);
   }finally{db.close();}
  });

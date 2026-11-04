@@ -11,8 +11,8 @@ export async function alchemyRead(env:AlchemyEnv,method:Method,params:unknown[])
   const cost=costs[method];
   if(!cost)throw Error('Unsupported Alchemy method');
   const now=Date.now(),day=new Date(now).toISOString().slice(0,10),month=day.slice(0,7);
-  const limit=bounded(env.NETWORK_ALCHEMY_CU,10_000_000,10_000_000);
-  const dailyLimit=bounded(env.NETWORK_ALCHEMY_CU_PER_DAY,1_500_000,4_000_000);
+  const limit=bounded(env.NETWORK_ALCHEMY_CU,10_000_000,20_000_000);
+  const dailyLimit=bounded(env.NETWORK_ALCHEMY_CU_PER_DAY,1_500_000,6_000_000);
   // Reserve before every attempt, including failures. One conditional write
   // prevents concurrent callers from exceeding either the daily or monthly cap.
   const budget=await env.WARPLETS.prepare(`INSERT INTO network_alchemy_budgets(period,reserved)

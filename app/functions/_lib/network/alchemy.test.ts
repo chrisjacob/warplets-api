@@ -19,16 +19,16 @@ describe('Alchemy free-tier guardrails',()=>{
  it('supports a higher daily budget while enforcing its hard ceiling',async()=>{
   const{db,env}=fixture();env.NETWORK_ALCHEMY_CU='10000000';env.NETWORK_ALCHEMY_CU_PER_DAY='99999999';
   const today=new Date().toISOString().slice(0,10);
-  db.prepare('INSERT INTO network_alchemy_budgets VALUES(?,?)').run(today,3999980);
+  db.prepare('INSERT INTO network_alchemy_budgets VALUES(?,?)').run(today,5999980);
   const fetcher=vi.fn(async()=>rpc('0x0'));vi.stubGlobal('fetch',fetcher);
   await alchemyRead(env,'eth_getBalance',[]);
   await expect(alchemyRead(env,'eth_getBalance',[])).rejects.toThrow('budget exhausted');
-  expect(fetcher).toHaveBeenCalledTimes(1);expect(db.prepare('SELECT reserved FROM network_alchemy_budgets WHERE period=?').get(today)?.reserved).toBe(4000000);
+  expect(fetcher).toHaveBeenCalledTimes(1);expect(db.prepare('SELECT reserved FROM network_alchemy_budgets WHERE period=?').get(today)?.reserved).toBe(6000000);
  });
  it('cannot raise the monthly hard cap through configuration',async()=>{
   const{db,env}=fixture();env.NETWORK_ALCHEMY_CU='30000000';
   const today=new Date().toISOString().slice(0,10),prior=today.slice(0,7)+'-01';
-  db.prepare('INSERT INTO network_alchemy_budgets VALUES(?,?)').run(prior,9999990);
+  db.prepare('INSERT INTO network_alchemy_budgets VALUES(?,?)').run(prior,19999990);
   const fetcher=vi.fn();vi.stubGlobal('fetch',fetcher);
   await expect(alchemyRead(env,'eth_getBalance',[])).rejects.toThrow('budget exhausted');expect(fetcher).not.toHaveBeenCalled();
  });

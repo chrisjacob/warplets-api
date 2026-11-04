@@ -1,5 +1,59 @@
 # Network production release
 
+## November refresh
+
+The `codex/network-release-2026-11-05` release repairs the post-reset queues.
+November had already reached Network's own 250,000-credit Neynar ceiling;
+this was not evidence that the account allowance was exhausted. The original
+activity importer also omitted the required reaction filter and rejected valid
+cast-removal messages, repeatedly pausing the whole queue.
+
+Network now explicitly allocates up to 8M Neynar credits/month, preserving the
+usage ledger and leaving 2M outside Network within the previously confirmed
+10M free allowance. Bulk users reserve the published one credit/FID, userdata
+one credit/request and verifications five. Inexpensive indexed cast/reaction
+hints are confirmed by the original protocol message before counting; target
+cast hashes never masquerade as reaction-message hashes. No observation is
+inferred from an empty result. Activity remains a positive-evidence lower bound,
+including while every selected member-month has been checked.
+
+The documented billing endpoint returned HTTP 401 with the existing API key.
+Its official schema exposes subscription/plan details, not credit consumption
+or a remaining balance. Observed `x-ratelimit-*` headers concern request rate;
+they are not monthly credits. These caps therefore remain explicit app-side
+allocations, never presented as live account-wide usage.
+
+Production now refreshes 60 profiles and up to 200 wallets per invocation,
+with four readers, shared leases and existing global Alchemy pacing. Ingestion
+renews its lease during long batches. Finalized contract logs use a validated
+public Base RPC with configurable ranges up to 1,000 blocks; every range still
+requires matching original mint events, timestamps, block hashes and the
+existing reorg checks. Source attempts are capped at 500k/day and 3M/month.
+Alchemy allocation is 6M CU/day and 20M/month, leaving 10M outside Network
+within its published 30M free allowance; the ten-RPC/s gate is unchanged.
+No provider plan or billing setting is changed.
+Neynar requests share a four-request/s gate, below the observed 300-request/min
+key limit; that rate limit is distinct from the monthly credit allocation.
+
+`scripts/network/production.ts --remote --task=status` reports the live queues.
+Explicit `profiles`, `scan`, `associations`, `wallets`, `activity`, `prices` and
+`publish` tasks reuse the production importers and quota ledgers. Use `--wait`
+to wait for a busy lease. Each invocation is bounded by `--steps=1..1000`.
+The runner validates the existing account/database, uses the current Wrangler
+grant, and never prints credentials. Large REST transaction parameters stage
+under a unique private `network_sync` key and are removed after execution;
+transaction rollback was verified with an isolated temporary marker.
+
+Official references checked 5 November 2026:
+- https://docs.neynar.com/reference/compute-units
+- https://github.com/neynarxyz/OAS/blob/main/src/api/spec.yaml
+- https://github.com/neynarxyz/OAS/blob/main/src/hub-api/spec.yaml
+- https://www.alchemy.com/pricing
+
+The shared `follow-redirects` override is patched to 1.16.2 for the newly
+published GHSA-mrwp-f3q8-3g9p advisory. Existing browser-installer audit
+exceptions remain unchanged.
+
 Release branch: `codex/network-release-2026-10-29`. The release includes the latest local Network feature set and the shared legal updates. The old discovery product is excluded.
 
 ## Release sequence

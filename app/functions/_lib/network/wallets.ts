@@ -24,12 +24,28 @@ export function acceptedQuote(value: unknown, asset: string, now = Date.now()): 
 }
 export async function neynarRead(env: WalletEnv, path: string, maximumCredits: number, target: 'api' | 'snapchain' = 'api') {
   if (!env.NEYNAR_API_KEY) throw Error('Existing Neynar key is required');
-  const limit = bounded(env.NETWORK_WALLET_CREDITS, 250_000, 250_000);
+  if(!Number.isSafeInteger(maximumCredits)||maximumCredits<1)throw Error('Invalid Neynar credit reservation');
+  // App-side allocation, not account-wide consumption. Keep two million credits
+  // outside Network on the confirmed ten-million-credit free allowance.
+  const limit = bounded(env.NETWORK_WALLET_CREDITS, 250_000, 8_000_000);
   const month = new Date().toISOString().slice(0, 7);
   const reserved = await env.WARPLETS.prepare(`INSERT INTO network_credit_budgets(month,reserved) SELECT ?,? WHERE ?<=?
     ON CONFLICT(month) DO UPDATE SET reserved=network_credit_budgets.reserved+excluded.reserved WHERE network_credit_budgets.reserved+excluded.reserved<=? RETURNING reserved`)
     .bind(month, maximumCredits, maximumCredits, limit, limit).first();
   if (!reserved) throw Error('Network wallet credit cap reached');
+  let slot=false;
+  for(let i=0;i<40;i++){
+    const now=Date.now();
+    const row=await env.WARPLETS.prepare(`INSERT INTO network_sync(key,value,updated_at) VALUES('neynar_rate',?,?)
+      ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at WHERE CAST(network_sync.value AS INTEGER)<=? RETURNING value`).bind(String(now+250),now,now).first();
+    if(row){slot=true;break;}
+    await new Promise(resolve=>setTimeout(resolve,100));
+  }
+  if(!slot){
+    // No provider attempt occurred, so this reservation is safe to release.
+    await env.WARPLETS.prepare('UPDATE network_credit_budgets SET reserved=reserved-? WHERE month=?').bind(maximumCredits,month).run();
+    throw Error('Neynar rate pause');
+  }
   await reserveRequest(env, 'neynar-wallets');
   const host=target==='snapchain'?'snapchain-api.neynar.com':'api.neynar.com';
   const payload=await networkFetchJson(`https://${host}${path}`, { headers: { 'x-api-key': env.NEYNAR_API_KEY } }, 2_000_000);
@@ -177,19 +193,24 @@ export async function importWalletAssociations(env: WalletEnv, batch = 100) {
     .bind(Date.now() - 86_400_000, Math.min(100, batch)).all<{ fid: number }>();
   if (!rows.results.length) return 0;
   const fids = rows.results.map(row => row.fid);
-  const payload = await neynarRead(env, `/v2/farcaster/user/bulk?fids=${fids.join(',')}`, fids.length * 2) as { users: { fid: number; verified_addresses?: { eth_addresses?: unknown } }[] };
+  const payload = await neynarRead(env, `/v2/farcaster/user/bulk?fids=${fids.join(',')}`, fids.length) as { users: { fid: number; verified_addresses?: { eth_addresses?: unknown } }[] };
   if (!Array.isArray(payload.users) || payload.users.length !== fids.length || new Set(payload.users.map(user => user.fid)).size !== fids.length || payload.users.some(user => !fids.includes(user.fid) || !Array.isArray(user.verified_addresses?.eth_addresses))) throw Error('Incomplete verified-wallet associations');
   const at = Date.now();
+  const writes:D1PreparedStatement[]=[];
   for (const user of payload.users) {
     const raw = user.verified_addresses!.eth_addresses as unknown[];
     if (raw.length > 500 || raw.some(address => typeof address !== 'string' || !ADDRESS.test(address))) throw Error('Invalid verified EVM address');
     const addresses = [...new Set((raw as string[]).map(address => address.toLowerCase()))];
-    await env.WARPLETS.batch([
+    const group=[
       env.WARPLETS.prepare('DELETE FROM network_wallet_links WHERE fid=?').bind(user.fid),
       ...addresses.map(address => env.WARPLETS.prepare('INSERT INTO network_wallet_links(fid,address,observed_at) VALUES(?,?,?)').bind(user.fid,address,at)),
       env.WARPLETS.prepare(`INSERT INTO network_wallet_associations(fid,observed_at) VALUES(?,?) ON CONFLICT(fid) DO UPDATE SET observed_at=excluded.observed_at`).bind(user.fid,at),
-    ]);
+    ];
+    // Never split one FID's delete/replacement across transactions.
+    if(writes.length+group.length>100){await env.WARPLETS.batch(writes.splice(0));}
+    writes.push(...group);
   }
+  if(writes.length)await env.WARPLETS.batch(writes);
   await syncSet(env.WARPLETS, 'wallet_association_success', at);
   return fids.length;
 }

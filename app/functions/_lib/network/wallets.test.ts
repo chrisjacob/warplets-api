@@ -91,13 +91,13 @@ describe('wallet valuation and top holdings',()=>{
     expect(db.prepare('SELECT COUNT(*) n FROM network_wallet_retries').get()?.n).toBe(0);
     expect(db.prepare("SELECT COUNT(*) n FROM network_leases WHERE name='wallet-values'").get()?.n).toBe(0);
   });
-  it('cannot raise the confirmed 250,000-credit Network cap through configuration',async()=>{
+  it('keeps two million credits outside Network even when configuration requests the whole free allowance',async()=>{
     const {env,db}=fixture();env.NETWORK_WALLET_CREDITS='10000000';
-    db.prepare('INSERT INTO network_credit_budgets(month,reserved) VALUES(?,?)').run(new Date().toISOString().slice(0,7),249999);
+    db.prepare('INSERT INTO network_credit_budgets(month,reserved) VALUES(?,?)').run(new Date().toISOString().slice(0,7),7999999);
     const fetcher=vi.fn();vi.stubGlobal('fetch',fetcher);
     await expect(neynarRead(env,'/v2/farcaster/user/bulk?fids=1',2)).rejects.toThrow('credit cap');
     expect(fetcher).not.toHaveBeenCalled();
-    expect(db.prepare('SELECT reserved FROM network_credit_budgets').get()?.reserved).toBe(249999);
+    expect(db.prepare('SELECT reserved FROM network_credit_budgets').get()?.reserved).toBe(7999999);
   });
   it('refreshes prices without rewriting balances or changing older published snapshots',async()=>{
     const {env,db}=fixture();

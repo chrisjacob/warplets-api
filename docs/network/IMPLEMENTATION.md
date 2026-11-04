@@ -94,6 +94,8 @@ node node_modules/tsx/dist/cli.mjs scripts/network/local.ts --members
 # Build and serve only the compiled Network preview plus its public read APIs.
 node scripts/dev-tunnel-network.mjs
 # Add --local-only for http://127.0.0.1:8799 without the tunnel.
+# Add --no-refresh to preview saved local data while production owns collection.
+# Add --production-data for local release assets with the public production APIs.
 ```
 
 The launcher also runs a bounded local refresh every five minutes, respecting
