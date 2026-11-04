@@ -190,7 +190,8 @@ export async function advanceNetworkWallets(env:NetworkEnv){
   const lease=await db.prepare(`INSERT INTO network_leases(name,owner,expires_at) VALUES('wallet-refresh',?,?) ON CONFLICT(name) DO UPDATE SET owner=excluded.owner,expires_at=excluded.expires_at WHERE network_leases.expires_at<? RETURNING owner`).bind(owner,now+900_000,now).first<{owner:string}>();
   if(lease?.owner!==owner)return {status:'busy'};
   try{
-    await importWalletAssociations(env);
+    try{await importWalletAssociations(env);}
+    catch{await syncSet(db,'wallet_association_failure',{at:Date.now(),message:'Wallet association source unavailable or budget reached'});}
     let valued=0;
     const limit=bounded(env.NETWORK_WALLET_BATCH,25,500);
     for(let i=0;i<limit;i+=25){

@@ -6,7 +6,7 @@ import { networkCountry, networkAsset, normalizeNetworkProfile } from '../../../
 import { buildNetworkDashboard } from './aggregate';
 import { decodeAcceptanceLogs } from './source';
 import { publishSnapshot, reserveRequest, type NetworkEnv } from './store';
-import { advanceNetwork } from './ingest';
+import { advanceNetwork, advanceNetworkWallets } from './ingest';
 import { sqliteD1 } from '../sqliteTestDb';
 const hash = `0x${'a'.repeat(64)}`, tx = `0x${'b'.repeat(64)}`, address = `0x${'1'.repeat(40)}`;
 const word = (n: number) => `0x${n.toString(16).padStart(64, '0')}`;
@@ -89,6 +89,18 @@ describe('durable storage and bounded ingestion', () => {
     expect(db.prepare('SELECT COUNT(*) n FROM network_snapshots').get()?.n).toBe(0);
   });
   it('has no side effects while disabled', async () => { const { env, db } = database(); env.NETWORK_INGEST_ENABLED = 'false'; expect(await advanceNetwork(env)).toEqual({ status: 'disabled' }); expect(db.prepare('SELECT COUNT(*) AS n FROM network_budgets').get()?.n).toBe(0); });
+  it('keeps Alchemy balance refresh running when Neynar association credits are exhausted',async()=>{
+    const {env,db}=database();Object.assign(env,{NETWORK_WALLETS_ENABLED:'true',NETWORK_WALLET_CREDITS:'1',NEYNAR_API_KEY:'test',ALCHEMY_API_KEY:'test-alchemy-key-12345'});
+    db.exec("INSERT INTO network_confirmed(fid,observed_at) VALUES(7,1);INSERT INTO network_profiles(fid,location_status,token_status,opt_in_status,observed_at) VALUES(7,'unknown','none','opted_in',1);INSERT INTO network_wallet_associations(fid,observed_at) VALUES(7,0)");
+    db.prepare('INSERT INTO network_wallet_links VALUES(?,?,1)').run(7,address);
+    db.prepare('INSERT INTO network_credit_budgets VALUES(?,1)').run(new Date().toISOString().slice(0,7));
+    db.prepare('INSERT INTO network_asset_prices VALUES(?,?,?)').run('eip155:8453/slip44:60',JSON.stringify({price:1,confidence:1,timestamp:Math.floor(Date.now()/1000)}),Date.now());
+    const fetcher=vi.fn(async(url:string,init:RequestInit)=>{expect(url).toContain('base-mainnet.g.alchemy.com');const request=JSON.parse(String(init.body));return Response.json({jsonrpc:'2.0',id:1,result:request.method==='eth_getBalance'?'0x0':{address,tokenBalances:[]}});});vi.stubGlobal('fetch',fetcher);
+    expect(await advanceNetworkWallets(env)).toMatchObject({status:'advanced',valued:1});
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    expect(db.prepare('SELECT reserved FROM network_credit_budgets').get()?.reserved).toBe(1);
+    expect(db.prepare('SELECT source FROM network_wallet_values').get()?.source).toBe('alchemy-base+defillama');
+  });
   it('replays orphaned events and invalidates affected historical snapshots on a reorg', async () => {
     const { env, db } = database(), block = NETWORK_DEPLOY_BLOCK + 49;
     db.prepare('INSERT INTO network_events VALUES(?,?,?,?,?,?,?,?)').run(tx, 2, block, 'old', 1792001447000, 42, address, Date.now());
