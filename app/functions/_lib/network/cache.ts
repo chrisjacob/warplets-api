@@ -25,7 +25,7 @@ export async function cachedNetworkResponse(context: CacheContext, resource: str
       if(attempt<2&&/D1_ERROR:.*(internal error|SQLITE_BUSY|database is locked)/is.test(message)){
         await new Promise(resolve=>setTimeout(resolve,100*(attempt+1)));continue;
       }
-      console.error('network_api_read_failed',resource);
+      console.error('network_api_read_failed',resource,message.replace(/https?:\/\/\S+/gi,'[source]').slice(0,180));
       return jsonSecure({error:'Network data is temporarily unavailable'},{status:503});
     }
   }
