@@ -1,10 +1,10 @@
 # Morning handoff - continuing overnight run
 
-Branch: work/10x-prd-foundation. Latest tested product code: e9cf8c1ee814664b53ec8b734d2b25a4d4af2ae5. This is a resumable checkpoint, not a stopping condition.
+Branch: work/10x-prd-foundation. Latest tested product code: bd479d5ba6dbb025a702642ba969b25476505c41. This is a resumable checkpoint, not a stopping condition.
 
 ## Working behavior
 
-B00, B01, B02, B03 and B09 are verified. Earn admission, final moderation, board computation and allocation now cross portable services in the Node reference; golden commitments remain unchanged. The client gates queries/actions by runtime capability, isolates wallet caches and handles account/disconnect/cancel/expiry. Browser journeys passed 360/390/768/1440 using Node and a clearly labeled Worker capability fixture.
+B00, B01, B02, B03, B04 and B09 are verified. Earn admission, final moderation, board computation and allocation now cross portable services in the Node reference; golden commitments remain unchanged. The client gates queries/actions by runtime capability, isolates wallet caches and handles account/disconnect/cancel/expiry. Browser journeys passed 360/390/768/1440 using Node and a clearly labeled Worker capability fixture.
 
 B02 persistence is verified; CI42099312849 passed. Tested substeps add guarded Node/D1 admission/review receipts, exact attempt nonces and abort assertions; explicit staffing and scope checks; immutable private filesystem/R2 objects; scope/staffing audits; cost reservation/settlement; pre-attempt quota records; verified private object references; bounded multi-batch board input reads. Migrations022–024 are applied locally. Fenced board/allocation commits and immutable input pointers now preserve golden results on Node/D1, including100wallets. Next migration025; preserve019 gap.
 
@@ -33,3 +33,5 @@ B03 implementation now passes10focused Node tests,2D1 job cases, local CLI, edge
 B03 CI42103178723 passed. B04 is being committed as the next tested milestone; follow its CI before marking verified. Next dependency is B05, with coordinator owning frozen SQL inventory/manifests and the implementation agent preparing pure requirement selection/coverage decoder contracts. Migration027 is next.
 
 B04 initial751ccd6 CI42103643420 passed. Follow-up review found repeated empty history cursors could falsely claim completeness; fixed with self-loop/multi-page-cycle regression,29focused tests and edge types passed. Follow latest cursor-fix checkpoint CI before verifying B04. B05 preparation is read-only: distinguish frozen application facts from independently registered synthetic evidence; retain current-head masking and exact value/cutoff binding.
+
+B04 cursor-fix bd479d5 CI42104172326 passed. B05 is active; migration027 reserved. Coordinator owns cutoff SQL inventory/freezing, full chronological purchase-checkpoint verification and private manifest persistence. Agent owns pure requirement specs/selection and strict synthetic coverage decoders, including historyv2 normalized journal (v1 preserved). Start from current state; no reset.

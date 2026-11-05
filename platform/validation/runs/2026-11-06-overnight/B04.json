@@ -1,7 +1,7 @@
 {
   "taskId": "B04",
-  "status": "tested-cursor-fix-awaiting-ci",
-  "implementationCommit": "751ccd636cd4882ad4153d5568cb65f98f96cc5e",
+  "status": "verified",
+  "implementationCommit": "bd479d5ba6dbb025a702642ba969b25476505c41",
   "migration": "026-evidence-provenance.sql",
   "classification": "synthetic transcripts and separately labeled pinned genuine public decoder vector; local Node and workerd/D1/R2 only",
   "commands": [
@@ -73,8 +73,8 @@
     "No runtime/live historical source claim; missing coverage stays pending"
   ],
   "ci": {
-    "runId": 42103643420,
+    "runId": 42104172326,
     "status": "success",
-    "url": "https://github.com/chrisjacob/warplets-api/actions/runs/42103643420"
+    "url": "https://github.com/chrisjacob/warplets-api/actions/runs/42104172326"
   }
 }
