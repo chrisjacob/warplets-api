@@ -189,5 +189,10 @@ export const operations = [
     "id": "quoteLocalProgression",
     "path": "/collect/inventories/{id}/progression/quote",
     "method": "POST"
+  },
+  {
+    "id": "getLocalOperationStatus",
+    "path": "/operations/status",
+    "method": "GET"
   }
 ];

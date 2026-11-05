@@ -5,6 +5,7 @@ import { snapshotSeasonFreeWallets, checkTimestamp, LEVEL_QUOTAS, seasonExpiry }
 import { admitMint, applyVerifiedMintDraw, createInventory, freezeFreeStage, inventoryCounts, publishStage } from '../domain/collections/inventory.mjs';
 import { prepareProgression, applyVerifiedProgressionDraw, visualRerollQuote } from '../domain/collections/progression.mjs';
 import { observeAsset } from '../vault/ledger.mjs';
+import { actionDecision } from '../operations/controls.mjs';
 
 export class CollectError extends Error {
   constructor(status,code,message) { super(message); this.status=status; this.code=code; }
@@ -201,6 +202,8 @@ export function reserveFounderMint(db,{inventoryId,stageId,wallet,requestKey,now
   });
 }
 function createReservation(db,row,state,stage,wallet,requestKey,digest,now) {
+  const control=actionDecision(db,'collection-mint',now);
+  need(control.allowed,'scope_unavailable','New mint reservations are held: '+control.reason,503);
   const hold=trancheOpeningHold(db,row,state,now);
   need(!hold,'tranche_postponed',hold??'',409);
   const opId=randomUUID(),commitment=randomUUID();
@@ -309,6 +312,8 @@ export function reserveProgression(db,{inventoryId,wallet,requestKey,request,now
   return transaction(db,()=>{
     const prior=checkRetry(db,wallet,requestKey,digest);
     if(prior) return {operation:opView(prior),replayed:true};
+    const control=actionDecision(db,'collection-progression',now);
+    need(control.allowed,'scope_unavailable','New progression reservations are held: '+control.reason,503);
     const state=progressionContext(db,inventoryId,targetId,materialId);
     const opId=randomUUID(),commitment=randomUUID();
     const next=prepareProgression(state,{kind,operationId:opId,commitment,signer:wallet,targetId,

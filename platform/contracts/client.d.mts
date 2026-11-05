@@ -50,6 +50,7 @@ export interface PlatformClient {
   reserveLocalMint(options: { headers?: HeadersInit; signal?: AbortSignal; idempotencyKey?: string; path: { "id": string; "stage": string }; body: Record<string, never> }): Promise<{ "data": { "operation": CollectionOperation; "replayed": boolean }; "meta": Meta }>;
   reserveLocalProgression(options: { headers?: HeadersInit; signal?: AbortSignal; idempotencyKey?: string; path: { "id": string }; body: { "kind": "visual" | "upgrade"; "targetId": string; "expectedTargetVersion": number; "materialId"?: string; "expectedMaterialVersion"?: number } }): Promise<{ "data": { "operation": CollectionOperation; "replayed": boolean }; "meta": Meta }>;
   quoteLocalProgression(options: { headers?: HeadersInit; signal?: AbortSignal; idempotencyKey?: string; path: { "id": string }; body: { "kind": "visual" | "upgrade"; "targetId": string; "expectedTargetVersion": number; "materialId"?: string; "expectedMaterialVersion"?: number } }): Promise<{ "data": ProgressionQuote; "meta": Meta }>;
+  getLocalOperationStatus(options?: { headers?: HeadersInit; signal?: AbortSignal; idempotencyKey?: string }): Promise<Record<string, unknown>>;
 }
 export declare class PlatformApiError extends Error {status:number;code:string;retryable:boolean;requestId?:string}
 export declare function createClient(options?:{baseUrl?:string;fetchImpl?:typeof fetch}):PlatformClient;

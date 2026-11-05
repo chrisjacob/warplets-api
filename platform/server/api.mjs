@@ -10,6 +10,7 @@ import { stakePaths } from '../stake/farms.mjs';
 import { txPaths } from '../transactions/http.mjs';
 import { shapes, describeResponses } from '../contracts/shapes.mjs';
 import { collectPaths } from '../collect/http.mjs';
+import { operationsPaths } from '../operations/http.mjs';
 
 export const apiBase = '/api/v1';
 const resources = {
@@ -20,7 +21,7 @@ const resources = {
 export function openapi() {
   const paths = Object.fromEntries(Object.entries(resources).map(([path, {id,summary}]) =>
     [path, {get: {operationId:id, summary, responses:{200:{description:summary, content:{'application/json':{schema:{type:'object'}}}}}}}]));
-  const routes={...paths,...authPaths,...marketPaths,...launchPlanPaths,...ballotPaths,...earnPaths,...vaultPaths,...stakePaths,...txPaths,...collectPaths};
+  const routes={...paths,...authPaths,...marketPaths,...launchPlanPaths,...ballotPaths,...earnPaths,...vaultPaths,...stakePaths,...txPaths,...collectPaths,...operationsPaths};
   return {openapi:'3.1.0', info:{title:'10X.MEME validation API',version:policy.version},servers:[{url:apiBase}],
     paths:describeResponses(routes),components:{schemas:shapes}};
 }

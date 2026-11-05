@@ -8,6 +8,7 @@ import { readRecoveredClaims, readRecoveredLeaderboard, recoveryMode } from './a
 import { recordSamplePrice } from '../pricing/fixtures.mjs';
 import { verifiedStakeAt as readAt } from '../pricing/evidence.mjs';
 import { capacityAt } from './operations.mjs';
+import { actionDecision } from '../operations/controls.mjs';
 export { PILOT_BOARD_CAPACITY } from './operations.mjs';
 export { EarnError } from './checks.mjs';
 function canonicalUrl(text) {
@@ -62,6 +63,8 @@ export function submitContent(db,{wallet,tokenId,url,requestKey,nowMs}) {
       if (prior.token_id!==tokenId || prior.url!==url) conflict('idempotency_conflict','Key already used for different content.');
       return {submission:publicSubmission(prior),replay:true};
     }
+    const admission=actionDecision(db,'earn-admission',nowMs);
+    if (!admission.allowed) throw new EarnError(503,'scope_unavailable','New admissions temporarily held: '+admission.reason+'.');
     const campaign=db.prepare('SELECT activation_ms FROM earn_fixture_campaigns WHERE token_id=?').get(tokenId);
     if (!campaign || nowMs<campaign.activation_ms || nowMs>=campaign.activation_ms+10*DAY_MS) {
       conflict('campaign_inactive','Select an active local campaign.');

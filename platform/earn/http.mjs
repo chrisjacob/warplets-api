@@ -4,6 +4,7 @@ import { DAY_MS } from '../domain/earn/index.mjs';
 import { listActiveActions } from './components.mjs';
 import { exportBoard, proofForWallet, recoveryMode } from './archive.mjs';
 import { capacityAt } from './operations.mjs';
+import { actionDecision } from '../operations/controls.mjs';
 import { EarnError, readLeaderboard, readWalletClaims, readWalletSubmissions, submitContent } from './workflow.mjs';
 
 const base='/api/v1/earn';
@@ -62,7 +63,7 @@ export async function handleEarn(db,request,peer,now) {
       const epoch=Math.floor(now/DAY_MS);
       if (capacity) {
         const available=capacityAt(db,epoch,now);
-        return json({mode:'local-fixture',...available,accepting:!recoveryMode(db)&&available.accepting});
+        return json({mode:'local-fixture',...available,accepting:!recoveryMode(db)&&available.accepting&&actionDecision(db,'earn-admission',now).allowed});
       }
       return json({epoch,mode:'local-fixture',items:listActiveActions(db,epoch)});
     }
