@@ -146,4 +146,54 @@ try {
   console.log(JSON.stringify({coreDeployment:corePin.deployedSlot,rewardsDeployment:rewardPin.deployedSlot,
     unrealizedReserve:100,originalOwnerClaim:30,buyerClaim:70,formerOwnerAttempt:'rejected',proofDepth:proof.length,
     v0PacketBytes:wireSizes,threeExecuteFeesLamports:threeExecuteFees,assetBurnAndPlugins:'separate gates'}));
+
+  // Direct owner burn on a plain asset: even an app without a burn
+  // surface cannot preserve signing authority for that destroyed asset.
+  const burn=(assetPk,owner,extra=[])=>ix(core,[w(assetPk),r(core),s(owner,true),r(core),r(system),r(core),...extra],Buffer.from([12,0]));
+  await send([spl.createAssociatedTokenAccountIdempotentInstruction(bob.publicKey,ata(signer),signer,mint),
+    spl.createMintToInstruction(mint,ata(signer),admin.publicKey,1)],bob,[admin]);
+  await send([burn(asset,bob.publicKey)],bob);
+  await assert.rejects(send([execute(bob.publicKey,spl.createTransferInstruction(ata(signer),ata(bob.publicKey),signer,1))],bob));
+  assert.equal(await amount(ata(signer)),1n);
+  console.log(JSON.stringify({plainAssetBurn:'succeeded',assetSignerSpendAfterBurn:'rejected',strandedUnits:'1'}));
+
+  // Optional experimental configuration: a single frozen lookup table
+  // provides five immutable bytes at a public, verified offset. Core's
+  // existing Oracle adapter reads those bytes. No signer can edit a frozen
+  // ALT. Keep this separate from the plain asset proof and customer policy.
+  const recordBytes=Buffer.alloc(32);
+  recordBytes.set([1,2,2,1,2]); // OracleValidation::V1 {Pass,Pass,Rejected,Pass}
+  const recordPk=new PublicKey(recordBytes);
+  const [createOracle,oracle]=AddressLookupTableProgram.createLookupTable({authority:admin.publicKey,payer:admin.publicKey,
+    recentSlot:await rpc.getSlot('finalized')});
+  await send([createOracle]);
+  await send([AddressLookupTableProgram.extendLookupTable({lookupTable:oracle,authority:admin.publicKey,payer:admin.publicKey,
+    addresses:[recordPk]})]);
+  await send([AddressLookupTableProgram.freezeLookupTable({lookupTable:oracle,authority:admin.publicKey})]);
+  const oracleInfo=await rpc.getAccountInfo(oracle);
+  assert.deepEqual(oracleInfo.data.subarray(56,88),recordBytes);
+  assert.equal((await rpc.getAddressLookupTable(oracle)).value.state.authority,undefined);
+  await assert.rejects(send([AddressLookupTableProgram.extendLookupTable({lookupTable:oracle,authority:admin.publicKey,
+    payer:admin.publicKey,addresses:[mint]})]));
+  const protectedAsset=key(92);
+  // Oracle adapter enum=1, Some(Authority::None), one Burn hook with
+  // CanReject flag 4, static address, Some(Custom byte offset 56).
+  const oracleAdapter=Buffer.concat([Buffer.from([1]),oracle.toBuffer(),Buffer.from([1,0]),u32(1),
+    Buffer.from([2]),u32(4),Buffer.from([0,1,2]),u64(56)]);
+  await send([ix(core,[s(protectedAsset.publicKey,true),r(core),r(core),s(alice.publicKey,true),r(alice.publicKey),
+    r(alice.publicKey),r(system),r(core)],Buffer.from([20,0]),str('Protected test asset'),str('urn:10x:protected'),
+    Buffer.from([0,1]),u32(1),oracleAdapter)],alice,[protectedAsset]);
+  // Test true veto with oracle PRESENT as well as fail-closed omission.
+  await assert.rejects(send([burn(protectedAsset.publicKey,alice.publicKey,[r(oracle)])],alice));
+  await assert.rejects(send([burn(protectedAsset.publicKey,alice.publicKey)],alice));
+  const removeOracle=ix(core,[w(protectedAsset.publicKey),r(core),s(alice.publicKey,true),r(core),r(system),r(core)],
+    Buffer.from([24,1]),oracle.toBuffer());
+  await assert.rejects(send([removeOracle],alice));
+  await send([ix(core,[w(protectedAsset.publicKey),r(core),s(alice.publicKey,true),r(core),r(bob.publicKey),r(system),r(core)],
+    Buffer.from([14,0]))],alice);
+  assert.equal(new PublicKey((await rpc.getAccountInfo(protectedAsset.publicKey)).data.subarray(1,33)).toBase58(),bob.publicKey.toBase58());
+  await assert.rejects(send([burn(protectedAsset.publicKey,bob.publicKey,[r(oracle)])],bob));
+  console.log(JSON.stringify({optionalPolicy:'immutable burn-only Oracle',sharedOracleRentLamports:oracleInfo.lamports,
+    ownerBurn:'rejected',missingOracle:'rejected',updateAuthorityRemoval:'rejected',normalTransfer:'succeeded',
+    independentReview:'required'}));
 } finally {net.stop();}
