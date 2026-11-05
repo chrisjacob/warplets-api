@@ -1,5 +1,7 @@
 # 10X.MEME platform
 
+The [implementation blueprint](blueprint/README.md) provides the ordered task queue, acceptance cases and [overnight kickoff](blueprint/KICKOFF.md) for continuing this local implementation. It preserves the PRD and separates implementation from financial release approval.
+
 Isolated API-first implementation of the November PRD. Run from this directory with Node 22.16 or later. No installation, wallet, RPC key or provider account is needed.
 
     node scripts/test-reference.mjs

@@ -1,0 +1,771 @@
+{
+  "schemaVersion": 1,
+  "preparedAt": "2026-11-05",
+  "governingSpec": "../spec/prd-v1.2-source.txt",
+  "baselineHead": "5f3cafffc08d2404976ea14532dad2d2751cffcd",
+  "branch": "work/10x-prd-foundation",
+  "executionScope": "local implementation only; no deployment, remote resource writes or spending",
+  "tasks": [
+    {
+      "id": "B00",
+      "title": "Verify baseline and run contract",
+      "phase": "build",
+      "priority": 0,
+      "lane": "coordinator",
+      "dependsOn": [],
+      "card": "tasks/B00.md",
+      "acceptanceRefs": [
+        "A52"
+      ],
+      "scope": "local-only",
+      "financialExecution": false
+    },
+    {
+      "id": "B01",
+      "title": "Extract portable services and canonical cryptography",
+      "phase": "build",
+      "priority": 10,
+      "lane": "core",
+      "dependsOn": [
+        "B00"
+      ],
+      "card": "tasks/B01.md",
+      "acceptanceRefs": [
+        "A35"
+      ],
+      "scope": "local-only",
+      "financialExecution": false
+    },
+    {
+      "id": "B02",
+      "title": "Implement named atomic repositories and minimum controls",
+      "phase": "build",
+      "priority": 20,
+      "lane": "core",
+      "dependsOn": [
+        "B01"
+      ],
+      "card": "tasks/B02.md",
+      "acceptanceRefs": [
+        "A29",
+        "A35",
+        "A37",
+        "A41",
+        "A42",
+        "A44",
+        "A46",
+        "A47"
+      ],
+      "scope": "local-only",
+      "financialExecution": false
+    },
+    {
+      "id": "B03",
+      "title": "Add fenced resumable jobs",
+      "phase": "build",
+      "priority": 30,
+      "lane": "core",
+      "dependsOn": [
+        "B02"
+      ],
+      "card": "tasks/B03.md",
+      "acceptanceRefs": [
+        "A37",
+        "A40",
+        "A42",
+        "A46",
+        "A51"
+      ],
+      "scope": "local-only",
+      "financialExecution": false
+    },
+    {
+      "id": "B04",
+      "title": "Implement provenance-aware evidence adapters",
+      "phase": "build",
+      "priority": 31,
+      "lane": "core",
+      "dependsOn": [
+        "B02"
+      ],
+      "card": "tasks/B04.md",
+      "acceptanceRefs": [
+        "A15",
+        "A17",
+        "A21",
+        "A45"
+      ],
+      "scope": "local-only",
+      "financialExecution": false
+    },
+    {
+      "id": "B05",
+      "title": "Build exact-cutoff completeness manifests",
+      "phase": "build",
+      "priority": 40,
+      "lane": "core",
+      "dependsOn": [
+        "B03",
+        "B04"
+      ],
+      "card": "tasks/B05.md",
+      "acceptanceRefs": [
+        "A15",
+        "A16",
+        "A17",
+        "A20",
+        "A21",
+        "A53",
+        "A54"
+      ],
+      "scope": "local-only",
+      "financialExecution": false
+    },
+    {
+      "id": "B06",
+      "title": "Port Earn admission and final moderation to D1",
+      "phase": "build",
+      "priority": 50,
+      "lane": "core",
+      "dependsOn": [
+        "B02",
+        "B05"
+      ],
+      "card": "tasks/B06.md",
+      "acceptanceRefs": [
+        "A14",
+        "A15",
+        "A35",
+        "A36",
+        "A37",
+        "A38",
+        "A45",
+        "A51"
+      ],
+      "scope": "local-only",
+      "financialExecution": false
+    },
+    {
+      "id": "B07",
+      "title": "Port global settlement and allocations to D1",
+      "phase": "build",
+      "priority": 60,
+      "lane": "core",
+      "dependsOn": [
+        "B06",
+        "B03"
+      ],
+      "card": "tasks/B07.md",
+      "acceptanceRefs": [
+        "A01",
+        "A14",
+        "A15",
+        "A16",
+        "A17",
+        "A18",
+        "A19",
+        "A20",
+        "A21",
+        "A37",
+        "A42",
+        "A53",
+        "A54"
+      ],
+      "scope": "local-only",
+      "financialExecution": false
+    },
+    {
+      "id": "B08",
+      "title": "Publish immutable artifacts and rehearse isolated recovery",
+      "phase": "build",
+      "priority": 70,
+      "lane": "core",
+      "dependsOn": [
+        "B07"
+      ],
+      "card": "tasks/B08.md",
+      "acceptanceRefs": [
+        "A19",
+        "A22",
+        "A37",
+        "A40",
+        "A42",
+        "A43"
+      ],
+      "scope": "local-only",
+      "financialExecution": false
+    },
+    {
+      "id": "B09",
+      "title": "Make frontend runtime-aware and session-safe",
+      "phase": "build",
+      "priority": 11,
+      "lane": "frontend",
+      "dependsOn": [
+        "B00"
+      ],
+      "card": "tasks/B09.md",
+      "acceptanceRefs": [
+        "A35",
+        "A36",
+        "A38",
+        "A41",
+        "A44",
+        "A47",
+        "A48",
+        "A50",
+        "A57"
+      ],
+      "scope": "local-only",
+      "financialExecution": false
+    },
+    {
+      "id": "B10",
+      "title": "Complete collection, Vault and Earn member journeys",
+      "phase": "build",
+      "priority": 82,
+      "lane": "frontend",
+      "dependsOn": [
+        "B09"
+      ],
+      "card": "tasks/B10.md",
+      "acceptanceRefs": [
+        "A06",
+        "A09",
+        "A14",
+        "A15",
+        "A16",
+        "A17",
+        "A23",
+        "A25",
+        "A26",
+        "A27",
+        "A28",
+        "A30",
+        "A31",
+        "A32",
+        "A40",
+        "A48",
+        "A50",
+        "A53",
+        "A54",
+        "A55",
+        "A56",
+        "A57"
+      ],
+      "scope": "local-only",
+      "financialExecution": false
+    },
+    {
+      "id": "B11",
+      "title": "Port collection and governance commands to D1",
+      "phase": "build",
+      "priority": 80,
+      "lane": "collections",
+      "dependsOn": [
+        "B02",
+        "B10"
+      ],
+      "card": "tasks/B11.md",
+      "acceptanceRefs": [
+        "A02",
+        "A08",
+        "A10",
+        "A23",
+        "A24",
+        "A25",
+        "A26",
+        "A27",
+        "A28",
+        "A29",
+        "A30",
+        "A31",
+        "A32",
+        "A35",
+        "A36",
+        "A37",
+        "A56"
+      ],
+      "scope": "local-only",
+      "financialExecution": false
+    },
+    {
+      "id": "B12",
+      "title": "Complete scoped operator commands and audit",
+      "phase": "build",
+      "priority": 90,
+      "lane": "operations",
+      "dependsOn": [
+        "B06",
+        "B11"
+      ],
+      "card": "tasks/B12.md",
+      "acceptanceRefs": [
+        "A25",
+        "A35",
+        "A38",
+        "A41",
+        "A44",
+        "A45",
+        "A48",
+        "A53",
+        "A56"
+      ],
+      "scope": "local-only",
+      "financialExecution": false
+    },
+    {
+      "id": "B13",
+      "title": "Port notices, usage, retention and readiness",
+      "phase": "build",
+      "priority": 100,
+      "lane": "operations",
+      "dependsOn": [
+        "B02",
+        "B12"
+      ],
+      "card": "tasks/B13.md",
+      "acceptanceRefs": [
+        "A42",
+        "A44",
+        "A45",
+        "A46",
+        "A47",
+        "A51"
+      ],
+      "scope": "local-only",
+      "financialExecution": false
+    },
+    {
+      "id": "B14",
+      "title": "Unify quote provenance and exact-state comparison",
+      "phase": "build",
+      "priority": 81,
+      "lane": "financial-preparation",
+      "dependsOn": [
+        "B04",
+        "B02"
+      ],
+      "card": "tasks/B14.md",
+      "acceptanceRefs": [
+        "A03",
+        "A04",
+        "A15",
+        "A35"
+      ],
+      "scope": "local-only",
+      "financialExecution": false
+    },
+    {
+      "id": "B15",
+      "title": "Prepare unsigned action plans and recovery",
+      "phase": "build",
+      "priority": 110,
+      "lane": "financial-preparation",
+      "dependsOn": [
+        "B12",
+        "B14"
+      ],
+      "card": "tasks/B15.md",
+      "acceptanceRefs": [
+        "A03",
+        "A05",
+        "A12",
+        "A22",
+        "A24",
+        "A27",
+        "A29",
+        "A30",
+        "A36",
+        "A37",
+        "A39",
+        "A40",
+        "A41",
+        "A57"
+      ],
+      "scope": "local-only",
+      "financialExecution": false
+    },
+    {
+      "id": "B16",
+      "title": "Build complete cost packets and readiness",
+      "phase": "build",
+      "priority": 120,
+      "lane": "financial-preparation",
+      "dependsOn": [
+        "B13",
+        "B15"
+      ],
+      "card": "tasks/B16.md",
+      "acceptanceRefs": [
+        "A05",
+        "A46",
+        "A55",
+        "A58"
+      ],
+      "scope": "local-only",
+      "financialExecution": false
+    },
+    {
+      "id": "B17",
+      "title": "Implement offline fairness and metadata proposals",
+      "phase": "build",
+      "priority": 121,
+      "lane": "collections",
+      "dependsOn": [
+        "B11",
+        "B15"
+      ],
+      "card": "tasks/B17.md",
+      "acceptanceRefs": [
+        "A08",
+        "A23",
+        "A24",
+        "A28",
+        "A29",
+        "A30",
+        "A31",
+        "A34",
+        "A45",
+        "A50"
+      ],
+      "scope": "local-only",
+      "financialExecution": false
+    },
+    {
+      "id": "B18",
+      "title": "Prepare wallet and marketplace compatibility handoff",
+      "phase": "build",
+      "priority": 130,
+      "lane": "frontend",
+      "dependsOn": [
+        "B09",
+        "B15",
+        "B17"
+      ],
+      "card": "tasks/B18.md",
+      "acceptanceRefs": [
+        "A33",
+        "A48",
+        "A49",
+        "A50",
+        "A57"
+      ],
+      "scope": "local-only",
+      "financialExecution": false
+    },
+    {
+      "id": "B19",
+      "title": "Produce portable financial artifacts and gate dossiers",
+      "phase": "build",
+      "priority": 131,
+      "lane": "financial-preparation",
+      "dependsOn": [
+        "B08",
+        "B11",
+        "B16"
+      ],
+      "card": "tasks/B19.md",
+      "acceptanceRefs": [
+        "A01",
+        "A02",
+        "A04",
+        "A05",
+        "A06",
+        "A07",
+        "A08",
+        "A09",
+        "A10",
+        "A11",
+        "A12",
+        "A13",
+        "A20",
+        "A22",
+        "A23",
+        "A24",
+        "A28",
+        "A32",
+        "A33",
+        "A34",
+        "A43",
+        "A55",
+        "A57",
+        "A58"
+      ],
+      "scope": "local-only",
+      "financialExecution": false
+    },
+    {
+      "id": "B20",
+      "title": "Verify core and full profiles; finalize handoff",
+      "phase": "build",
+      "priority": 71,
+      "lane": "integration",
+      "dependsOn": [
+        "B08",
+        "B09"
+      ],
+      "card": "tasks/B20.md",
+      "acceptanceRefs": [
+        "A52"
+      ],
+      "scope": "local-only",
+      "financialExecution": false
+    }
+  ],
+  "acceptanceProfiles": {
+    "core": {
+      "task": "B20",
+      "dependsOn": [
+        "B08",
+        "B09"
+      ],
+      "meaning": "Locally verified portable Earn workflow; not full product or financial release",
+      "selectionRule": "Eligible only while core is not verified and core prerequisites are verified."
+    },
+    "full": {
+      "task": "B20",
+      "dependsOn": [
+        "B00",
+        "B01",
+        "B02",
+        "B03",
+        "B04",
+        "B05",
+        "B06",
+        "B07",
+        "B08",
+        "B09",
+        "B10",
+        "B11",
+        "B12",
+        "B13",
+        "B14",
+        "B15",
+        "B16",
+        "B17",
+        "B18",
+        "B19"
+      ],
+      "meaning": "All B lanes locally integrated; release gates still separate",
+      "selectionRule": "After core passes, skip B20 until every full prerequisite is verified."
+    }
+  },
+  "releaseGates": [
+    {
+      "id": "R01",
+      "title": "Custody, reserve assignment and NFT permissions",
+      "dependsOn": [
+        "B17",
+        "B19"
+      ],
+      "decisionRecords": [
+        "DR-V1",
+        "DR-V2",
+        "DR-V3"
+      ],
+      "phase": "release",
+      "card": "RELEASE_GATES.md",
+      "externalApprovalRequired": true,
+      "acceptanceRefs": [
+        "A02",
+        "A04",
+        "A06",
+        "A07",
+        "A08",
+        "A09",
+        "A10",
+        "A22",
+        "A23",
+        "A24",
+        "A28",
+        "A32",
+        "A33",
+        "A34",
+        "A43",
+        "A57"
+      ]
+    },
+    {
+      "id": "R02",
+      "title": "Farm authority, precision and Earn distributor",
+      "dependsOn": [
+        "B19"
+      ],
+      "decisionRecords": [
+        "DR-S1",
+        "DR-S2"
+      ],
+      "phase": "release",
+      "card": "RELEASE_GATES.md",
+      "externalApprovalRequired": true,
+      "acceptanceRefs": [
+        "A04",
+        "A11",
+        "A12",
+        "A13",
+        "A15",
+        "A20",
+        "A22",
+        "A43",
+        "A55"
+      ],
+      "conditionalRequirements": [
+        {
+          "when": "A candidate shares claim/custody assumptions with the NFT implementation",
+          "requires": [
+            "R01"
+          ],
+          "meaning": "Shared authority and proof assumptions must match the reviewed R01 scope; independent farm/Earn review can proceed in parallel."
+        }
+      ]
+    },
+    {
+      "id": "R03",
+      "title": "Verified execution, funding and hosted boundaries",
+      "dependsOn": [
+        "R01",
+        "R02",
+        "B15",
+        "B16",
+        "B20"
+      ],
+      "decisionRecords": [
+        "DR-P1"
+      ],
+      "phase": "release",
+      "card": "RELEASE_GATES.md",
+      "externalApprovalRequired": true,
+      "acceptanceRefs": [
+        "A01",
+        "A02",
+        "A03",
+        "A04",
+        "A05",
+        "A06",
+        "A11",
+        "A14",
+        "A15",
+        "A16",
+        "A17",
+        "A18",
+        "A19",
+        "A20",
+        "A21",
+        "A22",
+        "A35",
+        "A36",
+        "A37",
+        "A38",
+        "A39",
+        "A40",
+        "A41",
+        "A42",
+        "A43",
+        "A44",
+        "A45",
+        "A46",
+        "A53",
+        "A54"
+      ]
+    },
+    {
+      "id": "R04",
+      "title": "Paid NFT fulfillment, metadata and compatibility",
+      "dependsOn": [
+        "R01",
+        "R03",
+        "B11",
+        "B17",
+        "B18"
+      ],
+      "decisionRecords": [
+        "DR-V3"
+      ],
+      "phase": "release",
+      "card": "RELEASE_GATES.md",
+      "externalApprovalRequired": true,
+      "acceptanceRefs": [
+        "A07",
+        "A08",
+        "A09",
+        "A10",
+        "A23",
+        "A24",
+        "A26",
+        "A27",
+        "A28",
+        "A29",
+        "A30",
+        "A31",
+        "A32",
+        "A33",
+        "A34",
+        "A35",
+        "A36",
+        "A37",
+        "A38",
+        "A39",
+        "A40",
+        "A41",
+        "A44",
+        "A45",
+        "A46",
+        "A49",
+        "A56",
+        "A57"
+      ]
+    },
+    {
+      "id": "R05",
+      "title": "Separately approved staffed and funded pilot",
+      "dependsOn": [
+        "R03",
+        "B20"
+      ],
+      "decisionRecords": [
+        "DR-C1"
+      ],
+      "phase": "release",
+      "card": "RELEASE_GATES.md",
+      "externalApprovalRequired": true,
+      "acceptanceRefs": [
+        "A05",
+        "A46",
+        "A47",
+        "A48",
+        "A49",
+        "A50",
+        "A51",
+        "A52",
+        "A58"
+      ],
+      "conditionalRequirements": [
+        {
+          "when": "The approved pilot offers any paid NFT mint, upgrade, reroll or refresh",
+          "requires": [
+            "R04"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "R06",
+      "title": "Phased Genesis, Seasons and growth",
+      "dependsOn": [
+        "R04",
+        "R05"
+      ],
+      "decisionRecords": [],
+      "phase": "release",
+      "card": "RELEASE_GATES.md",
+      "externalApprovalRequired": true,
+      "acceptanceRefs": [
+        "A23",
+        "A25",
+        "A51",
+        "A56"
+      ]
+    }
+  ]
+}

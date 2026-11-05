@@ -1,0 +1,273 @@
+{
+  "schemaVersion": 1,
+  "runId": null,
+  "phase": "planned",
+  "baselineHead": "5f3cafffc08d2404976ea14532dad2d2751cffcd",
+  "branch": "work/10x-prd-foundation",
+  "currentTask": null,
+  "lastUpdatedAt": null,
+  "migrationAllocation": {
+    "next": 22,
+    "reserved": [],
+    "historicalGap": 19
+  },
+  "acceptanceProfiles": {
+    "core": {
+      "status": "not_started",
+      "commit": null,
+      "evidence": []
+    },
+    "full": {
+      "status": "not_started",
+      "commit": null,
+      "evidence": []
+    }
+  },
+  "tasks": {
+    "B00": {
+      "status": "not_started",
+      "owner": null,
+      "baseCommit": null,
+      "implementationCommit": null,
+      "pushed": false,
+      "evidence": [],
+      "nextAction": null,
+      "blocker": null
+    },
+    "B01": {
+      "status": "not_started",
+      "owner": null,
+      "baseCommit": null,
+      "implementationCommit": null,
+      "pushed": false,
+      "evidence": [],
+      "nextAction": null,
+      "blocker": null
+    },
+    "B02": {
+      "status": "not_started",
+      "owner": null,
+      "baseCommit": null,
+      "implementationCommit": null,
+      "pushed": false,
+      "evidence": [],
+      "nextAction": null,
+      "blocker": null
+    },
+    "B03": {
+      "status": "not_started",
+      "owner": null,
+      "baseCommit": null,
+      "implementationCommit": null,
+      "pushed": false,
+      "evidence": [],
+      "nextAction": null,
+      "blocker": null
+    },
+    "B04": {
+      "status": "not_started",
+      "owner": null,
+      "baseCommit": null,
+      "implementationCommit": null,
+      "pushed": false,
+      "evidence": [],
+      "nextAction": null,
+      "blocker": null
+    },
+    "B05": {
+      "status": "not_started",
+      "owner": null,
+      "baseCommit": null,
+      "implementationCommit": null,
+      "pushed": false,
+      "evidence": [],
+      "nextAction": null,
+      "blocker": null
+    },
+    "B06": {
+      "status": "not_started",
+      "owner": null,
+      "baseCommit": null,
+      "implementationCommit": null,
+      "pushed": false,
+      "evidence": [],
+      "nextAction": null,
+      "blocker": null
+    },
+    "B07": {
+      "status": "not_started",
+      "owner": null,
+      "baseCommit": null,
+      "implementationCommit": null,
+      "pushed": false,
+      "evidence": [],
+      "nextAction": null,
+      "blocker": null
+    },
+    "B08": {
+      "status": "not_started",
+      "owner": null,
+      "baseCommit": null,
+      "implementationCommit": null,
+      "pushed": false,
+      "evidence": [],
+      "nextAction": null,
+      "blocker": null
+    },
+    "B09": {
+      "status": "not_started",
+      "owner": null,
+      "baseCommit": null,
+      "implementationCommit": null,
+      "pushed": false,
+      "evidence": [],
+      "nextAction": null,
+      "blocker": null
+    },
+    "B10": {
+      "status": "not_started",
+      "owner": null,
+      "baseCommit": null,
+      "implementationCommit": null,
+      "pushed": false,
+      "evidence": [],
+      "nextAction": null,
+      "blocker": null
+    },
+    "B11": {
+      "status": "not_started",
+      "owner": null,
+      "baseCommit": null,
+      "implementationCommit": null,
+      "pushed": false,
+      "evidence": [],
+      "nextAction": null,
+      "blocker": null
+    },
+    "B12": {
+      "status": "not_started",
+      "owner": null,
+      "baseCommit": null,
+      "implementationCommit": null,
+      "pushed": false,
+      "evidence": [],
+      "nextAction": null,
+      "blocker": null
+    },
+    "B13": {
+      "status": "not_started",
+      "owner": null,
+      "baseCommit": null,
+      "implementationCommit": null,
+      "pushed": false,
+      "evidence": [],
+      "nextAction": null,
+      "blocker": null
+    },
+    "B14": {
+      "status": "not_started",
+      "owner": null,
+      "baseCommit": null,
+      "implementationCommit": null,
+      "pushed": false,
+      "evidence": [],
+      "nextAction": null,
+      "blocker": null
+    },
+    "B15": {
+      "status": "not_started",
+      "owner": null,
+      "baseCommit": null,
+      "implementationCommit": null,
+      "pushed": false,
+      "evidence": [],
+      "nextAction": null,
+      "blocker": null
+    },
+    "B16": {
+      "status": "not_started",
+      "owner": null,
+      "baseCommit": null,
+      "implementationCommit": null,
+      "pushed": false,
+      "evidence": [],
+      "nextAction": null,
+      "blocker": null
+    },
+    "B17": {
+      "status": "not_started",
+      "owner": null,
+      "baseCommit": null,
+      "implementationCommit": null,
+      "pushed": false,
+      "evidence": [],
+      "nextAction": null,
+      "blocker": null
+    },
+    "B18": {
+      "status": "not_started",
+      "owner": null,
+      "baseCommit": null,
+      "implementationCommit": null,
+      "pushed": false,
+      "evidence": [],
+      "nextAction": null,
+      "blocker": null
+    },
+    "B19": {
+      "status": "not_started",
+      "owner": null,
+      "baseCommit": null,
+      "implementationCommit": null,
+      "pushed": false,
+      "evidence": [],
+      "nextAction": null,
+      "blocker": null
+    },
+    "B20": {
+      "status": "not_started",
+      "owner": null,
+      "baseCommit": null,
+      "implementationCommit": null,
+      "pushed": false,
+      "evidence": [],
+      "nextAction": null,
+      "blocker": null
+    }
+  },
+  "releaseGates": {
+    "R01": {
+      "status": "blocked_external",
+      "reason": "Not authorized for the unattended B run; evidence and explicit release review required.",
+      "evidence": []
+    },
+    "R02": {
+      "status": "blocked_external",
+      "reason": "Not authorized for the unattended B run; evidence and explicit release review required.",
+      "evidence": []
+    },
+    "R03": {
+      "status": "blocked_external",
+      "reason": "Not authorized for the unattended B run; evidence and explicit release review required.",
+      "evidence": []
+    },
+    "R04": {
+      "status": "blocked_external",
+      "reason": "Not authorized for the unattended B run; evidence and explicit release review required.",
+      "evidence": []
+    },
+    "R05": {
+      "status": "blocked_external",
+      "reason": "Not authorized for the unattended B run; evidence and explicit release review required.",
+      "evidence": []
+    },
+    "R06": {
+      "status": "blocked_external",
+      "reason": "Not authorized for the unattended B run; evidence and explicit release review required.",
+      "evidence": []
+    }
+  },
+  "unrelatedChanges": [],
+  "decisions": [],
+  "handoff": "MORNING_HANDOFF.md"
+}
