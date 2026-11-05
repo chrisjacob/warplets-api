@@ -6,6 +6,7 @@ import { launchPlanPaths } from '../launch/schema.mjs';
 import { ballotPaths } from '../governance/ballots.mjs';
 import { earnPaths } from '../earn/openapi.mjs';
 import { vaultPaths } from '../vault/http.mjs';
+import { stakePaths } from '../stake/farms.mjs';
 
 export const apiBase = '/api/v1';
 const resources = {
@@ -16,7 +17,7 @@ const resources = {
 export function openapi() {
   const paths = Object.fromEntries(Object.entries(resources).map(([path, {id,summary}]) =>
     [path, {get: {operationId:id, summary, responses:{200:{description:summary, content:{'application/json':{schema:{type:'object'}}}}}}}]));
-  return {openapi:'3.1.0', info:{title:'10X.MEME validation API', version:policy.version}, servers:[{url:apiBase}], paths:{...paths,...authPaths,...marketPaths,...launchPlanPaths,...ballotPaths,...earnPaths,...vaultPaths}};
+  return {openapi:'3.1.0', info:{title:'10X.MEME validation API', version:policy.version}, servers:[{url:apiBase}], paths:{...paths,...authPaths,...marketPaths,...launchPlanPaths,...ballotPaths,...earnPaths,...vaultPaths,...stakePaths}};
 }
 export function json(data, status = 200, headers = {}) {
   return new Response(JSON.stringify(data), {status, headers:{

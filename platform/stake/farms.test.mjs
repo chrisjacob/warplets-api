@@ -1,0 +1,22 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {openDatabase} from '../storage/database.mjs';
+import {importMarket} from '../markets/catalog.mjs';
+import {encode58} from '../server/base58.mjs';
+import {seedFarm,observeFarm,handleStake} from './farms.mjs';
+const key=n=>encode58(Buffer.alloc(32,n));
+test('partial withdrawals, idle time, harvest replay and campaign end conserve fixture balances',async t=>{
+ const db=openDatabase();t.after(()=>db.close());
+ const start=Date.parse('2026-11-01T00:00:00Z'),day=86400000,at=n=>new Date(start+n*day).toISOString();
+ importMarket(db,{id:'farm',attMint:key(1),ogMint:key(2),poolAddress:key(3),activatedAt:at(0),symbol:'ATT',ogSymbol:'OG'});
+ const wf=key(4);seedFarm(db,{marketId:'farm',originalUnits:'1000000',treasuryFeeBps:100});
+ const post=(id,kind,n,amount)=>observeFarm(db,{id,marketId:'farm',kind,at:at(n),amount,wallet:wf},start+day*12);
+ post('buy','deposit',1,'1000');
+ assert.throws(()=>post('over','withdraw',1,'2000'),/principal/);
+ post('h','harvest',2);assert.equal(post('h','harvest',2).replayed,true);
+ post('wd','withdraw',11,'1000');
+ const state=await handleStake(db,new Request('http://localhost/api/v1/farms/farm'),start+day*11).json();
+ assert.equal(state.status,'ended');assert.equal(state.totalStakedUnits,'0');
+ assert.equal(state.unusedRecoverableUnits,'5000');assert.equal(state.earnedGrossUnits,'45000');
+ assert.equal(handleStake(db,new Request('http://localhost/api/v1/stake/positions'),start).status,401);
+});

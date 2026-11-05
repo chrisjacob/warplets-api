@@ -6,6 +6,7 @@ import { handleBallots } from '../governance/ballots.mjs';
 import { handleEarn } from '../earn/http.mjs';
 import { handleWeb } from '../web/handler.mjs';
 import { handleVault } from '../vault/http.mjs';
+import { handleStake } from '../stake/farms.mjs';
 export function createApp(db,{clock=Date.now}={}) {
   let nextCleanup=0;
   return async (request,peer='loopback')=>{
@@ -17,7 +18,7 @@ export function createApp(db,{clock=Date.now}={}) {
       nextCleanup=now+60000;
     }
     return await handleAuth(db,request,peer,now)??handleMarkets(db,request,now)??handleVault(db,request,now)??
-      await handleBallots(db,request,peer,now)??
+      handleStake(db,request,now)??await handleBallots(db,request,peer,now)??
       await handleEarn(db,request,peer,now)??
       await handleLaunchPlans(request,{nowSeconds:Math.floor(now/1000)})??
       await handleWeb(request)??readApi(request);
