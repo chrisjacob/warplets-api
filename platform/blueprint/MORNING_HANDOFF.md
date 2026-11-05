@@ -1,6 +1,6 @@
 # Morning handoff - continuing overnight run
 
-Branch: work/10x-prd-foundation. Latest tested product code: a546e4e6e2fe2175c5e55ddd47a1cafca672abe3. This is a resumable checkpoint, not a stopping condition.
+Branch: work/10x-prd-foundation. Latest tested product code: 7df678b7d4de102e74e638baca0f66b756203b37. This is a resumable checkpoint, not a stopping condition.
 
 ## Working behavior
 
@@ -16,7 +16,7 @@ Review reproduced and fixed caller mutation during async hashing and ignored exp
 
 ## Next executable work
 
-Run node platform/blueprint/validate-plan.mjs --next. Continue B03 fenced jobs (coordinator) and B04 evidence (implementation agent) in parallel. Migration025 is reserved for jobs and026 for evidence. B10 partial code is preserved uncommitted; platform/site/B10_HANDOFF.md names coordinator schema/service integration and remaining browser acceptance. Prioritize core Earn dependencies.
+Run node platform/blueprint/validate-plan.mjs --next. Continue B03 fenced jobs (coordinator) and B04 evidence (implementation agent) in parallel. Migration025 is reserved for jobs and026 for evidence. B10.1 is committed/pushed as7df678b and CI42100084566 passed; platform/site/B10_HANDOFF.md names coordinator schema/service integration and remaining browser acceptance. Prioritize core Earn dependencies.
 
 Raw board input is not independent cutoff coverage. B05 must seal requirements; B07 must retain fences and original vesting. Current combined current/late-review wallet union above100 or input above256KiB explicitly holds; bounded pagination is still needed for full pilot acceptance. Provider metering happens before a call: pending means no call, failed admitted attempts keep usage, and B03 must checkpoint dispatch/outcome so a replay cannot resend. Public Earn Worker writes, immutable public award publication, isolated R2 restore and B20-core remain unfinished.
 
@@ -25,3 +25,5 @@ Preview: node platform/scripts/demo.mjs then http://127.0.0.1:4173/markets (exis
 No deployment, remote Cloudflare resource mutation, spending, wallet funding, broadcasting or external messages. Financial execution stays disabled. Sydney launch hours, later prices, provider/custody choices and R-stage approvals remain open.
 
 B02.3 review reproduced lease expiry during final transport; SQL now checks database execution time. Fixture-clock100wallet batch:303statements,29parameters maximum,208778bytes; actual-clock SQL maximum1037bytes. Private synthetic manifests exercise persistence only, never prove B05 coverage.
+
+B03 in progress: migration025 and jobs/model,repository,handlers,runner plus4passing Node tests are uncommitted. Next add typed ports/local Worker invocation, actualD1 races, provider-attempt gating and CLI rehearsal; validate bounded deadlines and unknown outcomes before marking verified. B04 agent owns evidence modules against coordinator migration026.

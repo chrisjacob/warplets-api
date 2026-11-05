@@ -52,5 +52,11 @@
   ],
   "screenshots": "ignored work/b10-integrated-browser;390px material chooser inspected",
   "costUsd": 0,
-  "remoteCloudflareWrites": false
+  "remoteCloudflareWrites": false,
+  "implementationCommit": "7df678b7d4de102e74e638baca0f66b756203b37",
+  "ci": {
+    "runId": 42100084566,
+    "status": "success",
+    "url": "https://github.com/chrisjacob/warplets-api/actions/runs/42100084566"
+  }
 }
