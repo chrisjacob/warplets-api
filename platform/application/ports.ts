@@ -79,7 +79,7 @@ export interface CanonicalCrypto {
   sha256(bytes:Uint8Array):Promise<string>;
   verifyEd25519(input:{publicKey:string;signature:string;message:Uint8Array}):Promise<boolean>;
 }
-// Evidence and jobs remain unavailable until B04/B03 supply their services.
+// Evidence remains deferred until its adapter is injected; jobs use B03 named ports.
 // Concrete B02 repositories and private artifacts are injected where supported.
 export type DeferredPort=Readonly<{availability:'not-implemented'}>;
 export type ApplicationContext=Readonly<{
@@ -88,7 +88,7 @@ export type ApplicationContext=Readonly<{
     settlement?:import('../storage/atomic-settlement.mjs').AtomicSettlementRepository;
     operations?:import('../storage/atomic-operations.mjs').AtomicOperationsRepository;
     artifactReferences?:import('../storage/atomic-artifacts.mjs').ArtifactReferenceRepository}>;
-  evidence:DeferredPort;artifacts:DeferredPort|import('../artifacts/store').ArtifactStore;jobs:DeferredPort;
+  evidence:DeferredPort;artifacts:DeferredPort|import('../artifacts/store').ArtifactStore;jobs:DeferredPort|import('../jobs/repository.mjs').JobRepository;
   telemetry:Readonly<{record(event:string,fields:Readonly<Record<string,string|number|boolean>>):void}>;
   executionPolicy:Readonly<{mode:'local-validation';financialExecution:false}>;
 }>;

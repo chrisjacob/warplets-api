@@ -5,15 +5,10 @@
   "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
   "currentTask": "B03",
-  "lastUpdatedAt": "2026-11-05T20:10:19.006888+00:00",
+  "lastUpdatedAt": "2026-11-05T20:24:52.395584+00:00",
   "migrationAllocation": {
     "next": 27,
     "reserved": [
-      {
-        "version": 25,
-        "task": "B03",
-        "purpose": "durable jobs and fenced checkpoints"
-      },
       {
         "version": 26,
         "task": "B04",
@@ -81,7 +76,7 @@
       "implementationCommit": null,
       "pushed": false,
       "evidence": [],
-      "nextAction": "Implement migration025 job state/lease/outbox persistence, bounded runner and local rehearsal. Bind job payload to handler commands and use database clock for all fenced writes.",
+      "nextAction": "B03 tested: push checkpoint and follow CI, then verify task and begin B05 with B04. Deadline races and replay configuration fixes included.",
       "blocker": null
     },
     "B04": {
@@ -91,7 +86,7 @@
       "implementationCommit": null,
       "pushed": false,
       "evidence": [],
-      "nextAction": "Implement provenance envelopes, recorded readers and immutable ingestion; migration026 reserved, coordinator owns shared contracts/migration.",
+      "nextAction": "B04 tested28Node/1D1; service replay availability reviewed/fixed. Commit migration026/evidence modules after B03 checkpoint; follow CI, then B05.",
       "blocker": null
     },
     "B05": {

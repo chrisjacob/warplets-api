@@ -27,3 +27,5 @@ No deployment, remote Cloudflare resource mutation, spending, wallet funding, br
 B02.3 review reproduced lease expiry during final transport; SQL now checks database execution time. Fixture-clock100wallet batch:303statements,29parameters maximum,208778bytes; actual-clock SQL maximum1037bytes. Private synthetic manifests exercise persistence only, never prove B05 coverage.
 
 B03 in progress: migration025 and jobs/model,repository,handlers,runner plus4passing Node tests are uncommitted. Next add typed ports/local Worker invocation, actualD1 races, provider-attempt gating and CLI rehearsal; validate bounded deadlines and unknown outcomes before marking verified. B04 agent owns evidence modules against coordinator migration026.
+
+B03 implementation now passes10focused Node tests,2D1 job cases, local CLI, edge types and recovery. Combined worktree passes196reference/21edge including B04. Review fixes bind provider configuration, advance sequential checkpoints and bound all I/O waits. B04 is ready separately with14evidence tests and1D1 integration. Next push/follow B03 CI, then B04 CI, then B05 exact-cutoff requirement inventory.

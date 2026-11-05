@@ -1,0 +1,82 @@
+{
+  "taskId": "B03",
+  "status": "tested",
+  "implementationCommit": null,
+  "migration": "025-durable-jobs.sql",
+  "classification": "synthetic local Node/SQLite and actual workerd/D1; zero external calls",
+  "commands": [
+    {
+      "command": "node --test platform/jobs/*.test.mjs",
+      "tests": 10,
+      "exitCode": 0
+    },
+    {
+      "command": "node --test platform/edge/test/jobs.test.mjs",
+      "tests": 2,
+      "exitCode": 0
+    },
+    {
+      "command": "node platform/scripts/test-reference.mjs",
+      "tests": 196,
+      "exitCode": 0,
+      "scope": "combined worktree includes uncommitted B04"
+    },
+    {
+      "command": "node --test platform/edge/test/*.test.mjs",
+      "tests": 21,
+      "exitCode": 0,
+      "scope": "combined worktree includes B04"
+    },
+    {
+      "command": "node platform/jobs/cli.mjs --fixture-rehearsal",
+      "exitCode": 0,
+      "states": [
+        "completed",
+        "held"
+      ],
+      "externalCalls": 0
+    },
+    {
+      "command": "edge TypeScript, contract drift and recovery drill",
+      "exitCode": 0
+    }
+  ],
+  "assertions": [
+    "Concurrent runners claim one job",
+    "Expired and transport-delayed leases cannot checkpoint/finish",
+    "Reopen preserves checkpoints and business receipts",
+    "Outbox/source rollback atomic; interrupted enqueue reconciles one job",
+    "Unknown dispatch cannot redispatch after lease replacement",
+    "Every actual injected read attempt metered including failures",
+    "Known read transport failures use bounded backoff; quota exhaustion keeps claims recovery available",
+    "Handler and I/O deadlines yield explicit unknown outcomes",
+    "Same step with changed provider config cannot replay old result",
+    "Sequential checkpoints advance accepted sequence"
+  ],
+  "review": {
+    "method": "independent agent review plus regression tests",
+    "fixed": [
+      "provider configuration not bound on completed replay",
+      "checkpoint helper reused initial sequence",
+      "I/O boundaries bypassed tick deadline"
+    ]
+  },
+  "measurements": {
+    "statements": 2,
+    "maxParameters": 21,
+    "maxSqlBytes": 634,
+    "batchBytes": 1177,
+    "sourceOutboxBatchBytes": 787
+  },
+  "runtimeLimits": {
+    "nodeJobsPerTick": 20,
+    "workerJobsPerTick": 1,
+    "maximumDeadlineMs": 5000
+  },
+  "remaining": [
+    "B05/B07/B08 attach evidence-complete real handlers",
+    "B07 measure full Worker query budget before raising per-tick job count"
+  ],
+  "financialExecution": false,
+  "remoteCloudflareWrites": false
+}
