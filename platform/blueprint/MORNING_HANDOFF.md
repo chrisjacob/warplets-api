@@ -1,22 +1,22 @@
 # Morning handoff - continuing overnight run
 
-Branch: work/10x-prd-foundation. Latest tested product code: f3e424fa0f98162163c2ed158754489f81cc4846. This is a resumable checkpoint, not a stopping condition.
+Branch: work/10x-prd-foundation. Latest tested product code: a546e4e6e2fe2175c5e55ddd47a1cafca672abe3. This is a resumable checkpoint, not a stopping condition.
 
 ## Working behavior
 
-B00, B01 and B09 are verified. Earn admission, final moderation, board computation and allocation now cross portable services in the Node reference; golden commitments remain unchanged. The client gates queries/actions by runtime capability, isolates wallet caches and handles account/disconnect/cancel/expiry. Browser journeys passed 360/390/768/1440 using Node and a clearly labeled Worker capability fixture.
+B00, B01, B02 and B09 are verified. Earn admission, final moderation, board computation and allocation now cross portable services in the Node reference; golden commitments remain unchanged. The client gates queries/actions by runtime capability, isolates wallet caches and handles account/disconnect/cancel/expiry. Browser journeys passed 360/390/768/1440 using Node and a clearly labeled Worker capability fixture.
 
-B02 persistence implementation is tested and awaiting checkpoint CI. Tested substeps add guarded Node/D1 admission/review receipts, exact attempt nonces and abort assertions; explicit staffing and scope checks; immutable private filesystem/R2 objects; scope/staffing audits; cost reservation/settlement; pre-attempt quota records; verified private object references; bounded multi-batch board input reads. Migrations022–024 are applied locally. Fenced board/allocation commits and immutable input pointers now preserve golden results on Node/D1, including100wallets. Next migration025; preserve019 gap.
+B02 persistence is verified; CI42099312849 passed. Tested substeps add guarded Node/D1 admission/review receipts, exact attempt nonces and abort assertions; explicit staffing and scope checks; immutable private filesystem/R2 objects; scope/staffing audits; cost reservation/settlement; pre-attempt quota records; verified private object references; bounded multi-batch board input reads. Migrations022–024 are applied locally. Fenced board/allocation commits and immutable input pointers now preserve golden results on Node/D1, including100wallets. Next migration025; preserve019 gap.
 
 ## Verification
 
-Latest milestone passed160 reference tests and16 local edge tests, edge TypeScript, contract drift and recovery. Site source is unchanged from B09's11 tests/build/browser pass; beacon's2 tests remain in CI. Test-only CI passed B01 run42035657295, B09 run42036397864 and B02.1 run42037734436. B02.2 CI42041032550 passed. B02.3 adds18passing edge tests and172reference tests in the combined worktree (includes uncommitted B10 projections), plus SQL-clock regression reruns; its checkpoint CI follows the push. Evidence lives in platform/validation/runs/2026-11-06-overnight/.
+Latest milestone passed160 reference tests and16 local edge tests, edge TypeScript, contract drift and recovery. Site source is unchanged from B09's11 tests/build/browser pass; beacon's2 tests remain in CI. Test-only CI passed B01 run42035657295, B09 run42036397864 and B02.1 run42037734436. B02.2 CI42041032550 passed. B02.3 adds18passing edge tests and172reference tests in the combined worktree (includes uncommitted B10 projections), plus SQL-clock regression reruns; its checkpoint CI42099312849 passed. Evidence lives in platform/validation/runs/2026-11-06-overnight/.
 
 Review reproduced and fixed caller mutation during async hashing and ignored expected revisions. Regression tests cover both. Loopback/Chromium/hard-link tests need authorized execution outside the local sandbox; expectations were not weakened.
 
 ## Next executable work
 
-Run node platform/blueprint/validate-plan.mjs --next. Follow B02.3 checkpoint CI to completion, mark B02verified, then begin B03 fenced jobs and B04 evidence in parallel. B10 partial code is preserved uncommitted; platform/site/B10_HANDOFF.md names coordinator schema/service integration and remaining browser acceptance. Prioritize core Earn dependencies.
+Run node platform/blueprint/validate-plan.mjs --next. Continue B03 fenced jobs (coordinator) and B04 evidence (implementation agent) in parallel. Migration025 is reserved for jobs and026 for evidence. B10 partial code is preserved uncommitted; platform/site/B10_HANDOFF.md names coordinator schema/service integration and remaining browser acceptance. Prioritize core Earn dependencies.
 
 Raw board input is not independent cutoff coverage. B05 must seal requirements; B07 must retain fences and original vesting. Current combined current/late-review wallet union above100 or input above256KiB explicitly holds; bounded pagination is still needed for full pilot acceptance. Provider metering happens before a call: pending means no call, failed admitted attempts keep usage, and B03 must checkpoint dispatch/outcome so a replay cannot resend. Public Earn Worker writes, immutable public award publication, isolated R2 restore and B20-core remain unfinished.
 

@@ -1,8 +1,8 @@
 {
   "taskId": "B02",
   "substep": "B02.3",
-  "status": "tested",
-  "implementationCommit": null,
+  "status": "verified",
+  "implementationCommit": "a546e4e6e2fe2175c5e55ddd47a1cafca672abe3",
   "migration": "024-settlement-fences.sql",
   "classification": "synthetic-fixture; Node/SQLite and actual local workerd/D1",
   "commands": [
@@ -78,5 +78,10 @@
     "B07/B08 publication and recovery"
   ],
   "costUsd": 0,
-  "remoteCloudflareWrites": false
+  "remoteCloudflareWrites": false,
+  "ci": {
+    "runId": 42099312849,
+    "status": "success",
+    "url": "https://github.com/chrisjacob/warplets-api/actions/runs/42099312849"
+  }
 }

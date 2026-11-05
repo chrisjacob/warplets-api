@@ -4,11 +4,22 @@
   "phase": "executing",
   "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
-  "currentTask": "B02",
-  "lastUpdatedAt": "2026-11-05T19:57:47.599390+00:00",
+  "currentTask": "B03",
+  "lastUpdatedAt": "2026-11-05T20:02:26.763062+00:00",
   "migrationAllocation": {
-    "next": 25,
-    "reserved": [],
+    "next": 27,
+    "reserved": [
+      {
+        "version": 25,
+        "task": "B03",
+        "purpose": "durable jobs and fenced checkpoints"
+      },
+      {
+        "version": 26,
+        "task": "B04",
+        "purpose": "immutable evidence provenance and corrections"
+      }
+    ],
     "historicalGap": 19
   },
   "acceptanceProfiles": {
@@ -50,36 +61,37 @@
       "blocker": null
     },
     "B02": {
-      "status": "in_progress",
+      "status": "verified",
       "owner": "coordinator",
       "baseCommit": "ce59deed69820a4535d3985eb0812e6dc197cea8",
-      "implementationCommit": "f3e424fa0f98162163c2ed158754489f81cc4846",
+      "implementationCommit": "a546e4e6e2fe2175c5e55ddd47a1cafca672abe3",
       "pushed": true,
       "evidence": [
         "platform/validation/runs/2026-11-06-overnight/B02-1.json",
-        "platform/validation/runs/2026-11-06-overnight/B02-2.json"
+        "platform/validation/runs/2026-11-06-overnight/B02-2.json",
+        "platform/validation/runs/2026-11-06-overnight/B02-3.json"
       ],
-      "nextAction": "B02.3 tested: commit and push fenced settlement/upgrade evidence; verify test-only CI before marking B02 verified.",
+      "nextAction": null,
       "blocker": null
     },
     "B03": {
-      "status": "not_started",
-      "owner": null,
-      "baseCommit": null,
+      "status": "in_progress",
+      "owner": "coordinator",
+      "baseCommit": "a546e4e6e2fe2175c5e55ddd47a1cafca672abe3",
       "implementationCommit": null,
       "pushed": false,
       "evidence": [],
-      "nextAction": null,
+      "nextAction": "Implement migration025 job state/lease/outbox persistence, bounded runner and local rehearsal. Bind job payload to handler commands and use database clock for all fenced writes.",
       "blocker": null
     },
     "B04": {
-      "status": "not_started",
-      "owner": null,
-      "baseCommit": null,
+      "status": "in_progress",
+      "owner": "frontend_b09",
+      "baseCommit": "a546e4e6e2fe2175c5e55ddd47a1cafca672abe3",
       "implementationCommit": null,
       "pushed": false,
       "evidence": [],
-      "nextAction": null,
+      "nextAction": "Implement provenance envelopes, recorded readers and immutable ingestion; migration026 reserved, coordinator owns shared contracts/migration.",
       "blocker": null
     },
     "B05": {
