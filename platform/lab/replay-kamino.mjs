@@ -13,6 +13,15 @@ const ref = resolve(process.argv[2]);
 const elf = readFileSync(process.argv[3]);
 const evidence = JSON.parse(readFileSync(new URL('./fixtures/kamino-public.json', import.meta.url)));
 assert.equal(createHash('sha256').update(elf).digest('hex'), evidence.deployment.allocatedElfSha256);
+// Solana may reserve a large zero-filled upgrade buffer after the ELF. The
+// final section-header table terminates this particular ELF. Verify the
+// exact executable bytes as well as the entire allocation before dropping
+// the empty tail for Surfpool's bounded loopback program-install request.
+const imageEnd = Number(elf.readBigUInt64LE(40)) + elf.readUInt16LE(58) * elf.readUInt16LE(60);
+assert.equal(imageEnd, 854888);
+assert(!elf.subarray(imageEnd).some(byte => byte !== 0));
+const image = elf.subarray(0, imageEnd);
+assert.equal(createHash('sha256').update(image).digest('hex'), '766533347d1e477537185192a8018962150898d457a0e4e98c0c5a2ba9133afd');
 const qa = createRequire(resolve(ref, 'packages/meme-qa/package.json'));
 const lab = createRequire(resolve(ref, 'packages/meme-protocol/package.json'));
 const { Surfnet } = qa('@solana/surfpool');
@@ -57,7 +66,7 @@ const net = Surfnet.startWithConfig({ offline: true, blockProductionMode: 'trans
 try {
   const endpoint = new URL(net.rpcUrl);
   assert(endpoint.protocol === 'http:' && ['localhost','127.0.0.1','[::1]'].includes(endpoint.hostname));
-  net.deploy({ programId: FARM_PROGRAM, soBytes: elf });
+  net.deploy({ programId: FARM_PROGRAM, soBytes: image });
   const rpc = new Connection(net.rpcUrl, { commitment: 'confirmed', wsEndpoint: net.wsUrl });
   for (const key of [admin.publicKey, user.publicKey]) net.fundSol(key.toBase58(), 20_000_000_000);
   async function send(instructions, payer = admin, extra = []) {
