@@ -139,3 +139,9 @@ export interface GuardedEarnSettlementRepository {
   commitAllocation(plan:AllocationCommitPlan):Promise<RepositoryOutcome<RecordedAllocation>>;
 }
 export interface AppTelemetry {record(event:string,fields:Readonly<Record<string,string|number|boolean>>):void}
+
+export interface GuardedAdmissionRepository {
+  admitSubmission(command:AdmissionCommand):Promise<RepositoryOutcome<AdmissionResult>>;
+  recordFinalReview(command:FinalReviewCommand):Promise<RepositoryOutcome<FinalReviewResult>>;
+  getBookmark():string|null;
+}
