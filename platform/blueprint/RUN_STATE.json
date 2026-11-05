@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
   "runId": "2026-11-05-overnight",
-  "phase": "checkpointed",
+  "phase": "executing",
   "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
-  "currentTask": "B01",
-  "lastUpdatedAt": "2026-11-05T12:31:13.018Z",
+  "currentTask": "B02",
+  "lastUpdatedAt": "2026-11-05T13:25:18.768067+00:00",
   "migrationAllocation": {
     "next": 22,
     "reserved": [],
@@ -37,25 +37,26 @@
       "blocker": null
     },
     "B01": {
-      "status": "in_progress",
-      "owner": "earn",
+      "status": "verified",
+      "owner": "coordinator",
       "baseCommit": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
-      "implementationCommit": "07d3aa20ff8a5ce62ba9c782fd7419f7579e5edf",
-      "pushed": true,
+      "implementationCommit": "ce59deed69820a4535d3985eb0812e6dc197cea8",
+      "pushed": false,
       "evidence": [
-        "platform/validation/runs/2026-11-05-overnight/B01-1.json"
+        "platform/validation/runs/2026-11-05-overnight/B01-1.json",
+        "platform/validation/runs/2026-11-06-overnight/B01.json"
       ],
-      "nextAction": "B01.2: extend typed service/repository boundary to final review and freeze loadBoardInput/commitBoard/commitAllocation contracts; retain existing synchronous settlement until guarded repository port exists. See application/README.md.",
+      "nextAction": null,
       "blocker": null
     },
     "B02": {
-      "status": "not_started",
-      "owner": null,
-      "baseCommit": null,
+      "status": "in_progress",
+      "owner": "coordinator",
+      "baseCommit": "ce59deed69820a4535d3985eb0812e6dc197cea8",
       "implementationCommit": null,
       "pushed": false,
       "evidence": [],
-      "nextAction": null,
+      "nextAction": "Implement guarded D1/Node command receipts and minimum controls; reserve additive migration 022 centrally.",
       "blocker": null
     },
     "B03": {
@@ -120,7 +121,7 @@
     },
     "B09": {
       "status": "in_progress",
-      "owner": "coordinator",
+      "owner": "frontend_b09",
       "baseCommit": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
       "implementationCommit": "469cc22",
       "pushed": true,

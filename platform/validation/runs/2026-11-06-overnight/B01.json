@@ -1,0 +1,45 @@
+{
+  "taskId": "B01",
+  "baseCommit": "257a5d1",
+  "implementationCommit": "ce59deed69820a4535d3985eb0812e6dc197cea8",
+  "environment": "Windows Node local reference; installed pinned edge compiler/esbuild",
+  "classification": "synthetic-fixture",
+  "commands": [
+    {
+      "command": "node platform/scripts/test-reference.mjs",
+      "exitCode": 0,
+      "tests": 139,
+      "note": "Authorized outside sandbox for four loopback HTTP tests; initial run also exposed a removed onboarding import, repaired before this pass."
+    },
+    {
+      "command": "node platform/edge/node_modules/typescript/bin/tsc --noEmit -p platform/edge/tsconfig.json",
+      "exitCode": 0
+    },
+    {
+      "command": "node platform/contracts/generate.mjs --check",
+      "exitCode": 0
+    },
+    {
+      "command": "node platform/earn/recovery-drill.mjs",
+      "exitCode": 0
+    },
+    {
+      "command": "node --test platform/edge/test/portable-service.test.mjs",
+      "exitCode": 0,
+      "tests": 1
+    }
+  ],
+  "assertions": [
+    "Golden scenario now exercises admission, final moderation, board and allocation through service; commitments and proofs unchanged",
+    "Original final-review timestamp survives retry; changed decisions conflict",
+    "Intervening ownership input rejects stale commit; forged output rejected",
+    "Interrupted board and award writes leave no partial effects",
+    "Portable service graph excludes Node storage and fixture imports"
+  ],
+  "limits": [
+    "B02 durable receipts, SQL monotonic revisions and lease fences remain unimplemented",
+    "B05 computed cutoff completeness remains unimplemented; reference sourceComplete attestation retained",
+    "No migration, remote mutation, deployment, spend, signatures or financial execution"
+  ],
+  "costUsd": 0
+}
