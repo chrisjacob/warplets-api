@@ -1,0 +1,13 @@
+{
+  "writers": 4,
+  "operations": 16,
+  "counts": {
+    "submissions": 1,
+    "reviews": 1,
+    "boards": 1,
+    "decisions": 1,
+    "allocations": 1,
+    "awards": 1
+  },
+  "identicalAfterReopen": true
+}
