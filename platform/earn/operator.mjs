@@ -1,12 +1,13 @@
 import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { openDatabase } from '../storage/database.mjs';
-import { addCampaign, finalizeBoard, recordAllocation, recordReview, recordStakeRead } from './workflow.mjs';
+import { addCampaign, finalizeBoard, recordAllocation, recordReview } from './workflow.mjs';
+import { registerPriceSource, importPriceObservation } from '../pricing/evidence.mjs';
 import { configureAction, registerCollection, recordOwnership, recordActionCompletion } from './components.mjs';
 import { registerPosition, recordPositionEvent, reconcilePosition } from './positions.mjs';
 import { recoveryMode } from './archive.mjs';
 
-const commands = {campaign:addCampaign,stake:recordStakeRead,review:recordReview,
+const commands = {campaign:addCampaign,source:registerPriceSource,observation:importPriceObservation,review:recordReview,
   finalize:finalizeBoard,allocate:recordAllocation,action:configureAction,completion:recordActionCompletion,
   collection:registerCollection,owner:recordOwnership,enroll:registerPosition,event:recordPositionEvent,position:reconcilePosition};
 export function runOperator(argv) {

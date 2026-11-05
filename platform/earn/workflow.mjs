@@ -5,6 +5,8 @@ import { DAY_MS, MIN_STAKE_MICRO_USD, advanceStreak, allocationWindow, claimable
 import { EarnError, conflict, decimal, digest, name, nat, requireValue } from './checks.mjs';
 import { deriveComponents } from './components.mjs';
 import { readRecoveredClaims, readRecoveredLeaderboard, recoveryMode } from './archive.mjs';
+import { recordSamplePrice } from '../pricing/fixtures.mjs';
+import { verifiedStakeAt as readAt } from '../pricing/evidence.mjs';
 export { EarnError } from './checks.mjs';
 function canonicalUrl(text) {
   requireValue(typeof text==='string' && text.length<=2048, 'Provide one HTTPS content URL.');
@@ -16,7 +18,6 @@ function canonicalUrl(text) {
   return url.href;
 }
 function pending(epoch,reason) { return { mode:'local-fixture',status:'pending',epoch,reason }; }
-export const MAX_STAKE_AGE_MS = 5*60_000;
 export const PILOT_BOARD_CAPACITY = 100;
 
 export function addCampaign(db,{tokenId,activationMs,originalUnits}) {
@@ -40,23 +41,12 @@ export function addCampaign(db,{tokenId,activationMs,originalUnits}) {
 }
 
 export function recordStakeRead(db,{wallet,tokenId,observedMs,expiresMs,microUsd,sourceRef}) {
-  name(wallet,'wallet');name(tokenId,'token');name(sourceRef,'source reference');decimal(microUsd,'stake valuation');
-  nat(observedMs,'observation');nat(expiresMs,'expiry');
-  requireValue(expiresMs>=observedMs && expiresMs-observedMs<=MAX_STAKE_AGE_MS,'A stake read may cover at most five minutes.');
-  const id=digest([wallet,tokenId,observedMs,expiresMs,microUsd,sourceRef]);
-  return transaction(db,()=>{
-    const existing=db.prepare('SELECT id FROM earn_stake_reads WHERE wallet=? AND token_id=? AND observed_ms=?').get(wallet,tokenId,observedMs);
-    if (existing && existing.id!==id) conflict('evidence_conflict','A different read exists at that checkpoint.');
-    if (!existing) db.prepare('INSERT INTO earn_stake_reads VALUES(?,?,?,?,?,?,?)').run(id,wallet,tokenId,observedMs,expiresMs,microUsd,sourceRef);
-    return {id};
-  });
-}
-
-function readAt(db,wallet,tokenId,time) {
-  // Never fall back to an older quote once a newer observation has expired.
-  const read=db.prepare('SELECT * FROM earn_stake_reads WHERE wallet=? AND token_id=? AND observed_ms<=? ORDER BY observed_ms DESC LIMIT 1')
-    .get(wallet,tokenId,time);
-  return read && read.expires_ms>=time ? read : null;
+  // Compatibility helper for existing tests/browser demos that seed synthetic
+  // holdings. Neither the operator CLI nor the HTTP API accepts a USD balance.
+  decimal(microUsd,'synthetic holding');
+  const result=recordSamplePrice(db,{wallet,tokenId,asOfMs:observedMs,stakedUnits:microUsd,
+    validUntilMs:expiresMs,sourceRef});
+  return {id:result.receipt};
 }
 const publicSubmission = r => ({id:r.id,tokenId:r.token_id,epoch:r.epoch,url:r.url,submittedAtMs:r.submitted_ms});
 

@@ -5,6 +5,8 @@ import { openDatabase } from '../storage/database.mjs';
 import { addCampaign, finalizeBoard, recordReview, recordStakeRead, submitContent } from './workflow.mjs';
 import { configureAction, deriveComponents, listActiveActions, recordActionCompletion, recordOwnership, registerCollection } from './components.mjs';
 import { recordPositionEvent, reconcilePosition, registerPosition } from './positions.mjs';
+import { observationAt } from '../pricing/evidence.mjs';
+import { recordSamplePrice } from '../pricing/fixtures.mjs';
 
 const epoch=21_000, start=epoch*DAY_MS, cutoff=start+DAY_MS-1, wallet='fixture-owner', tokenId='ATT-A';
 const dbFor=t=>{const db=openDatabase();t.after(()=>db.close());return db;};
@@ -20,6 +22,11 @@ function purchase(db,sequence,qty,atMs,token=tokenId) {
     deposit:{wallet,tokenId:token,signature,instructionIndex:2,depositedUnits:qty}});
 }
 function position(db,day,seq,overrides={}) {
+  const id=overrides.tokenId??tokenId;
+  const asOfMs=(day+1)*DAY_MS-1;
+  if (observationAt(db,wallet,id,asOfMs).status!=='verified') {
+    recordSamplePrice(db,{wallet,tokenId:id,asOfMs,stakedUnits:'12',ogPriceMicros:'1000000',sourceRef:'synthetic-position'});
+  }
   return reconcilePosition(db,{wallet,tokenId,epoch:day,asOfMs:(day+1)*DAY_MS-1,reconciledSequence:seq,stakedUnits:'12',
     priceNumerator:'1000000',priceDenominator:'1',sourceRef:'position-'+day,...overrides});
 }
@@ -40,7 +47,7 @@ test('prospective action rotation and verified ownership combine with eligible p
   recordStakeRead(db,{wallet,tokenId,observedMs:start,expiresMs:start+1000,microUsd:'10000000',sourceRef:'entry'});
   const post=submitContent(db,{wallet,tokenId,url:'https://example.org/post',requestKey:'k',nowMs:start}).submission;
   recordReview(db,{submissionId:post.id,score:10,reason:'Useful',moderator:'mod',sourceRef:'post-proof',reviewedMs:start+100});
-  recordStakeRead(db,{wallet,tokenId,observedMs:cutoff,expiresMs:cutoff,microUsd:'10000000',sourceRef:'closing'});
+  recordSamplePrice(db,{wallet,tokenId,asOfMs:cutoff,stakedUnits:'12',ogPriceMicros:'1000000',sourceRef:'closing'});
   const finish=()=>finalizeBoard(db,{epoch,nowMs:cutoff+1,sourceComplete:true,sourceRef:'reviewed-board'});
   assert.equal(finish().reason,'purchase-reconciliation');
   position(db,epoch,1);

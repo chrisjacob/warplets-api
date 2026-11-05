@@ -1,6 +1,7 @@
 import { DAY_MS, applyPurchaseActivity, enrollPosition, epochAt, snapshotPurchasePosition } from '../domain/earn/index.mjs';
 import { transaction } from '../storage/database.mjs';
 import { conflict, decimal, name, nat, requireValue } from './checks.mjs';
+import { observationAt } from '../pricing/evidence.mjs';
 
 export function registerPosition(db,{wallet,tokenId,enrolledMs}) {
   name(wallet,'wallet');name(tokenId,'token');nat(enrolledMs,'enrollment');
@@ -78,10 +79,15 @@ export function reconcilePosition(db,{epoch,wallet,tokenId,asOfMs,reconciledSequ
   nat(epoch,'epoch');name(wallet,'wallet');name(tokenId,'token');name(sourceRef,'farm checkpoint');nat(reconciledSequence,'confirmed sequence');
   const cutoff=(epoch+1)*DAY_MS-1;
   requireValue(asOfMs===cutoff,'Position and price checkpoint must match the UTC cutoff.');
-  const stake=decimal(stakedUnits,'stake');
-  const numerator=decimal(priceNumerator,'price numerator'), denominator=decimal(priceDenominator,'price denominator');
-  requireValue(numerator>0n && denominator>0n,'Require a nonzero verified snapshot price.');
   return transaction(db,()=>{
+    const evidence=observationAt(db,wallet,tokenId,cutoff);
+    if (evidence.status!=='verified') return {status:'pending',reason:evidence.reason,epoch,wallet,tokenId};
+    requireValue((stakedUnits===undefined||stakedUnits===evidence.stakedUnits)
+      &&(priceNumerator===undefined||priceNumerator===evidence.priceNumerator)
+      &&(priceDenominator===undefined||priceDenominator===evidence.priceDenominator),'Position price/units must match the verified checkpoint.');
+    stakedUnits=evidence.stakedUnits;priceNumerator=evidence.priceNumerator;priceDenominator=evidence.priceDenominator;
+    const stake=BigInt(stakedUnits),numerator=BigInt(priceNumerator),denominator=BigInt(priceDenominator);
+    sourceRef=sourceRef+' / '+evidence.receipt;
     const stored=db.prepare('SELECT * FROM earn_position_cutoffs WHERE wallet=? AND token_id=? AND epoch=?').get(wallet,tokenId,epoch);
     if (stored) {
       if (stored.sequence!==reconciledSequence || stored.stake!==stakedUnits || stored.numerator!==priceNumerator ||

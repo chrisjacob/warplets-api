@@ -1,0 +1,11 @@
+# Pilot eligibility pricing
+
+The offline operator registers one immutable source policy for the ATT campaign (`source` command) and imports timestamped observations (`observation`). Raw evidence combines the registered DAMM-v2 ATT/OG pool, a pinned OG/USD feed, and the linked wallet's corresponding farm position. Submission admission, the global cutoff and purchase-credit checkpoints all read the latest observation for that wallet and token. HTTP clients cannot provide an eligibility valuation.
+
+The pool's sqrt price is Q64.64. The exact micro-USD price per **raw ATT unit** is `sqrtPriceX64² × ogPriceMicros / (2¹²⁸ × 10^ogDecimals)`. Multiply once by raw staked units and floor at the micro-USD boundary. Both mint addresses and decimal counts must match registration. Whole-token ATT decimals cancel when valuing raw stake. This follows the pinned SDK's (token B)/(token A) orientation. [Meteora SDK](https://github.com/MeteoraAg/damm-v2-sdk)
+
+Freshness, slot skew, oracle confidence, lookback range, price movement, probe depth and probe impact limits are named **fixture parameters**. Require finalized source observations and an earlier price from the same pool. A fee-excluded executable sell probe at the same slot must cover the configured minimum USD size with acceptable impact. Newer invalid, stale, shallow or suspicious observations hold eligibility, including when an earlier observation passed. The earlier spot value is a detector, never an alternate price used to grant eligibility. A pending sample may be corrected with an append-only revision naming the prior receipt. A verified receipt stays immutable.
+
+`fixtures.mjs` demonstrates the input field names and makes synthetic demo observations. Production still requires proving the adapter against finalized program accounts, firm quote behavior, pinned trusted feeds and real liquidity before selecting thresholds. This pilot never opens a connection, creates an oracle, or trades.
+
+Run `node --test platform/pricing/pricing.test.mjs` for exact threshold, source mismatch, stale/manipulated data, idempotent recovery and integration cases. To compare the integer math offline with installed @meteora-ag/cp-amm-sdk **1.5.1**, run `node platform/pricing/verify-sdk.mjs PATH/TO/reference/packages/meme-protocol`. The three vectors cover unequal decimals and square-root ratios of 1, 1.5 and 0.5.

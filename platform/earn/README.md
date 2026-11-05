@@ -6,7 +6,8 @@ From the repository root, run `node --test platform/domain/earn/earn.test.mjs pl
 
 ```text
 node platform/earn/operator.mjs ./earn-pilot.sqlite campaign campaign.json
-node platform/earn/operator.mjs ./earn-pilot.sqlite stake observation.json
+node platform/earn/operator.mjs ./earn-pilot.sqlite source source-policy.json
+node platform/earn/operator.mjs ./earn-pilot.sqlite observation raw-checkpoint.json
 node platform/earn/operator.mjs ./earn-pilot.sqlite review review.json
 node platform/earn/operator.mjs ./earn-pilot.sqlite owner holdings.json
 node platform/earn/operator.mjs ./earn-pilot.sqlite finalize epoch.json
@@ -16,7 +17,8 @@ node platform/earn/operator.mjs ./earn-pilot.sqlite allocate day.json
 | Fixture | Required fields |
 | --- | --- |
 | campaign | `tokenId`, `activationMs`, `originalUnits` (decimal string divisible by 100) |
-| stake | `wallet`, `tokenId`, `observedMs`, `expiresMs`, `microUsd` (decimal string), `sourceRef` |
+| source | Registered ATT/OG pool, farm, OG feed, mint decimals and explicit freshness, depth and movement limits |
+| observation | `wallet`, `tokenId`, `asOfMs`, pool and OG quote, wallet farm units, historical reference, executable depth probe |
 | review | `submissionId`, `score` (0–10), `reason`, `moderator`, `sourceRef`, `reviewedMs` |
 | action | `actionId`, `label`, `verifier`, `enabled`, `effectiveEpoch`, `atMs` |
 | completion | `wallet`, `actionId`, `verifier`, `verifiedMs`, `sourceRef` |
@@ -24,11 +26,11 @@ node platform/earn/operator.mjs ./earn-pilot.sqlite allocate day.json
 | owner | `wallet`, `epoch`, `asOfMs` (closing millisecond), `assets` (complete wallet snapshot), `sourceRef` |
 | enroll | `wallet`, `tokenId`, `enrolledMs` |
 | event | `wallet`, `tokenId`, `atMs`, `sequence`, `type`, `confirmed`, `signature`, `instructionIndex`, `sourceRef`, event details |
-| position | `epoch`, `wallet`, `tokenId`, `asOfMs` (closing millisecond), `reconciledSequence`, `stakedUnits`, `priceNumerator`, `priceDenominator`, `sourceRef` |
+| position | `epoch`, `wallet`, `tokenId`, `asOfMs` (closing millisecond), `reconciledSequence`, `sourceRef`; stake amount and price come from that wallet's verified observation |
 | finalize | `epoch`, `nowMs`, `sourceComplete`, `sourceRef` |
 | allocate | `tokenId`, `day` (1–10), `nowMs` |
 
-1. Register a campaign and a stake observation before submitting. Timestamps are Unix milliseconds, epochs are whole UTC days since 1970-01-01, and 10,000,000 micro-USD equals US$10. For this fixture a read's validity window is at most five minutes.
+1. Register a campaign, its price policy and a wallet position observation before submitting. Timestamps are Unix milliseconds, epochs are whole UTC days since 1970-01-01, and 10,000,000 micro-USD equals US$10. Read [the pricing fixture guide](../pricing/README.md) for the inputs, bounds and independent SDK check.
 2. A signed-in contributor sends `POST /api/v1/earn/submissions` with matching Origin, an Idempotency-Key, and a JSON body containing `tokenId` and `url`. The pilot admits up to 100 submissions per board. Missing current stake evidence returns a retryable pending response without taking a slot.
 3. Record the review and stake read at the last millisecond of the board. Record complete ownership evidence for each qualifying wallet, using an empty asset list for zero holdings. Each record contains `assetId`, `owner`, `chain` (solana), `collectionId` and `level`. The board selects the highest eligible Level from registered Solana Genesis and unexpired Season assets. Configure actions for future boards and record individual completions from their named verifiers. The board counts active verified completions and caps them at ten. The public action catalog is available at `GET /api/v1/earn/actions`.
 4. Enroll purchased-stake positions prospectively and import confirmed activity in order. A purchase has one transaction signature with separate `swap` and `deposit` proofs, each containing its signature, instruction index, wallet and token. Use decimal strings for `swap.netBoughtUnits` and `deposit.depositedUnits`. The pilot credits one combined purchase per wallet, token and transaction. A withdrawal supplies `withdrawnUnits` and `remainingStakeUnits`. Rewards, unrelated deposits and restakes add zero credited principal. Reconcile every active enrolled position at each cutoff: numerator/denominator expresses micro-USD per token base unit. Missing checkpoints hold the board. Ownership and position observations are local fixtures supplied by the operator, and all multiplier components are derived from these inputs.
