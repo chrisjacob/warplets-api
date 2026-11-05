@@ -6,12 +6,12 @@ function type(schema) {
   if(!schema)return 'unknown';
   if(schema.$ref)return schema.$ref.split('/').at(-1);
   if(schema.const!==undefined)return JSON.stringify(schema.const);
-  if(schema.enum)return schema.enum.map(JSON.stringify.bind(JSON)).join(' | ');
+  if(schema.enum)return schema.enum.map(value=>JSON.stringify(value)).join(' | ');
   if(schema.anyOf)return schema.anyOf.map(type).join(' | ');
   if(schema.allOf)return schema.allOf.map(type).join(' & ');
   if(schema.type==='array')return 'Array<'+type(schema.items)+'>';
   if(schema.type==='object'||schema.properties){
-    if(!schema.properties)return 'Record<string, unknown>';
+    if(!schema.properties)return schema.additionalProperties===false?'Record<string, never>':'Record<string, '+type(schema.additionalProperties)+'>';
     return '{ '+Object.entries(schema.properties).map(([name,s])=>JSON.stringify(name)+(schema.required?.includes(name)?'':'?')+': '+type(s)).join('; ')+' }';
   }
   return ({integer:'number',number:'number',boolean:'boolean',string:'string',null:'null'})[schema.type]??'unknown';

@@ -15,7 +15,7 @@ export async function represent(request,response,now) {
   const retryAfter=headers.get('retry-after');
   result={error:{...original.error,retryable:response.status===429||response.status>=500,requestId,...(retryAfter?{retryAfter:Number(retryAfter)}:{})}};
  } else if(wrap){
-  result=Array.isArray(original.items)?{...original,snapshotId:original.snapshotId??meta.asOf,meta}:{data:original,meta};
+  result=Array.isArray(original.items)?{...original,nextCursor:original.nextCursor??null,snapshotId:original.snapshotId??meta.asOf,meta}:{data:original,meta};
  }
  headers.set('vary','Accept');
  if(wrap)headers.set('content-type',mediaType+'; charset=utf-8');

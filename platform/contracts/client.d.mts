@@ -6,6 +6,11 @@ export type FeePoint = { "elapsedSeconds": number; "feeBps": number };
 export type VaultAllocation = { "marketId": string; "allocated": string; "vested": string; "claimed": string; "claimable": string; "manifestDigest": string };
 export type Profile = { "wallet": string; "chain": "solana" };
 export type Challenge = { "nonce": string; "message": string; "expiresAt": string };
+export type Stage = { "id": string; "type": string; "status": string; "opensAt": string; "closesAt": string; "publishedAt": string; "priceLamports": string; "costLamports": string; "allocation": number; "available": number; "walletLimit": number; "eligible": boolean | null; "walletReservations": number | null; "termsDigest": string; "openingHold": string | null };
+export type Inventory = { "id": string; "kind": "genesis" | "season"; "tranche": number | null; "seasonStart": string | null; "capacity": number; "counts": Record<string, number>; "initialLevelQuotas": Array<number>; "stages": Array<Stage>; "source": string; "executable": boolean };
+export type CollectionAsset = { "id": string; "inventoryId": string; "owner": string; "revealStatus": "unrevealed" | "revealed"; "level"?: number; "traits"?: { "model": string; "backdrop": string; "symbol": string }; "version"?: number; "rerolls"?: number; "nextRerollAt"?: string | null; "expiresAt"?: string | null; "operationPending"?: boolean; "source": string; "executable": boolean };
+export type CollectionOperation = { "id": string; "kind": "mint" | "upgrade" | "visual"; "inventoryId": string; "owner": string; "stageId": string | null; "targetId": string | null; "materialId": string | null; "status": "awaiting-evidence" | "fulfilled"; "createdAt": string; "priceLamports": string | null; "costLamports": string | null; "feeLamports": string | null; "assetId": string | null; "source": string; "executable": boolean };
+export type ProgressionQuote = { "kind": "upgrade" | "visual"; "inventoryId": string; "targetId": string; "materialId": string | null; "feeLamports": string; "nextTargetLevel"?: number; "nextTargetExpiry"?: string; "materialProbabilities"?: Array<{ "level": number; "count": number; "total": number }>; "level"?: number; "cooldownMs"?: number; "fields"?: Array<string>; "source": string; "executable": boolean };
 export interface PlatformClient {
   getPolicy(options?: { headers?: HeadersInit; signal?: AbortSignal; idempotencyKey?: string }): Promise<Record<string, unknown>>;
   listCollections(options?: { headers?: HeadersInit; signal?: AbortSignal; idempotencyKey?: string }): Promise<Record<string, unknown>>;
@@ -14,7 +19,7 @@ export interface PlatformClient {
   verifyWalletSignature(options: { headers?: HeadersInit; signal?: AbortSignal; idempotencyKey?: string; body: { "nonce": string; "signature": string } }): Promise<{ "data": { "wallet": string }; "meta": Meta }>;
   revokeSession(options?: { headers?: HeadersInit; signal?: AbortSignal; idempotencyKey?: string }): Promise<{ "data": { "revoked": boolean }; "meta": Meta }>;
   getProfile(options?: { headers?: HeadersInit; signal?: AbortSignal; idempotencyKey?: string }): Promise<{ "data": Profile; "meta": Meta }>;
-  getWallets(options?: { headers?: HeadersInit; signal?: AbortSignal; idempotencyKey?: string }): Promise<Record<string, unknown>>;
+  getWallets(options?: { headers?: HeadersInit; signal?: AbortSignal; idempotencyKey?: string }): Promise<{ "items": Array<{ "address": string; "chain": string }>; "nextCursor": string | null; "snapshotId": string; "meta": Meta }>;
   listMarkets(options?: { headers?: HeadersInit; signal?: AbortSignal; idempotencyKey?: string; query?: { "limit"?: number; "cursor"?: string } }): Promise<{ "items": Array<Market>; "nextCursor": string | null; "snapshotId": string; "meta": Meta }>;
   getMarket(options: { headers?: HeadersInit; signal?: AbortSignal; idempotencyKey?: string; path: { "id": string } }): Promise<{ "data": Market; "meta": Meta }>;
   getFeeSchedule(options?: { headers?: HeadersInit; signal?: AbortSignal; idempotencyKey?: string }): Promise<{ "data": { "points": Array<FeePoint>; "unit": string; "clock": string }; "meta": Meta }>;
@@ -23,6 +28,7 @@ export interface PlatformClient {
   listGenesisBallots(options?: { headers?: HeadersInit; signal?: AbortSignal; idempotencyKey?: string }): Promise<Record<string, unknown>>;
   getGenesisBallot(options: { headers?: HeadersInit; signal?: AbortSignal; idempotencyKey?: string; path: { "id": string } }): Promise<{ "data": { "id": string; "status": string; "eligibleWallets": number; "votesCast": number }; "meta": Meta }>;
   castGenesisVote(options: { headers?: HeadersInit; signal?: AbortSignal; idempotencyKey?: string; path: { "id": string }; body: { "choice": "ASAP" | "7" | "14" | "30" } }): Promise<{ "data": { "choice": "ASAP" | "7" | "14" | "30"; "replayed": boolean }; "meta": Meta }>;
+  getEarnAdmissionCapacity(options?: { headers?: HeadersInit; signal?: AbortSignal; idempotencyKey?: string }): Promise<Record<string, unknown>>;
   exportEarnManifest(options: { headers?: HeadersInit; signal?: AbortSignal; idempotencyKey?: string; path: { "epoch": string } }): Promise<Record<string, unknown>>;
   getMyEarnProof(options?: { headers?: HeadersInit; signal?: AbortSignal; idempotencyKey?: string; query?: { "tokenId"?: string; "day"?: number } }): Promise<Record<string, unknown>>;
   listActiveEarnActions(options?: { headers?: HeadersInit; signal?: AbortSignal; idempotencyKey?: string }): Promise<Record<string, unknown>>;
@@ -30,20 +36,20 @@ export interface PlatformClient {
   getEarnLeaderboard(options: { headers?: HeadersInit; signal?: AbortSignal; idempotencyKey?: string; path: { "epoch": string } }): Promise<Record<string, unknown>>;
   getMyEarnSubmissions(options?: { headers?: HeadersInit; signal?: AbortSignal; idempotencyKey?: string; query?: { "cursor"?: number } }): Promise<Record<string, unknown>>;
   getMyEarnClaims(options?: { headers?: HeadersInit; signal?: AbortSignal; idempotencyKey?: string; query?: { "cursor"?: number } }): Promise<Record<string, unknown>>;
-  getMyVault(options?: { headers?: HeadersInit; signal?: AbortSignal; idempotencyKey?: string }): Promise<{ "items": Array<{ "id": string; "detail": string }>; "nextCursor": string | null; "snapshotId": string; "meta": Meta }>;
-  getNftVault(options: { headers?: HeadersInit; signal?: AbortSignal; idempotencyKey?: string; path: { "id": string } }): Promise<{ "items": Array<VaultAllocation>; "nextCursor": string | null; "snapshotId": string; "meta": Meta } & { "assetId": string; "slot": Record<string, unknown>; "asOf": string }>;
-  getStakePositions(options?: { headers?: HeadersInit; signal?: AbortSignal; idempotencyKey?: string }): Promise<Record<string, unknown>>;
+  getMyVault(options?: { headers?: HeadersInit; signal?: AbortSignal; idempotencyKey?: string; query?: { "cursor"?: string } }): Promise<{ "items": Array<{ "id": string; "detail": string }>; "nextCursor": string | null; "snapshotId": string; "meta": Meta }>;
+  getNftVault(options: { headers?: HeadersInit; signal?: AbortSignal; idempotencyKey?: string; path: { "id": string }; query?: { "cursor"?: string } }): Promise<{ "items": Array<VaultAllocation>; "nextCursor": string | null; "snapshotId": string; "meta": Meta } & { "assetId": string; "slot": Record<string, unknown>; "asOf": string }>;
+  getStakePositions(options?: { headers?: HeadersInit; signal?: AbortSignal; idempotencyKey?: string; query?: { "cursor"?: string } }): Promise<{ "items": Array<{ "marketId": string; "principalUnits": string; "earnedGrossUnits": string; "claimableGrossUnits": string; "harvestedGrossUnits": string; "treasuryFeeBps": number; "asOf": string }>; "nextCursor": string | null; "snapshotId": string; "meta": Meta }>;
   getFarm(options: { headers?: HeadersInit; signal?: AbortSignal; idempotencyKey?: string; path: { "id": string } }): Promise<Record<string, unknown>>;
   getTransaction(options: { headers?: HeadersInit; signal?: AbortSignal; idempotencyKey?: string; path: { "id": string } }): Promise<Record<string, unknown>>;
-  listLocalInventories(options?: { headers?: HeadersInit; signal?: AbortSignal; idempotencyKey?: string }): Promise<Record<string, unknown>>;
-  readLocalInventory(options: { headers?: HeadersInit; signal?: AbortSignal; idempotencyKey?: string; path: { "id": string } }): Promise<Record<string, unknown>>;
-  readLocalAsset(options: { headers?: HeadersInit; signal?: AbortSignal; idempotencyKey?: string; path: { "id": string } }): Promise<Record<string, unknown>>;
-  listMyCollectionAssets(options?: { headers?: HeadersInit; signal?: AbortSignal; idempotencyKey?: string }): Promise<Record<string, unknown>>;
-  listMyCollectionOperations(options?: { headers?: HeadersInit; signal?: AbortSignal; idempotencyKey?: string }): Promise<Record<string, unknown>>;
-  readMyCollectionOperation(options: { headers?: HeadersInit; signal?: AbortSignal; idempotencyKey?: string; path: { "id": string } }): Promise<Record<string, unknown>>;
-  reserveLocalMint(options: { headers?: HeadersInit; signal?: AbortSignal; idempotencyKey?: string; path: { "id": string; "stage": string } }): Promise<Record<string, unknown>>;
-  reserveLocalProgression(options: { headers?: HeadersInit; signal?: AbortSignal; idempotencyKey?: string; path: { "id": string } }): Promise<Record<string, unknown>>;
-  quoteLocalProgression(options: { headers?: HeadersInit; signal?: AbortSignal; idempotencyKey?: string; path: { "id": string } }): Promise<Record<string, unknown>>;
+  listLocalInventories(options?: { headers?: HeadersInit; signal?: AbortSignal; idempotencyKey?: string; query?: { "cursor"?: string } }): Promise<{ "items": Array<Inventory>; "nextCursor": string | null; "snapshotId": string; "meta": Meta }>;
+  readLocalInventory(options: { headers?: HeadersInit; signal?: AbortSignal; idempotencyKey?: string; path: { "id": string } }): Promise<{ "data": Inventory; "meta": Meta }>;
+  readLocalAsset(options: { headers?: HeadersInit; signal?: AbortSignal; idempotencyKey?: string; path: { "id": string } }): Promise<{ "data": CollectionAsset; "meta": Meta }>;
+  listMyCollectionAssets(options?: { headers?: HeadersInit; signal?: AbortSignal; idempotencyKey?: string; query?: { "cursor"?: string } }): Promise<{ "items": Array<CollectionAsset>; "nextCursor": string | null; "snapshotId": string; "meta": Meta }>;
+  listMyCollectionOperations(options?: { headers?: HeadersInit; signal?: AbortSignal; idempotencyKey?: string; query?: { "cursor"?: string } }): Promise<{ "items": Array<CollectionOperation>; "nextCursor": string | null; "snapshotId": string; "meta": Meta }>;
+  readMyCollectionOperation(options: { headers?: HeadersInit; signal?: AbortSignal; idempotencyKey?: string; path: { "id": string } }): Promise<{ "data": CollectionOperation; "meta": Meta }>;
+  reserveLocalMint(options: { headers?: HeadersInit; signal?: AbortSignal; idempotencyKey?: string; path: { "id": string; "stage": string }; body: Record<string, never> }): Promise<{ "data": { "operation": CollectionOperation; "replayed": boolean }; "meta": Meta }>;
+  reserveLocalProgression(options: { headers?: HeadersInit; signal?: AbortSignal; idempotencyKey?: string; path: { "id": string }; body: { "kind": "visual" | "upgrade"; "targetId": string; "expectedTargetVersion": number; "materialId"?: string; "expectedMaterialVersion"?: number } }): Promise<{ "data": { "operation": CollectionOperation; "replayed": boolean }; "meta": Meta }>;
+  quoteLocalProgression(options: { headers?: HeadersInit; signal?: AbortSignal; idempotencyKey?: string; path: { "id": string }; body: { "kind": "visual" | "upgrade"; "targetId": string; "expectedTargetVersion": number; "materialId"?: string; "expectedMaterialVersion"?: number } }): Promise<{ "data": ProgressionQuote; "meta": Meta }>;
 }
 export declare class PlatformApiError extends Error {status:number;code:string;retryable:boolean;requestId?:string}
 export declare function createClient(options?:{baseUrl?:string;fetchImpl?:typeof fetch}):PlatformClient;

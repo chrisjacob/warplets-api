@@ -328,7 +328,49 @@
             "content": {
               "application/vnd.10x.v1+json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "address": {
+                            "type": "string"
+                          },
+                          "chain": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "address",
+                          "chain"
+                        ]
+                      }
+                    },
+                    "nextCursor": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "snapshotId": {
+                      "type": "string"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/Meta"
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "nextCursor",
+                    "snapshotId",
+                    "meta"
+                  ]
                 }
               }
             }
@@ -1233,6 +1275,29 @@
         }
       }
     },
+    "/earn/capacity": {
+      "get": {
+        "operationId": "getEarnAdmissionCapacity",
+        "summary": "Read available review slots for the current UTC board.",
+        "responses": {
+          "200": {
+            "description": "Daily limit, admitted count and remaining slots",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              },
+              "application/vnd.10x.v1+json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/earn/epochs/{epoch}/manifest": {
       "get": {
         "operationId": "exportEarnManifest",
@@ -1710,7 +1775,16 @@
               }
             }
           }
-        }
+        },
+        "parameters": [
+          {
+            "in": "query",
+            "name": "cursor",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
       }
     },
     "/nfts/{id}/vault": {
@@ -1801,7 +1875,16 @@
               }
             }
           }
-        }
+        },
+        "parameters": [
+          {
+            "in": "query",
+            "name": "cursor",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
       }
     },
     "/stake/positions": {
@@ -1813,7 +1896,74 @@
             "content": {
               "application/vnd.10x.v1+json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "marketId": {
+                            "type": "string"
+                          },
+                          "principalUnits": {
+                            "type": "string",
+                            "pattern": "^(0|[1-9][0-9]*)$"
+                          },
+                          "earnedGrossUnits": {
+                            "type": "string",
+                            "pattern": "^(0|[1-9][0-9]*)$"
+                          },
+                          "claimableGrossUnits": {
+                            "type": "string",
+                            "pattern": "^(0|[1-9][0-9]*)$"
+                          },
+                          "harvestedGrossUnits": {
+                            "type": "string",
+                            "pattern": "^(0|[1-9][0-9]*)$"
+                          },
+                          "treasuryFeeBps": {
+                            "type": "integer"
+                          },
+                          "asOf": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "marketId",
+                          "principalUnits",
+                          "earnedGrossUnits",
+                          "claimableGrossUnits",
+                          "harvestedGrossUnits",
+                          "treasuryFeeBps",
+                          "asOf"
+                        ]
+                      }
+                    },
+                    "nextCursor": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "snapshotId": {
+                      "type": "string"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/Meta"
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "nextCursor",
+                    "snapshotId",
+                    "meta"
+                  ]
                 }
               }
             }
@@ -1828,7 +1978,16 @@
               }
             }
           }
-        }
+        },
+        "parameters": [
+          {
+            "in": "query",
+            "name": "cursor",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
       }
     },
     "/farms/{id}": {
@@ -1926,12 +2085,51 @@
             "content": {
               "application/vnd.10x.v1+json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Inventory"
+                      }
+                    },
+                    "nextCursor": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "snapshotId": {
+                      "type": "string"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/Meta"
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "nextCursor",
+                    "snapshotId",
+                    "meta"
+                  ]
                 }
               }
             }
           }
-        }
+        },
+        "parameters": [
+          {
+            "in": "query",
+            "name": "cursor",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
       }
     },
     "/collect/inventories/{id}": {
@@ -1954,7 +2152,19 @@
             "content": {
               "application/vnd.10x.v1+json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Inventory"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/Meta"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ]
                 }
               }
             }
@@ -1982,7 +2192,19 @@
             "content": {
               "application/vnd.10x.v1+json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/CollectionAsset"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/Meta"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ]
                 }
               }
             }
@@ -2001,12 +2223,51 @@
             "content": {
               "application/vnd.10x.v1+json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/CollectionAsset"
+                      }
+                    },
+                    "nextCursor": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "snapshotId": {
+                      "type": "string"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/Meta"
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "nextCursor",
+                    "snapshotId",
+                    "meta"
+                  ]
                 }
               }
             }
           }
-        }
+        },
+        "parameters": [
+          {
+            "in": "query",
+            "name": "cursor",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
       }
     },
     "/collect/me/operations": {
@@ -2020,12 +2281,51 @@
             "content": {
               "application/vnd.10x.v1+json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/CollectionOperation"
+                      }
+                    },
+                    "nextCursor": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "snapshotId": {
+                      "type": "string"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/Meta"
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "nextCursor",
+                    "snapshotId",
+                    "meta"
+                  ]
                 }
               }
             }
           }
-        }
+        },
+        "parameters": [
+          {
+            "in": "query",
+            "name": "cursor",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
       }
     },
     "/collect/me/operations/{id}": {
@@ -2048,7 +2348,19 @@
             "content": {
               "application/vnd.10x.v1+json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/CollectionOperation"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/Meta"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ]
                 }
               }
             }
@@ -2084,7 +2396,31 @@
             "content": {
               "application/vnd.10x.v1+json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "operation": {
+                          "$ref": "#/components/schemas/CollectionOperation"
+                        },
+                        "replayed": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "operation",
+                        "replayed"
+                      ]
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/Meta"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ]
                 }
               }
             }
@@ -2094,7 +2430,31 @@
             "content": {
               "application/vnd.10x.v1+json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "operation": {
+                          "$ref": "#/components/schemas/CollectionOperation"
+                        },
+                        "replayed": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "operation",
+                        "replayed"
+                      ]
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/Meta"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ]
                 }
               }
             }
@@ -2119,7 +2479,18 @@
               "type": "string"
             }
           }
-        ]
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false
+              }
+            }
+          }
+        }
       }
     },
     "/collect/inventories/{id}/progression": {
@@ -2142,7 +2513,31 @@
             "content": {
               "application/vnd.10x.v1+json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "operation": {
+                          "$ref": "#/components/schemas/CollectionOperation"
+                        },
+                        "replayed": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "operation",
+                        "replayed"
+                      ]
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/Meta"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ]
                 }
               }
             }
@@ -2152,7 +2547,31 @@
             "content": {
               "application/vnd.10x.v1+json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "operation": {
+                          "$ref": "#/components/schemas/CollectionOperation"
+                        },
+                        "replayed": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "operation",
+                        "replayed"
+                      ]
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/Meta"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ]
                 }
               }
             }
@@ -2177,7 +2596,42 @@
               "type": "string"
             }
           }
-        ]
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "enum": [
+                      "visual",
+                      "upgrade"
+                    ]
+                  },
+                  "targetId": {
+                    "type": "string"
+                  },
+                  "expectedTargetVersion": {
+                    "type": "integer"
+                  },
+                  "materialId": {
+                    "type": "string"
+                  },
+                  "expectedMaterialVersion": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "targetId",
+                  "expectedTargetVersion"
+                ]
+              }
+            }
+          }
+        }
       }
     },
     "/collect/inventories/{id}/progression/quote": {
@@ -2200,8 +2654,55 @@
             "content": {
               "application/vnd.10x.v1+json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ProgressionQuote"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/Meta"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ]
                 }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "enum": [
+                      "visual",
+                      "upgrade"
+                    ]
+                  },
+                  "targetId": {
+                    "type": "string"
+                  },
+                  "expectedTargetVersion": {
+                    "type": "integer"
+                  },
+                  "materialId": {
+                    "type": "string"
+                  },
+                  "expectedMaterialVersion": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "targetId",
+                  "expectedTargetVersion"
+                ]
               }
             }
           }
@@ -2426,6 +2927,474 @@
           "nonce",
           "message",
           "expiresAt"
+        ]
+      },
+      "Stage": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "opensAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "closesAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "publishedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "priceLamports": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "costLamports": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "allocation": {
+            "type": "integer"
+          },
+          "available": {
+            "type": "integer"
+          },
+          "walletLimit": {
+            "type": "integer"
+          },
+          "eligible": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "walletReservations": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "termsDigest": {
+            "type": "string"
+          },
+          "openingHold": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "status",
+          "opensAt",
+          "closesAt",
+          "publishedAt",
+          "priceLamports",
+          "costLamports",
+          "allocation",
+          "available",
+          "walletLimit",
+          "eligible",
+          "walletReservations",
+          "termsDigest",
+          "openingHold"
+        ]
+      },
+      "Inventory": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "genesis",
+              "season"
+            ]
+          },
+          "tranche": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "seasonStart": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "capacity": {
+            "type": "integer"
+          },
+          "counts": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer"
+            }
+          },
+          "initialLevelQuotas": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            }
+          },
+          "stages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Stage"
+            }
+          },
+          "source": {
+            "type": "string"
+          },
+          "executable": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "tranche",
+          "seasonStart",
+          "capacity",
+          "counts",
+          "initialLevelQuotas",
+          "stages",
+          "source",
+          "executable"
+        ]
+      },
+      "CollectionAsset": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "inventoryId": {
+            "type": "string"
+          },
+          "owner": {
+            "type": "string"
+          },
+          "revealStatus": {
+            "enum": [
+              "unrevealed",
+              "revealed"
+            ]
+          },
+          "level": {
+            "type": "integer"
+          },
+          "traits": {
+            "type": "object",
+            "properties": {
+              "model": {
+                "type": "string"
+              },
+              "backdrop": {
+                "type": "string"
+              },
+              "symbol": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "model",
+              "backdrop",
+              "symbol"
+            ]
+          },
+          "version": {
+            "type": "integer"
+          },
+          "rerolls": {
+            "type": "integer"
+          },
+          "nextRerollAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "expiresAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "operationPending": {
+            "type": "boolean"
+          },
+          "source": {
+            "type": "string"
+          },
+          "executable": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "inventoryId",
+          "owner",
+          "revealStatus",
+          "source",
+          "executable"
+        ]
+      },
+      "CollectionOperation": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "mint",
+              "upgrade",
+              "visual"
+            ]
+          },
+          "inventoryId": {
+            "type": "string"
+          },
+          "owner": {
+            "type": "string"
+          },
+          "stageId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "targetId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "materialId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "enum": [
+              "awaiting-evidence",
+              "fulfilled"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "priceLamports": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(0|[1-9][0-9]*)$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "costLamports": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(0|[1-9][0-9]*)$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "feeLamports": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(0|[1-9][0-9]*)$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "assetId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "source": {
+            "type": "string"
+          },
+          "executable": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "inventoryId",
+          "owner",
+          "stageId",
+          "targetId",
+          "materialId",
+          "status",
+          "createdAt",
+          "priceLamports",
+          "costLamports",
+          "feeLamports",
+          "assetId",
+          "source",
+          "executable"
+        ]
+      },
+      "ProgressionQuote": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "enum": [
+              "upgrade",
+              "visual"
+            ]
+          },
+          "inventoryId": {
+            "type": "string"
+          },
+          "targetId": {
+            "type": "string"
+          },
+          "materialId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "feeLamports": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "nextTargetLevel": {
+            "type": "integer"
+          },
+          "nextTargetExpiry": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "materialProbabilities": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "level": {
+                  "type": "integer"
+                },
+                "count": {
+                  "type": "integer"
+                },
+                "total": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "level",
+                "count",
+                "total"
+              ]
+            }
+          },
+          "level": {
+            "type": "integer"
+          },
+          "cooldownMs": {
+            "type": "integer"
+          },
+          "fields": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "source": {
+            "type": "string"
+          },
+          "executable": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "kind",
+          "inventoryId",
+          "targetId",
+          "materialId",
+          "feeLamports",
+          "source",
+          "executable"
         ]
       }
     }

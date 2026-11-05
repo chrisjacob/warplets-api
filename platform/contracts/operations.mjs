@@ -81,6 +81,11 @@ export const operations = [
     "method": "POST"
   },
   {
+    "id": "getEarnAdmissionCapacity",
+    "path": "/earn/capacity",
+    "method": "GET"
+  },
+  {
     "id": "exportEarnManifest",
     "path": "/earn/epochs/{epoch}/manifest",
     "method": "GET"
