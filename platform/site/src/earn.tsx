@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
 import { rootRoute } from './routes';
 import { client, sdk } from './sdk';
-import { compact, Empty, friendlyError, Hero, intentKey, Loaded, Metrics, Panel } from './common';
+import { compact, Empty, friendlyError, Hero, intentKey, Loaded, Metrics, Panel, usePageMeta } from './common';
 import { useSession } from './session';
 
 function Contribution({wallet}:{wallet:string}){
@@ -43,9 +43,12 @@ function Contribution({wallet}:{wallet:string}){
       </>}</Loaded></Panel></div>
   </>;
 }
-export function Earn(){
+export function Earn({epochId}:{epochId?:string}={}){
   const {wallet,open}=useSession(),{date:requested}=rootRoute.useSearch();
-  const today=new Date().toISOString().slice(0,10),boardDate=requested&&z.iso.date().safeParse(requested).success?requested:today;
+  const today=new Date().toISOString().slice(0,10),selected=epochId??requested;
+  const boardDate=selected&&z.iso.date().safeParse(selected).success?selected:today;
+  usePageMeta(epochId?'Earn board · '+boardDate:'Earn','Global daily content scores and reward allocations.',
+    selected?'/earn/'+boardDate:'/earn',!!selected);
   const [editing,setEditing]=useState(boardDate);
   useEffect(()=>setEditing(boardDate),[boardDate]);
   const navigate=useNavigate();
@@ -57,7 +60,7 @@ export function Earn(){
       ['Winner places','Top '+p.earn.maxWinners,'across active campaigns'],['Stake requirement','US$'+p.earn.minimumCorrespondingStakeUsd,'in the corresponding ATT'],
       ['Maximum multiplier',p.earn.maxMultiplierTenths/10+'×','applied to the content score'],
     ]}/>}</Loaded>
-    <Panel title="Daily leaderboard"><form className="inline-form" onSubmit={e=>{e.preventDefault();void navigate({to:'/earn',search:{date:editing}});}}>
+    <Panel title="Daily leaderboard"><form className="inline-form" onSubmit={e=>{e.preventDefault();void navigate({to:'/earn/$epochId',params:{epochId:editing}});}}>
       <label htmlFor="board-date">Board date (UTC)</label><input id="board-date" type="date" required value={editing} onChange={e=>setEditing(e.target.value)}/>
       <button>View board</button></form><Loaded query={board}>{b=>{
         if(b.status==='pending')return <Empty title="Awaiting final scores">This UTC board is awaiting final moderation.</Empty>;

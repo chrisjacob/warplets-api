@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { rootRoute } from './routes';
 import { client, sdk, type ProgressionRequest } from './sdk';
 import type { Asset, Ballot, Inventory, ProgressQuote, Receipt, Stage } from './models';
-import { Empty, Facts, friendlyError, Hero, intentKey, Loaded, Modal, Panel, pretty, Signal, sol, utc } from './common';
+import { Empty, Facts, friendlyError, Hero, intentKey, Loaded, Modal, Panel, pretty, Signal, sol, usePageMeta, utc } from './common';
 import { useSession } from './session';
 
 const choiceLabel=(value:string)=>value==='ASAP'?'As soon as possible':value+' days';
@@ -83,7 +83,7 @@ function QuoteDetails({quote:q}:{quote:ProgressQuote}){
 function CollectionTerms(){
   const policy=useQuery({queryKey:['policy'],queryFn:({signal})=>sdk.policy(signal)});
   return <Loaded query={policy}>{p=><div className="two-up"><Panel className="collection-card">
-    <div className="cover genesis" aria-hidden="true">G<span>/</span></div><h2>Genesis</h2>
+    <div className="cover genesis" aria-hidden="true">G<span>/</span></div><h2><Link to="/collections/genesis">Genesis</Link></h2>
     <p>Permanent Vault eligibility with an immutable Level from 1 to 10.</p>
     <Facts items={[['Maximum supply',pretty(p.genesis.cap)],['Per tranche',pretty(p.genesis.trancheSize)],
       ['First whitelist price',p.genesis.firstWhitelistPriceSol+' SOL'],['Eligible wallet',p.genesis.mintsPerEligibleWalletPerStage+' mint per stage']]}/>
@@ -117,7 +117,7 @@ function MemberAssets({wallet,review}:{wallet:string;review:(review:Review)=>voi
   return <>
     <Panel title="Your collection"><Loaded query={assets}>{page=><>
       {!page.items.length && <Empty title="No local collection assets"/>}
-      {page.items.map(asset=><article className="record" key={asset.id}><h3>{asset.id}</h3><p>{asset.inventoryId} · {asset.revealStatus}</p>
+      {page.items.map(asset=><article className="record" key={asset.id}><h3><Link to="/nfts/$assetId" params={{assetId:asset.id}}>{asset.id}</Link></h3><p>{asset.inventoryId} · {asset.revealStatus}</p>
         {asset.revealStatus==='revealed' && <><Facts items={[['Level',asset.level],['Model',asset.traits?.model],['Backdrop',asset.traits?.backdrop],
           ['Symbol',asset.traits?.symbol],['Benefit expiry',asset.expiresAt?utc(asset.expiresAt):'Permanent']]}/>
           {asset.operationPending?<p>Awaiting committed draw evidence.</p>:asset.expiresAt&&<>
@@ -139,6 +139,7 @@ function MemberAssets({wallet,review}:{wallet:string;review:(review:Review)=>voi
   </>;
 }
 export function Collect(){
+  usePageMeta('Collect','Explore permanent Genesis membership and monthly Season collections.','/collect');
   const {wallet}=useSession(),search=rootRoute.useSearch();
   const [review,setReview]=useState<Review|null>(null);
   const inventories=useQuery({queryKey:['inventories',wallet,search.inventories],queryFn:({signal})=>sdk.inventories(search.inventories,signal)});
@@ -148,7 +149,7 @@ export function Collect(){
     <CollectionTerms/>
     <Panel title="Published stages"><Loaded query={inventories}>{page=><>
       {!page.items.length&&<Empty title="No published stages"/>}
-      {page.items.map(inv=><article key={inv.id} className="record"><h3>{inv.id}</h3>
+      {page.items.map(inv=><article key={inv.id} className="record"><h3>{inv.kind==='season'?<Link to="/seasons/$seasonId" params={{seasonId:inv.id}}>{inv.id}</Link>:inv.id}</h3>
         <p>{inv.counts.unsold} slots remain · {inv.counts.pending} awaiting fulfillment · {inv.counts.paid} paid mints</p>
         {inv.stages.map(s=><PublishedStage key={s.id} inventory={inv} stage={s} review={setReview}/>)}</article>)}
       {page.nextCursor!==null&&<Link to="/collect" search={{inventories:String(page.nextCursor)}}>Next collections →</Link>}

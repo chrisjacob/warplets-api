@@ -2,7 +2,7 @@ import { Link } from '@tanstack/react-router';
 import { useQuery } from '@tanstack/react-query';
 import { rootRoute } from './routes';
 import { sdk } from './sdk';
-import { compact, Empty, Facts, Hero, Loaded, Metrics, Panel, percent, pretty, utc } from './common';
+import { compact, Empty, Facts, Hero, Loaded, Metrics, Panel, percent, pretty, usePageMeta, utc } from './common';
 import { useSession } from './session';
 
 function VaultRows({id,cursor}:{id:string;cursor?:string}){
@@ -17,6 +17,7 @@ function VaultRows({id,cursor}:{id:string;cursor?:string}){
   </>}</Loaded></Panel>;
 }
 export function Vault(){
+  usePageMeta('Vault','NFT allocations, vesting and historical ATT claims.','/vault');
   const {asset,cursor}=rootRoute.useSearch();
   const {wallet,open}=useSession();
   const policy=useQuery({queryKey:['policy'],queryFn:({signal})=>sdk.policy(signal)});
@@ -46,6 +47,7 @@ export function Vault(){
   </>;
 }
 export function Stake(){
+  usePageMeta('Stake','Continuous same-token campaign rewards and recorded staking positions.','/stake');
   const {farm,cursor}=rootRoute.useSearch(),{wallet,open}=useSession();
   const policy=useQuery({queryKey:['policy'],queryFn:({signal})=>sdk.policy(signal)});
   const catalog=useQuery({queryKey:['markets',undefined],queryFn:({signal})=>sdk.markets(undefined,signal)});

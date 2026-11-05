@@ -12,6 +12,25 @@ export function sol(value:string|null){
   return (amount/1_000_000_000n).toString()+(fraction?'.'+fraction:'')+' SOL';
 }
 export const pretty=(value:number)=>new Intl.NumberFormat('en-US').format(value);
+export function usePageMeta(title:string,description:string,canonicalPath:string,publicPage=false){
+  useEffect(()=>{
+    document.title=title+' · 10X.MEME';
+    const canonical=new URL(canonicalPath,location.origin).href;
+    const entries:[string,string,string][]=[
+      ['name','description',description],['name','robots',publicPage?'noindex, follow':'noindex, nofollow'],
+      ['property','og:title',document.title],['property','og:description',description],
+      ['property','og:url',canonical],['property','og:type','website'],['property','og:image',location.origin+'/social-card.png'],
+      ['name','twitter:card','summary_large_image'],
+    ];
+    for(const [attribute,key,value] of entries){
+      const tag=document.head.querySelector<HTMLMetaElement>('meta['+attribute+'="'+key+'"]')??document.createElement('meta');
+      tag.setAttribute(attribute,key);tag.content=value;
+      if(!tag.isConnected)document.head.appendChild(tag);
+    }
+    const link=document.head.querySelector<HTMLLinkElement>('link[rel="canonical"]')??document.createElement('link');
+    link.rel='canonical';link.href=canonical;if(!link.isConnected)document.head.appendChild(link);
+  },[title,description,canonicalPath,publicPage]);
+}
 export function friendlyError(err:unknown){
   if(err instanceof PlatformApiError)return err.message;
   if(err instanceof Error && err.name==='ZodError')return 'This response did not match the expected data format.';

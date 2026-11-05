@@ -3,7 +3,7 @@ import { Link } from '@tanstack/react-router';
 import { useQuery } from '@tanstack/react-query';
 import type { FeePoint } from '../../contracts/client.mjs';
 import { sdk } from './sdk';
-import { Empty, Facts, Hero, Loaded, Panel, percent, utc } from './common';
+import { Empty, Facts, Hero, Loaded, Panel, percent, usePageMeta, utc } from './common';
 import { rootRoute } from './routes';
 import type { Policy } from './models';
 
@@ -48,7 +48,7 @@ function Allocation({policy}:{policy:Policy}){
       <rect width="10" height="10" rx="2" fill={s.color}/></svg>{s.label}</dt><dd>{percent(s.bps)}</dd></div>)}</dl>
   </Panel>;
 }
-function MarketDetail({id}:{id:string}){
+export function MarketDetail({id}:{id:string}){
   const market=useQuery({queryKey:['market',id],queryFn:({signal})=>sdk.market(id,signal)});
   return <Panel title="Market details"><Loaded query={market}>{m=><>
     <div className="entry-head"><h3>{m.symbol} / {m.ogSymbol}</h3><span>Local fixture</span></div>
@@ -62,13 +62,14 @@ export function Markets(){
   const policy=useQuery({queryKey:['policy'],queryFn:({signal})=>sdk.policy(signal),staleTime:120_000});
   const schedule=useQuery({queryKey:['fee-schedule'],queryFn:({signal})=>sdk.curve(signal),staleTime:120_000});
   const markets=useQuery({queryKey:['markets',cursor],queryFn:({signal})=>sdk.markets(cursor,signal)});
+  usePageMeta('Markets','Explore curated Solana attention tokens and their original-token pairs.',market?'/markets/'+encodeURIComponent(market):'/markets',true);
   return <>
     <Hero title="Markets">Explore curated Solana attention tokens and the original tokens they pair with.</Hero>
     <div className="market-grid"><Loaded query={schedule}>{points=><FeeChart points={points}/>}</Loaded>
       <Loaded query={policy}>{p=><Allocation policy={p}/>}</Loaded></div>
     {market && <MarketDetail id={market}/>}
     <Panel title="Campaigns"><Loaded query={markets}>{page=><>
-      {page.items.length?<ul className="rows">{page.items.map(m=><li key={m.id}><Link to="/markets" search={{market:m.id}}>
+      {page.items.length?<ul className="rows">{page.items.map(m=><li key={m.id}><Link to="/markets/$marketId" params={{marketId:m.id}}>
         <strong>{m.symbol} <small>/ {m.ogSymbol}</small></strong><span>{m.status} · local fixture ↗</span>
       </Link></li>)}</ul>:<Empty title="No markets yet">Curated ATT/OG pairs appear here once a campaign opens.</Empty>}
       {page.nextCursor && <Link to="/markets" search={{cursor:page.nextCursor}}>Next campaigns →</Link>}

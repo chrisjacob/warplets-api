@@ -13,7 +13,7 @@ export const policyModel=z.object({
   vault:z.object({cliffHours:count,vestHours:count}),
   earn:z.object({maxWinners:count,maxMultiplierTenths:count,minimumCorrespondingStakeUsd:text}),
   genesis:z.object({cap:count,trancheSize:count,firstWhitelistPriceSol:text,choices:z.array(text),
-    ballotHours:count,votesPerWallet:count,mintsPerEligibleWalletPerStage:count}),
+    ballotHours:count,noticeHours:count,votesPerWallet:count,mintsPerEligibleWalletPerStage:count}),
   season:z.object({monthlyCap:count,freeStageRequires:text,freeMintsPerEligibleWallet:count}),
 });
 export type Policy=z.infer<typeof policyModel>;
@@ -29,6 +29,7 @@ export const stageModel=z.object({
 });
 export const inventoryModel=z.object({
   id:text,kind:z.enum(['genesis','season']),stages:z.array(stageModel),
+  capacity:count,seasonStart:nullableDate,tranche:count.nullable(),
   counts:z.object({paid:count,free:count,founder:count,pending:count,unsold:count,unmintedReserve:count}),
 });
 export const assetModel=z.object({

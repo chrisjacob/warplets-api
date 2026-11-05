@@ -8,6 +8,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import { serveSite } from '../serve.mjs';
+import { initialPage, renderInitialPage, routeFor } from '../public-pages.mjs';
 
 test('static adapter serves known routes and hashed assets with restrictive CSP; no accidental source serving',async t=>{
   const path=await mkdtemp(join(tmpdir(),'10x-site-'));t.after(()=>rm(path,{recursive:true,force:true}));
@@ -25,6 +26,37 @@ test('static adapter serves known routes and hashed assets with restrictive CSP;
   assert.equal((await serveSite(request('/site-assets/missing.js'),dist)).status,404);
   const js=await serveSite(request('/site-assets/index-demo.js','HEAD'),dist);
   assert.match(js.headers.get('cache-control'),/immutable/);assert.equal(await js.text(),'');
+});
+
+test('public initial HTML uses anonymous allowlisted reads, meaningful status and escaped share metadata',async()=>{
+  const base='http://localhost:4173';
+  const market=new URL(base+'/markets/att?unused=secret');
+  const requests=[];
+  const page=await initialPage(routeFor(market),market,async path=>{
+    requests.push(path);
+    return Response.json({id:'att',symbol:'ATT<img src=x>',ogSymbol:'OG',status:'active',
+      activatedAt:'2026-11-05T00:00:00Z',feeBps:100,attMint:'<mint>',ogMint:'original'});
+  });
+  const html=renderInitialPage('<head><title>old</title><meta name="description" content="old"></head><!--initial:start-->old<!--initial:end-->',page);
+  assert.deepEqual(requests,['/api/v1/markets/att']);
+  assert.equal(page.status,200);assert.match(html,/ATT&lt;img src=x&gt; \/ OG/);assert.doesNotMatch(html,/unused=secret|<mint>/);
+  assert.match(html,/property="og:image"/);assert.match(html,/rel="canonical" href="http:\/\/localhost:4173\/markets\/att"/);
+  const unknown=new URL(base+'/nfts/missing');
+  assert.equal((await initialPage(routeFor(unknown),unknown,async()=>new Response(null,{status:404}))).status,404);
+  assert.equal((await initialPage(routeFor(unknown),unknown,async()=>new Response(null,{status:500}))).status,503);
+  const invalid=new URL(base+'/earn/2026-02-31');
+  assert.equal((await initialPage(routeFor(invalid),invalid,()=>{throw Error('unexpected read');})).status,404);
+});
+
+test('private routes never call the public renderer with cookies, wallet identifiers or activity queries',async()=>{
+  for(const path of ['/vault?asset=travel','/stake?farm=local','/collect?receipt=secret','/earn?awards=1']){
+    const url=new URL('http://localhost'+path);let calls=0;
+    const page=await initialPage(routeFor(url),url,async()=>{calls++;throw Error('Unexpected private read.');});
+    assert.equal(page.status,200);assert.equal(calls,0);assert.match(page.metadata,/noindex, nofollow/);
+    assert.doesNotMatch(page.content+page.metadata,/travel|receipt=secret/);
+  }
+  assert.equal(routeFor(new URL('http://localhost/markets?market=demo')).canonical,'/markets/demo');
+  assert.equal(routeFor(new URL('http://localhost/earn?date=2026-10-20')).canonical,'/earn/2026-10-20');
 });
 
 test('React chart and summary components render API-supplied values and accessible controls',async t=>{

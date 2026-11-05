@@ -1,5 +1,4 @@
 import { createRootRoute, createRoute, createRouter, lazyRouteComponent, Link, Outlet, useRouterState, type RouteComponent } from '@tanstack/react-router';
-import { useEffect } from 'react';
 import { useIsFetching } from '@tanstack/react-query';
 import { SessionProvider, useSession } from './session';
 import { compact } from './common';
@@ -19,8 +18,8 @@ function Shell(){
   const {wallet,open}=useSession();
   const fetching=useIsFetching();
   const path=useRouterState({select:s=>s.location.pathname});
-  const current=path==='/'?'markets':path.slice(1);
-  useEffect(()=>{document.title=current[0]?.toUpperCase()+current.slice(1)+' · 10X.MEME';},[current]);
+  const section=path.split('/')[1];
+  const current=!section?'markets':['collections','seasons','nfts'].includes(section)?'collect':section;
   return <>
     <a className="skip" href="#main">Skip to content</a>
     <header className="site-header"><div className="frame mast">
@@ -41,6 +40,11 @@ const routes=[route('/',Markets),route('/markets',Markets),
   route('/vault',lazyRouteComponent(()=>import('./pages'),'Vault')),
   route('/stake',lazyRouteComponent(()=>import('./pages'),'Stake')),
   route('/earn',lazyRouteComponent(()=>import('./earn'),'Earn')),
-  route('/collect',lazyRouteComponent(()=>import('./collect'),'Collect'))];
+  route('/collect',lazyRouteComponent(()=>import('./collect'),'Collect')),
+  route('/markets/$marketId',lazyRouteComponent(()=>import('./details'),'CanonicalMarket')),
+  route('/collections/genesis',lazyRouteComponent(()=>import('./details'),'CanonicalGenesis')),
+  route('/seasons/$seasonId',lazyRouteComponent(()=>import('./details'),'CanonicalSeason')),
+  route('/nfts/$assetId',lazyRouteComponent(()=>import('./details'),'CanonicalAsset')),
+  route('/earn/$epochId',lazyRouteComponent(()=>import('./details'),'CanonicalBoard'))];
 export const router=createRouter({routeTree:rootRoute.addChildren(routes),defaultPreload:'intent'});
 declare module '@tanstack/react-router' {interface Register {router:typeof router}}

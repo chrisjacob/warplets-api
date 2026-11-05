@@ -25,6 +25,7 @@ export const sdk={
     const options={signal,query:queryCursor(cursor)};
     return rows(inventoryModel,await client.listLocalInventories(options));
   },
+  inventory:async(id:string,signal?:AbortSignal)=>one(inventoryModel,await client.readLocalInventory({path:{id},signal})),
   assets:async(cursor?:string,signal?:AbortSignal)=>{
     const options={signal,query:queryCursor(cursor)};
     return rows(assetModel,await client.listMyCollectionAssets(options));

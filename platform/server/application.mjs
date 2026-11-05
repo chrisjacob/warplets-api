@@ -14,7 +14,7 @@ import { handleCollect } from '../collect/http.mjs';
 import { handleOperations } from '../operations/http.mjs';
 export function createApp(db,{clock=Date.now}={}) {
   let nextCleanup=0;
-  return async (request,peer='loopback')=>{
+  return async function dispatch(request,peer='loopback'){
     const now=clock();
     if(now>=nextCleanup) {
       db.prepare('DELETE FROM request_limits WHERE resets_at<=?').run(now);
@@ -27,7 +27,10 @@ export function createApp(db,{clock=Date.now}={}) {
       await handleEarn(db,request,peer,now)??
       await handleCollect(db,request,peer,now)??
       await handleLaunchPlans(request,{nowSeconds:Math.floor(now/1000)})??
-      await serveSite(request)??await handleWeb(request)??readApi(request);
+      await serveSite(request,undefined,path=>{
+        if(typeof path!=='string'||!path.startsWith('/api/v1/'))throw Error('Invalid public SSR resource.');
+        return dispatch(new Request(new URL(path,request.url)),peer);
+      })??await handleWeb(request)??readApi(request);
     return represent(request,response,now);
   };
 }

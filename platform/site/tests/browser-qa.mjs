@@ -12,7 +12,8 @@ import { checkStandardWallet } from './standard-wallet.mjs';
 if(!process.env.PLAYWRIGHT_MODULE || !process.env.BROWSER_EXE) throw Error('Set PLAYWRIGHT_MODULE and BROWSER_EXE to local installations.');
 await stat(new URL('../dist/index.html',import.meta.url));
 const db=openDatabase(':memory:'),api=createApp(db);
-const server=createLocalServer(async(request,peer)=>await serveSite(request)??api(request,peer));
+const server=createLocalServer(async(request,peer)=>await serveSite(request,undefined,path=>
+  api(new Request(new URL(path,request.url)),peer))??api(request,peer));
 await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
 const origin='http://127.0.0.1:'+server.address().port;
 const {chromium}=createRequire(import.meta.url)(process.env.PLAYWRIGHT_MODULE);
@@ -53,6 +54,30 @@ try {
     assert.deepEqual(errors,[]);await page.close();
   }
   await checkMemberPages({browser,db,origin});
+  const details=await browser.newPage();
+  for(const [path,heading,publicText] of [
+    ['/markets/browser-att','BROWSERATT / BROWSEROG','Campaign status'],
+    ['/collections/genesis','Genesis','10,000'],
+    ['/seasons/browser-season','Season · browser-season','Season start'],
+    ['/nfts/browser-s1','browser-s1','Revealed metadata'],
+    ['/earn/2026-11-01','Earn','Awaiting final scores'],
+  ]){
+    const resp=await details.goto(origin+path);
+    assert.equal(resp.status(),200,path);
+    const initial=await resp.text();
+    assert.ok(initial.includes(publicText) || initial.includes('Level'),path+' lacks initial public data');
+    await details.getByRole('heading',{name:heading,level:1}).waitFor();
+    assert.equal(await details.locator('link[rel=canonical]').getAttribute('href'),origin+path);
+  }
+  const missing=await details.goto(origin+'/nfts/no-such-asset');
+  assert.equal(missing.status(),404);
+  const imageResponse=await details.request.get(origin+'/social-card.png');
+  assert.equal(imageResponse.status(),200);assert.ok((await imageResponse.body()).subarray(1,4).toString()==='PNG');
+  const privatePage=await details.request.get(origin+'/collect?receipt=private-test');
+  assert.match(privatePage.headers()['x-robots-tag'],/noindex, nofollow/);
+  assert.ok(!(await privatePage.text()).includes('private-test'));
+  await details.close();
+  console.log('Canonical routes, public initial HTML, privacy tags, social image and real 404s passed.');
   await checkStandardWallet({browser,db,origin});
 } finally {
   await browser?.close();server.closeAllConnections();await new Promise(resolve=>server.close(resolve));db.close();
