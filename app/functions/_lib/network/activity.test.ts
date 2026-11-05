@@ -58,6 +58,12 @@ describe('Man-Months',()=>{
    expect(proof.hash).not.toBe(target);
   }finally{spy.mockRestore();}
  });
+ it('does not let a pruned indexed reaction block valid cast evidence for the same member',async()=>{
+  const spy=vi.spyOn(await import('./wallets'),'neynarRead'),target='0x'+'b'.repeat(40),proof=msg('2026-11-01');
+  spy.mockResolvedValueOnce({reactions:[{user:{fid:7},reaction_type:'like',reaction_timestamp:'2026-11-01T00:00:00Z',cast:{hash:target,author:{fid:9}}}]}).mockRejectedValueOnce(Error('Network source HTTP 404')).mockResolvedValueOnce({casts:[{hash:proof.hash,author:{fid:7},timestamp:'2026-11-01T00:00:00Z'}]}).mockResolvedValueOnce(proof);
+  try{expect(await indexedActivityEvidence({} as Parameters<typeof indexedActivityEvidence>[0],7,Date.parse('2026-10-17'),'2026-11',now)).toMatchObject({hash:proof.hash,type:'MESSAGE_TYPE_CAST_ADD'});}
+  finally{spy.mockRestore();}
+ });
  it('saves one positive month, skips signing-month API reads, and respects the shared cap',async()=>{
   const db=new DatabaseSync(':memory:');
   try{

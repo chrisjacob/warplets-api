@@ -36,7 +36,9 @@ export async function indexedActivityEvidence(env:WalletEnv,fid:number,acceptedA
   if(!/^0x[a-f0-9]{40}$/i.test(hash))throw Error('Invalid indexed activity hash');
   if(reaction&&!['like','recast'].includes(hint.reaction_type))throw Error('Invalid indexed reaction type');
   const lookup=reaction?`reactionById?fid=${fid}&reaction_type=${hint.reaction_type==='like'?'Like':'Recast'}&target_fid=${hint.cast.author.fid}&target_hash=${hash}`:`castById?fid=${fid}&hash=${hash}`;
-  const message=await neynarRead(env,`/v1/${lookup}`,1,'snapchain');
+  let message:unknown;
+  try{message=await neynarRead(env,`/v1/${lookup}`,1,'snapchain');}
+  catch(error){if(error instanceof Error&&error.message==='Network source HTTP 404')continue;throw error;}
   const evidence=activityEvidence(message,fid,acceptedAt,month,[reaction?'MESSAGE_TYPE_REACTION_ADD':'MESSAGE_TYPE_CAST_ADD'],now);
   if(evidence&&evidence.at===at)return evidence;
  }
