@@ -52,6 +52,7 @@ export function seasonExpiresAt({ startsAt, level }) {
   date.setUTCDate(1);
   date.setUTCMonth(date.getUTCMonth() + level + 1, 0);
   date.setUTCDate(Math.min(originalDay, date.getUTCDate()));
+  if(date.getUTCFullYear()>9999) throw new RangeError('season expiry exceeds supported calendar');
   return BigInt(date.getTime() / 1000);
 }
 

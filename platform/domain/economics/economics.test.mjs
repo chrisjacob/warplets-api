@@ -71,6 +71,8 @@ test('UTC expiry clamps the original start day and keeps its time across leap ye
     ['2025-01-31T10:37:45Z', 2, '2025-03-31T10:37:45Z'],
     ['2025-11-30T10:37:45Z', 3, '2026-02-28T10:37:45Z'],
   ]) assert.equal(seasonExpiresAt({ startsAt: unix(iso), level }), unix(expected));
+  assert.equal(seasonExpiresAt({startsAt:unix('9999-11-30T23:59:59Z'),level:1}),unix('9999-12-30T23:59:59Z'));
+  assert.throws(()=>seasonExpiresAt({startsAt:unix('9999-12-31T23:59:59Z'),level:1}),/expiry exceeds supported calendar/);
 });
 
 test('Season snapshots include reserved slots, exclude expired/future ones, and survive metadata changes', () => {
