@@ -1,6 +1,7 @@
 import { NETWORK_CURRENT_COHORT } from './cohort';
 import {alchemyWalletBalances,alchemyTokenMetadata} from './alchemy';
 import { networkFetchJson } from './source';
+import { neynarReservation } from './neynarPricing';
 import { bounded, reserveRequest, syncGet, syncSet, type NetworkEnv } from './store';
 const ADDRESS = /^0x[a-f0-9]{40}$/i;
 export interface WalletEnv extends NetworkEnv { NEYNAR_API_KEY?: string; NETWORK_WALLET_CREDITS?: string; ALCHEMY_API_KEY?: string; NETWORK_ALCHEMY_CU?: string }
@@ -24,10 +25,11 @@ export function acceptedQuote(value: unknown, asset: string, now = Date.now()): 
 }
 export async function neynarRead(env: WalletEnv, path: string, maximumCredits: number, target: 'api' | 'snapchain' = 'api') {
   if (!env.NEYNAR_API_KEY) throw Error('Existing Neynar key is required');
+  if(env.NETWORK_NEYNAR_PRICING_ENABLED==='true')maximumCredits=await neynarReservation(env,path);
   if(!Number.isSafeInteger(maximumCredits)||maximumCredits<1)throw Error('Invalid Neynar credit reservation');
-  // App-side allocation, not account-wide consumption. Keep two million credits
+  // App-side allocation, not account-wide consumption. Keep one million credits
   // outside Network on the confirmed ten-million-credit free allowance.
-  const limit = bounded(env.NETWORK_WALLET_CREDITS, 250_000, 8_000_000);
+  const limit = bounded(env.NETWORK_WALLET_CREDITS, 250_000, 9_000_000);
   const month = new Date().toISOString().slice(0, 7);
   const reserved = await env.WARPLETS.prepare(`INSERT INTO network_credit_budgets(month,reserved) SELECT ?,? WHERE ?<=?
     ON CONFLICT(month) DO UPDATE SET reserved=network_credit_budgets.reserved+excluded.reserved WHERE network_credit_budgets.reserved+excluded.reserved<=? RETURNING reserved`)
@@ -51,7 +53,8 @@ export async function neynarRead(env: WalletEnv, path: string, maximumCredits: n
   const payload=await networkFetchJson(`https://${host}${path}`, { headers: { 'x-api-key': env.NEYNAR_API_KEY } }, 2_000_000);
   const page=payload as {balances?:unknown[];next?:{cursor?:unknown}};
   if(path.startsWith('/v2/onchain/token/balances?')&&Array.isArray(page.balances)&&page.balances.length<=100&&page.next&&Object.hasOwn(page.next,'cursor')) {
-    const refund=maximumCredits-Math.max(1,page.balances.length)*10;
+    const pageLimit=Number(new URL(path,'https://api.neynar.com').searchParams.get('limit')??100);
+    const refund=maximumCredits-Math.max(1,page.balances.length)*(maximumCredits/pageLimit);
     if(refund>0)await env.WARPLETS.prepare('UPDATE network_credit_budgets SET reserved=reserved-? WHERE month=?').bind(refund,month).run();
   }
   return payload;
@@ -193,7 +196,7 @@ export async function importWalletAssociations(env: WalletEnv, batch = 100) {
     .bind(Date.now() - 86_400_000, Math.min(100, batch)).all<{ fid: number }>();
   if (!rows.results.length) return 0;
   const fids = rows.results.map(row => row.fid);
-  const payload = await neynarRead(env, `/v2/farcaster/user/bulk?fids=${fids.join(',')}`, fids.length) as { users: { fid: number; verified_addresses?: { eth_addresses?: unknown } }[] };
+  const payload = await neynarRead(env, `/v2/farcaster/user/bulk?fids=${fids.join(',')}`, fids.length*2) as { users: { fid: number; verified_addresses?: { eth_addresses?: unknown } }[] };
   if (!Array.isArray(payload.users) || payload.users.length !== fids.length || new Set(payload.users.map(user => user.fid)).size !== fids.length || payload.users.some(user => !fids.includes(user.fid) || !Array.isArray(user.verified_addresses?.eth_addresses))) throw Error('Incomplete verified-wallet associations');
   const at = Date.now();
   const writes:D1PreparedStatement[]=[];

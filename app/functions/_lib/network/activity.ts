@@ -5,9 +5,8 @@ import { bounded, syncGet, syncSet } from './store';
 
 const EPOCH = Date.UTC(2021,0,1);
 const routes = [
-  ['userDataByFid',1,['MESSAGE_TYPE_USER_DATA_ADD']],
-  ['verificationsByFid',5,['MESSAGE_TYPE_VERIFICATION_ADD_ETH_ADDRESS','MESSAGE_TYPE_VERIFICATION_REMOVE']],
-  ['linksByFid?link_type=follow',200,['MESSAGE_TYPE_LINK_ADD','MESSAGE_TYPE_LINK_REMOVE','MESSAGE_TYPE_LINK_COMPACT_STATE']],
+  ['userDataByFid',100,['MESSAGE_TYPE_USER_DATA_ADD']],
+  ['verificationsByFid',50,['MESSAGE_TYPE_VERIFICATION_ADD_ETH_ADDRESS','MESSAGE_TYPE_VERIFICATION_REMOVE']],
 ] as const;
 interface ActivityMessage { hash: string; data: {fid:number;timestamp:number;type:string;network:string} }
 export function activityEvidence(input: unknown, fid: number, acceptedAt: number, month: string, types: readonly string[], now=Date.now()) {
@@ -37,10 +36,21 @@ export async function indexedActivityEvidence(env:WalletEnv,fid:number,acceptedA
   if(reaction&&!['like','recast'].includes(hint.reaction_type))throw Error('Invalid indexed reaction type');
   const lookup=reaction?`reactionById?fid=${fid}&reaction_type=${hint.reaction_type==='like'?'Like':'Recast'}&target_fid=${hint.cast.author.fid}&target_hash=${hash}`:`castById?fid=${fid}&hash=${hash}`;
   let message:unknown;
-  try{message=await neynarRead(env,`/v1/${lookup}`,1,'snapchain');}
+  try{message=await neynarRead(env,`/v1/${lookup}`,100,'snapchain');}
   catch(error){if(error instanceof Error&&error.message==='Network source HTTP 404')continue;throw error;}
   const evidence=activityEvidence(message,fid,acceptedAt,month,[reaction?'MESSAGE_TYPE_REACTION_ADD':'MESSAGE_TYPE_CAST_ADD'],now);
   if(evidence&&evidence.at===at)return evidence;
+ }
+ const following=await neynarRead(env,`/v2/farcaster/following/?fid=${fid}&sort_type=desc_chron&limit=1`,4) as {users:{user:{fid:number}}[]};
+ if(!Array.isArray(following.users)||following.users.length>1)throw Error('Invalid indexed follow hint');
+ const target=following.users[0]?.user?.fid;
+ if(target!==undefined){
+  if(!Number.isSafeInteger(target)||target<1)throw Error('Invalid indexed follow target');
+  try{
+   const message=await neynarRead(env,`/v1/linkById?fid=${fid}&target_fid=${target}&link_type=follow`,50,'snapchain');
+   const evidence=activityEvidence(message,fid,acceptedAt,month,['MESSAGE_TYPE_LINK_ADD','MESSAGE_TYPE_LINK_COMPACT_STATE'],now);
+   if(evidence)return evidence;
+  }catch(error){if(!(error instanceof Error&&error.message==='Network source HTTP 404'))throw error;}
  }
  return null;
 }
@@ -70,11 +80,10 @@ async function readNextActivity(env:WalletEnv,limit:number) {
     const {fid,acceptedAt,month}=batch[index++];
     let found=false;
     try {
+    const indexed=await indexedActivityEvidence(env,fid,acceptedAt,month,now);
+    if(indexed){await env.WARPLETS.prepare(`INSERT OR IGNORE INTO network_activity_months(fid,month,action_at,message_hash,action_type,source,observed_at) VALUES(?,?,?,?,?,'neynar-snapchain',?)`).bind(fid,month,indexed.at,indexed.hash,indexed.type,now).run();found=true;}
     for(const [route,credits,types] of routes) {
-      if(route==='verificationsByFid'){
-       const indexed=await indexedActivityEvidence(env,fid,acceptedAt,month,now);
-       if(indexed){await env.WARPLETS.prepare(`INSERT OR IGNORE INTO network_activity_months(fid,month,action_at,message_hash,action_type,source,observed_at) VALUES(?,?,?,?,?,'neynar-snapchain',?)`).bind(fid,month,indexed.at,indexed.hash,indexed.type,now).run();found=true;break;}
-      }
+      if(found)break;
       let pageToken='';const pages=new Set<string>();
       for(let page=0;page<10;page++){
       let data:{messages:unknown[];nextPageToken:string};

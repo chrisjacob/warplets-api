@@ -66,6 +66,7 @@ for(const file of ['.dev.vars','app/.dev.vars'])try{for(const line of readFileSy
 const vars=config.split(/^\[vars\]\s*$/m)[1]?.split(/^\[/m)[0]??'';
 const setting=(key:string)=>vars.match(new RegExp(`^${key}\\s*=\\s*"([^"]+)"`,'m'))?.[1];
 const env:NetworkEnv={WARPLETS:db,NETWORK_INGEST_ENABLED:'true',NETWORK_WALLETS_ENABLED:'true',NEYNAR_API_KEY:secrets.NEYNAR_API_KEY,ALCHEMY_API_KEY:secrets.ALCHEMY_API_KEY,
+ NETWORK_NEYNAR_PRICING_ENABLED:setting('NETWORK_NEYNAR_PRICING_ENABLED'),
  NETWORK_ACTIVITY_BATCH:setting('NETWORK_ACTIVITY_BATCH'),NETWORK_RPC_URL:setting('NETWORK_RPC_URL'),NETWORK_SCAN_BLOCKS:setting('NETWORK_SCAN_BLOCKS'),NETWORK_WALLET_CREDITS:setting('NETWORK_WALLET_CREDITS'),NETWORK_REQUESTS_PER_DAY:setting('NETWORK_REQUESTS_PER_DAY'),NETWORK_REQUESTS_PER_MONTH:setting('NETWORK_REQUESTS_PER_MONTH'),NETWORK_ALCHEMY_CU:setting('NETWORK_ALCHEMY_CU'),NETWORK_ALCHEMY_CU_PER_DAY:setting('NETWORK_ALCHEMY_CU_PER_DAY'),NETWORK_PROFILE_BATCH:'100',NETWORK_SCAN_BATCH:'100'};
 const task=process.argv.find(a=>a.startsWith('--task='))?.slice(7)??'status';
 const steps=Number(process.argv.find(a=>a.startsWith('--steps='))?.slice(8)??1);
@@ -73,7 +74,8 @@ if(!Number.isSafeInteger(steps)||steps<1||steps>1000)throw Error('steps must be 
 if(task==='profiles'&&process.argv.includes('--retry-failures'))await db.prepare('UPDATE network_profile_failures SET retry_after=0').run();
 if(task==='status'){
  const queries={
- sync:"SELECT key,value FROM network_sync WHERE key NOT LIKE 'bootstrap:%'",
+ sync:"SELECT key,value FROM network_sync WHERE key NOT LIKE 'bootstrap:%' AND key<>'neynar_pricing'",
+ pricing:"SELECT json_extract(value,'$.at') verifiedAt FROM network_sync WHERE key='neynar_pricing'",
  profiles:`SELECT COUNT(*) total,MIN(p.observed_at) oldest,SUM(p.observed_at<?) stale FROM network_profiles p WHERE p.fid IN (${NETWORK_CURRENT_COHORT})`,
  associations:`SELECT COUNT(*) total,SUM(a.fid IS NULL) missing,SUM(a.observed_at<?) stale FROM (${NETWORK_CURRENT_COHORT}) c LEFT JOIN network_wallet_associations a ON a.fid=c.fid`,
  wallets:`SELECT COUNT(*) expected,SUM(v.address IS NULL) missing,SUM(v.observed_at<?) stale FROM (SELECT DISTINCT l.address FROM network_wallet_links l JOIN (${NETWORK_CURRENT_COHORT}) c ON c.fid=l.fid) l LEFT JOIN network_wallet_values v ON v.address=l.address`,

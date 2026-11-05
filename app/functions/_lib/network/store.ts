@@ -7,7 +7,7 @@ import type { NetworkProfile } from '../../../shared/network/normalize';
 import type { AcceptanceEvent } from './source';
 import { mergeWalletCells, walletSnapshot } from './walletSnapshot';
 export interface NetworkEnv { ALCHEMY_API_KEY?: string; NETWORK_ALCHEMY_CU?: string; NETWORK_ALCHEMY_CU_PER_DAY?: string; WARPLETS: D1Database; WARPLETS_KV?: KVNamespace; NETWORK_ENABLED?: string; NETWORK_INGEST_ENABLED?: string; NETWORK_RPC_URL?: string; BASE_RPC_URL?: string; NETWORK_PROFILE_BATCH?: string; NETWORK_SCAN_BATCH?: string; NETWORK_REQUESTS_PER_DAY?: string; NETWORK_REQUESTS_PER_MONTH?: string; NETWORK_PROFILE_REFRESH_HOURS?: string; NETWORK_WALLETS_ENABLED?: string; NEYNAR_API_KEY?: string; NETWORK_WALLET_CREDITS?: string }
-export interface NetworkEnv { NETWORK_SCAN_BLOCKS?: string; NETWORK_ACTIVITY_BATCH?: string; NETWORK_WALLET_BATCH?: string }
+export interface NetworkEnv { NETWORK_SCAN_BLOCKS?: string; NETWORK_ACTIVITY_BATCH?: string; NETWORK_WALLET_BATCH?: string; NETWORK_NEYNAR_PRICING_ENABLED?: string }
 export function bounded(value: string | undefined, fallback: number, maximum: number) { const n = Number(value); return Number.isSafeInteger(n) && n > 0 ? Math.min(n, maximum) : fallback; }
 export async function syncGet<T>(db: D1Database, key: string, fallback: T): Promise<T> {
   const row = await db.prepare('SELECT value FROM network_sync WHERE key=?').bind(key).first<{ value: string }>();

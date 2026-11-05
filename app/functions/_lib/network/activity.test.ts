@@ -54,7 +54,7 @@ describe('Man-Months',()=>{
   spy.mockResolvedValueOnce({reactions:[{user:{fid:7},reaction_type:'like',reaction_timestamp:'2026-11-01T00:00:00.000Z',cast:{hash:target,author:{fid:9}}}]}).mockResolvedValueOnce(proof);
   try{
    expect(await indexedActivityEvidence(env as Parameters<typeof neynarRead>[0],7,Date.parse('2026-10-17'),'2026-11',now)).toMatchObject({hash:proof.hash,type:'MESSAGE_TYPE_REACTION_ADD'});
-   expect(spy.mock.calls.map(call=>[call[1],call[2]])).toEqual([['/v2/farcaster/reactions/user/?fid=7&type=all&limit=1',2],[`/v1/reactionById?fid=7&reaction_type=Like&target_fid=9&target_hash=${target}`,1]]);
+   expect(spy.mock.calls.map(call=>[call[1],call[2]])).toEqual([['/v2/farcaster/reactions/user/?fid=7&type=all&limit=1',2],[`/v1/reactionById?fid=7&reaction_type=Like&target_fid=9&target_hash=${target}`,100]]);
    expect(proof.hash).not.toBe(target);
   }finally{spy.mockRestore();}
  });
@@ -72,16 +72,16 @@ describe('Man-Months',()=>{
    db.exec("INSERT INTO network_profiles(fid,location_status,token_status,opt_in_status,observed_at) VALUES(7,'unknown','none','opted_in',1)");
    const env={WARPLETS:sqliteD1(db),NEYNAR_API_KEY:'test',NETWORK_WALLET_CREDITS:'200'};
    vi.useFakeTimers();vi.setSystemTime(new Date('2026-10-20'));
-   const fetcher=vi.fn(async()=>Response.json({messages:[msg('2026-11-01',7,'MESSAGE_TYPE_USER_DATA_ADD')],nextPageToken:''}));vi.stubGlobal('fetch',fetcher);
+   const fetcher=vi.fn(async(url:string)=>Response.json(url.includes('/v2/')?{reactions:[],casts:[],users:[]}:{messages:[msg('2026-11-01',7,'MESSAGE_TYPE_USER_DATA_ADD')],nextPageToken:''}));vi.stubGlobal('fetch',fetcher);
    expect((await importNetworkActivity(env)).status).toBe('complete');expect(fetcher).not.toHaveBeenCalled();
    vi.setSystemTime(new Date('2026-11-05'));
-   expect((await importNetworkActivity(env)).status).toBe('observed');
-   expect((await importNetworkActivity(env)).status).toBe('complete');expect(fetcher).toHaveBeenCalledTimes(1);
+   const observed=importNetworkActivity(env);await vi.runAllTimersAsync();expect((await observed).status).toBe('observed');
+   expect((await importNetworkActivity(env)).status).toBe('complete');expect(fetcher).toHaveBeenCalledTimes(4);
    expect(db.prepare('SELECT fid,month FROM network_activity_months').all()).toEqual([{fid:7,month:'2026-11'}]);
    db.prepare('DELETE FROM network_activity_months').run();
    db.prepare('DELETE FROM network_activity_checks').run();
    env.NETWORK_WALLET_CREDITS='1';
-   await expect(importNetworkActivity(env)).rejects.toThrow('credit cap');expect(fetcher).toHaveBeenCalledTimes(1);
+   await expect(importNetworkActivity(env)).rejects.toThrow('credit cap');expect(fetcher).toHaveBeenCalledTimes(4);
   }finally{db.close();}
  });
 });

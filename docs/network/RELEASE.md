@@ -8,10 +8,14 @@ this was not evidence that the account allowance was exhausted. The original
 activity importer also omitted the required reaction filter and rejected valid
 cast-removal messages, repeatedly pausing the whole queue.
 
-Network now explicitly allocates up to 8M Neynar credits/month, preserving the
-usage ledger and leaving 2M outside Network within the previously confirmed
-10M free allowance. Bulk users reserve the published one credit/FID, userdata
-one credit/request and verifications five. Inexpensive indexed cast/reaction
+Network now explicitly allocates up to 9M Neynar credits/month, preserving the
+usage ledger and leaving 1M outside Network within the previously confirmed
+10M free allowance. Production fetches tariffs from the same public JSON feed
+used by Neynar's own pricing page, caches them daily and pauses Neynar reads if
+an eligible tariff cannot be verified. This feed disagrees with the reference
+documentation: bulk users cost two credits/FID, userdata 100/request,
+verifications 50 and single cast/reaction messages 100. The live pricing feed
+takes precedence. Inexpensive indexed cast/reaction/follow
 hints are confirmed by the original protocol message before counting; target
 cast hashes never masquerade as reaction-message hashes. No observation is
 inferred from an empty result. Activity remains a positive-evidence lower bound,
@@ -54,6 +58,7 @@ transaction rollback was verified with an isolated temporary marker.
 
 Official references checked 5 November 2026:
 - https://docs.neynar.com/reference/compute-units
+- https://dev.neynar.com/api/pricing
 - https://github.com/neynarxyz/OAS/blob/main/src/api/spec.yaml
 - https://github.com/neynarxyz/OAS/blob/main/src/hub-api/spec.yaml
 - https://www.alchemy.com/pricing
