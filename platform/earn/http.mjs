@@ -1,6 +1,7 @@
 import { consumeQuota, currentSession } from '../server/auth.mjs';
 import { failure, json } from '../server/api.mjs';
 import { DAY_MS } from '../domain/earn/index.mjs';
+import { listActiveActions } from './components.mjs';
 import { EarnError, readLeaderboard, readWalletClaims, readWalletSubmissions, submitContent } from './workflow.mjs';
 
 const base='/api/v1/earn';
@@ -42,13 +43,17 @@ export async function handleEarn(db,request,peer,now) {
   const post=url.pathname===base+'/submissions';
   const me=url.pathname===base+'/me';
   const claims=url.pathname===base+'/claims';
-  if (!board && !post && !me && !claims) return null;
+  const actions=url.pathname===base+'/actions';
+  if (!board && !post && !me && !claims && !actions) return null;
   const expected=post?'POST':'GET';
   if (request.method!==expected) return failure(405,'method_not_allowed','Unsupported method.',{allow:expected});
   try {
-    if (board) {
+    if (board || actions) {
       const quota=consumeQuota(db,'earn-read:'+peer,now,60);
-      return quota ?? json(readLeaderboard(db,dateEpoch(board[1])));
+      if (quota) return quota;
+      if (board) return json(readLeaderboard(db,dateEpoch(board[1])));
+      const epoch=Math.floor(now/DAY_MS);
+      return json({epoch,mode:'local-fixture',items:listActiveActions(db,epoch)});
     }
     if (post && request.headers.get('origin')!==url.origin) return failure(403,'invalid_origin','Use the configured local origin.');
     const session=currentSession(db,request,now);

@@ -1,27 +1,10 @@
-import { createHash, randomUUID } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import { transaction } from '../storage/database.mjs';
 import { DAY_MS, MIN_STAKE_MICRO_USD, advanceStreak, allocationWindow, claimableUnits, epochAt,
   onboardingTenths, rankBoard, settleAllocation } from '../domain/earn/index.mjs';
-
-export class EarnError extends Error {
-  constructor(status, code, message) { super(message); this.status = status; this.code = code; }
-}
-function requireValue(condition, message) {
-  if (!condition) throw new EarnError(400,'invalid_input',message);
-}
-function conflict(code, message) { throw new EarnError(409,code,message); }
-function name(value, field) {
-  requireValue(typeof value==='string' && value.length>0 && value.length<=256 && value===value.trim(), `Invalid ${field}.`);
-  return value;
-}
-function nat(value, field) {
-  requireValue(Number.isSafeInteger(value) && value>=0, `Invalid ${field}.`);
-  return value;
-}
-function decimal(value, field) {
-  requireValue(typeof value==='string' && /^(0|[1-9][0-9]{0,79})$/.test(value), `Invalid ${field} base units.`);
-  return BigInt(value);
-}
+import { EarnError, conflict, decimal, digest, name, nat, requireValue } from './checks.mjs';
+import { deriveComponents } from './components.mjs';
+export { EarnError } from './checks.mjs';
 function canonicalUrl(text) {
   requireValue(typeof text==='string' && text.length<=2048, 'Provide one HTTPS content URL.');
   let url;
@@ -32,7 +15,6 @@ function canonicalUrl(text) {
   return url.href;
 }
 function pending(epoch,reason) { return { mode:'local-fixture',status:'pending',epoch,reason }; }
-const digest = value => createHash('sha256').update(JSON.stringify(value)).digest('hex');
 export const MAX_STAKE_AGE_MS = 5*60_000;
 export const PILOT_BOARD_CAPACITY = 100;
 
@@ -127,25 +109,6 @@ export function recordReview(db,{submissionId,score,reason,moderator,sourceRef,r
   });
 }
 
-// Local operator facts model the upstream action/verifier, NFT and enrolled
-// purchase adapters. A missing fixture holds settlement, including a zero bonus.
-export function recordMemberFacts(db,{epoch,wallet,intervals,completions,highestEligibleLevel,purchaseTokenDays,sourceRef}) {
-  nat(epoch,'epoch');name(wallet,'wallet');name(sourceRef,'source reference');
-  requireValue(Array.isArray(intervals)&&Array.isArray(completions),'Supply the verified action catalog and completions.');
-  requireValue(Number.isInteger(highestEligibleLevel)&&highestEligibleLevel>=0&&highestEligibleLevel<=10,'Invalid eligible NFT Level.');
-  requireValue(Number.isInteger(purchaseTokenDays)&&purchaseTokenDays>=0&&purchaseTokenDays<=50,'Invalid purchased stake bonus.');
-  onboardingTenths(epoch,intervals,completions);
-  const payload=JSON.stringify({intervals,completions,highestEligibleLevel,purchaseTokenDays});
-  return transaction(db,()=>{
-    const row=db.prepare('SELECT * FROM earn_member_facts WHERE epoch=? AND wallet=?').get(epoch,wallet);
-    if (row?.payload===payload && row.source_ref===sourceRef) return {epoch,wallet};
-    if (db.prepare('SELECT 1 FROM earn_boards WHERE epoch=?').get(epoch)) conflict('board_closed','Published facts are immutable.');
-    db.prepare('INSERT INTO earn_member_facts VALUES(?,?,?,?) ON CONFLICT(epoch,wallet) DO UPDATE SET payload=excluded.payload,source_ref=excluded.source_ref')
-      .run(epoch,wallet,payload,sourceRef);
-    return {epoch,wallet};
-  });
-}
-
 function stakeEvidence(row,wallet,tokenId,asOfMs) {
   return row ? { status:'verified',userId:wallet,tokenId,asOfMs,microUsd:BigInt(row.micro_usd) } : null;
 }
@@ -206,12 +169,10 @@ export function finalizeBoard(db,{epoch,nowMs,sourceComplete,sourceRef}) {
     const participants=[];
     const factSources=[];
     for (const wallet of qualifiedWallets) {
-      const fact=db.prepare('SELECT * FROM earn_member_facts WHERE epoch=? AND wallet=?').get(epoch,wallet);
-      if (!fact) return pending(epoch,'participant-evidence');
-      const {intervals,completions,highestEligibleLevel,purchaseTokenDays}=JSON.parse(fact.payload);
-      participants.push({userId:wallet,wallet,components:{actionTenths:onboardingTenths(epoch,intervals,completions),
-        streakDays:streaks.get(wallet)?.days??0,highestEligibleLevel,purchaseTokenDays}});
-      factSources.push([wallet,fact.source_ref,digest(fact.payload)]);
+      const fact=deriveComponents(db,epoch,wallet);
+      if (fact.status!=='ready') return pending(epoch,fact.reason);
+      participants.push({userId:wallet,wallet,components:{...fact.components,streakDays:streaks.get(wallet)?.days??0}});
+      factSources.push([wallet,fact.sourceRef,fact.payload]);
     }
     const campaigns=db.prepare(`SELECT DISTINCT c.token_id AS tokenId,c.activation_ms AS activationMs
       FROM earn_fixture_campaigns c JOIN earn_submissions s ON s.token_id=c.token_id WHERE s.epoch=? ORDER BY c.token_id`).all(epoch);
@@ -219,6 +180,9 @@ export function finalizeBoard(db,{epoch,nowMs,sourceComplete,sourceRef}) {
     if (board.status!=='final') return pending(epoch,board.reason);
     const hash=digest({policy:'prd-1.2',epoch,posts,decisions,campaigns,participants,factSources,late,sourceRef,winners:board.winners});
     db.prepare('INSERT INTO earn_boards VALUES(?,?,?,?,?)').run(epoch,JSON.stringify(board.winners),nowMs,hash,sourceRef);
+    const saveFacts=db.prepare(`INSERT INTO earn_member_facts VALUES(?,?,?,?)
+      ON CONFLICT(epoch,wallet) DO UPDATE SET payload=excluded.payload,source_ref=excluded.source_ref`);
+    for (const [wallet,ref,payload] of factSources) saveFacts.run(epoch,wallet,payload,ref);
     const saveDecision=db.prepare('INSERT INTO earn_decisions VALUES(?,?,?,?)');
     for (const d of decisions) saveDecision.run(d.submissionId,epoch,Number(d.qualified),d.cutoffEvidence);
     const saveStreak=db.prepare('INSERT INTO earn_streaks VALUES(?,?,?,?)');

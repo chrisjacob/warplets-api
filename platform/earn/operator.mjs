@@ -1,14 +1,17 @@
 import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { openDatabase } from '../storage/database.mjs';
-import { addCampaign, finalizeBoard, recordAllocation, recordMemberFacts, recordReview, recordStakeRead } from './workflow.mjs';
+import { addCampaign, finalizeBoard, recordAllocation, recordReview, recordStakeRead } from './workflow.mjs';
+import { configureAction, registerCollection, recordOwnership, recordActionCompletion } from './components.mjs';
+import { registerPosition, recordPositionEvent, reconcilePosition } from './positions.mjs';
 
-const commands = {campaign:addCampaign,stake:recordStakeRead,facts:recordMemberFacts,review:recordReview,
-  finalize:finalizeBoard,allocate:recordAllocation};
+const commands = {campaign:addCampaign,stake:recordStakeRead,review:recordReview,
+  finalize:finalizeBoard,allocate:recordAllocation,action:configureAction,completion:recordActionCompletion,
+  collection:registerCollection,owner:recordOwnership,enroll:registerPosition,event:recordPositionEvent,position:reconcilePosition};
 export function runOperator(argv) {
   const [database,action,fixture]=argv;
   if (argv.length!==3 || !Object.hasOwn(commands,action)) {
-    throw new Error('Usage: node platform/earn/operator.mjs LOCAL_DATABASE campaign|stake|facts|review|finalize|allocate FIXTURE.json');
+    throw new Error('Usage: node platform/earn/operator.mjs LOCAL_DATABASE '+Object.keys(commands).join('|')+' FIXTURE.json');
   }
   const input=JSON.parse(readFileSync(fixture,'utf8'));
   const db=openDatabase(database);

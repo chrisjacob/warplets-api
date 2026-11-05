@@ -7,7 +7,8 @@ import { join } from 'node:path';
 import { openDatabase } from '../storage/database.mjs';
 import { DAY_MS } from '../domain/earn/index.mjs';
 import { handleEarn } from './http.mjs';
-import { addCampaign, finalizeBoard, readLeaderboard, recordAllocation, recordMemberFacts, recordReview, recordStakeRead, submitContent } from './workflow.mjs';
+import { addCampaign, finalizeBoard, readLeaderboard, recordAllocation, recordReview, recordStakeRead, submitContent } from './workflow.mjs';
+import { recordOwnership, registerCollection } from './components.mjs';
 
 const epoch=20_000;
 const start=epoch*DAY_MS;
@@ -29,7 +30,9 @@ function read(db,wallet,time=start,microUsd='10000000',tokenId=token) {
   return recordStakeRead(db,{wallet,tokenId,observedMs:time,expiresMs:time+2000,microUsd,sourceRef:'test-position-'+time});
 }
 function facts(db,wallet,day=epoch) {
-  recordMemberFacts(db,{wallet,epoch:day,intervals:[],completions:[],highestEligibleLevel:1,purchaseTokenDays:0,sourceRef:'owner-facts'});
+  registerCollection(db,{collectionId:'fixture-genesis',kind:'genesis'});
+  recordOwnership(db,{wallet,epoch:day,asOfMs:(day+1)*DAY_MS-1,assets:[{assetId:'genesis-'+wallet,owner:wallet,chain:'solana',
+    collectionId:'fixture-genesis',level:1}],sourceRef:'owner-facts'});
 }
 function submit(db,wallet=alice,url='https://example.org/alice',key='submission-key') {
   return submitContent(db,{wallet,tokenId:token,url,requestKey:key,nowMs:start+1000}).submission;

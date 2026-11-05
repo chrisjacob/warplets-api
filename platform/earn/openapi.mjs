@@ -1,6 +1,8 @@
 const response = description => ({description,content:{'application/json':{schema:{type:'object'}}}});
 const cursor = {in:'query',name:'cursor',schema:{type:'integer',minimum:0},description:'Continue from nextCursor.'};
 export const earnPaths = {
+  '/earn/actions':{get:{operationId:'listActiveEarnActions',summary:'Read the onboarding actions active in the current UTC epoch.',
+    responses:{200:response('Active action definitions and effective dates')}}},
   '/earn/submissions':{post:{operationId:'submitEarnContent',summary:'Submit one content URL for an active local ATT campaign with a verified wallet session.',
     parameters:[{in:'header',name:'Idempotency-Key',required:true,schema:{type:'string',maxLength:128}}],
     requestBody:{required:true,content:{'application/json':{schema:{type:'object',additionalProperties:false,
