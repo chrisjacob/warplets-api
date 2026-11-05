@@ -19,6 +19,16 @@ function fixture() {
   return { db, d1: sqliteD1(db) };
 }
 describe('public signer directory', () => {
+  it('checks wallet owners by indexed FID without scanning the entire cohort for each address',async()=>{
+    const {db,d1}=fixture(),address='0x'+'a'.repeat(40),statements:string[]=[];
+    db.prepare('INSERT INTO network_wallet_links VALUES(?,?,?)').run(1,address,Date.now());
+    const measured={...d1,prepare(sql:string){statements.push(sql);return d1.prepare(sql);}} as D1Database;
+    await readNetworkMembers(measured,new URLSearchParams());
+    const sql=statements.find(s=>s.includes('COUNT(*) AS owners'))!;
+    const plan=db.prepare('EXPLAIN QUERY PLAN '+sql).all(address) as {detail:string}[];
+    expect(plan.some(row=>/SEARCH p USING INTEGER PRIMARY KEY/.test(row.detail))).toBe(true);
+    expect(plan.some(row=>/SCAN p\b/.test(row.detail))).toBe(false);
+  });
   it('excludes tracker candidates without acceptance, deduplicates both evidence sources, and pages without overlap', async () => {
     const { db, d1 } = fixture();
     db.prepare("INSERT INTO network_events VALUES('tx',1,1,'hash',100,1,'wallet',100)").run();

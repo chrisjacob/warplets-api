@@ -55,6 +55,13 @@ refreshes for the rest of the UTC month, using the current cohort, live per-FID
 tariff and 10% growth margin. Exhaustive activity retries therefore cannot spend
 the allowance needed to keep wallet associations current. This forecast is an
 app allocation; it does not claim to know the account's remaining credits.
+
+Live directory QA also exposed a resource overload: the wallet-owner query used
+`IN(full current cohort)` and rescanned the cohort for every page address.
+The unknown-location first page read 2,862,690 rows and consumed 1,386ms of D1
+SQL time. An indexed address/profile join, using the same shared membership
+predicate, reduced that ownership check to 425 rows and 3.6ms against production.
+A query-plan regression requires indexed FID lookup rather than a profile scan.
 The initial larger live batches exhausted the shared invocation's database
 request allowance, preventing cleanup. Production batches now leave room for
 the existing scheduled applications, and sanitized runtime failures are logged.
