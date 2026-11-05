@@ -16,6 +16,17 @@ export async function syncGet<T>(db: D1Database, key: string, fallback: T): Prom
 export async function syncSet(db: D1Database, key: string, value: unknown) {
   await db.prepare('INSERT INTO network_sync(key,value,updated_at) VALUES(?,?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at').bind(key, JSON.stringify(value), Date.now()).run();
 }
+export async function releaseNetworkLease(db:D1Database,name:string,owner:string){
+  for(let attempt=0;attempt<3;attempt++){
+    try{await db.prepare('DELETE FROM network_leases WHERE name=? AND owner=?').bind(name,owner).run();return;}
+    catch(error){
+      if(attempt===2||!(error instanceof Error)||!/D1_ERROR:.*(overloaded|SQLITE_BUSY|database is locked|internal error)/is.test(error.message))throw error;
+      // A resource-window rejection also blocks cleanup. Retry after the
+      // window can recover; the owner condition protects a replacement lease.
+      await new Promise(resolve=>setTimeout(resolve,5000*(attempt+1)));
+    }
+  }
+}
 export async function reserveRequest(env: NetworkEnv, provider: string) {
   const day = new Date().toISOString().slice(0, 10), month = day.slice(0, 7);
   const daily = bounded(env.NETWORK_REQUESTS_PER_DAY, 100_000, 500_000), monthly = bounded(env.NETWORK_REQUESTS_PER_MONTH, 600_000, 3_000_000);

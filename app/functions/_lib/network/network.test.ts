@@ -5,7 +5,7 @@ import { NETWORK_ACCEPTANCE_TOPIC, NETWORK_CONTRACT, NETWORK_DEPLOY_BLOCK, NETWO
 import { networkCountry, networkAsset, normalizeNetworkProfile } from '../../../shared/network/normalize';
 import { buildNetworkDashboard } from './aggregate';
 import { decodeAcceptanceLogs } from './source';
-import { publishSnapshot, reserveRequest, type NetworkEnv } from './store';
+import { publishSnapshot, releaseNetworkLease, reserveRequest, type NetworkEnv } from './store';
 import { advanceNetwork, advanceNetworkWallets } from './ingest';
 import { sqliteD1 } from '../sqliteTestDb';
 const hash = `0x${'a'.repeat(64)}`, tx = `0x${'b'.repeat(64)}`, address = `0x${'1'.repeat(40)}`;
@@ -25,6 +25,19 @@ function snapshot(): NetworkSnapshot { return { id: '1730000000000-12345678-1234
   { country: null, location: 'unavailable', token: null, tokenStatus: 'unavailable', vote: 'unavailable', acceptedDay: '2026-10-17', count: 20 },
 ] }; }
 const filters = () => parseNetworkFilters(new URLSearchParams());
+describe('lease cleanup',()=>{
+  it('recovers from an overloaded resource window without deleting a replacement owner',async()=>{
+    const {db}=database();db.exec("INSERT INTO network_leases VALUES('ingestion','old',0)");let attempts=0;
+    const flaky={prepare(sql:string){return{bind(...values:string[]){return{async run(){if(++attempts===1)throw Error('D1_ERROR: D1 DB is overloaded. Too many resources consumed within a 10 second window');db.prepare(sql).run(...values);return{success:true};}};}};}} as unknown as D1Database;
+    vi.useFakeTimers();
+    try{
+      const pending=releaseNetworkLease(flaky,'ingestion','old');await vi.advanceTimersByTimeAsync(0);
+      db.exec("UPDATE network_leases SET owner='replacement',expires_at=9999999999999 WHERE name='ingestion'");
+      await vi.runAllTimersAsync();await pending;
+      expect(attempts).toBe(2);expect(db.prepare('SELECT owner FROM network_leases').get()?.owner).toBe('replacement');
+    }finally{vi.useRealTimers();}
+  });
+});
 describe('signer event evidence', () => {
   it('pairs acceptance and original mint, preserving chain provenance', () => { const result = decodeAcceptanceLogs(events()); expect(result.events).toHaveLength(1); expect(result.events[0]).toMatchObject({ fid: 42, recipient: address, blockHash: hash, tx }); expect(result.events[0].at).toBe(1792001447000); });
   it('does not accept NFT transfers or assign their new owners', () => { expect(decodeAcceptanceLogs([events()[0]]).events).toEqual([]); const input = events(); input[0].topics[1] = word(99); expect(() => decodeAcceptanceLogs(input)).toThrow('original mint'); });

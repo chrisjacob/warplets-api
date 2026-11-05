@@ -4,7 +4,7 @@ import { NETWORK_CONTRACT, NETWORK_DEPLOY_BLOCK } from '../../../shared/network/
 import { networkIdentity, normalizeNetworkProfile } from '../../../shared/network/normalize';
 import { decodeAcceptanceLogs, networkFetchJson } from './source';
 import { importWalletAssociations, importWalletBatch, refreshWalletPrices } from './wallets';
-import { bounded, publishSnapshot, reserveRequest, saveEvents, saveProfile, syncGet, syncSet, type NetworkEnv } from './store';
+import { bounded, publishSnapshot, releaseNetworkLease, reserveRequest, saveEvents, saveProfile, syncGet, syncSet, type NetworkEnv } from './store';
 
 type Cursor = { block: number; hash: string; target: number };
 async function rpc(env: NetworkEnv, method: string, params: unknown[]): Promise<unknown> {
@@ -179,7 +179,7 @@ export async function advanceNetwork(env: NetworkEnv, options: { publish?: boole
     await syncSet(db, 'last_failure', { at: Date.now(), message: error instanceof Error ? error.message.slice(0, 180) : 'Network ingestion failed' });
     // Do not publish failed runs; the previous immutable snapshot remains available.
     throw error;
-  } finally { await db.prepare("DELETE FROM network_leases WHERE name='ingestion' AND owner=?").bind(owner).run(); }
+  } finally { await releaseNetworkLease(db,'ingestion',owner); }
 }
 
 // Wallet work has its own cron lease so a long portfolio cannot stall profile
@@ -204,5 +204,5 @@ export async function advanceNetworkWallets(env:NetworkEnv){
     await syncSet(db,'wallet_refresh_success',{at:Date.now(),valued});
     return {status:'advanced',valued};
   }catch(error){await syncSet(db,'wallet_refresh_failure',{at:Date.now(),message:'Wallet refresh paused; previous values retained'});throw error;}
-  finally{await db.prepare("DELETE FROM network_leases WHERE name='wallet-refresh' AND owner=?").bind(owner).run();}
+  finally{await releaseNetworkLease(db,'wallet-refresh',owner);}
 }

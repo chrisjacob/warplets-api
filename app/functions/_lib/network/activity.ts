@@ -1,7 +1,7 @@
 import { NETWORK_CURRENT_COHORT } from './cohort';
 import { nextMonth, utcMonth } from '../../../shared/network/activity';
 import { neynarRead, type WalletEnv } from './wallets';
-import { bounded, syncGet, syncSet } from './store';
+import { bounded, releaseNetworkLease, syncGet, syncSet } from './store';
 import { neynarReservation } from './neynarPricing';
 
 const EPOCH = Date.UTC(2021,0,1);
@@ -132,5 +132,5 @@ export async function importNetworkActivity(env:WalletEnv,limit=bounded(env.NETW
   const owner=crypto.randomUUID(),now=Date.now();
   const lease=await env.WARPLETS.prepare(`INSERT INTO network_leases(name,owner,expires_at) VALUES('activity',?,?) ON CONFLICT(name) DO UPDATE SET owner=excluded.owner,expires_at=excluded.expires_at WHERE network_leases.expires_at<? RETURNING owner`).bind(owner,now+600_000,now).first<{owner:string}>();
   if(lease?.owner!==owner)return {status:'busy'};
-  try{return await readNextActivity(env,limit);}finally{await env.WARPLETS.prepare("DELETE FROM network_leases WHERE name='activity' AND owner=?").bind(owner).run();}
+  try{return await readNextActivity(env,limit);}finally{await releaseNetworkLease(env.WARPLETS,'activity',owner);}
 }

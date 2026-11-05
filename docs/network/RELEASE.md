@@ -62,9 +62,12 @@ The unknown-location first page read 2,862,690 rows and consumed 1,386ms of D1
 SQL time. An indexed address/profile join, using the same shared membership
 predicate, reduced that ownership check to 425 rows and 3.6ms against production.
 A query-plan regression requires indexed FID lookup rather than a profile scan.
-The initial larger live batches exhausted the shared invocation's database
-request allowance, preventing cleanup. Production batches now leave room for
-the existing scheduled applications, and sanitized runtime failures are logged.
+The initial larger live batches failed before database cleanup could run.
+Production batches leave room for the existing scheduled applications, and
+sanitized runtime failures are logged. Lease cleanup retries transient D1
+overloads for up to fifteen seconds, always matching the original owner. A
+replacement owner's lease is preserved; non-transient invocation limits are
+not retried within the same invocation.
 
 `scripts/network/production.ts --remote --task=status` reports the live queues.
 Explicit `profiles`, `scan`, `associations`, `wallets`, `activity`, `prices` and

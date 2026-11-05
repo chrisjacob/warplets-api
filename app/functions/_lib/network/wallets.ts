@@ -2,7 +2,7 @@ import { NETWORK_CURRENT_COHORT } from './cohort';
 import {alchemyWalletBalances,alchemyTokenMetadata} from './alchemy';
 import { networkFetchJson } from './source';
 import { neynarReservation } from './neynarPricing';
-import { bounded, reserveRequest, syncGet, syncSet, type NetworkEnv } from './store';
+import { bounded, releaseNetworkLease, reserveRequest, syncGet, syncSet, type NetworkEnv } from './store';
 const ADDRESS = /^0x[a-f0-9]{40}$/i;
 export interface WalletEnv extends NetworkEnv { NEYNAR_API_KEY?: string; NETWORK_WALLET_CREDITS?: string; ALCHEMY_API_KEY?: string; NETWORK_ALCHEMY_CU?: string; networkAssociationReserve?: number }
 export const NATIVE_ASSET = 'eip155:8453/slip44:60';
@@ -165,7 +165,7 @@ async function withWalletValueLease<T>(env:WalletEnv,work:()=>Promise<T>) {
   const owner=crypto.randomUUID(),now=Date.now();
   const lease=await env.WARPLETS.prepare(`INSERT INTO network_leases(name,owner,expires_at) VALUES('wallet-values',?,?) ON CONFLICT(name) DO UPDATE SET owner=excluded.owner,expires_at=excluded.expires_at WHERE network_leases.expires_at<? RETURNING owner`).bind(owner,now+1_800_000,now).first<{owner:string}>();
   if(lease?.owner!==owner)return {status:'busy'};
-  try{return await work();}finally{await env.WARPLETS.prepare("DELETE FROM network_leases WHERE name='wallet-values' AND owner=?").bind(owner).run();}
+  try{return await work();}finally{await releaseNetworkLease(env.WARPLETS,'wallet-values',owner);}
 }
 export async function importWalletValue(env:WalletEnv){return withWalletValueLease(env,()=>valueNextWallet(env));}
 
