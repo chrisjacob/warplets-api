@@ -20,7 +20,9 @@ const [payer, authority, seed, alice, bob, mintKey, nftKey] = [61,62,63,64,65,66
 const program = new PublicKey(pin.program), mint = mintKey.publicKey, token = spl.TOKEN_PROGRAM_ID, system = SystemProgram.programId;
 const pda = (label, ...keys) => PublicKey.findProgramAddressSync([Buffer.from(label), ...keys.map(k => k.toBuffer())],program);
 const [dist,bump] = pda('merkle_distribution', mint, authority.publicKey, seed.publicKey);
-const [event] = pda('__event_authority');
+// Use the program's events/shared.rs constant. Older IDL account prose
+// describes the Anchor convention with underscores, which this ELF rejects.
+const [event] = pda('event_authority');
 const vault = spl.getAssociatedTokenAddressSync(mint, dist, true);
 const ata = (key, asset=mint) => spl.getAssociatedTokenAddressSync(asset,key);
 const aAta = ata(alice.publicKey), bAta = ata(bob.publicKey), sourceAta = ata(authority.publicKey);
