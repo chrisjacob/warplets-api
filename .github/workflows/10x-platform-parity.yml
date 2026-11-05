@@ -16,8 +16,8 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           persist-credentials: false
-      - name: Check capture hashes and scheduler wire
-        run: node --test platform/lab/protocol.test.mjs
+      - name: Check capture hashes, Kamino account layout and scheduler wire
+        run: node --test platform/lab/*.test.mjs
       - name: Check out pinned simulator dependency manifest
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
@@ -29,3 +29,7 @@ jobs:
         run: npx --yes pnpm@10.26.0 --filter @10x/meme-qa --filter @10x/meme-protocol-lab install --frozen-lockfile --ignore-scripts
       - name: Replay captured program in offline Surfpool
         run: node platform/lab/replay-capture.mjs october-reference
+      - name: Read and pin Kamino ELF from the free public endpoint
+        run: node platform/lab/fetch-kamino-replay-elf.mjs "$RUNNER_TEMP/kamino-program.so"
+      - name: Replay farm lifecycle in offline Surfpool
+        run: node platform/lab/replay-kamino.mjs october-reference "$RUNNER_TEMP/kamino-program.so"

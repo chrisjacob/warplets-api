@@ -5,7 +5,7 @@ import { pathToFileURL } from 'node:url';
 import { deploymentObservation, inspectKamino, FARM_PROGRAM, PROGRAM_DATA, GLOBALS, REFERENCE_FARM } from './kamino.mjs';
 
 const endpoint = 'https://api.mainnet-beta.solana.com';
-async function readAccounts(addresses, minContextSlot) {
+export async function readAccounts(addresses, minContextSlot) {
   const controller = new AbortController();
   const deadline = setTimeout(() => controller.abort(), 20_000);
   try {
