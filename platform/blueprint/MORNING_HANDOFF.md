@@ -1,8 +1,8 @@
 # Continuing implementation checkpoint
 
-Branch work/10x-prd-foundation. B20-core is locally verified and awaiting its milestone commit/push. B08 product62f713a passed CI42121459234; latest pushed documentation b980366. This remains a continuous execution checkpoint.
+Branch work/10x-prd-foundation. B20-core productb18dec7 is locally verified and pushed; test-only CI42125215062 passed. B08 product62f713a passed CI42121459234; latest pushed documentation b980366. This remains a continuous execution checkpoint.
 
-B00–B09 are verified. Core acceptance now passes genuine browser Ed25519 authentication and admission against real local workerd, complete synthetic cutoff evidence, fenced settlement, immutable R2 publication and fresh isolated public/private recovery. B10 is partial. B20 stays in progress until its full profile; after recording core, skip B20 until all full-profile prerequisites pass.
+B00Ã¢â‚¬â€œB09 are verified. Core acceptance now passes genuine browser Ed25519 authentication and admission against real local workerd, complete synthetic cutoff evidence, fenced settlement, immutable R2 publication and fresh isolated public/private recovery. B10 is partial. B20 stays in progress until its full profile; after recording core, skip B20 until all full-profile prerequisites pass.
 
 The combined hosted rehearsal passes360/390/768/1440 layouts, keyboard focus/loading/signature/error states, origin-bound sessions, logout cache isolation and unavailable-query suppression. Five synthetic contributions produce three winners with a positive fallback, a rejected contribution and prior action history. Two campaigns retain35minute activation offsets. Missing required evidence holds the exact board; a separately evidenced empty bootstrap burns first budgets once. Explicit faults cover private read interruption, abandoned lease, public PUT and catalog commit. Expired workers cannot commit; accepted receipts replay.
 
@@ -14,6 +14,8 @@ Run node platform/scripts/rehearse-hosted-slice.mjs for the disposable React/wor
 
 No new migration in B20. Next migration033; preserve019 gap and committed031/032. Recovery inventory/operation bounds remain unchanged. Independently retained pins and screenshots stay under work/; sanitized hashes/results are in platform/validation/runs/2026-11-06-overnight/B20-core.json.
 
-Next executable step: commit/push B20-core, record its exact commit and follow test-only CI, then select B14 (quote provenance/exact-state comparison) while frontend agent continues B10.2 Earn/Vault evidence acceptance. Agents have read-only plans ready; no B14/B10 edits are mixed into this tested checkpoint. Coordinator owns shared contracts, migrations and commits. B20-full remains unverified.
+Next executable step: implement B14.1 immutable quote provenance and comparison contracts. Frontend agent continues B10.2 real-API Earn/Vault evidence acceptance. B20 is skipped until full-profile prerequisites pass. No B14/B10 code was included in the core checkpoint. Coordinator owns shared contracts, migrations and commits. B20-full remains unverified.
 
 No deployment, remote Cloudflare mutation/provisioning, spend, funding, broadcasting, subscriptions, external messages, main/dev merge or force push. Sydney launch hours, later mint prices and all R-stage approvals remain open. Preserve newer/unrelated changes; never reset.
+
+B14.1 selected work: coordinator maps immutable market/supply/policy identities and separate account/oracle/retrieval clocks to B04-bound quote inputs and guarded repositories. Existing BigInt math stays unchanged. Comparison agent owns exact-state applicability matrix and80 synthetic SDK vectors; absent captured-program pair remains missing. Frontend agent independently owns B10.2 member evidence acceptance. No B14 migration is allocated yet; next033.

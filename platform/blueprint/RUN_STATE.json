@@ -4,8 +4,8 @@
   "phase": "executing",
   "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
-  "currentTask": "B20",
-  "lastUpdatedAt": "2026-11-05T22:53:05.841890+00:00",
+  "currentTask": "B14",
+  "lastUpdatedAt": "2026-11-05T22:56:40.827781+00:00",
   "migrationAllocation": {
     "next": 33,
     "reserved": [
@@ -24,8 +24,8 @@
   },
   "acceptanceProfiles": {
     "core": {
-      "status": "in_progress",
-      "commit": null,
+      "status": "verified",
+      "commit": "b18dec7c9cca695db06d6f7d9fea90deb0c6667c",
       "evidence": [
         "platform/validation/runs/2026-11-06-overnight/B20-core.json"
       ]
@@ -171,7 +171,7 @@
       "evidence": [
         "platform/validation/runs/2026-11-06-overnight/B10-1.json"
       ],
-      "nextAction": "B10.1 CI42100084566 passed; remaining acceptance in platform/site/B10_HANDOFF.md. Prioritize core B03/B04 before more frontend work.",
+      "nextAction": "B10.2 real-API Earn/Vault evidence acceptance at four widths; frontend agent owns new fixture/browser tests and fixes only demonstrated UI defects.",
       "blocker": null
     },
     "B11": {
@@ -205,13 +205,13 @@
       "blocker": null
     },
     "B14": {
-      "status": "not_started",
-      "owner": null,
-      "baseCommit": null,
+      "status": "in_progress",
+      "owner": "coordinator",
+      "baseCommit": "b18dec7c9cca695db06d6f7d9fea90deb0c6667c",
       "implementationCommit": null,
       "pushed": false,
       "evidence": [],
-      "nextAction": null,
+      "nextAction": "B14.1 define immutable quote evidence/input and comparison contracts; preserve math; integrate guarded B04 receipts and separate oracle publication/retrieval clocks. No financial execution.",
       "blocker": null
     },
     "B15": {
@@ -268,12 +268,12 @@
       "status": "in_progress",
       "owner": "coordinator",
       "baseCommit": "62f713a3d87386aec99eabcc4387e12061ee92cd",
-      "implementationCommit": null,
-      "pushed": false,
+      "implementationCommit": "b18dec7c9cca695db06d6f7d9fea90deb0c6667c",
+      "pushed": true,
       "evidence": [
         "platform/validation/runs/2026-11-06-overnight/B20-core.json"
       ],
-      "nextAction": "All B20-core local acceptance passed: combined realbrowser/hostedCLI,318reference,53edge,14site,build/types/contracts/recovery. Commit/push core milestone, markonlycoreverified andfollowCI. SkipB20 task untilfullprerequisites; nextpriorityB14 plusindependentB10.2.",
+      "nextAction": "Core verified and CI42125215062 passed; skip B20 until full-profile prerequisites B00\u2013B19 pass.",
       "blocker": null
     }
   },

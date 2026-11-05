@@ -1,9 +1,9 @@
 {
   "taskId": "B20",
   "profile": "core",
-  "status": "locally-verified-awaiting-commit",
+  "status": "verified",
   "baseCommit": "b980366777757c89b8fc89bb6d62c46ea4196945",
-  "implementationCommit": null,
+  "implementationCommit": "b18dec7c9cca695db06d6f7d9fea90deb0c6667c",
   "classification": "complete synthetic local browser/Node/workerd/D1/R2 integration; no real-chain or production financial claim",
   "commands": [
     {
@@ -278,7 +278,9 @@
   "providerCalls": 0,
   "remoteCloudflareWrites": false,
   "ci": {
-    "conclusion": "pending-tested-commit"
+    "runId": 42125215062,
+    "conclusion": "success",
+    "url": "https://github.com/chrisjacob/warplets-api/actions/runs/42125215062"
   },
   "independentInventoryPins": {
     "public": "c37909c4be6544603eec186ea2578ee52ea07b5d130ba3d7894f96ec926250fd",
