@@ -34,5 +34,17 @@
   ],
   "fixtureCorrection": "Synthetic pricing registration uses fixed startMs instead of Date.now; original audit hashes retained as capture metadata. Reward/proof pins unchanged.",
   "spend": 0,
-  "deployment": false
+  "deployment": false,
+  "implementationCommit": "07d3aa20ff8a5ce62ba9c782fd7419f7579e5edf",
+  "ci": {
+    "runId": 42027454052,
+    "status": "success",
+    "url": "https://github.com/chrisjacob/warplets-api/actions/runs/42027454052",
+    "tests": {
+      "reference": 136,
+      "site": 10,
+      "edge": 2,
+      "beacon": 2
+    }
+  }
 }
