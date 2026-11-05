@@ -1,8 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
-import {fileURLToPath} from 'node:url';
-import {build} from '../edge/node_modules/esbuild/lib/main.js';
 import {createNodeCrypto} from '../security/node-crypto.mjs';
 import {createWebCrypto} from '../security/web-crypto.mjs';
 import {canonicalJson,utf8} from '../security/canonical.mjs';
@@ -99,13 +97,11 @@ test('activation fee boundaries0/88/89/90, dust, overflow, unsupported pool and 
  await assert.rejects(async()=>evaluateVerifiedQuote({input:await verifyQuoteCapture(future.input,crypto),request,evaluatedAtMs:at},crypto),code('preactivation'));
 });
 
-test('verification captures nested inputs before async crypto; browser bundle requires no Node compatibility imports',async()=>{
+test('verification captures nested inputs before async crypto',async()=>{
  const {input,request}=await fixture(),baseline=await verifyQuoteCapture(input,crypto);let changed=false;
  const delayed={...crypto,async sha256(bytes){if(!changed){changed=true;input.capture.oracle.priceMicros='1';input.binding.receiptDigest='0'.repeat(64);input.source.policy.approvedOgFeed='changed';}return crypto.sha256(bytes);}};
  assert.deepEqual(await verifyQuoteCapture(input,delayed),baseline);
  const dto=structuredClone(baseline),expected=await evaluateVerifiedQuote({input:dto,request,evaluatedAtMs:at},crypto);changed=false;
  const mutate={...crypto,async sha256(bytes){if(!changed){changed=true;dto.data.pool.sqrtPriceX64='1';request.inputUnits='1';}return crypto.sha256(bytes);}};
  assert.deepEqual(await evaluateVerifiedQuote({input:dto,request,evaluatedAtMs:at},mutate),expected);
- const bundle=await build({entryPoints:[fileURLToPath(new URL('./verification.mjs',import.meta.url))],bundle:true,platform:'browser',format:'esm',write:false,target:'es2022'});
- assert.ok(!/from ["']node:|\bBuffer\b/.test(bundle.outputFiles[0].text));
 });

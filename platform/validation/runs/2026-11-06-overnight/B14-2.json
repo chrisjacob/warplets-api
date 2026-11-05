@@ -4,7 +4,7 @@
   "status": "partial",
   "classification": "strict synthetic receipt-bound quote verification and portable quote HTTP; financial reads remain pending",
   "lastTestedBaseCommit": "d7d50c065c540e331c9fc5d53e6002a3ca74deee",
-  "implementationCommit": null,
+  "implementationCommit": "0a59402f15099170b5541f316a38f0c2ce563805",
   "commands": [
     {
       "command": "node --test platform/quotes/quotes.test.mjs platform/quotes/verification.test.mjs platform/evidence/quote-comparison.test.mjs platform/pricing/pricing.test.mjs",
@@ -234,5 +234,14 @@
     "currentCi": "pending-push"
   },
   "migration": 33,
-  "recoveryInventoryTables": 90
+  "recoveryInventoryTables": 90,
+  "ci": {
+    "runId": 42129273753,
+    "conclusion": "failure",
+    "reason": "Reference phase imported esbuild before edge package dependencies were installed.",
+    "repair": "Move required browser bundle assertion to edge/test/quote-bundle.test.mjs; preserve all six dependency-free verification tests.",
+    "focusedRepairTests": 7,
+    "repairExitCode": 0,
+    "replacementCi": "pending-push"
+  }
 }

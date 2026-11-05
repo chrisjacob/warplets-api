@@ -5,9 +5,9 @@
   "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
   "currentTask": "B14",
-  "lastUpdatedAt": "2026-11-05T23:25:03.320986+00:00",
+  "lastUpdatedAt": "2026-11-05T23:29:24.158503+00:00",
   "migrationAllocation": {
-    "next": 34,
+    "next": 35,
     "reserved": [
       {
         "version": 31,
@@ -23,6 +23,11 @@
         "version": 33,
         "task": "B14",
         "purpose": "immutable quote source bindings, derived decisions and finalized-account slot conflict receipts"
+      },
+      {
+        "version": 34,
+        "task": "B14",
+        "purpose": "financial read source revision triggers and bounded owner-observation lookup index"
       }
     ],
     "historicalGap": 19
@@ -214,13 +219,13 @@
       "status": "in_progress",
       "owner": "coordinator",
       "baseCommit": "b18dec7c9cca695db06d6f7d9fea90deb0c6667c",
-      "implementationCommit": null,
-      "pushed": false,
+      "implementationCommit": "0a59402f15099170b5541f316a38f0c2ce563805",
+      "pushed": true,
       "evidence": [
         "platform/validation/runs/2026-11-06-overnight/B14-1-comparison.json",
         "platform/validation/runs/2026-11-06-overnight/B14-2.json"
       ],
-      "nextAction": "B14.2 portable B04-bound quote HTTP verified:331reference/54edge+browser. Next B14.3 shared Vault/farm reads and source-bound stable cursors; coordinator owns034 source-revision triggers and routes; Vault agent owns boundedrepository/projection. CI pending newcheckpoint.",
+      "nextAction": "Follow replacement quote CI after moving bundle assertion to edge phase; then continue B14.3 sharedVault/farm source-bound reads. Activeuncommitted034+cursor/farmrepo scaffolds and Vaultagent files are not yet verified.",
       "blocker": null
     },
     "B15": {
