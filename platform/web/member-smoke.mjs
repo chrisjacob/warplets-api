@@ -6,6 +6,8 @@ import { observeAsset, recordVaultManifest } from '../vault/ledger.mjs';
 import { observeFarm, seedFarm } from '../stake/farms.mjs';
 import { seedBallot } from '../governance/ballots.mjs';
 import { addCampaign, recordStakeRead } from '../earn/workflow.mjs';
+import { createCollection, fulfillMint, fulfillProgression, inspectOperation, observeCollectionAsset,
+  publishCollectionStage, reserveMint, listOwnOperations } from '../collect/store.mjs';
 
 /** Disposable key signs only local QA challenges for this one browser and origin.
  * No browser extension, external service or on-chain submission is involved.
@@ -27,6 +29,17 @@ export async function checkMemberPages({ browser, db, origin }) {
   seedFarm(db,{marketId:'browser-att',originalUnits:'402600000',treasuryFeeBps:100});
   observeFarm(db,{id:'browser-deposit',marketId:'browser-att',kind:'deposit',at:startIso,wallet,amount:'1234'});
   seedBallot(db,{id:'browser-vote',opensAt:now-60_000,currentTrancheOpenedAt:start,holders:[wallet],nextWhitelist:[]});
+  const seasonId='browser-season',stageId='priority';
+  createCollection(db,{id:seasonId,kind:'season',seasonStart:start});
+  publishCollectionStage(db,{inventoryId:seasonId,stage:{id:stageId,type:'whitelist',publishedAt:start,
+    opensAt:start+1_000,closesAt:now+86_400_000,allocation:1_000,priceLamports:'100000000',
+    costLamports:'5000',wallets:[wallet],walletLimit:3}});
+  for(const assetId of ['browser-s1','browser-s2']){
+    const {operation}=reserveMint(db,{inventoryId:seasonId,stageId,wallet,requestKey:'seed-'+assetId,now:start+2000});
+    fulfillMint(db,{operationId:operation.id,assetId,commitment:inspectOperation(db,operation.id).commitment,
+      proofId:'proof-'+assetId,finalized:true,at:start+3000,ticket:0,traits:{model:'Ink',backdrop:'Studio',symbol:'Star'}});
+    observeCollectionAsset(db,{sourceId:'reveal-'+assetId,kind:'reveal',assetId,at:start+4000,finalized:true});
+  }
 
   const page=await browser.newPage({viewport:{width:390,height:900}});
   const errors=[];
@@ -45,11 +58,29 @@ export async function checkMemberPages({ browser, db, origin }) {
     await page.locator('#wallet-button').click();
     await page.getByRole('button',{name:'Connect Solana wallet'}).click();
     await page.getByRole('button',{name:'Sign in with this message'}).click();
-    await page.locator('dialog').waitFor({state:'hidden'});
+    await page.locator('#wallet-dialog').waitFor({state:'hidden'});
     await page.getByLabel('As soon as possible',{exact:true}).check();
     await page.getByRole('button',{name:'Submit advisory vote'}).click();
     await page.getByText('Recorded your vote: As soon as possible.').waitFor();
     assert.equal(db.prepare('SELECT COUNT(*) AS count FROM genesis_votes').get().count,1);
+    await page.getByRole('button',{name:'Review reservation'}).click();
+    await page.getByRole('button',{name:'Reserve preview slot'}).click();
+    await page.getByRole('heading',{name:'Operation receipt',exact:true}).waitFor();
+    assert.equal(listOwnOperations(db,wallet).items.filter(row=>row.kind==='mint' && row.status==='awaiting-evidence').length,1);
+    const form=page.locator('form[data-upgrade="browser-s1"]');
+    await form.getByLabel('Same-Level material NFT ID').fill('browser-s2');
+    await form.getByRole('button',{name:'Preview upgrade'}).click();
+    await page.getByText('0.01 SOL',{exact:true}).first().waitFor();
+    await page.getByRole('button',{name:'Record preview request'}).click();
+    await page.locator('#collection-dialog').waitFor({state:'hidden'});
+    await page.getByText('Awaiting committed draw evidence.').first().waitFor();
+    const pending=listOwnOperations(db,wallet).items.find(op=>op.kind==='upgrade' && op.status==='awaiting-evidence');
+    assert.ok(pending);
+    fulfillProgression(db,{operationId:pending.id,commitment:inspectOperation(db,pending.id).commitment,
+      proofId:'browser-upgrade',finalized:true,at:Date.now(),ticket:999});
+    await page.reload();
+    await page.getByRole('heading',{name:'Operation receipt',exact:true}).waitFor();
+    assert.equal(inspectOperation(db,pending.id).status,'fulfilled');
     await page.goto(origin+'/earn');
     await page.getByLabel('Content URL').fill('https://example.com/qa-contribution');
     await page.getByRole('button',{name:'Submit contribution'}).click();
@@ -65,14 +96,14 @@ export async function checkMemberPages({ browser, db, origin }) {
     await page.getByRole('cell',{name:'1234',exact:true}).waitFor();
     await page.locator('#wallet-button').click();
     await page.getByRole('button',{name:'Sign out',exact:true}).click();
-    await page.locator('dialog').waitFor({state:'hidden'});
+    await page.locator('#wallet-dialog').waitFor({state:'hidden'});
     assert.equal(await page.locator('#wallet-name').textContent(),'Connect wallet');
     assert.equal(await page.getByRole('cell',{name:'1234',exact:true}).count(),0);
     await page.reload();
     await page.locator('#view[aria-busy=false]').waitFor();
     assert.equal(await page.getByRole('cell',{name:'1234',exact:true}).count(),0);
     assert.deepEqual(errors,[]);
-    console.log('Verified wallet session, advisory vote receipt, Earn submission, NFT entitlement and farm position; sign-out removes private state.');
+    console.log('Verified wallet session, advisory vote, collection mint reservation, upgrade quote, pending recovery, fulfilled progression, Earn submission, Vault and Stake data, and sign-out.');
   } finally {
     await page.close();
   }

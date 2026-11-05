@@ -1,6 +1,7 @@
 import { initWallet } from './wallet.mjs';
 import { collectView, earnView, escapeHtml, marketsView, percent, stakeView, vaultView } from './views.mjs';
 import { ballotPanel, earnActivity, farmActivity, ownerVaultPanel } from './activity.mjs';
+import { bindStudio, studioMarkup } from './collection-studio.mjs';
 
 const view=document.querySelector('#view');
 const resource=location.pathname==='/'?'markets':location.pathname.slice(1);
@@ -37,6 +38,12 @@ const cursor=value=>value?'?cursor='+encodeURIComponent(value):'';
 const voteFeedback=new Map();
 let submissionFeedback='';
 const wallet=initWallet({api,onSession:changeSession});
+const collectionDialog=document.querySelector('#collection-dialog');
+document.querySelector('#close-collection').addEventListener('click',()=>collectionDialog.close());
+collectionDialog.addEventListener('close',()=>{
+  document.querySelector('#collection-review').replaceChildren();
+  document.querySelector('#collection-status').textContent='';
+});
 
 function changeSession(value) {
   me=value;
@@ -44,6 +51,7 @@ function changeSession(value) {
   submitIntent=null;
   submissionFeedback='';
   voteFeedback.clear();
+  if(collectionDialog.open) collectionDialog.close();
   generation++;
   if(data) {
     render();
@@ -52,13 +60,21 @@ function changeSession(value) {
 }
 
 async function loadPrivate() {
-  if(!me || !data || !['vault','earn','stake'].includes(resource)) return;
+  if(!me || !data || !['vault','earn','stake','collect'].includes(resource)) return;
   const current=++generation;
   privateData={loading:true};
   render();
   let results;
   if(resource==='vault') results={assets:await optional('/vault'+cursor(assetId?null:params.get('cursor')))};
   else if(resource==='stake') results={positions:await optional('/stake/positions'+cursor(params.get('cursor')))};
+  else if(resource==='collect') {
+    const [inventories,assets,operations,receipt]=await Promise.all([
+      optional('/collect/inventories'+cursor(params.get('inventories'))),
+      optional('/collect/me/assets'+cursor(params.get('owned'))),
+      optional('/collect/me/operations'+cursor(params.get('operations'))),
+      params.get('receipt')?optional('/collect/me/operations/'+encodeURIComponent(params.get('receipt'))):null]);
+    results={inventories,assets,operations,receipt};
+  }
   else {
     const [submissions,claims]=await Promise.all([
       optional('/earn/me'+cursor(params.get('submissions'))),optional('/earn/claims'+cursor(params.get('awards')))]);
@@ -140,7 +156,13 @@ function render() {
   if(resource==='markets') {
     view.innerHTML=marketsView({policy,markets,schedule,selectedId:params.get('market')});
     bindCurve(schedule?.points);
-  } else if(resource==='collect') view.innerHTML=collectView({collections})+ballotPanel(data.ballots,me);
+  } else if(resource==='collect') {
+    const inventories=privateData.inventories??data.inventories;
+    view.innerHTML=collectView({collections})+studioMarkup({me,...privateData,inventories})+ballotPanel(data.ballots,me);
+    const walletAtRender=me?.wallet;
+    if(me && !privateData.loading) bindStudio({inventories,assets:privateData.assets,me,api,
+      isCurrent:()=>walletAtRender===me?.wallet});
+  }
   else if(resource==='vault') view.innerHTML=vaultView({policy,me})+ownerVaultPanel({me,...privateData,assetId,detail:data.detail});
   else if(resource==='stake') view.innerHTML=stakeView({policy,markets})+farmActivity({me,markets,farmId,farm:data.farm,...privateData});
   else if(resource==='earn') view.innerHTML=earnView({policy,board,date})+earnActivity({me,markets,...privateData,date});
@@ -148,16 +170,17 @@ function render() {
 }
 
 async function load() {
-  const [policy,profile,markets,schedule,collections,board,ballots,detail,farm]=await Promise.all([
+  const [policy,profile,markets,schedule,collections,board,ballots,detail,farm,inventories]=await Promise.all([
     api('/policy'), optional('/me'), ['markets','stake','earn'].includes(resource)?optional('/markets'):null,
     resource==='markets'?optional('/launch/fee-schedule'):null,
     resource==='collect'?optional('/collections'):null,
     resource==='earn'?optional('/earn/epochs/'+date+'/leaderboard'):null,
     resource==='collect'?optional('/genesis/ballots'):null,
     resource==='vault' && assetId?optional('/nfts/'+encodeURIComponent(assetId)+'/vault'+cursor(params.get('cursor'))):null,
-    resource==='stake' && farmId?api('/farms/'+encodeURIComponent(farmId)).catch(error=>error.code==='farm_not_found'?{missing:true}:null):null]);
+    resource==='stake' && farmId?api('/farms/'+encodeURIComponent(farmId)).catch(error=>error.code==='farm_not_found'?{missing:true}:null):null,
+    resource==='collect'?optional('/collect/inventories'+cursor(params.get('inventories'))):null]);
   wallet.session(profile?.wallet?profile:null);
-  data={policy,markets,schedule,collections,board,ballots,detail,farm};
+  data={policy,markets,schedule,collections,board,ballots,detail,farm,inventories};
   render();
   await loadPrivate();
 }

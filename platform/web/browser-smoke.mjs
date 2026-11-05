@@ -41,9 +41,9 @@ try {
         await page.keyboard.press('Home');
         assert.equal(await page.locator('#curve-value').textContent(),'90%');
         await page.getByRole('button',{name:'Connect wallet'}).click();
-        assert.equal(await page.locator('dialog').isVisible(),true);
+        assert.equal(await page.locator('#wallet-dialog').isVisible(),true);
         await page.keyboard.press('Escape');
-        assert.equal(await page.locator('dialog').isVisible(),false);
+        assert.equal(await page.locator('#wallet-dialog').isVisible(),false);
         assert.equal(await page.evaluate(()=>document.activeElement.id),'wallet-button');
       }
       if (process.env.SCREENSHOT_DIR && [390,1440].includes(width)) {

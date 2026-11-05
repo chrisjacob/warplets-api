@@ -11,7 +11,7 @@ import { handleCollect } from './http.mjs';
 import { recordDecision, seedBallot } from '../governance/ballots.mjs';
 import { observeAsset } from '../vault/ledger.mjs';
 import { createCollection, freezeSeasonSnapshot, fulfillMint, fulfillProgression, inspectOperation,
-  listOwnOperations, observeCollectionAsset, publishCollectionStage, readCollectionAsset,
+  listOwnOperations, observeCollectionAsset, publishCollectionStage, quoteProgression, readCollectionAsset, readOwnOperation,
   readInventory, reserveFounderMint, reserveMint, reserveProgression } from './store.mjs';
 
 const day=86_400_000, start=Date.UTC(2026,0,1), open=start+2*day;
@@ -102,9 +102,16 @@ test('progression locks and idempotent evidence survive restart; treasury cost a
   }
   const reserve={inventoryId:season.id,wallet:alice,requestKey:'up',now:open+3000,request:{
     kind:'upgrade',targetId:'s1',materialId:'s2',expectedTargetVersion:0,expectedMaterialVersion:0}};
+  const quote=quoteProgression(db,reserve);
+  assert.equal(quote.feeLamports,'10000000');
+  assert.equal(quote.nextTargetLevel,2);
+  assert.equal(quote.materialProbabilities.reduce((sum,p)=>sum+p.count,0),1000);
+  assert.equal(readCollectionAsset(db,'s1').operationPending,false);
+  assert.equal(listOwnOperations(db,alice).items.filter(op=>op.kind==='upgrade').length,0);
   assert.throws(()=>reserveProgression(db,{...reserve,wallet:bob}),code('wrong_owner'));
   const pending=reserveProgression(db,reserve);
   assert.equal(pending.operation.feeLamports,'10000000');
+  assert.throws(()=>readOwnOperation(db,bob,pending.operation.id),code('operation_not_found'));
   db.close();db=openDatabase(path);
   assert.deepEqual(reserveProgression(db,reserve).operation,pending.operation);
   assert.throws(()=>observeCollectionAsset(db,{kind:'transfer',sourceId:'sale',assetId:'s2',
