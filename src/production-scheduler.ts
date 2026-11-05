@@ -57,6 +57,13 @@ const productionScheduledTasks: ProductionScheduledTasks = {
 	stonkletsSpotlight: (env) => scheduleStonkletNews(env),
 };
 
+// Source helpers redact credentials before throwing. Strip URLs as well so
+// runtime/D1 failures remain diagnosable without logging provider URLs.
+function networkFailure(task: string, error: unknown) {
+  const message = error instanceof Error ? error.message.replace(/https?:\/\/\S+/gi, '[source]').slice(0, 180) : 'Unknown failure';
+  console.error(task, message);
+}
+
 export function scheduleProductionTasks(
 	env: ProductionScheduledEnv,
 	ctx: ExecutionContext,
@@ -64,8 +71,8 @@ export function scheduleProductionTasks(
 ): void {
 	scheduleTasks(env, ctx, tasks);
   if (env.NETWORK_INGEST_ENABLED === 'true') {
-    ctx.waitUntil(advanceNetwork(env,{coreOnly:true}).catch(() => console.error('network_ingestion_failed')));
-    ctx.waitUntil(advanceNetworkWallets(env).catch(() => console.error('network_wallet_refresh_failed')));
-    ctx.waitUntil(importNetworkActivity(env).catch(() => console.error('network_activity_refresh_failed')));
+    ctx.waitUntil(advanceNetwork(env,{coreOnly:true}).catch(error => networkFailure('network_ingestion_failed',error)));
+    ctx.waitUntil(advanceNetworkWallets(env).catch(error => networkFailure('network_wallet_refresh_failed',error)));
+    ctx.waitUntil(importNetworkActivity(env).catch(error => networkFailure('network_activity_refresh_failed',error)));
   }
 }
