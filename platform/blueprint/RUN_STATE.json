@@ -4,11 +4,22 @@
   "phase": "executing",
   "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
-  "currentTask": "B07",
-  "lastUpdatedAt": "2026-11-05T21:54:40.205176+00:00",
+  "currentTask": "B08",
+  "lastUpdatedAt": "2026-11-05T21:55:46.097841+00:00",
   "migrationAllocation": {
-    "next": 31,
-    "reserved": [],
+    "next": 33,
+    "reserved": [
+      {
+        "version": 31,
+        "task": "B08",
+        "purpose": "immutable public artifact publication saga/catalog"
+      },
+      {
+        "version": 32,
+        "task": "B08",
+        "purpose": "isolated public/private recovery state and mutation guards"
+      }
+    ],
     "historicalGap": 19
   },
   "acceptanceProfiles": {
@@ -113,25 +124,25 @@
       "blocker": null
     },
     "B07": {
-      "status": "in_progress",
+      "status": "verified",
       "owner": "coordinator + frontend_b09 + snapshot_acceptance",
       "baseCommit": "22f09d3ddf077340f9f2d59d4004402f7e742515",
-      "implementationCommit": null,
-      "pushed": false,
+      "implementationCommit": "30b9630823cdc2cff2c18e604696470337143257",
+      "pushed": true,
       "evidence": [
         "platform/validation/runs/2026-11-06-overnight/B07.json"
       ],
-      "nextAction": "288reference/40edge +focused final supply/wake checks passed. Commit/push, follow test-only CI, then B08 publication/recovery.",
+      "nextAction": null,
       "blocker": null
     },
     "B08": {
-      "status": "not_started",
-      "owner": null,
-      "baseCommit": null,
+      "status": "in_progress",
+      "owner": "coordinator + frontend_b09 + snapshot_acceptance",
+      "baseCommit": "30b9630823cdc2cff2c18e604696470337143257",
       "implementationCommit": null,
       "pushed": false,
       "evidence": [],
-      "nextAction": null,
+      "nextAction": "B07 CI42116935604 passed. Build031publication and032isolated recovery guards; agents implementing asyncmanifestcodec/sharedstores and pinned recovery. Publication records exact identity beforepublicput withprivatechunk staging.",
       "blocker": null
     },
     "B09": {
