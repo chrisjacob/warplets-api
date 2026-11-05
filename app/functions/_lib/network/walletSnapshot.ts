@@ -1,16 +1,23 @@
-import { NETWORK_CURRENT_COHORT } from './cohort';
+import { NETWORK_CURRENT_PROFILE } from './cohort';
 import type { NetworkCell, WalletSnapshot, NetworkToken } from '../../../shared/network/model';
 import { acceptedQuote, decimalScale, NATIVE_ASSET, type PricedPosition } from './wallets';
 type Account = { known: boolean; expected: number; ambiguous: number; measured: number; usd: bigint; excluded: number; assets: Map<string,bigint> };
 export async function walletSnapshot(db: D1Database) {
-  const cohort = NETWORK_CURRENT_COHORT;
-  const links = `SELECT l.fid,l.address FROM network_wallet_links l JOIN (${cohort}) c ON c.fid=l.fid`;
-  const seeds=await db.prepare(`WITH links AS (${links}), owners AS (SELECT address,COUNT(*) n FROM links GROUP BY address)
-    SELECT c.fid,a.fid IS NOT NULL AS known,COUNT(l.address) expected,COALESCE(SUM(CASE WHEN o.n>1 THEN 1 ELSE 0 END),0) ambiguous FROM (${cohort}) c LEFT JOIN network_wallet_associations a ON a.fid=c.fid LEFT JOIN links l ON l.fid=c.fid LEFT JOIN owners o ON o.address=l.address GROUP BY c.fid`).all<{fid:number;known:number;expected:number;ambiguous:number}>();
-  const accounts=new Map<number,Account>(seeds.results.map(row=>[row.fid,{known:Boolean(row.known),expected:row.expected,ambiguous:row.ambiguous,measured:0,usd:0n,excluded:0,assets:new Map()}]));
+  const seeds=await db.prepare(`SELECT p.fid,a.fid IS NOT NULL AS known FROM network_profiles p LEFT JOIN network_wallet_associations a ON a.fid=p.fid WHERE ${NETWORK_CURRENT_PROFILE}`).all<{fid:number;known:number}>();
+  const accounts=new Map<number,Account>(seeds.results.map(row=>[row.fid,{known:Boolean(row.known),expected:0,ambiguous:0,measured:0,usd:0n,excluded:0,assets:new Map()}]));
   const summary:WalletSnapshot={associationsObserved:seeds.results.filter(a=>a.known).length,expectedWallets:0,measuredWallets:0,unallocatedUsdUnits:'0',oldestBalanceAt:null,latestBalanceAt:null,oldestPriceAt:null,excludedBalances:0,tokens:[]};
   const catalog=new Map<string,NetworkToken>(); let unallocated=0n;
-  const owners=new Map((await db.prepare(`SELECT l.address,COUNT(*) owners,MIN(l.fid) fid FROM (${links}) l GROUP BY l.address`).all<{address:string;owners:number;fid:number}>()).results.map(row=>[row.address,row]));
+  // Capture the cohort once, then seek links by indexed FID. The previous
+  // grouped CTEs repeatedly scanned/grouped the full cohort and ownership set.
+  const linked=await db.prepare('SELECT l.fid,l.address FROM json_each(?) c CROSS JOIN network_wallet_links l ON l.fid=c.value').bind(JSON.stringify([...accounts.keys()])).all<{fid:number;address:string}>();
+  const owners=new Map<string,{owners:number;fid:number}>();
+  for(const row of linked.results){
+    const owner=owners.get(row.address);
+    if(owner){owner.owners++;owner.fid=Math.min(owner.fid,row.fid);}else owners.set(row.address,{owners:1,fid:row.fid});
+    accounts.get(row.fid)!.expected++;
+  }
+  for(const row of linked.results)if(owners.get(row.address)!.owners>1)accounts.get(row.fid)!.ambiguous++;
+  linked.results.length=0;seeds.results.length=0;
   const prices=new Map((await db.prepare("SELECT asset,payload FROM network_asset_prices WHERE payload<>'null'").all<{asset:string;payload:string}>()).results.map(row=>[row.asset,JSON.parse(row.payload) as unknown]));
   summary.expectedWallets=owners.size;
   let cursor='';

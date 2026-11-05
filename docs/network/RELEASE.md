@@ -70,6 +70,12 @@ The unknown-location first page read 2,862,690 rows and consumed 1,386ms of D1
 SQL time. An indexed address/profile join, using the same shared membership
 predicate, reduced that ownership check to 425 rows and 3.6ms against production.
 A query-plan regression requires indexed FID lookup rather than a profile scan.
+Snapshot publication had a second overload source: grouped cohort/ownership
+CTEs consumed 2,066ms and read 1,066,270 rows across their first two queries.
+Capturing the member cohort once and seeking wallet links by indexed FID,
+then aggregating ownership in memory, reduced those production reads to 265ms
+and 233,902 rows. The captured cohort keeps association and ownership counts
+consistent; a regression verifies the indexed plan and snapshot totals.
 The initial larger live batches failed before database cleanup could run.
 Production batches leave room for the existing scheduled applications, and
 sanitized runtime failures are logged. Lease cleanup retries transient D1
