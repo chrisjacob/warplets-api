@@ -1,75 +1,23 @@
+import { pressureFromRows } from '../operations/portable-controls.mjs';
+import { createAtomicReceipts } from './atomic-receipts.mjs';
 import { canonicalJson, utf8 } from '../security/canonical.mjs';
 import { ADMIT_SUBMISSION, FINAL_REVIEW, admissionRequestBytes, reviewRequestBytes } from '../application/commands.mjs';
 import { canonicalContentUrl, name, nat, requireValue } from '../earn/validation.mjs';
 import { DAY_MS, MIN_STAKE_MICRO_USD } from '../domain/earn/index.mjs';
-import { sql, revisions, measureBatch } from './atomic-driver.mjs';
+import { sql, revisions, measureBatch, matchesExpectedRevisions } from './atomic-driver.mjs';
 const pending=(reason)=>({kind:'pending',reason,dependencyIds:[]});
 const conflict=code=>({kind:'conflict',code});
-const principalKey=p=>p.kind+':'+(p.kind==='wallet'?p.wallet:p.id);
-const selectedReceipt=(command)=>sql('SELECT * FROM app_command_receipts WHERE principal_key=? AND operation_kind=? AND request_key=?',
-  principalKey(command.principal),command.operationKind,command.requestKey);
-function recovered(row,command) {
-  if(!row)return null;
-  if(row.request_digest!==command.requestDigest)return conflict('idempotency_conflict');
-  if(row.state!=='committed')return pending('command-incomplete');
-  return {kind:'replayed',receipt:{operationId:row.operation_id,principal:command.principal,operationKind:row.operation_kind,
-    businessIdentity:row.business_key,requestKey:row.request_key,requestDigest:row.request_digest,
-    expectedRevisions:JSON.parse(row.expected_revisions),outputDigest:row.output_digest,status:'committed',resultRef:row.result_ref},value:JSON.parse(row.result_json)};
-}
 function costHeld(usage,spend,nowMs) {
-  if(usage.length>100||spend.length>100)return 'operating-input-bound';
-  const month=new Date(nowMs).toISOString().slice(0,7),day=new Date(nowMs).toISOString().slice(0,10);
-  const monthStart=Date.parse(month+'-01T00:00:00Z');
-  let total=0n;
-  for(const row of usage) {
-    if(row.metric==='new-monthly-usd')total+=BigInt(row.measured);
-    else if(row.period===day&&BigInt(row.measured)>=BigInt(row.quota))return 'budget-limit';
-  }
-  for(const row of spend) {
-    const when=row.settled_ms??row.at_ms;
-    if(row.status==='reserved'||when>nowMs)total+=BigInt(row.limit_usd_micros);
-    else if(when>=monthStart)total+=BigInt(row.actual_usd_micros);
-  }
-  return total>=5000000n?'budget-limit':null;
+  const pressure=pressureFromRows(usage,spend,nowMs);
+  return pressure.status==='pending'?pressure.reason:pressure.level==='limit'?'budget-limit':null;
 }
 /** @param {object} driver
  * @param {{crypto:import('../application/ports.ts').CanonicalCrypto,ids:{next():string},telemetry?:import('../application/ports.ts').AppTelemetry}} ports */
 export function createAtomicEarnRepository(driver,{crypto,ids,telemetry={record(){}}}) {
-  const hash=value=>crypto.sha256(utf8(canonicalJson(value)));
-  async function read(statements) {return (await driver.batch(statements)).map(r=>r.rows);}
-  async function replay(command) {return recovered((await read([selectedReceipt(command)]))[0][0],command);}
-  async function execute(command,{businessKey,input,result,resultRef,version,child,authoritySql='1',authorityValues=[]}) {
-    const operationId=ids.next(),nonce=ids.next(),outputDigest=await hash(result);
-    const identity=[operationId,principalKey(command.principal),command.operationKind,businessKey,command.requestKey,command.requestDigest,
-      canonicalJson(version),nonce,canonicalJson(input),canonicalJson(result),outputDigest,resultRef,command.nowMs];
-    const claim=sql(`INSERT INTO app_command_receipts
-      (operation_id,principal_key,operation_kind,business_key,request_key,request_digest,expected_revisions,claim_nonce,state,input_json,result_json,output_digest,result_ref,created_ms)
-      SELECT ?,?,?,?,?,?,?,?,'staging',?,?,?,?,?
-      WHERE (SELECT revision FROM app_revisions WHERE name='earn')=?
-       AND (SELECT revision FROM app_revisions WHERE name='source')=?
-       AND (SELECT revision FROM app_revisions WHERE name='control')=?
-       AND NOT EXISTS(SELECT 1 FROM app_command_receipts WHERE (principal_key=? AND operation_kind=? AND request_key=?) OR (operation_kind=? AND business_key=?))
-       AND (${authoritySql})`,...identity,Number(version.earn),Number(version.source),Number(version.control),
-       principalKey(command.principal),command.operationKind,command.requestKey,command.operationKind,businessKey,...authorityValues);
-    const gate="EXISTS(SELECT 1 FROM app_command_receipts WHERE operation_id=? AND claim_nonce=? AND state='staging')";
-    const statements=[claim,child(gate,[operationId,nonce]),sql("UPDATE app_command_receipts SET state='committed' WHERE operation_id=? AND claim_nonce=? AND state='staging'",operationId,nonce)];
-    telemetry.record('atomic-batch',measureBatch(statements));
-    let results;
-    try {results=await driver.batch(statements);}
-    catch(error) {
-      // A response can be lost after commit; resolve the stable identity before
-      // surfacing the transport error. Never invent success on missing receipt.
-      const resolved=await replay(command);
-      if(resolved)return resolved;
-      throw error;
-    }
-    const outcome=await replay(command);
-    if(outcome?.kind==='replayed')return {...outcome,kind:results[0].changes===1?'committed':'replayed'};
-    if(outcome)return outcome;
-    return conflict('revision_conflict');
-  }
+  const {read,replay,execute}=createAtomicReceipts(driver,{crypto,ids,telemetry});
   return Object.freeze({
     async admitSubmission(command) {
+      command=JSON.parse(canonicalJson(command));
       const {principal,input,nowMs}=command;
       if(principal?.kind!=='wallet'||command.operationKind!==ADMIT_SUBMISSION)throw new TypeError('Invalid admission identity.');
       name(principal.wallet,'wallet');name(input.tokenId,'token');nat(nowMs,'now');
@@ -88,10 +36,11 @@ export function createAtomicEarnRepository(driver,{crypto,ids,telemetry={record(
         sql(`SELECT r.id,r.micro_usd,o.decision FROM price_observations o LEFT JOIN earn_stake_reads r ON r.id=o.read_id
           WHERE o.wallet=? AND o.token_id=? AND o.as_of_ms<=? ORDER BY o.as_of_ms DESC,o.revision DESC LIMIT 1`,principal.wallet,input.tokenId,nowMs),
         sql(`SELECT * FROM ops_usage u WHERE u.at_ms<=? AND NOT EXISTS(SELECT 1 FROM ops_usage n WHERE n.provider=u.provider
-          AND n.metric=u.metric AND (u.metric='new-monthly-usd' OR n.period=u.period) AND n.at_ms>u.at_ms AND n.at_ms<=?) ORDER BY u.provider LIMIT 101`,nowMs,nowMs),
-        sql("SELECT * FROM ops_optional_spend WHERE at_ms<=? AND (status='reserved' OR settled_ms>=?) LIMIT 101",nowMs,Date.parse(new Date(nowMs).toISOString().slice(0,7)+'-01T00:00:00Z')),
+          AND n.metric=u.metric AND (u.metric='new-monthly-usd' OR n.period=u.period) AND n.at_ms>u.at_ms AND n.at_ms<=?) AND (u.metric='new-monthly-usd' OR u.period=?) ORDER BY u.provider LIMIT 101`,nowMs,nowMs,new Date(nowMs).toISOString().slice(0,10)),
+        sql("SELECT * FROM ops_optional_spend WHERE at_ms<=? AND (status='reserved' OR COALESCE(settled_ms,at_ms)>=?) LIMIT 101",nowMs,Date.parse(new Date(nowMs).toISOString().slice(0,7)+'-01T00:00:00Z')),
       ]);
       const [versionsRows,campaign,board,duplicate,policies,counts,scope,observations,usage,spend]=rows;
+      if(!matchesExpectedRevisions(command.expectedRevisions,revisions(versionsRows)))return conflict('revision_conflict');
       if(!campaign[0]||nowMs<campaign[0].activation_ms||nowMs>=campaign[0].activation_ms+10*DAY_MS)return conflict('campaign_inactive');
       if(board.length)return conflict('board_closed');if(duplicate.length)return conflict('already_submitted');
       if(scope[0]?.paused)return pending('operator-pause');
@@ -109,6 +58,7 @@ export function createAtomicEarnRepository(driver,{crypto,ids,telemetry={record(
           id,principal.wallet,input.tokenId,epoch,input.url,nowMs,observation.id,command.requestKey,...values)});
     },
     async recordFinalReview(command) {
+      command=JSON.parse(canonicalJson(command));
       const {principal,input,nowMs}=command;
       if(principal?.kind!=='operator'||command.operationKind!==FINAL_REVIEW)throw new TypeError('Invalid review identity.');
       name(principal.id,'operator');nat(nowMs,'now');
@@ -122,6 +72,7 @@ export function createAtomicEarnRepository(driver,{crypto,ids,telemetry={record(
         sql('SELECT 1 FROM earn_boards WHERE epoch=(SELECT epoch FROM earn_submissions WHERE id=?) OR epoch=?',input.submissionId,Math.floor(nowMs/DAY_MS)),
         sql("SELECT enabled FROM app_operator_scopes WHERE operator=? AND scope='earn-review'",principal.id),
       ]);
+      if(!matchesExpectedRevisions(command.expectedRevisions,revisions(versionsRows)))return conflict('revision_conflict');
       if(!posts[0]||nowMs<posts[0].submitted_ms)return conflict('invalid_review_time');
       if(reviews.length)return conflict('final_review');if(closed.length)return conflict('board_closed');
       if(!grants[0]?.enabled)return conflict('operator_scope_required');

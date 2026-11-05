@@ -1,0 +1,21 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { localRuntime } from './local-runtime.mjs';
+import { createNodeCrypto } from '../../security/node-crypto.mjs';
+test('workerd stores private bytes first and recovers an interrupted D1 reference without public exposure',async t=>{
+  const {mf,db}=await localRuntime(t,new URL('./fixtures/atomic-artifact-worker.ts',import.meta.url));
+  await db.prepare("INSERT INTO app_operator_scopes VALUES('synthetic','evidence-ingest',0,1)").run();
+  const bytes=new TextEncoder().encode('synthetic private recorded input'),byteDigest=await createNodeCrypto().sha256(bytes);
+  const identity={key:'private/'+byteDigest+'.bin',byteDigest,size:bytes.length,semanticDigest:null,contentType:'application/octet-stream',visibility:'private'};
+  const call=()=>mf.dispatchFetch('http://localhost/fixture',{method:'POST',body:JSON.stringify({identity,bytes:[...bytes],requestKey:'fixture'})});
+  await db.prepare("CREATE TRIGGER fail_ref BEFORE INSERT ON app_private_artifacts BEGIN SELECT RAISE(ABORT,'reference interrupted'); END").run();
+  const failed=await call();assert.equal(failed.status,500);assert.match((await failed.json()).error,/reference interrupted/);
+  assert.equal(await db.prepare('SELECT COUNT(*) n FROM app_command_receipts').first('n'),0);
+  const bucket=await mf.getR2Bucket('MANIFESTS');assert.ok(await bucket.get(identity.key));
+  assert.equal(await db.prepare('SELECT COUNT(*) n FROM manifest_catalog').first('n'),0);
+  await db.prepare('DROP TRIGGER fail_ref').run();
+  const accepted=await (await call()).json();assert.equal(accepted.kind,'committed');assert.equal(accepted.value.verification,'exact-bytes');
+  const replay=await (await call()).json();assert.equal(replay.kind,'replayed');assert.deepEqual(replay.receipt,accepted.receipt);
+  assert.equal(await db.prepare('SELECT COUNT(*) n FROM app_private_artifacts').first('n'),1);
+  assert.equal(await db.prepare('SELECT COUNT(*) n FROM manifest_catalog').first('n'),0);
+});

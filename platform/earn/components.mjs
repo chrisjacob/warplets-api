@@ -1,5 +1,5 @@
+import { componentPlan } from './component-plan.mjs';
 import { DAY_MS, epochAt, onboardingTenths } from '../domain/earn/index.mjs';
-import { seasonActiveWeight } from '../domain/collections/policy.mjs';
 import { transaction } from '../storage/database.mjs';
 import { conflict, digest, name, nat, requireValue } from './checks.mjs';
 import { observationAt } from '../pricing/evidence.mjs';
@@ -108,31 +108,18 @@ export function deriveComponents(db,epoch,wallet) {
   const cutoff=(epoch+1)*DAY_MS-1;
   const owner=db.prepare('SELECT * FROM earn_owner_snapshots WHERE epoch=? AND wallet=?').get(epoch,wallet);
   if (!owner) return {status:'pending',reason:'participant-evidence'};
-  const collections=new Map(db.prepare('SELECT * FROM earn_known_collections').all().map(c=>[c.collection_id,c]));
-  let highestEligibleLevel=0;
-  for (const asset of JSON.parse(owner.assets)) {
-    const collection=collections.get(asset.collectionId);
-    if (!collection) continue;
-    const level=collection.kind==='genesis' ? asset.level : seasonActiveWeight(collection.season_start_ms,asset.level,cutoff);
-    highestEligibleLevel=Math.max(highestEligibleLevel,level);
-  }
+  const collections=db.prepare('SELECT * FROM earn_known_collections').all();
   const positions=db.prepare(`SELECT e.token_id,c.token_days,c.source_ref,c.credited,c.flags FROM earn_position_enrollments e
     JOIN earn_fixture_campaigns m ON m.token_id=e.token_id LEFT JOIN earn_position_cutoffs c
     ON c.wallet=e.wallet AND c.token_id=e.token_id AND c.epoch=?
     WHERE e.wallet=? AND e.enrolled_ms<=? AND m.activation_ms<=? AND m.activation_ms>? ORDER BY e.token_id`)
     .all(epoch,wallet,cutoff,cutoff,cutoff-10*DAY_MS);
-  if (positions.some(p=>p.token_days==null)) return {status:'pending',reason:'purchase-reconciliation'};
-  for (const p of positions) {
-    const valuation=observationAt(db,wallet,p.token_id,cutoff);
-    if (valuation.status!=='verified' || valuation.asOfMs!==cutoff || !p.source_ref.endsWith(' / '+valuation.receipt)) {
-      return {status:'pending',reason:'purchase-reconciliation'};
-    }
-  }
-  const purchaseTokenDays=Math.min(50,positions.reduce((n,p)=>n+p.token_days,0));
+  const valuations=Object.fromEntries(positions.map(p=>[p.token_id,observationAt(db,wallet,p.token_id,cutoff)]));
   const intervals=listActiveActions(db,epoch);
   const completions=db.prepare(`SELECT action_id AS actionId,verified_ms AS verifiedAtMs,source_ref AS sourceRef
     FROM earn_action_completions WHERE wallet=? AND verified_ms<=? ORDER BY action_id`).all(wallet,cutoff);
-  const payload=JSON.stringify({intervals,completions,highestEligibleLevel,purchaseTokenDays});
-  return {status:'ready',payload,sourceRef:digest([owner.assets,owner.source_ref,positions,intervals,completions]),
-    components:{actionTenths:onboardingTenths(epoch,intervals,completions),highestEligibleLevel,purchaseTokenDays}};
+  const plan=componentPlan({epoch,cutoff,owner,collections,positions,valuations,intervals,completions});
+  if(plan.status!=='ready')return plan;
+  const {sourceInput,...result}=plan;
+  return {...result,sourceRef:digest(sourceInput)};
 }

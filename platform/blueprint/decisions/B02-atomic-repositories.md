@@ -1,0 +1,11 @@
+# B02 atomic persistence decisions
+
+Node and D1 share named command builders and an internal receipt primitive. Node executes each SQL batch synchronously in a transaction; D1 uses a primary-current session and one guarded batch. Coarse earn/source/control revisions deliberately trade additional retries for a simple auditable pilot boundary. They are not historical snapshots or geographic replica evidence. Every child is gated by the newly claimed attempt nonce; final triggers assert domain effects and audit links. Accepted receipts precede new-work checks. Caller data is copied before any awaited digest, and explicit expected revisions are honored.
+
+Migration 022 adds only concurrency/authority metadata around existing Earn rows. Migration 023 extends it with operating command assertions, immutable pre-attempt provider quota receipts and private exact-byte object references. Scope/staffing audits retain their historical byte format. Existing protected claims/recovery cannot be paused. Pending reservations cross month boundaries; actual charges use their settlement month. Unknown/overrun values are preserved, not erased to make a ceiling pass.
+
+Provider metering is admission BEFORE a provider call. A pending result forbids the call; admitted failed calls retain consumed units. Same-millisecond contention may wait for a later genuine attempt time. B03 must persist dispatch and outcome separately; replaying a quota receipt alone never authorizes redispatch. No provider call or spending capability exists in this run.
+
+Private storage verifies size and exact byte digest, without claiming semantic/source authenticity. Objects precede guarded private references; interrupted references leave an unlisted object for recovery. Public catalog APIs cannot serve these objects. A semantic digest remains separate provenance.
+
+The bounded multi-batch board reader rechecks all read dependencies and reproduces historical commitment inputs. It does not establish coverage. It currently holds when the combined current/late-review wallet set exceeds 100 or serialized input exceeds 256 KiB. B05/B07 must account for legal late-review expansion with bounded pages before full pilot acceptance. Independent cutoff completeness, settlement lease fences and public publication remain unfinished.

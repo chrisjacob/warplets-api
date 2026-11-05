@@ -71,3 +71,32 @@ test('durable receipt survives closing and reopening the reference database',asy
   const replay=await createAtomicEarnRepository(createNodeAtomicDriver(db),ports).admitSubmission({...c,nowMs:start+86400000});
   assert.equal(replay.kind,'replayed');assert.deepEqual(replay.receipt,accepted.receipt);assert.deepEqual(replay.value,accepted.value);
 });
+
+test('mutating caller-owned commands during digest await cannot change admission or final moderation',async t=>{
+  const {db,driver,ports}=fixture(t);await seed(driver);
+  let mutate=()=>{};
+  const cryptoPort={...crypto,async sha256(bytes){const digest=await crypto.sha256(bytes);mutate();return digest;}};
+  const repository=createAtomicEarnRepository(driver,{...ports,crypto:cryptoPort});
+  const c=await command(),originalUrl=c.input.url,originalDigest=c.requestDigest;
+  mutate=()=>{c.input.url='https://example.test/changed-after-digest';c.principal.wallet='w2';c.requestKey='changed';};
+  const accepted=await repository.admitSubmission(c);assert.equal(accepted.kind,'committed');
+  assert.equal(accepted.value.submission.url,originalUrl);assert.equal(accepted.receipt.requestDigest,originalDigest);
+  assert.equal(db.prepare('SELECT wallet FROM earn_submissions').get().wallet,'w1');
+  const review=await reviewCommand(accepted.value.submission.id);
+  mutate=()=>{review.input.score=0;review.input.reason='changed';review.principal.id='other';};
+  const decision=await repository.recordFinalReview(review);assert.equal(decision.kind,'committed');
+  const row=db.prepare('SELECT content_score,moderator,reason FROM earn_reviews').get();
+  assert.deepEqual({...row},{content_score:7,moderator:'synthetic-operator',reason:'synthetic'});
+});
+
+test('explicit admission and moderation revisions are honored before any new receipt',async t=>{
+  const {db,driver,ports}=fixture(t);await seed(driver);const repository=createAtomicEarnRepository(driver,ports),c=await command();
+  assert.equal((await repository.admitSubmission({...c,expectedRevisions:{control:'999999'}})).code,'revision_conflict');
+  assert.equal(db.prepare('SELECT COUNT(*) n FROM app_command_receipts').get().n,0);
+  await assert.rejects(repository.admitSubmission({...c,expectedRevisions:{unknown:'1'}}),/Invalid expected/);
+  const accepted=await repository.admitSubmission(c),review=await reviewCommand(accepted.value.submission.id);
+  assert.equal((await repository.recordFinalReview({...review,expectedRevisions:{earn:'0'}})).code,'revision_conflict');
+  assert.equal(db.prepare('SELECT COUNT(*) n FROM earn_reviews').get().n,0);
+  assert.equal((await repository.recordFinalReview(review)).kind,'committed');
+  assert.equal((await repository.admitSubmission({...c,expectedRevisions:{control:'0'}})).kind,'replayed');
+});

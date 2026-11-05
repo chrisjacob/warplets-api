@@ -9,3 +9,10 @@ export function measureBatch(statements) {
 }
 export const sql=(sql,...values)=>({sql,values});
 export const revisions=rows=>Object.fromEntries(rows.map(r=>[r.name,String(r.revision)]));
+
+export function matchesExpectedRevisions(expected,current) {
+  if(!expected||typeof expected!=='object'||Array.isArray(expected)
+    ||Object.entries(expected).some(([key,value])=>!['earn','source','control'].includes(key)||typeof value!=='string'||!/^(0|[1-9][0-9]*)$/.test(value)))
+    throw new TypeError('Invalid expected dependency revisions.');
+  return Object.entries(expected).every(([key,value])=>current[key]===value);
+}

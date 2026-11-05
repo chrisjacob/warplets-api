@@ -9,7 +9,7 @@ import { appendAudit, configCheckpoint } from '../../operations/audit.mjs';
 import { createNodeEarnService } from '../node-context.mjs';
 import { samplePolicy } from '../../pricing/fixtures.mjs';
 import { registerPriceSource } from '../../pricing/evidence.mjs';
-export async function buildGoldenScenario(db) {
+export async function buildGoldenScenario(db,{beforeFinalize}={}) {
   const epoch=20001,start=epoch*DAY_MS,cutoff=start+DAY_MS-1;
   addCampaign(db,{tokenId:'A',activationMs:start,originalUnits:'1000000'});
   registerPriceSource(db,{...samplePolicy('A'),registeredAtMs:start});
@@ -23,6 +23,7 @@ export async function buildGoldenScenario(db) {
     recordStakeRead(db,{...read,observedMs:cutoff,expiresMs:cutoff});
     recordOwnership(db,{wallet,epoch,asOfMs:cutoff,assets:[],sourceRef:'synthetic-owner'});
   }
+  if(beforeFinalize)await beforeFinalize({epoch,nowMs:cutoff+1,sourceRef:'synthetic-reconciliation',sourceComplete:true});
   await createNodeEarnService(db,{nowMs:cutoff+1}).finalizeBoard({epoch,sourceRef:'synthetic-reconciliation',sourceComplete:true});
   await createNodeEarnService(db,{nowMs:start+DAY_MS}).recordAllocation({tokenId:'A',day:2});
   const bundle=exportBoard(db,epoch);
