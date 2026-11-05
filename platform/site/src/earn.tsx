@@ -1,0 +1,72 @@
+import { useState } from 'react';
+import { Link, useNavigate } from '@tanstack/react-router';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { z } from 'zod';
+import { rootRoute } from './routes';
+import { client, sdk } from './sdk';
+import { compact, Empty, friendlyError, Hero, intentKey, Loaded, Metrics, Panel } from './common';
+import { useSession } from './session';
+
+function Contribution({wallet}:{wallet:string}){
+  const cache=useQueryClient(),{submissions,awards}=rootRoute.useSearch();
+  const catalog=useQuery({queryKey:['markets',undefined],queryFn:({signal})=>sdk.markets(undefined,signal)});
+  const history=useQuery({queryKey:['private',wallet,'submissions',submissions],queryFn:({signal})=>sdk.submissions(submissions,signal)});
+  const claims=useQuery({queryKey:['private',wallet,'awards',awards],queryFn:({signal})=>sdk.awards(awards,signal)});
+  const submit=useMutation({mutationFn:async(body:{tokenId:string;url:string})=>{
+    const pending=intentKey(wallet,'submission',body);
+    await client.submitEarnContent({body,idempotencyKey:pending.key});pending.done();
+  },onSuccess:()=>cache.invalidateQueries({queryKey:['private',wallet,'submissions']})});
+  return <>
+    <Panel title="Submit content"><Loaded query={catalog}>{page=>{
+      const active=page.items.filter(m=>m.status==='active');
+      if(!active.length)return <Empty title="No active campaign"/>;
+      return <form id="submission-form" className="member-form" onSubmit={event=>{
+        event.preventDefault();const fields=new FormData(event.currentTarget);
+        submit.mutate({tokenId:String(fields.get('tokenId')),url:String(fields.get('url'))});
+      }}>
+        <label>ATT campaign<select name="tokenId" required>{active.map(m=><option value={m.id} key={m.id}>{m.symbol}</option>)}</select></label>
+        <label>Content URL<input name="url" type="url" required maxLength={2048} placeholder="https://…"/></label>
+        <p>The local preview checks recorded stake when your contribution is submitted.</p>
+        <button disabled={submit.isPending}>Submit contribution</button>
+        <output aria-live="polite">{submit.isSuccess?'Contribution recorded for moderation.':submit.isError?friendlyError(submit.error):''}</output>
+      </form>;
+    }}</Loaded></Panel>
+    <div className="two-up"><Panel title="Your submissions"><Loaded query={history}>{page=><>
+      {page.items.length?<ul className="records">{page.items.map(i=><li key={i.id}><strong>{i.tokenId}</strong><span>{i.status}{i.score==null?'':' · score '+i.score}</span>
+        <small>{i.url}</small>{i.reason && <p>{i.reason}</p>}</li>)}</ul>:<p>No submissions from this wallet.</p>}
+      {page.nextCursor!==null && <Link to="/earn" search={{submissions:String(page.nextCursor)}}>Next submissions →</Link>}
+    </>}</Loaded></Panel>
+      <Panel title="Your vested awards"><Loaded query={claims}>{page=><>
+        {page.items.length?<ul className="records">{page.items.map(i=><li key={i.tokenId+':'+i.day}><strong>{i.tokenId} · day {i.day}</strong>
+          <small>{i.vestedUnits} of {i.awardUnits} base units vested</small></li>)}</ul>:<p>No settled awards for this wallet.</p>}
+        {page.nextCursor!==null&&<Link to="/earn" search={{awards:String(page.nextCursor)}}>Next awards →</Link>}
+      </>}</Loaded></Panel></div>
+  </>;
+}
+export function Earn(){
+  const {wallet,open}=useSession(),{date:requested}=rootRoute.useSearch();
+  const today=new Date().toISOString().slice(0,10),boardDate=requested&&z.iso.date().safeParse(requested).success?requested:today;
+  const [editing,setEditing]=useState(boardDate);
+  const navigate=useNavigate();
+  const policy=useQuery({queryKey:['policy'],queryFn:({signal})=>sdk.policy(signal)});
+  const board=useQuery({queryKey:['leaderboard',boardDate],queryFn:({signal})=>sdk.board(boardDate,signal)});
+  return <>
+    <Hero title="Earn">Compete on one global daily board with your highest-scoring eligible contribution.</Hero>
+    <Loaded query={policy}>{p=><Metrics items={[
+      ['Winner places','Top '+p.earn.maxWinners,'across active campaigns'],['Stake requirement','US$'+p.earn.minimumCorrespondingStakeUsd,'in the corresponding ATT'],
+      ['Maximum multiplier',p.earn.maxMultiplierTenths/10+'×','applied to the content score'],
+    ]}/>}</Loaded>
+    <Panel title="Daily leaderboard"><form className="inline-form" onSubmit={e=>{e.preventDefault();void navigate({to:'/earn',search:{date:editing}});}}>
+      <label htmlFor="board-date">Board date (UTC)</label><input id="board-date" type="date" required value={editing} onChange={e=>setEditing(e.target.value)}/>
+      <button>View board</button></form><Loaded query={board}>{b=>{
+        if(b.status==='pending')return <Empty title="Awaiting final scores">This UTC board is awaiting final moderation.</Empty>;
+        if(!b.items.length)return <Empty title="Final board · no winners">No eligible contribution placed on this board.</Empty>;
+        return <div className="scroller"><table><caption>Final leaderboard · {boardDate} UTC</caption>
+          <thead><tr>{['Rank','Wallet','Score','Multiplier','Points'].map(s=><th key={s}>{s}</th>)}</tr></thead>
+          <tbody>{b.items.map(i=><tr key={i.wallet}><td>{i.rank}</td><td><abbr title={i.wallet}>{compact(i.wallet)}</abbr></td><td>{i.contentScore}</td>
+            <td>{i.multiplierTenths/10}×</td><td>{i.pointsTenths/10}</td></tr>)}</tbody></table></div>;
+      }}</Loaded></Panel>
+    {wallet?<Contribution key={wallet} wallet={wallet}/>:<Panel title="Submit content"><p>Sign in with a Solana wallet to submit a contribution.</p>
+      <button onClick={open}>Connect wallet</button></Panel>}
+  </>;
+}

@@ -1,0 +1,31 @@
+{
+  "name": "@10x/site",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.26.0",
+  "engines": {"node": ">=22.16.0"},
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "typecheck": "tsc --noEmit",
+    "build": "pnpm run typecheck && vite build",
+    "test": "node --test tests/*.test.mjs"
+  },
+  "dependencies": {
+    "@wallet-standard/app": "1.1.1",
+    "@tanstack/react-query": "5.101.4",
+    "@tanstack/react-router": "1.170.46",
+    "react": "19.2.5",
+    "react-dom": "19.2.5",
+    "zod": "4.6.6"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "4.3.0",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "4.7.0",
+    "tailwindcss": "4.3.0",
+    "typescript": "5.9.3",
+    "vite": "6.4.3"
+  }
+}
