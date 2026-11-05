@@ -4,6 +4,17 @@ import {generateKeyPairSync,sign} from 'node:crypto';
 import {createApp} from './application.mjs';
 import {openDatabase} from '../storage/database.mjs';
 import {encode58} from './base58.mjs';
+import {handleAuth} from './auth.mjs';
+
+test('authentication routes require the canonical API prefix',async t=>{
+  const db=openDatabase();t.after(()=>db.close());
+  for(const path of ['/abcdef/auth/challenges','/abcdef/auth/verify','/abcdef/auth/logout','/api/v10/auth/challenges']){
+    const result=await handleAuth(db,new Request('http://127.0.0.1:4173'+path,{method:'POST'}),'loopback',1_800_000_000_000);
+    assert.equal(result,null,path);
+  }
+  assert.equal(db.prepare('SELECT count(*) AS n FROM auth_challenges').get().n,0);
+  assert.equal(db.prepare('SELECT count(*) AS n FROM request_limits').get().n,0);
+});
 
 function fixture(t) {
   const db=openDatabase(); t.after(()=>db.close());

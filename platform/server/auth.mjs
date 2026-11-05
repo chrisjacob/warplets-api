@@ -31,6 +31,7 @@ export function consumeQuota(db,key,now,max) {
 }
 export async function handleAuth(db,request,peer,now) {
   const {pathname,origin}=new URL(request.url);
+  if(!pathname.startsWith(prefix+'/')) return null;
   const me=pathname===prefix+'/me'||pathname===prefix+'/me/wallets';
   const endpoint=pathname.slice(prefix.length);
   if(!me&&!['/auth/challenges','/auth/verify','/auth/logout'].includes(endpoint)) return null;

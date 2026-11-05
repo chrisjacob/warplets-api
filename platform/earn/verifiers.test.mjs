@@ -73,3 +73,11 @@ test('normal API binds a proof to the authenticated wallet and accepts no raw co
   const result=await request({proof:p,signature:signature(p)});assert.equal(result.status,200);
   assert.equal((await result.json()).replay,false);
 });
+test('a failed audit write rolls back its operator policy mutation',tctx=>{
+  const {db}=setup(tctx),before=configCheckpoint(db);
+  db.exec("CREATE TEMP TRIGGER fixture_audit_failure BEFORE INSERT ON ops_config_audit BEGIN SELECT RAISE(ABORT,'audit storage unavailable'); END");
+  assert.throws(()=>configureAction(db,{actionId:'new-action',label:'New action',verifier:'new-verifier',
+    enabled:true,effectiveEpoch:epoch+1,atMs:t}),/audit storage unavailable/);
+  assert.equal(db.prepare('SELECT 1 FROM earn_action_catalog WHERE id=?').get('new-action'),undefined);
+  assert.equal(configCheckpoint(db).digest,before.digest);
+});

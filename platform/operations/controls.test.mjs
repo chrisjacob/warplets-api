@@ -46,10 +46,21 @@ test('a bounded reservation is replayable, concurrently budgeted and reconciles 
   assert.equal(reserveOptionalCost(db,args).status,'reserved');
   assert.equal(reserveOptionalCost(db,args).replay,true);
   assert.equal(reserveOptionalCost(db,{...args,upperUsdMicros:'2500000',requestKey:'two'}).status,'held');
-  assert.equal(settleOptionalCost(db,{requestKey:'one',actualUsdMicros:'5500000',evidenceRef:'actual'}).overrun,true);
+  assert.equal(settleOptionalCost(db,{requestKey:'one',actualUsdMicros:'5500000',evidenceRef:'actual',now:at}).overrun,true);
   assert.equal(costPressure(db,at).recurring.status,'over-limit');
-  assert.equal(settleOptionalCost(db,{requestKey:'one',actualUsdMicros:'5500000',evidenceRef:'actual'}).replay,true);
-  assert.throws(()=>settleOptionalCost(db,{requestKey:'one',actualUsdMicros:'0',evidenceRef:'other'}),/another receipt/);
+  assert.equal(settleOptionalCost(db,{requestKey:'one',actualUsdMicros:'5500000',evidenceRef:'actual',now:at}).replay,true);
+  assert.throws(()=>settleOptionalCost(db,{requestKey:'one',actualUsdMicros:'0',evidenceRef:'other',now:at}),/another receipt/);
+});
+test('unsettled reservations carry across UTC months and actual charges use their settlement month',t=>{
+  const db=setup(t),nov=Date.UTC(2026,10,30,23,59),dec=Date.UTC(2026,11,1);
+  const reserve={scope:'optional-notifications',now:nov,upperUsdMicros:'4000000',actor:'adapter',quoteRef:'delayed',requestKey:'november'};
+  reserveOptionalCost(db,reserve);
+  assert.equal(costPressure(db,dec).recurring.totalUsdMicros,'4000000');
+  assert.equal(reserveOptionalCost(db,{...reserve,now:dec,upperUsdMicros:'2000000',requestKey:'december'}).status,'held');
+  settleOptionalCost(db,{requestKey:'november',actualUsdMicros:'2000000',evidenceRef:'settled',now:dec});
+  assert.equal(costPressure(db,dec).recurring.totalUsdMicros,'2000000');
+  assert.equal(costPressure(db,nov).recurring.totalUsdMicros,'4000000');
+  assert.equal(reserveOptionalCost(db,{...reserve,now:dec+1,upperUsdMicros:'3000000',requestKey:'december'}).status,'reserved');
 });
 test('pause preserves wallet-specific replay and claim access in the actual Node app',async t=>{
   const db=setup(t);

@@ -62,8 +62,11 @@ export function costPressure(db,now) {
     AND NOT EXISTS(SELECT 1 FROM ops_usage n WHERE n.metric=u.metric AND n.provider=u.provider AND n.at_ms>u.at_ms AND n.at_ms<=?)`)
     .all(now,now),quotas=latestUsage(db,day,now);
   let total=monthly.reduce((s,r)=>s+BigInt(r.measured),0n);
-  const reservations=db.prepare('SELECT status,limit_usd_micros,actual_usd_micros FROM ops_optional_spend WHERE period=? AND at_ms<=?').all(month,now);
-  for (const row of reservations) total+=BigInt(row.status==='reserved'?row.limit_usd_micros:row.actual_usd_micros);
+  const monthStart=Date.parse(month+'-01T00:00:00.000Z');
+  const reservations=db.prepare(`SELECT status,limit_usd_micros,actual_usd_micros,COALESCE(settled_ms,at_ms) AS settled_at
+    FROM ops_optional_spend WHERE at_ms<=? AND
+    (status='reserved' OR COALESCE(settled_ms,at_ms)>? OR COALESCE(settled_ms,at_ms)>=?)`).all(now,now,monthStart);
+  for (const row of reservations) total+=BigInt(row.status==='reserved'||row.settled_at>now?row.limit_usd_micros:row.actual_usd_micros);
   const recurring=assessRecurring(total);
   const providerLevels=quotas.map(r=>({provider:r.provider,status:BigInt(r.measured)>=BigInt(r.quota)?'limit':
     BigInt(r.measured)*5n>=BigInt(r.quota)*4n?'warning':'normal'}));
@@ -94,21 +97,22 @@ export function reserveOptionalCost(db,{scope,now,upperUsdMicros,actor,quoteRef,
     if(!decision.allowed) return {status:'held',reason:decision.reason};
     const pressure=costPressure(db,now);
     if(BigInt(pressure.recurring.totalUsdMicros)+upper>BigInt(pressure.recurring.limitUsdMicros))return {status:'held',reason:'monthly-ceiling'};
-    db.prepare('INSERT INTO ops_optional_spend VALUES(?,?,?,?,?,?,?,\'reserved\',NULL,NULL)').run(requestKey,scope,pressure.period,now,upperUsdMicros,actor,quoteRef);
+    db.prepare('INSERT INTO ops_optional_spend VALUES(?,?,?,?,?,?,?,\'reserved\',NULL,NULL,NULL)').run(requestKey,scope,pressure.period,now,upperUsdMicros,actor,quoteRef);
     return {status:'reserved',requestKey,replay:false};
   });
 }
-export function settleOptionalCost(db,{requestKey,actualUsdMicros,evidenceRef}) {
-  name(requestKey,'key');name(evidenceRef,'receipt');const actual=decimal(actualUsdMicros,'actual charge');
+export function settleOptionalCost(db,{requestKey,actualUsdMicros,evidenceRef,now=Date.now()}) {
+  name(requestKey,'key');name(evidenceRef,'receipt');nat(now,'settlement time');const actual=decimal(actualUsdMicros,'actual charge');
   return transaction(db,()=>{
     const row=db.prepare('SELECT * FROM ops_optional_spend WHERE request_key=?').get(requestKey);
     requireValue(row,'Unknown reservation.');
+    requireValue(now>=row.at_ms,'Settlement cannot precede its reservation.');
     if(row.status==='settled') {
       if(row.actual_usd_micros!==actualUsdMicros||row.settlement_ref!==evidenceRef) conflict('cost_sealed','Cost already reconciled with another receipt.');
       return {status:'settled',requestKey,replay:true,overrun:actual>BigInt(row.limit_usd_micros)};
     }
     // Record an actual overrun even if a provider exceeded the authorized quote.
-    db.prepare("UPDATE ops_optional_spend SET status='settled',actual_usd_micros=?,settlement_ref=? WHERE request_key=?").run(actualUsdMicros,evidenceRef,requestKey);
+    db.prepare("UPDATE ops_optional_spend SET status='settled',actual_usd_micros=?,settlement_ref=?,settled_ms=? WHERE request_key=?").run(actualUsdMicros,evidenceRef,now,requestKey);
     return {status:'settled',requestKey,replay:false,overrun:actual>BigInt(row.limit_usd_micros)};
   });
 }
