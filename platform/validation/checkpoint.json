@@ -1,5 +1,5 @@
 {
   "policy": "prd-1.2",
   "scope": "local",
-  "checkpoint": "signed-demo-reservation-and-final-preview"
+  "checkpoint": "runtime-capability-discovery-and-contract-parity"
 }

@@ -10,6 +10,267 @@
     }
   ],
   "paths": {
+    "/capabilities": {
+      "get": {
+        "operationId": "getCapabilities",
+        "summary": "Discover this runtime’s explicitly supported local features and disabled production execution.",
+        "responses": {
+          "200": {
+            "description": "Discover this runtime’s explicitly supported local features and disabled production execution.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "version": {
+                      "const": 1
+                    },
+                    "mode": {
+                      "const": "local-validation"
+                    },
+                    "runtime": {
+                      "enum": [
+                        "node-reference",
+                        "workerd-local"
+                      ]
+                    },
+                    "apiBase": {
+                      "const": "/api/v1"
+                    },
+                    "openapi": {
+                      "const": "/api/v1/openapi.json"
+                    },
+                    "featureScope": {
+                      "const": "listed-routes-only"
+                    },
+                    "features": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "status": {
+                            "const": "local-validation"
+                          },
+                          "routes": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "properties": {
+                                "method": {
+                                  "enum": [
+                                    "GET",
+                                    "POST"
+                                  ]
+                                },
+                                "path": {
+                                  "type": "string",
+                                  "pattern": "^/api/v1/"
+                                }
+                              },
+                              "required": [
+                                "method",
+                                "path"
+                              ]
+                            }
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "status",
+                          "routes"
+                        ]
+                      }
+                    },
+                    "production": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "financialExecution": {
+                          "const": false
+                        },
+                        "serverSigning": {
+                          "const": false
+                        },
+                        "broadcast": {
+                          "const": false
+                        },
+                        "deposits": {
+                          "const": false
+                        },
+                        "claimExecution": {
+                          "const": false
+                        }
+                      },
+                      "required": [
+                        "financialExecution",
+                        "serverSigning",
+                        "broadcast",
+                        "deposits",
+                        "claimExecution"
+                      ]
+                    },
+                    "walletAuthentication": {
+                      "const": "message-only"
+                    },
+                    "externalNotifications": {
+                      "const": false
+                    }
+                  },
+                  "required": [
+                    "version",
+                    "mode",
+                    "runtime",
+                    "apiBase",
+                    "openapi",
+                    "featureScope",
+                    "features",
+                    "production",
+                    "walletAuthentication",
+                    "externalNotifications"
+                  ]
+                }
+              },
+              "application/vnd.10x.v1+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "version": {
+                          "const": 1
+                        },
+                        "mode": {
+                          "const": "local-validation"
+                        },
+                        "runtime": {
+                          "enum": [
+                            "node-reference",
+                            "workerd-local"
+                          ]
+                        },
+                        "apiBase": {
+                          "const": "/api/v1"
+                        },
+                        "openapi": {
+                          "const": "/api/v1/openapi.json"
+                        },
+                        "featureScope": {
+                          "const": "listed-routes-only"
+                        },
+                        "features": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "status": {
+                                "const": "local-validation"
+                              },
+                              "routes": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "method": {
+                                      "enum": [
+                                        "GET",
+                                        "POST"
+                                      ]
+                                    },
+                                    "path": {
+                                      "type": "string",
+                                      "pattern": "^/api/v1/"
+                                    }
+                                  },
+                                  "required": [
+                                    "method",
+                                    "path"
+                                  ]
+                                }
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "status",
+                              "routes"
+                            ]
+                          }
+                        },
+                        "production": {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "properties": {
+                            "financialExecution": {
+                              "const": false
+                            },
+                            "serverSigning": {
+                              "const": false
+                            },
+                            "broadcast": {
+                              "const": false
+                            },
+                            "deposits": {
+                              "const": false
+                            },
+                            "claimExecution": {
+                              "const": false
+                            }
+                          },
+                          "required": [
+                            "financialExecution",
+                            "serverSigning",
+                            "broadcast",
+                            "deposits",
+                            "claimExecution"
+                          ]
+                        },
+                        "walletAuthentication": {
+                          "const": "message-only"
+                        },
+                        "externalNotifications": {
+                          "const": false
+                        }
+                      },
+                      "required": [
+                        "version",
+                        "mode",
+                        "runtime",
+                        "apiBase",
+                        "openapi",
+                        "featureScope",
+                        "features",
+                        "production",
+                        "walletAuthentication",
+                        "externalNotifications"
+                      ]
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/Meta"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/policy": {
       "get": {
         "operationId": "getPolicy",

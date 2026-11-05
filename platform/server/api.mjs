@@ -13,9 +13,11 @@ import { collectPaths } from '../collect/http.mjs';
 import { operationsPaths } from '../operations/http.mjs';
 import { notificationPaths } from '../notifications/http.mjs';
 import { quotePaths } from '../quotes/http.mjs';
+import { makeCapabilities } from '../contracts/capabilities.mjs';
 
 export const apiBase = '/api/v1';
 const resources = {
+  '/capabilities': { id: 'getCapabilities', summary: 'Discover this runtime’s explicitly supported local features and disabled production execution.' },
   '/policy': { id: 'getPolicy', summary: 'Read the published product rules.' },
   '/collections': { id: 'listCollections', summary: 'Read the planned collection terms.' },
   '/health': { id: 'getHealth', summary: 'Check the local API and policy version.' }
@@ -40,6 +42,7 @@ export function readApi(request) {
   const {pathname} = new URL(request.url);
   if (request.method !== 'GET') return failure(405,'method_not_allowed','This resource supports GET.',{allow:'GET'});
   switch (pathname) {
+    case apiBase+'/capabilities': return json(makeCapabilities('node-reference'));
     case apiBase+'/openapi.json': return json(openapi());
     case apiBase+'/health': return json({status:'ok',mode:policy.mode,policyVersion:policy.version});
     case apiBase+'/policy': return json(policy);

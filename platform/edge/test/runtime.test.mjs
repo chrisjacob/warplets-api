@@ -6,6 +6,7 @@ import {readFileSync,readdirSync} from 'node:fs';
 import {generateKeyPairSync,sign,createHash} from 'node:crypto';
 import {fileURLToPath} from 'node:url';
 import {encode58} from '../../server/base58.mjs';
+import {makeCapabilities} from '../../contracts/capabilities.mjs';
 
 test('real workerd verifies a D1 wallet proof once and protects R2 public artifacts',async t=>{
  const entry=fileURLToPath(new URL('../src/worker.ts',import.meta.url));
@@ -34,6 +35,16 @@ test('real workerd verifies a D1 wallet proof once and protects R2 public artifa
  const get=(path,headers={})=>mf.dispatchFetch(url+path,{headers});
  const post=(path,body,headers={})=>mf.dispatchFetch(url+path,{method:'POST',headers:{origin,'content-type':'application/json',...headers},body:JSON.stringify(body)});
  const policy=await (await get('/policy')).json();assert.equal(policy.version,'prd-1.2');
+ const capabilityResponse=await get('/capabilities');assert.equal(capabilityResponse.status,200);
+ assert.deepEqual(await capabilityResponse.json(),makeCapabilities('workerd-local'));
+ const negotiatedCapabilities=await (await get('/capabilities',{accept:'application/vnd.10x.v1+json'})).json();
+ assert.deepEqual(negotiatedCapabilities.data,makeCapabilities('workerd-local'));
+ assert.equal((await (await get('/openapi.json')).json()).paths['/capabilities'].get.operationId,'getCapabilities');
+ const workerSpec=await (await get('/openapi.json')).json();
+ const advertised=new Set(makeCapabilities('workerd-local').features.flatMap(f=>f.routes.map(r=>r.method+' '+r.path.slice(7))));
+ for(const [path,item] of Object.entries(workerSpec.paths))for(const method of ['get','post','put','patch','delete']){
+   if(item[method])assert.ok(advertised.has(method.toUpperCase()+' '+path),'Missing Worker capability '+method+' '+path);
+ }
  assert.equal((await get('/me')).status,401);assert.equal((await get('/markets')).status,200);
  const pair=generateKeyPairSync('ed25519'),wallet=encode58(pair.publicKey.export({format:'der',type:'spki'}).subarray(-32));
  assert.equal((await post('/auth/challenges',{wallet},{origin:'http://outside.test'})).status,403);

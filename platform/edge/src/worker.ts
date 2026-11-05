@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { policy } from '../../contracts/policy.mjs';
+import { makeCapabilities } from '../../contracts/capabilities.mjs';
 import { launchFeeBps } from '../../domain/economics/launch.mjs';
 import { represent } from '../../contracts/transport.mjs';
 import baseContract from '../../contracts/openapi.json';
@@ -8,7 +9,7 @@ import {pillars} from './pillars';
 import { edgeAuth } from './wallet';
 
 const app = new Hono<{ Bindings: Env; Variables: { requestId: string } }>();
-const supportedPaths = new Set(['/health','/policy','/collections','/launch/fee-schedule','/markets','/markets/{id}',
+const supportedPaths = new Set(['/health','/policy','/capabilities','/collections','/launch/fee-schedule','/markets','/markets/{id}',
   '/genesis/ballots','/genesis/ballots/{id}','/genesis/ballots/{id}/votes','/vault','/nfts/{id}/vault','/farms/{id}','/stake/positions','/earn/epochs/{epoch}/leaderboard','/earn/claims','/me','/me/wallets','/auth/challenges','/auth/verify','/auth/logout']);
 const allRoutes = baseContract.paths as Record<string, object>;
 const paths = {...Object.fromEntries(Object.entries(allRoutes).filter(([path])=>supportedPaths.has(path))),
@@ -36,6 +37,7 @@ app.notFound(c=>c.json({error:{code:'not_found',message:'Unknown local Worker ro
 app.get(base+'/openapi.json',c=>c.json({...baseContract,info:{...baseContract.info,title:'10X.MEME local Worker API'},paths}));
 app.get(base+'/health',c=>c.json({status:'ok',policyVersion:policy.version,mode:policy.mode,runtime:'workerd-local'}));
 app.get(base+'/policy',c=>c.json(policy));
+app.get(base+'/capabilities',c=>c.json(makeCapabilities('workerd-local')));
 app.get(base+'/collections',c=>c.json({items:[{id:'genesis',status:'planned',...policy.genesis},{id:'seasons',status:'planned',...policy.season}],nextCursor:null,snapshotId:policy.version}));
 app.get(base+'/launch/fee-schedule',c=>c.json({unit:'basis-points',clock:'actual-activation',points:Array.from({length:91},(_,i)=>({
   elapsedSeconds:i,feeBps:Number(launchFeeBps({activatedAt:0n,at:BigInt(i)}))}))}));

@@ -1,6 +1,7 @@
 // Wire types shared by the OpenAPI document and generated client declarations.
 import { featureShapes, rawFeatureSuccess } from './feature-shapes.mjs';
 import { policy } from './policy.mjs';
+import { capabilitiesSchema } from './capabilities.mjs';
 const str={type:'string'},integer={type:'integer'},bool={type:'boolean'},units={type:'string',pattern:'^(0|[1-9][0-9]*)$'};
 const iso={type:'string',format:'date-time'};
 const object=(properties,required=Object.keys(properties))=>({type:'object',properties,required});
@@ -60,7 +61,7 @@ function fromValue(value) {
  if(typeof value==='object')return object(Object.fromEntries(Object.entries(value).map(([k,v])=>[k,fromValue(v)])));
  return {const:value};
 }
-const rawSuccess={...rawFeatureSuccess,getPolicy:fromValue(policy),
+const rawSuccess={...rawFeatureSuccess,getPolicy:fromValue(policy),getCapabilities:capabilitiesSchema,
  listCollections:object({items:array({anyOf:[
   object({id:{const:'genesis'},status:{const:'planned'},...fromValue(policy.genesis).properties}),
   object({id:{const:'seasons'},status:{const:'planned'},...fromValue(policy.season).properties}),

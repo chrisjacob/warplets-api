@@ -1,6 +1,11 @@
 // Generated from openapi.json.
 export const operations = [
   {
+    "id": "getCapabilities",
+    "path": "/capabilities",
+    "method": "GET"
+  },
+  {
     "id": "getPolicy",
     "path": "/policy",
     "method": "GET"

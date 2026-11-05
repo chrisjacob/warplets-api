@@ -7,6 +7,8 @@ Isolated API-first implementation of the November PRD. Run from this directory w
 
 Open http://127.0.0.1:4173/api/v1/openapi.json for the available HTTP resources. The local API advertises policy and planned inventory. Live assets require verified evidence and financial actions require the PRD release gates.
 
+Read `/api/v1/capabilities` or call the generated client's `getCapabilities()` to discover the active runtime and its supported local routes. It explicitly reports financial execution, server signing, deposits, broadcasts and claim execution as disabled. This lets future agents and integrations distinguish the full Node preview from the narrower local Worker adapter.
+
 Open http://127.0.0.1:4173 for the five product views. Local operator commands under markets, governance, earn, stake, vault and collect accept fixture files. The collection and Earn directories describe the required evidence for admission, fulfillment and reconciliation. The contracts directory contains the generated typed client and OpenAPI document. The separately tested local Cloudflare adapter lives in edge/.
 
 For the full React viewer, run `pnpm install --frozen-lockfile --ignore-scripts` and `pnpm build` inside `site/` before starting the local server. It serves the compiled viewer first, and the install-free reference viewer when a build is absent.
