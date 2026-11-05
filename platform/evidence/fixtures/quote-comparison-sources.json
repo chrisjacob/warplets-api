@@ -1,0 +1,39 @@
+{
+  "format": "10x.local.quote-comparison.sources.v1",
+  "sources": [
+    {
+      "id": "synthetic-sdk-1.5.1",
+      "path": "quotes/fixtures/sdk-vectors.json",
+      "sha256": "9af7cc3d363c45e1198749ea6134b7d42e3d48f1163c86f4e050cf2ec3c5a962",
+      "sourceCommit": "e85136bee993c47e0f904f4c5fcb02d70b3b3352",
+      "scope": "synthetic-arithmetic",
+      "label": "cp-amm-sdk 1.5.1 / synthetic raw pool bytes / no RPC"
+    },
+    {
+      "id": "dated-program-observation",
+      "path": "lab/fixtures/meteora-deployment-observation.json",
+      "sha256": "f5ed6d5205b9bd5b7a6447f45fe28962e7ddff32ec44833e6d1347557fd60a5b",
+      "sourceCommit": "4a424af2c46315e1992c2ce5503cd7f229618a2a",
+      "scope": "dated-binary-observation-only",
+      "label": "November 5 program digest observation; no paired pre-swap state"
+    },
+    {
+      "id": "protocol-limitations",
+      "path": "validation/protocol-status.md",
+      "sha256": "44a4632b33f564baa39ceb3b202af7b9a7dd3867e62d97506cce5faab99f2b27",
+      "sourceCommit": "51c0741c757453bdd9f1bcdd9ef9d18f066ab920",
+      "scope": "recorded-compatibility-limitations",
+      "label": "Executed swaps and protocol-share deltas do not provide exact-state quote pairs"
+    }
+  ],
+  "capturedProgram": {
+    "program": "cpamdpZCGKUy5JxQXB4dcpGPiikHawvSWAd6mEn1sGG",
+    "datedBinaryDigest": "967ff9fb161eec2e62f66d2c899100739fb747c445f697b8625c86b31b9a2022",
+    "exactPreSwapPairs": [],
+    "requiredElapsedSeconds": [0, 88, 89, 90],
+    "directions": ["buy-att", "sell-att"],
+    "status": "missing",
+    "reason": "exact-pre-swap-state-and-full-observed-deltas-not-retained"
+  },
+  "financialExecution": false
+}

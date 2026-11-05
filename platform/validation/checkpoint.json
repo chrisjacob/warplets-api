@@ -1,5 +1,5 @@
 {
   "policy": "prd-1.2",
   "scope": "local",
-  "checkpoint": "blueprint-b20-core-hosted-browser-settlement-recovery"
+  "checkpoint": "blueprint-b10-member-acceptance-b14-quote-comparison"
 }

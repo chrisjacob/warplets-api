@@ -5,7 +5,7 @@
   "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
   "currentTask": "B14",
-  "lastUpdatedAt": "2026-11-05T22:56:40.827781+00:00",
+  "lastUpdatedAt": "2026-11-05T23:02:50.304012+00:00",
   "migrationAllocation": {
     "next": 33,
     "reserved": [
@@ -169,9 +169,10 @@
       "implementationCommit": "7df678b7d4de102e74e638baca0f66b756203b37",
       "pushed": true,
       "evidence": [
-        "platform/validation/runs/2026-11-06-overnight/B10-1.json"
+        "platform/validation/runs/2026-11-06-overnight/B10-1.json",
+        "platform/validation/runs/2026-11-06-overnight/B10-2.json"
       ],
-      "nextAction": "B10.2 real-API Earn/Vault evidence acceptance at four widths; frontend agent owns new fixture/browser tests and fixes only demonstrated UI defects.",
+      "nextAction": "Continue collection eligibility/progression browser acceptance from B10_HANDOFF.md; member Earn/Vault matrix passed.",
       "blocker": null
     },
     "B11": {
@@ -210,8 +211,10 @@
       "baseCommit": "b18dec7c9cca695db06d6f7d9fea90deb0c6667c",
       "implementationCommit": null,
       "pushed": false,
-      "evidence": [],
-      "nextAction": "B14.1 define immutable quote evidence/input and comparison contracts; preserve math; integrate guarded B04 receipts and separate oracle publication/retrieval clocks. No financial execution.",
+      "evidence": [
+        "platform/validation/runs/2026-11-06-overnight/B14-1-comparison.json"
+      ],
+      "nextAction": "Implement portable B04-bound quote DTO verification and provenance repository; comparison harness passed80 synthetic cases with8 captured cases explicitly missing.",
       "blocker": null
     },
     "B15": {

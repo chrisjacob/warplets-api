@@ -1,0 +1,38 @@
+{
+  "taskId": "B10",
+  "substep": "B10.2",
+  "status": "partial",
+  "baseCommit": "42d400e",
+  "implementationCommit": null,
+  "classification": "synthetic-fixture real local API browser acceptance",
+  "commands": [
+    {
+      "command": "node --test platform/site/tests/*.spec.mjs",
+      "passed": 16,
+      "exitCode": 0
+    },
+    {
+      "command": "node platform/site/tests/browser-qa.mjs",
+      "exitCode": 0,
+      "matrix": "3 owners x 4 widths"
+    }
+  ],
+  "assertions": [
+    "real Ed25519 message authentication",
+    "same-SPA owner/logout isolation",
+    "server-derived0.1X reset/10X components",
+    "pending evidence has no zero substitute",
+    "26asset complete paginated summary",
+    "concealed/101asset suppression",
+    "keyboard pagination and browser Back"
+  ],
+  "financialExecution": false,
+  "unresolved": [
+    "remaining collection eligibility/progression cases",
+    "physical wallet/release provenance"
+  ],
+  "logs": [
+    "work/b10-2-browser.log",
+    "work/b10-2-integrated-browser.log"
+  ]
+}

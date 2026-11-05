@@ -1,0 +1,2453 @@
+{
+  "task": "B14.1",
+  "scope": "offline raw-pool comparison only",
+  "sourceInventory": {
+    "format": "10x.local.quote-comparison.sources.v1",
+    "sources": [
+      {
+        "id": "synthetic-sdk-1.5.1",
+        "path": "quotes/fixtures/sdk-vectors.json",
+        "sha256": "9af7cc3d363c45e1198749ea6134b7d42e3d48f1163c86f4e050cf2ec3c5a962",
+        "sourceCommit": "e85136bee993c47e0f904f4c5fcb02d70b3b3352",
+        "scope": "synthetic-arithmetic",
+        "label": "cp-amm-sdk 1.5.1 / synthetic raw pool bytes / no RPC"
+      },
+      {
+        "id": "dated-program-observation",
+        "path": "lab/fixtures/meteora-deployment-observation.json",
+        "sha256": "f5ed6d5205b9bd5b7a6447f45fe28962e7ddff32ec44833e6d1347557fd60a5b",
+        "sourceCommit": "4a424af2c46315e1992c2ce5503cd7f229618a2a",
+        "scope": "dated-binary-observation-only",
+        "label": "November 5 program digest observation; no paired pre-swap state"
+      },
+      {
+        "id": "protocol-limitations",
+        "path": "validation/protocol-status.md",
+        "sha256": "44a4632b33f564baa39ceb3b202af7b9a7dd3867e62d97506cce5faab99f2b27",
+        "sourceCommit": "51c0741c757453bdd9f1bcdd9ef9d18f066ab920",
+        "scope": "recorded-compatibility-limitations",
+        "label": "Executed swaps and protocol-share deltas do not provide exact-state quote pairs"
+      }
+    ],
+    "capturedProgram": {
+      "program": "cpamdpZCGKUy5JxQXB4dcpGPiikHawvSWAd6mEn1sGG",
+      "datedBinaryDigest": "967ff9fb161eec2e62f66d2c899100739fb747c445f697b8625c86b31b9a2022",
+      "exactPreSwapPairs": [],
+      "requiredElapsedSeconds": [
+        0,
+        88,
+        89,
+        90
+      ],
+      "directions": [
+        "buy-att",
+        "sell-att"
+      ],
+      "status": "missing",
+      "reason": "exact-pre-swap-state-and-full-observed-deltas-not-retained"
+    },
+    "financialExecution": false
+  },
+  "applicability": {
+    "format": "10x.local.quote-comparison.v1",
+    "items": [
+      {
+        "id": "synthetic-sdk-1.5.1:0",
+        "status": "matched",
+        "reason": "all-applicable-records-matched",
+        "missingRecordIds": [],
+        "comparisons": [
+          {
+            "recordId": "synthetic-sdk-1.5.1:0",
+            "evidenceKind": "synthetic-sdk",
+            "scope": "synthetic-arithmetic",
+            "coverage": "raw-pool-only",
+            "hashes": {
+              "recordDigest": "d18be0c64bcb647a45b91471a6486956fb3c770e10d1ab8bde03ac80f6d7339e",
+              "sourceFileDigest": "9af7cc3d363c45e1198749ea6134b7d42e3d48f1163c86f4e050cf2ec3c5a962",
+              "poolByteDigest": "c8b1f052b91eddc28b52a4b99aad78873084bfc29d80f42528b16887e112581b",
+              "programBinaryDigest": null
+            },
+            "executable": false,
+            "financialExecution": false,
+            "status": "matched",
+            "reason": "expected-rejection",
+            "expectedErrorCode": "dust_input",
+            "actualErrorCode": "dust_input"
+          }
+        ]
+      },
+      {
+        "id": "synthetic-sdk-1.5.1:1",
+        "status": "matched",
+        "reason": "all-applicable-records-matched",
+        "missingRecordIds": [],
+        "comparisons": [
+          {
+            "recordId": "synthetic-sdk-1.5.1:1",
+            "evidenceKind": "synthetic-sdk",
+            "scope": "synthetic-arithmetic",
+            "coverage": "raw-pool-only",
+            "hashes": {
+              "recordDigest": "10937b939dcb446b383907196aa8d65394783c97ec97d917a0107e0a2ecafc45",
+              "sourceFileDigest": "9af7cc3d363c45e1198749ea6134b7d42e3d48f1163c86f4e050cf2ec3c5a962",
+              "poolByteDigest": "c8b1f052b91eddc28b52a4b99aad78873084bfc29d80f42528b16887e112581b",
+              "programBinaryDigest": null
+            },
+            "executable": false,
+            "financialExecution": false,
+            "status": "matched",
+            "reason": "exact-observed-deltas",
+            "actual": {
+              "outputUnits": "2499999916",
+              "grossOutputUnits": "2499999916",
+              "inputFeeUnits": "900",
+              "outputFeeUnits": "0",
+              "totalFeeUnits": "900",
+              "nextSqrtPriceX64": "3689348852551061"
+            }
+          }
+        ]
+      },
+      {
+        "id": "synthetic-sdk-1.5.1:2",
+        "status": "matched",
+        "reason": "all-applicable-records-matched",
+        "missingRecordIds": [],
+        "comparisons": [
+          {
+            "recordId": "synthetic-sdk-1.5.1:2",
+            "evidenceKind": "synthetic-sdk",
+            "scope": "synthetic-arithmetic",
+            "coverage": "raw-pool-only",
+            "hashes": {
+              "recordDigest": "07a18734a63c39b55ac8d62063e2b3d5b72272ffb0ecfceebc0fff646c636a5e",
+              "sourceFileDigest": "9af7cc3d363c45e1198749ea6134b7d42e3d48f1163c86f4e050cf2ec3c5a962",
+              "poolByteDigest": "c8b1f052b91eddc28b52a4b99aad78873084bfc29d80f42528b16887e112581b",
+              "programBinaryDigest": null
+            },
+            "executable": false,
+            "financialExecution": false,
+            "status": "matched",
+            "reason": "exact-observed-deltas",
+            "actual": {
+              "outputUnits": "2499974379777",
+              "grossOutputUnits": "2499974379777",
+              "inputFeeUnits": "900000",
+              "outputFeeUnits": "0",
+              "totalFeeUnits": "900000",
+              "nextSqrtPriceX64": "3689386623893790"
+            }
+          }
+        ]
+      },
+      {
+        "id": "synthetic-sdk-1.5.1:3",
+        "status": "matched",
+        "reason": "all-applicable-records-matched",
+        "missingRecordIds": [],
+        "comparisons": [
+          {
+            "recordId": "synthetic-sdk-1.5.1:3",
+            "evidenceKind": "synthetic-sdk",
+            "scope": "synthetic-arithmetic",
+            "coverage": "raw-pool-only",
+            "hashes": {
+              "recordDigest": "34cfb396c35e6db67e4b8834edb0ee66562655e496ce00115290c6a25c8a2db6",
+              "sourceFileDigest": "9af7cc3d363c45e1198749ea6134b7d42e3d48f1163c86f4e050cf2ec3c5a962",
+              "poolByteDigest": "c8b1f052b91eddc28b52a4b99aad78873084bfc29d80f42528b16887e112581b",
+              "programBinaryDigest": null
+            },
+            "executable": false,
+            "financialExecution": false,
+            "status": "matched",
+            "reason": "exact-observed-deltas",
+            "actual": {
+              "outputUnits": "2474639422169167",
+              "grossOutputUnits": "2474639422169167",
+              "inputFeeUnits": "900000000",
+              "outputFeeUnits": "0",
+              "totalFeeUnits": "900000000",
+              "nextSqrtPriceX64": "3727157966622014"
+            }
+          }
+        ]
+      },
+      {
+        "id": "synthetic-sdk-1.5.1:4",
+        "status": "matched",
+        "reason": "all-applicable-records-matched",
+        "missingRecordIds": [],
+        "comparisons": [
+          {
+            "recordId": "synthetic-sdk-1.5.1:4",
+            "evidenceKind": "synthetic-sdk",
+            "scope": "synthetic-arithmetic",
+            "coverage": "raw-pool-only",
+            "hashes": {
+              "recordDigest": "5086d7b2b7388fbf703b25525f21ea5e5436291c2cb02d914ce714405c43139c",
+              "sourceFileDigest": "9af7cc3d363c45e1198749ea6134b7d42e3d48f1163c86f4e050cf2ec3c5a962",
+              "poolByteDigest": "c8b1f052b91eddc28b52a4b99aad78873084bfc29d80f42528b16887e112581b",
+              "programBinaryDigest": null
+            },
+            "executable": false,
+            "financialExecution": false,
+            "status": "matched",
+            "reason": "expected-rejection",
+            "expectedErrorCode": "price_range",
+            "actualErrorCode": "price_range"
+          }
+        ]
+      },
+      {
+        "id": "synthetic-sdk-1.5.1:5",
+        "status": "matched",
+        "reason": "all-applicable-records-matched",
+        "missingRecordIds": [],
+        "comparisons": [
+          {
+            "recordId": "synthetic-sdk-1.5.1:5",
+            "evidenceKind": "synthetic-sdk",
+            "scope": "synthetic-arithmetic",
+            "coverage": "raw-pool-only",
+            "hashes": {
+              "recordDigest": "04bce41a80d77e509a7ae811f43ab94aa60a29e0c0621f0ffbb23770ff1a23d7",
+              "sourceFileDigest": "9af7cc3d363c45e1198749ea6134b7d42e3d48f1163c86f4e050cf2ec3c5a962",
+              "poolByteDigest": "c8b1f052b91eddc28b52a4b99aad78873084bfc29d80f42528b16887e112581b",
+              "programBinaryDigest": null
+            },
+            "executable": false,
+            "financialExecution": false,
+            "status": "matched",
+            "reason": "expected-rejection",
+            "expectedErrorCode": "dust_output",
+            "actualErrorCode": "dust_output"
+          }
+        ]
+      },
+      {
+        "id": "synthetic-sdk-1.5.1:6",
+        "status": "matched",
+        "reason": "all-applicable-records-matched",
+        "missingRecordIds": [],
+        "comparisons": [
+          {
+            "recordId": "synthetic-sdk-1.5.1:6",
+            "evidenceKind": "synthetic-sdk",
+            "scope": "synthetic-arithmetic",
+            "coverage": "raw-pool-only",
+            "hashes": {
+              "recordDigest": "751619acd1135644527ebb8b5a6228b4c6b422a48383acc3ba90f1a6ee4d80b7",
+              "sourceFileDigest": "9af7cc3d363c45e1198749ea6134b7d42e3d48f1163c86f4e050cf2ec3c5a962",
+              "poolByteDigest": "c8b1f052b91eddc28b52a4b99aad78873084bfc29d80f42528b16887e112581b",
+              "programBinaryDigest": null
+            },
+            "executable": false,
+            "financialExecution": false,
+            "status": "matched",
+            "reason": "expected-rejection",
+            "expectedErrorCode": "dust_output",
+            "actualErrorCode": "dust_output"
+          }
+        ]
+      },
+      {
+        "id": "synthetic-sdk-1.5.1:7",
+        "status": "matched",
+        "reason": "all-applicable-records-matched",
+        "missingRecordIds": [],
+        "comparisons": [
+          {
+            "recordId": "synthetic-sdk-1.5.1:7",
+            "evidenceKind": "synthetic-sdk",
+            "scope": "synthetic-arithmetic",
+            "coverage": "raw-pool-only",
+            "hashes": {
+              "recordDigest": "52d1c07988ecfe32baf8920a00ad3a2e6a9774dd4fa05cda6b3a2c79824f1bf4",
+              "sourceFileDigest": "9af7cc3d363c45e1198749ea6134b7d42e3d48f1163c86f4e050cf2ec3c5a962",
+              "poolByteDigest": "c8b1f052b91eddc28b52a4b99aad78873084bfc29d80f42528b16887e112581b",
+              "programBinaryDigest": null
+            },
+            "executable": false,
+            "financialExecution": false,
+            "status": "matched",
+            "reason": "expected-rejection",
+            "expectedErrorCode": "dust_output",
+            "actualErrorCode": "dust_output"
+          }
+        ]
+      },
+      {
+        "id": "synthetic-sdk-1.5.1:8",
+        "status": "matched",
+        "reason": "all-applicable-records-matched",
+        "missingRecordIds": [],
+        "comparisons": [
+          {
+            "recordId": "synthetic-sdk-1.5.1:8",
+            "evidenceKind": "synthetic-sdk",
+            "scope": "synthetic-arithmetic",
+            "coverage": "raw-pool-only",
+            "hashes": {
+              "recordDigest": "67c8594513afe92020ad3c0a75cbacd1e6d6d78453d21430b7f43d1466845b1a",
+              "sourceFileDigest": "9af7cc3d363c45e1198749ea6134b7d42e3d48f1163c86f4e050cf2ec3c5a962",
+              "poolByteDigest": "c8b1f052b91eddc28b52a4b99aad78873084bfc29d80f42528b16887e112581b",
+              "programBinaryDigest": null
+            },
+            "executable": false,
+            "financialExecution": false,
+            "status": "matched",
+            "reason": "exact-observed-deltas",
+            "actual": {
+              "outputUnits": "3",
+              "grossOutputUnits": "39",
+              "inputFeeUnits": "0",
+              "outputFeeUnits": "36",
+              "totalFeeUnits": "36",
+              "nextSqrtPriceX64": "3689348799618250"
+            }
+          }
+        ]
+      },
+      {
+        "id": "synthetic-sdk-1.5.1:9",
+        "status": "matched",
+        "reason": "all-applicable-records-matched",
+        "missingRecordIds": [],
+        "comparisons": [
+          {
+            "recordId": "synthetic-sdk-1.5.1:9",
+            "evidenceKind": "synthetic-sdk",
+            "scope": "synthetic-arithmetic",
+            "coverage": "raw-pool-only",
+            "hashes": {
+              "recordDigest": "ff85ac5306da9f5a911524a27f6f23759975d0a63ff534deb218b2717a7ed6ba",
+              "sourceFileDigest": "9af7cc3d363c45e1198749ea6134b7d42e3d48f1163c86f4e050cf2ec3c5a962",
+              "poolByteDigest": "c8b1f052b91eddc28b52a4b99aad78873084bfc29d80f42528b16887e112581b",
+              "programBinaryDigest": null
+            },
+            "executable": false,
+            "financialExecution": false,
+            "status": "matched",
+            "reason": "exact-observed-deltas",
+            "actual": {
+              "outputUnits": "3999",
+              "grossOutputUnits": "39999",
+              "inputFeeUnits": "0",
+              "outputFeeUnits": "36000",
+              "totalFeeUnits": "36000",
+              "nextSqrtPriceX64": "3689333691143154"
+            }
+          }
+        ]
+      },
+      {
+        "id": "synthetic-sdk-1.5.1:10",
+        "status": "matched",
+        "reason": "all-applicable-records-matched",
+        "missingRecordIds": [],
+        "comparisons": [
+          {
+            "recordId": "synthetic-sdk-1.5.1:10",
+            "evidenceKind": "synthetic-sdk",
+            "scope": "synthetic-arithmetic",
+            "coverage": "raw-pool-only",
+            "hashes": {
+              "recordDigest": "7089611f976cd8f5d8d9aedc94552ece7c43deec41a6fbf4b62a76159bf0815e",
+              "sourceFileDigest": "9af7cc3d363c45e1198749ea6134b7d42e3d48f1163c86f4e050cf2ec3c5a962",
+              "poolByteDigest": "c8b1f052b91eddc28b52a4b99aad78873084bfc29d80f42528b16887e112581b",
+              "programBinaryDigest": null
+            },
+            "executable": false,
+            "financialExecution": false,
+            "status": "matched",
+            "reason": "expected-rejection",
+            "expectedErrorCode": "dust_input",
+            "actualErrorCode": "dust_input"
+          }
+        ]
+      },
+      {
+        "id": "synthetic-sdk-1.5.1:11",
+        "status": "matched",
+        "reason": "all-applicable-records-matched",
+        "missingRecordIds": [],
+        "comparisons": [
+          {
+            "recordId": "synthetic-sdk-1.5.1:11",
+            "evidenceKind": "synthetic-sdk",
+            "scope": "synthetic-arithmetic",
+            "coverage": "raw-pool-only",
+            "hashes": {
+              "recordDigest": "792062897a34ac20754fedf4b8019007b45d93257e9429cb0c1b93b366cbd199",
+              "sourceFileDigest": "9af7cc3d363c45e1198749ea6134b7d42e3d48f1163c86f4e050cf2ec3c5a962",
+              "poolByteDigest": "c8b1f052b91eddc28b52a4b99aad78873084bfc29d80f42528b16887e112581b",
+              "programBinaryDigest": null
+            },
+            "executable": false,
+            "financialExecution": false,
+            "status": "matched",
+            "reason": "exact-observed-deltas",
+            "actual": {
+              "outputUnits": "2749999964",
+              "grossOutputUnits": "2749999964",
+              "inputFeeUnits": "890",
+              "outputFeeUnits": "0",
+              "totalFeeUnits": "890",
+              "nextSqrtPriceX64": "3689348856331977"
+            }
+          }
+        ]
+      },
+      {
+        "id": "synthetic-sdk-1.5.1:12",
+        "status": "matched",
+        "reason": "all-applicable-records-matched",
+        "missingRecordIds": [],
+        "comparisons": [
+          {
+            "recordId": "synthetic-sdk-1.5.1:12",
+            "evidenceKind": "synthetic-sdk",
+            "scope": "synthetic-arithmetic",
+            "coverage": "raw-pool-only",
+            "hashes": {
+              "recordDigest": "43ec3f8c48c098d8e0a02b7ee037da73c8626be5531bfc6cce329d4c65ad05fe",
+              "sourceFileDigest": "9af7cc3d363c45e1198749ea6134b7d42e3d48f1163c86f4e050cf2ec3c5a962",
+              "poolByteDigest": "c8b1f052b91eddc28b52a4b99aad78873084bfc29d80f42528b16887e112581b",
+              "programBinaryDigest": null
+            },
+            "executable": false,
+            "financialExecution": false,
+            "status": "matched",
+            "reason": "exact-observed-deltas",
+            "actual": {
+              "outputUnits": "2749968999563",
+              "grossOutputUnits": "2749968999563",
+              "inputFeeUnits": "890000",
+              "outputFeeUnits": "0",
+              "totalFeeUnits": "890000",
+              "nextSqrtPriceX64": "3689390404808978"
+            }
+          }
+        ]
+      },
+      {
+        "id": "synthetic-sdk-1.5.1:13",
+        "status": "matched",
+        "reason": "all-applicable-records-matched",
+        "missingRecordIds": [],
+        "comparisons": [
+          {
+            "recordId": "synthetic-sdk-1.5.1:13",
+            "evidenceKind": "synthetic-sdk",
+            "scope": "synthetic-arithmetic",
+            "coverage": "raw-pool-only",
+            "hashes": {
+              "recordDigest": "0c0bd2c195785d9b826e2cb506261a82aaee00bf798143ad0ecbddd6b20ee80a",
+              "sourceFileDigest": "9af7cc3d363c45e1198749ea6134b7d42e3d48f1163c86f4e050cf2ec3c5a962",
+              "poolByteDigest": "c8b1f052b91eddc28b52a4b99aad78873084bfc29d80f42528b16887e112581b",
+              "programBinaryDigest": null
+            },
+            "executable": false,
+            "financialExecution": false,
+            "status": "matched",
+            "reason": "exact-observed-deltas",
+            "actual": {
+              "outputUnits": "2719344798169945",
+              "grossOutputUnits": "2719344798169945",
+              "inputFeeUnits": "890000000",
+              "outputFeeUnits": "0",
+              "totalFeeUnits": "890000000",
+              "nextSqrtPriceX64": "3730938881810024"
+            }
+          }
+        ]
+      },
+      {
+        "id": "synthetic-sdk-1.5.1:14",
+        "status": "matched",
+        "reason": "all-applicable-records-matched",
+        "missingRecordIds": [],
+        "comparisons": [
+          {
+            "recordId": "synthetic-sdk-1.5.1:14",
+            "evidenceKind": "synthetic-sdk",
+            "scope": "synthetic-arithmetic",
+            "coverage": "raw-pool-only",
+            "hashes": {
+              "recordDigest": "dcdd23c1c4dfaa7ec96981e99a476c3d706d2cc4762f14744bbbe8849b996cb1",
+              "sourceFileDigest": "9af7cc3d363c45e1198749ea6134b7d42e3d48f1163c86f4e050cf2ec3c5a962",
+              "poolByteDigest": "c8b1f052b91eddc28b52a4b99aad78873084bfc29d80f42528b16887e112581b",
+              "programBinaryDigest": null
+            },
+            "executable": false,
+            "financialExecution": false,
+            "status": "matched",
+            "reason": "expected-rejection",
+            "expectedErrorCode": "price_range",
+            "actualErrorCode": "price_range"
+          }
+        ]
+      },
+      {
+        "id": "synthetic-sdk-1.5.1:15",
+        "status": "matched",
+        "reason": "all-applicable-records-matched",
+        "missingRecordIds": [],
+        "comparisons": [
+          {
+            "recordId": "synthetic-sdk-1.5.1:15",
+            "evidenceKind": "synthetic-sdk",
+            "scope": "synthetic-arithmetic",
+            "coverage": "raw-pool-only",
+            "hashes": {
+              "recordDigest": "71c4c92e45b2ed761c0ae5213c264ff542cc5dd7e95d62de420f5a66d2493de5",
+              "sourceFileDigest": "9af7cc3d363c45e1198749ea6134b7d42e3d48f1163c86f4e050cf2ec3c5a962",
+              "poolByteDigest": "c8b1f052b91eddc28b52a4b99aad78873084bfc29d80f42528b16887e112581b",
+              "programBinaryDigest": null
+            },
+            "executable": false,
+            "financialExecution": false,
+            "status": "matched",
+            "reason": "expected-rejection",
+            "expectedErrorCode": "dust_output",
+            "actualErrorCode": "dust_output"
+          }
+        ]
+      },
+      {
+        "id": "synthetic-sdk-1.5.1:16",
+        "status": "matched",
+        "reason": "all-applicable-records-matched",
+        "missingRecordIds": [],
+        "comparisons": [
+          {
+            "recordId": "synthetic-sdk-1.5.1:16",
+            "evidenceKind": "synthetic-sdk",
+            "scope": "synthetic-arithmetic",
+            "coverage": "raw-pool-only",
+            "hashes": {
+              "recordDigest": "5e534c5aa5cfa36c4b22768969017badcb398a45d1c4f7a4a8049209034e1cbb",
+              "sourceFileDigest": "9af7cc3d363c45e1198749ea6134b7d42e3d48f1163c86f4e050cf2ec3c5a962",
+              "poolByteDigest": "c8b1f052b91eddc28b52a4b99aad78873084bfc29d80f42528b16887e112581b",
+              "programBinaryDigest": null
+            },
+            "executable": false,
+            "financialExecution": false,
+            "status": "matched",
+            "reason": "expected-rejection",
+            "expectedErrorCode": "dust_output",
+            "actualErrorCode": "dust_output"
+          }
+        ]
+      },
+      {
+        "id": "synthetic-sdk-1.5.1:17",
+        "status": "matched",
+        "reason": "all-applicable-records-matched",
+        "missingRecordIds": [],
+        "comparisons": [
+          {
+            "recordId": "synthetic-sdk-1.5.1:17",
+            "evidenceKind": "synthetic-sdk",
+            "scope": "synthetic-arithmetic",
+            "coverage": "raw-pool-only",
+            "hashes": {
+              "recordDigest": "e186cdadbc77cb36de2979a0e219235ab01020796701affe04d2d3482ed6e98d",
+              "sourceFileDigest": "9af7cc3d363c45e1198749ea6134b7d42e3d48f1163c86f4e050cf2ec3c5a962",
+              "poolByteDigest": "c8b1f052b91eddc28b52a4b99aad78873084bfc29d80f42528b16887e112581b",
+              "programBinaryDigest": null
+            },
+            "executable": false,
+            "financialExecution": false,
+            "status": "matched",
+            "reason": "expected-rejection",
+            "expectedErrorCode": "dust_output",
+            "actualErrorCode": "dust_output"
+          }
+        ]
+      },
+      {
+        "id": "synthetic-sdk-1.5.1:18",
+        "status": "matched",
+        "reason": "all-applicable-records-matched",
+        "missingRecordIds": [],
+        "comparisons": [
+          {
+            "recordId": "synthetic-sdk-1.5.1:18",
+            "evidenceKind": "synthetic-sdk",
+            "scope": "synthetic-arithmetic",
+            "coverage": "raw-pool-only",
+            "hashes": {
+              "recordDigest": "952267808534f0f5a124ca70e35aba0d4ea826bd88d9f554172faa3883876cb6",
+              "sourceFileDigest": "9af7cc3d363c45e1198749ea6134b7d42e3d48f1163c86f4e050cf2ec3c5a962",
+              "poolByteDigest": "c8b1f052b91eddc28b52a4b99aad78873084bfc29d80f42528b16887e112581b",
+              "programBinaryDigest": null
+            },
+            "executable": false,
+            "financialExecution": false,
+            "status": "matched",
+            "reason": "exact-observed-deltas",
+            "actual": {
+              "outputUnits": "4",
+              "grossOutputUnits": "39",
+              "inputFeeUnits": "0",
+              "outputFeeUnits": "35",
+              "totalFeeUnits": "35",
+              "nextSqrtPriceX64": "3689348799618250"
+            }
+          }
+        ]
+      },
+      {
+        "id": "synthetic-sdk-1.5.1:19",
+        "status": "matched",
+        "reason": "all-applicable-records-matched",
+        "missingRecordIds": [],
+        "comparisons": [
+          {
+            "recordId": "synthetic-sdk-1.5.1:19",
+            "evidenceKind": "synthetic-sdk",
+            "scope": "synthetic-arithmetic",
+            "coverage": "raw-pool-only",
+            "hashes": {
+              "recordDigest": "fc3003b7138f3d053e7f8ae1736b21acee4cafcb36c491485b428461ff982cd1",
+              "sourceFileDigest": "9af7cc3d363c45e1198749ea6134b7d42e3d48f1163c86f4e050cf2ec3c5a962",
+              "poolByteDigest": "c8b1f052b91eddc28b52a4b99aad78873084bfc29d80f42528b16887e112581b",
+              "programBinaryDigest": null
+            },
+            "executable": false,
+            "financialExecution": false,
+            "status": "matched",
+            "reason": "exact-observed-deltas",
+            "actual": {
+              "outputUnits": "4399",
+              "grossOutputUnits": "39999",
+              "inputFeeUnits": "0",
+              "outputFeeUnits": "35600",
+              "totalFeeUnits": "35600",
+              "nextSqrtPriceX64": "3689333691143154"
+            }
+          }
+        ]
+      },
+      {
+        "id": "synthetic-sdk-1.5.1:20",
+        "status": "matched",
+        "reason": "all-applicable-records-matched",
+        "missingRecordIds": [],
+        "comparisons": [
+          {
+            "recordId": "synthetic-sdk-1.5.1:20",
+            "evidenceKind": "synthetic-sdk",
+            "scope": "synthetic-arithmetic",
+            "coverage": "raw-pool-only",
+            "hashes": {
+              "recordDigest": "82f9646a934a6525bc6ab124472a2b9d4426e3c9db81142b0f39d7931e65bfa8",
+              "sourceFileDigest": "9af7cc3d363c45e1198749ea6134b7d42e3d48f1163c86f4e050cf2ec3c5a962",
+              "poolByteDigest": "c8b1f052b91eddc28b52a4b99aad78873084bfc29d80f42528b16887e112581b",
+              "programBinaryDigest": null
+            },
+            "executable": false,
+            "financialExecution": false,
+            "status": "matched",
+            "reason": "expected-rejection",
+            "expectedErrorCode": "dust_input",
+            "actualErrorCode": "dust_input"
+          }
+        ]
+      },
+      {
+        "id": "synthetic-sdk-1.5.1:21",
+        "status": "matched",
+        "reason": "all-applicable-records-matched",
+        "missingRecordIds": [],
+        "comparisons": [
+          {
+            "recordId": "synthetic-sdk-1.5.1:21",
+            "evidenceKind": "synthetic-sdk",
+            "scope": "synthetic-arithmetic",
+            "coverage": "raw-pool-only",
+            "hashes": {
+              "recordDigest": "511343a1a15a352a22849ff8ded1ff8ef9149b0123f43ce757636ec6eb183d6f",
+              "sourceFileDigest": "9af7cc3d363c45e1198749ea6134b7d42e3d48f1163c86f4e050cf2ec3c5a962",
+              "poolByteDigest": "c8b1f052b91eddc28b52a4b99aad78873084bfc29d80f42528b16887e112581b",
+              "programBinaryDigest": null
+            },
+            "executable": false,
+            "financialExecution": false,
+            "status": "matched",
+            "reason": "exact-observed-deltas",
+            "actual": {
+              "outputUnits": "9999999555",
+              "grossOutputUnits": "9999999555",
+              "inputFeeUnits": "600",
+              "outputFeeUnits": "0",
+              "totalFeeUnits": "600",
+              "nextSqrtPriceX64": "3689348965978517"
+            }
+          }
+        ]
+      },
+      {
+        "id": "synthetic-sdk-1.5.1:22",
+        "status": "matched",
+        "reason": "all-applicable-records-matched",
+        "missingRecordIds": [],
+        "comparisons": [
+          {
+            "recordId": "synthetic-sdk-1.5.1:22",
+            "evidenceKind": "synthetic-sdk",
+            "scope": "synthetic-arithmetic",
+            "coverage": "raw-pool-only",
+            "hashes": {
+              "recordDigest": "8e254aa92589f3d1df34ced619431b75bed26a114b6bbe151846108b96901148",
+              "sourceFileDigest": "9af7cc3d363c45e1198749ea6134b7d42e3d48f1163c86f4e050cf2ec3c5a962",
+              "poolByteDigest": "c8b1f052b91eddc28b52a4b99aad78873084bfc29d80f42528b16887e112581b",
+              "programBinaryDigest": null
+            },
+            "executable": false,
+            "financialExecution": false,
+            "status": "matched",
+            "reason": "exact-observed-deltas",
+            "actual": {
+              "outputUnits": "9999590089129",
+              "grossOutputUnits": "9999590089129",
+              "inputFeeUnits": "600000",
+              "outputFeeUnits": "0",
+              "totalFeeUnits": "600000",
+              "nextSqrtPriceX64": "3689500051349430"
+            }
+          }
+        ]
+      },
+      {
+        "id": "synthetic-sdk-1.5.1:23",
+        "status": "matched",
+        "reason": "all-applicable-records-matched",
+        "missingRecordIds": [],
+        "comparisons": [
+          {
+            "recordId": "synthetic-sdk-1.5.1:23",
+            "evidenceKind": "synthetic-sdk",
+            "scope": "synthetic-arithmetic",
+            "coverage": "raw-pool-only",
+            "hashes": {
+              "recordDigest": "9fa17cfb64ae730b7f5cb387d12279def0e8d264be04f554c69bd8011841e650",
+              "sourceFileDigest": "9af7cc3d363c45e1198749ea6134b7d42e3d48f1163c86f4e050cf2ec3c5a962",
+              "poolByteDigest": "c8b1f052b91eddc28b52a4b99aad78873084bfc29d80f42528b16887e112581b",
+              "programBinaryDigest": null
+            },
+            "executable": false,
+            "financialExecution": false,
+            "status": "matched",
+            "reason": "exact-observed-deltas",
+            "actual": {
+              "outputUnits": "9606214701946841",
+              "grossOutputUnits": "9606214701946841",
+              "inputFeeUnits": "600000000",
+              "outputFeeUnits": "0",
+              "totalFeeUnits": "600000000",
+              "nextSqrtPriceX64": "3840585422262327"
+            }
+          }
+        ]
+      },
+      {
+        "id": "synthetic-sdk-1.5.1:24",
+        "status": "matched",
+        "reason": "all-applicable-records-matched",
+        "missingRecordIds": [],
+        "comparisons": [
+          {
+            "recordId": "synthetic-sdk-1.5.1:24",
+            "evidenceKind": "synthetic-sdk",
+            "scope": "synthetic-arithmetic",
+            "coverage": "raw-pool-only",
+            "hashes": {
+              "recordDigest": "255c7d5c4cc612bea43cf475d1d6a728ab9e99c0ac00206885fbe04dea7c21a0",
+              "sourceFileDigest": "9af7cc3d363c45e1198749ea6134b7d42e3d48f1163c86f4e050cf2ec3c5a962",
+              "poolByteDigest": "c8b1f052b91eddc28b52a4b99aad78873084bfc29d80f42528b16887e112581b",
+              "programBinaryDigest": null
+            },
+            "executable": false,
+            "financialExecution": false,
+            "status": "matched",
+            "reason": "expected-rejection",
+            "expectedErrorCode": "price_range",
+            "actualErrorCode": "price_range"
+          }
+        ]
+      },
+      {
+        "id": "synthetic-sdk-1.5.1:25",
+        "status": "matched",
+        "reason": "all-applicable-records-matched",
+        "missingRecordIds": [],
+        "comparisons": [
+          {
+            "recordId": "synthetic-sdk-1.5.1:25",
+            "evidenceKind": "synthetic-sdk",
+            "scope": "synthetic-arithmetic",
+            "coverage": "raw-pool-only",
+            "hashes": {
+              "recordDigest": "9e7bdc9061c5ec784f3f0e3d11bc225f44edc4d0be2542c5cb11d540bb4a6f1d",
+              "sourceFileDigest": "9af7cc3d363c45e1198749ea6134b7d42e3d48f1163c86f4e050cf2ec3c5a962",
+              "poolByteDigest": "c8b1f052b91eddc28b52a4b99aad78873084bfc29d80f42528b16887e112581b",
+              "programBinaryDigest": null
+            },
+            "executable": false,
+            "financialExecution": false,
+            "status": "matched",
+            "reason": "expected-rejection",
+            "expectedErrorCode": "dust_output",
+            "actualErrorCode": "dust_output"
+          }
+        ]
+      },
+      {
+        "id": "synthetic-sdk-1.5.1:26",
+        "status": "matched",
+        "reason": "all-applicable-records-matched",
+        "missingRecordIds": [],
+        "comparisons": [
+          {
+            "recordId": "synthetic-sdk-1.5.1:26",
+            "evidenceKind": "synthetic-sdk",
+            "scope": "synthetic-arithmetic",
+            "coverage": "raw-pool-only",
+            "hashes": {
+              "recordDigest": "549fad7bbb075aa3c1497b78e6ad5870c060b898a87e7959ba761d00ecfd4092",
+              "sourceFileDigest": "9af7cc3d363c45e1198749ea6134b7d42e3d48f1163c86f4e050cf2ec3c5a962",
+              "poolByteDigest": "c8b1f052b91eddc28b52a4b99aad78873084bfc29d80f42528b16887e112581b",
+              "programBinaryDigest": null
+            },
+            "executable": false,
+            "financialExecution": false,
+            "status": "matched",
+            "reason": "expected-rejection",
+            "expectedErrorCode": "dust_output",
+            "actualErrorCode": "dust_output"
+          }
+        ]
+      },
+      {
+        "id": "synthetic-sdk-1.5.1:27",
+        "status": "matched",
+        "reason": "all-applicable-records-matched",
+        "missingRecordIds": [],
+        "comparisons": [
+          {
+            "recordId": "synthetic-sdk-1.5.1:27",
+            "evidenceKind": "synthetic-sdk",
+            "scope": "synthetic-arithmetic",
+            "coverage": "raw-pool-only",
+            "hashes": {
+              "recordDigest": "fcae363461eed8a8de77ca367844bb2200509dd06140374e923bb868b56154b7",
+              "sourceFileDigest": "9af7cc3d363c45e1198749ea6134b7d42e3d48f1163c86f4e050cf2ec3c5a962",
+              "poolByteDigest": "c8b1f052b91eddc28b52a4b99aad78873084bfc29d80f42528b16887e112581b",
+              "programBinaryDigest": null
+            },
+            "executable": false,
+            "financialExecution": false,
+            "status": "matched",
+            "reason": "expected-rejection",
+            "expectedErrorCode": "dust_output",
+            "actualErrorCode": "dust_output"
+          }
+        ]
+      },
+      {
+        "id": "synthetic-sdk-1.5.1:28",
+        "status": "matched",
+        "reason": "all-applicable-records-matched",
+        "missingRecordIds": [],
+        "comparisons": [
+          {
+            "recordId": "synthetic-sdk-1.5.1:28",
+            "evidenceKind": "synthetic-sdk",
+            "scope": "synthetic-arithmetic",
+            "coverage": "raw-pool-only",
+            "hashes": {
+              "recordDigest": "1eac37656e62322805b38fbd7e48703cf89350b19b2f19a50285808850f56e76",
+              "sourceFileDigest": "9af7cc3d363c45e1198749ea6134b7d42e3d48f1163c86f4e050cf2ec3c5a962",
+              "poolByteDigest": "c8b1f052b91eddc28b52a4b99aad78873084bfc29d80f42528b16887e112581b",
+              "programBinaryDigest": null
+            },
+            "executable": false,
+            "financialExecution": false,
+            "status": "matched",
+            "reason": "exact-observed-deltas",
+            "actual": {
+              "outputUnits": "15",
+              "grossOutputUnits": "39",
+              "inputFeeUnits": "0",
+              "outputFeeUnits": "24",
+              "totalFeeUnits": "24",
+              "nextSqrtPriceX64": "3689348799618250"
+            }
+          }
+        ]
+      },
+      {
+        "id": "synthetic-sdk-1.5.1:29",
+        "status": "matched",
+        "reason": "all-applicable-records-matched",
+        "missingRecordIds": [],
+        "comparisons": [
+          {
+            "recordId": "synthetic-sdk-1.5.1:29",
+            "evidenceKind": "synthetic-sdk",
+            "scope": "synthetic-arithmetic",
+            "coverage": "raw-pool-only",
+            "hashes": {
+              "recordDigest": "33e24a68599782d344c35aafd8be17926b6c30f4407d7e86c332f413a5f4a582",
+              "sourceFileDigest": "9af7cc3d363c45e1198749ea6134b7d42e3d48f1163c86f4e050cf2ec3c5a962",
+              "poolByteDigest": "c8b1f052b91eddc28b52a4b99aad78873084bfc29d80f42528b16887e112581b",
+              "programBinaryDigest": null
+            },
+            "executable": false,
+            "financialExecution": false,
+            "status": "matched",
+            "reason": "exact-observed-deltas",
+            "actual": {
+              "outputUnits": "15999",
+              "grossOutputUnits": "39999",
+              "inputFeeUnits": "0",
+              "outputFeeUnits": "24000",
+              "totalFeeUnits": "24000",
+              "nextSqrtPriceX64": "3689333691143154"
+            }
+          }
+        ]
+      },
+      {
+        "id": "synthetic-sdk-1.5.1:30",
+        "status": "matched",
+        "reason": "all-applicable-records-matched",
+        "missingRecordIds": [],
+        "comparisons": [
+          {
+            "recordId": "synthetic-sdk-1.5.1:30",
+            "evidenceKind": "synthetic-sdk",
+            "scope": "synthetic-arithmetic",
+            "coverage": "raw-pool-only",
+            "hashes": {
+              "recordDigest": "a5c643c525e1f15148f6d487d0b3ca3847651ee58f0ab80f0bf817e3abc24471",
+              "sourceFileDigest": "9af7cc3d363c45e1198749ea6134b7d42e3d48f1163c86f4e050cf2ec3c5a962",
+              "poolByteDigest": "c8b1f052b91eddc28b52a4b99aad78873084bfc29d80f42528b16887e112581b",
+              "programBinaryDigest": null
+            },
+            "executable": false,
+            "financialExecution": false,
+            "status": "matched",
+            "reason": "expected-rejection",
+            "expectedErrorCode": "dust_input",
+            "actualErrorCode": "dust_input"
+          }
+        ]
+      },
+      {
+        "id": "synthetic-sdk-1.5.1:31",
+        "status": "matched",
+        "reason": "all-applicable-records-matched",
+        "missingRecordIds": [],
+        "comparisons": [
+          {
+            "recordId": "synthetic-sdk-1.5.1:31",
+            "evidenceKind": "synthetic-sdk",
+            "scope": "synthetic-arithmetic",
+            "coverage": "raw-pool-only",
+            "hashes": {
+              "recordDigest": "471a70021e6bfad2e5c2b506186391e5cc73e564dcb4f6bc36e5b4f78ccae826",
+              "sourceFileDigest": "9af7cc3d363c45e1198749ea6134b7d42e3d48f1163c86f4e050cf2ec3c5a962",
+              "poolByteDigest": "c8b1f052b91eddc28b52a4b99aad78873084bfc29d80f42528b16887e112581b",
+              "programBinaryDigest": null
+            },
+            "executable": false,
+            "financialExecution": false,
+            "status": "matched",
+            "reason": "exact-observed-deltas",
+            "actual": {
+              "outputUnits": "17499998733",
+              "grossOutputUnits": "17499998733",
+              "inputFeeUnits": "300",
+              "outputFeeUnits": "0",
+              "totalFeeUnits": "300",
+              "nextSqrtPriceX64": "3689349079405973"
+            }
+          }
+        ]
+      },
+      {
+        "id": "synthetic-sdk-1.5.1:32",
+        "status": "matched",
+        "reason": "all-applicable-records-matched",
+        "missingRecordIds": [],
+        "comparisons": [
+          {
+            "recordId": "synthetic-sdk-1.5.1:32",
+            "evidenceKind": "synthetic-sdk",
+            "scope": "synthetic-arithmetic",
+            "coverage": "raw-pool-only",
+            "hashes": {
+              "recordDigest": "84a2201777a09720e0722973de365afad37fdd8b9465a5be17af3bfde4749c69",
+              "sourceFileDigest": "9af7cc3d363c45e1198749ea6134b7d42e3d48f1163c86f4e050cf2ec3c5a962",
+              "poolByteDigest": "c8b1f052b91eddc28b52a4b99aad78873084bfc29d80f42528b16887e112581b",
+              "programBinaryDigest": null
+            },
+            "executable": false,
+            "financialExecution": false,
+            "status": "matched",
+            "reason": "exact-observed-deltas",
+            "actual": {
+              "outputUnits": "17498744686588",
+              "grossOutputUnits": "17498744686588",
+              "inputFeeUnits": "300000",
+              "outputFeeUnits": "0",
+              "totalFeeUnits": "300000",
+              "nextSqrtPriceX64": "3689613478805070"
+            }
+          }
+        ]
+      },
+      {
+        "id": "synthetic-sdk-1.5.1:33",
+        "status": "matched",
+        "reason": "all-applicable-records-matched",
+        "missingRecordIds": [],
+        "comparisons": [
+          {
+            "recordId": "synthetic-sdk-1.5.1:33",
+            "evidenceKind": "synthetic-sdk",
+            "scope": "synthetic-arithmetic",
+            "coverage": "raw-pool-only",
+            "hashes": {
+              "recordDigest": "77162e0637d09b283a39fd7d318f2b7b180b380106778f8e16296ac83fba1fab",
+              "sourceFileDigest": "9af7cc3d363c45e1198749ea6134b7d42e3d48f1163c86f4e050cf2ec3c5a962",
+              "poolByteDigest": "c8b1f052b91eddc28b52a4b99aad78873084bfc29d80f42528b16887e112581b",
+              "programBinaryDigest": null
+            },
+            "executable": false,
+            "financialExecution": false,
+            "status": "matched",
+            "reason": "exact-observed-deltas",
+            "actual": {
+              "outputUnits": "16328627713582521",
+              "grossOutputUnits": "16328627713582521",
+              "inputFeeUnits": "300000000",
+              "outputFeeUnits": "0",
+              "totalFeeUnits": "300000000",
+              "nextSqrtPriceX64": "3954012877902639"
+            }
+          }
+        ]
+      },
+      {
+        "id": "synthetic-sdk-1.5.1:34",
+        "status": "matched",
+        "reason": "all-applicable-records-matched",
+        "missingRecordIds": [],
+        "comparisons": [
+          {
+            "recordId": "synthetic-sdk-1.5.1:34",
+            "evidenceKind": "synthetic-sdk",
+            "scope": "synthetic-arithmetic",
+            "coverage": "raw-pool-only",
+            "hashes": {
+              "recordDigest": "141bf51fd2c369614d66a05053f36d990e3017fe0898c5f3dfc2b500e87e742c",
+              "sourceFileDigest": "9af7cc3d363c45e1198749ea6134b7d42e3d48f1163c86f4e050cf2ec3c5a962",
+              "poolByteDigest": "c8b1f052b91eddc28b52a4b99aad78873084bfc29d80f42528b16887e112581b",
+              "programBinaryDigest": null
+            },
+            "executable": false,
+            "financialExecution": false,
+            "status": "matched",
+            "reason": "expected-rejection",
+            "expectedErrorCode": "price_range",
+            "actualErrorCode": "price_range"
+          }
+        ]
+      },
+      {
+        "id": "synthetic-sdk-1.5.1:35",
+        "status": "matched",
+        "reason": "all-applicable-records-matched",
+        "missingRecordIds": [],
+        "comparisons": [
+          {
+            "recordId": "synthetic-sdk-1.5.1:35",
+            "evidenceKind": "synthetic-sdk",
+            "scope": "synthetic-arithmetic",
+            "coverage": "raw-pool-only",
+            "hashes": {
+              "recordDigest": "df980cee77d1450fd5cee7335b35dabe44e5a0a1365c52cb53afb4f7468d2590",
+              "sourceFileDigest": "9af7cc3d363c45e1198749ea6134b7d42e3d48f1163c86f4e050cf2ec3c5a962",
+              "poolByteDigest": "c8b1f052b91eddc28b52a4b99aad78873084bfc29d80f42528b16887e112581b",
+              "programBinaryDigest": null
+            },
+            "executable": false,
+            "financialExecution": false,
+            "status": "matched",
+            "reason": "expected-rejection",
+            "expectedErrorCode": "dust_output",
+            "actualErrorCode": "dust_output"
+          }
+        ]
+      },
+      {
+        "id": "synthetic-sdk-1.5.1:36",
+        "status": "matched",
+        "reason": "all-applicable-records-matched",
+        "missingRecordIds": [],
+        "comparisons": [
+          {
+            "recordId": "synthetic-sdk-1.5.1:36",
+            "evidenceKind": "synthetic-sdk",
+            "scope": "synthetic-arithmetic",
+            "coverage": "raw-pool-only",
+            "hashes": {
+              "recordDigest": "afc211b1566559e656423edd3f07bc42336bd294850d0fc4404edb6519ccd057",
+              "sourceFileDigest": "9af7cc3d363c45e1198749ea6134b7d42e3d48f1163c86f4e050cf2ec3c5a962",
+              "poolByteDigest": "c8b1f052b91eddc28b52a4b99aad78873084bfc29d80f42528b16887e112581b",
+              "programBinaryDigest": null
+            },
+            "executable": false,
+            "financialExecution": false,
+            "status": "matched",
+            "reason": "expected-rejection",
+            "expectedErrorCode": "dust_output",
+            "actualErrorCode": "dust_output"
+          }
+        ]
+      },
+      {
+        "id": "synthetic-sdk-1.5.1:37",
+        "status": "matched",
+        "reason": "all-applicable-records-matched",
+        "missingRecordIds": [],
+        "comparisons": [
+          {
+            "recordId": "synthetic-sdk-1.5.1:37",
+            "evidenceKind": "synthetic-sdk",
+            "scope": "synthetic-arithmetic",
+            "coverage": "raw-pool-only",
+            "hashes": {
+              "recordDigest": "8e981f7a2169a47a2eb52514612671c3598df813753484b1349626c1f50f598f",
+              "sourceFileDigest": "9af7cc3d363c45e1198749ea6134b7d42e3d48f1163c86f4e050cf2ec3c5a962",
+              "poolByteDigest": "c8b1f052b91eddc28b52a4b99aad78873084bfc29d80f42528b16887e112581b",
+              "programBinaryDigest": null
+            },
+            "executable": false,
+            "financialExecution": false,
+            "status": "matched",
+            "reason": "expected-rejection",
+            "expectedErrorCode": "dust_output",
+            "actualErrorCode": "dust_output"
+          }
+        ]
+      },
+      {
+        "id": "synthetic-sdk-1.5.1:38",
+        "status": "matched",
+        "reason": "all-applicable-records-matched",
+        "missingRecordIds": [],
+        "comparisons": [
+          {
+            "recordId": "synthetic-sdk-1.5.1:38",
+            "evidenceKind": "synthetic-sdk",
+            "scope": "synthetic-arithmetic",
+            "coverage": "raw-pool-only",
+            "hashes": {
+              "recordDigest": "793b87b506d7edf5e74f1c0d62d33dcad42c63f3725d6a3430597e75c034637e",
+              "sourceFileDigest": "9af7cc3d363c45e1198749ea6134b7d42e3d48f1163c86f4e050cf2ec3c5a962",
+              "poolByteDigest": "c8b1f052b91eddc28b52a4b99aad78873084bfc29d80f42528b16887e112581b",
+              "programBinaryDigest": null
+            },
+            "executable": false,
+            "financialExecution": false,
+            "status": "matched",
+            "reason": "exact-observed-deltas",
+            "actual": {
+              "outputUnits": "27",
+              "grossOutputUnits": "39",
+              "inputFeeUnits": "0",
+              "outputFeeUnits": "12",
+              "totalFeeUnits": "12",
+              "nextSqrtPriceX64": "3689348799618250"
+            }
+          }
+        ]
+      },
+      {
+        "id": "synthetic-sdk-1.5.1:39",
+        "status": "matched",
+        "reason": "all-applicable-records-matched",
+        "missingRecordIds": [],
+        "comparisons": [
+          {
+            "recordId": "synthetic-sdk-1.5.1:39",
+            "evidenceKind": "synthetic-sdk",
+            "scope": "synthetic-arithmetic",
+            "coverage": "raw-pool-only",
+            "hashes": {
+              "recordDigest": "40739c10e7a1e9c087ca6d7c721d3b666a8eb93396d97fefe96516170cb719eb",
+              "sourceFileDigest": "9af7cc3d363c45e1198749ea6134b7d42e3d48f1163c86f4e050cf2ec3c5a962",
+              "poolByteDigest": "c8b1f052b91eddc28b52a4b99aad78873084bfc29d80f42528b16887e112581b",
+              "programBinaryDigest": null
+            },
+            "executable": false,
+            "financialExecution": false,
+            "status": "matched",
+            "reason": "exact-observed-deltas",
+            "actual": {
+              "outputUnits": "27999",
+              "grossOutputUnits": "39999",
+              "inputFeeUnits": "0",
+              "outputFeeUnits": "12000",
+              "totalFeeUnits": "12000",
+              "nextSqrtPriceX64": "3689333691143154"
+            }
+          }
+        ]
+      },
+      {
+        "id": "synthetic-sdk-1.5.1:40",
+        "status": "matched",
+        "reason": "all-applicable-records-matched",
+        "missingRecordIds": [],
+        "comparisons": [
+          {
+            "recordId": "synthetic-sdk-1.5.1:40",
+            "evidenceKind": "synthetic-sdk",
+            "scope": "synthetic-arithmetic",
+            "coverage": "raw-pool-only",
+            "hashes": {
+              "recordDigest": "b659d6ea790abdde0380a35bf409af3a43cbb68db878dd8f792d833d9c70fdf4",
+              "sourceFileDigest": "9af7cc3d363c45e1198749ea6134b7d42e3d48f1163c86f4e050cf2ec3c5a962",
+              "poolByteDigest": "c8b1f052b91eddc28b52a4b99aad78873084bfc29d80f42528b16887e112581b",
+              "programBinaryDigest": null
+            },
+            "executable": false,
+            "financialExecution": false,
+            "status": "matched",
+            "reason": "expected-rejection",
+            "expectedErrorCode": "dust_input",
+            "actualErrorCode": "dust_input"
+          }
+        ]
+      },
+      {
+        "id": "synthetic-sdk-1.5.1:41",
+        "status": "matched",
+        "reason": "all-applicable-records-matched",
+        "missingRecordIds": [],
+        "comparisons": [
+          {
+            "recordId": "synthetic-sdk-1.5.1:41",
+            "evidenceKind": "synthetic-sdk",
+            "scope": "synthetic-arithmetic",
+            "coverage": "raw-pool-only",
+            "hashes": {
+              "recordDigest": "865b09ef118f57425e3750594654e1874d5651b514b47983f753e7f5ea5e51c8",
+              "sourceFileDigest": "9af7cc3d363c45e1198749ea6134b7d42e3d48f1163c86f4e050cf2ec3c5a962",
+              "poolByteDigest": "c8b1f052b91eddc28b52a4b99aad78873084bfc29d80f42528b16887e112581b",
+              "programBinaryDigest": null
+            },
+            "executable": false,
+            "financialExecution": false,
+            "status": "matched",
+            "reason": "exact-observed-deltas",
+            "actual": {
+              "outputUnits": "24499997511",
+              "grossOutputUnits": "24499997511",
+              "inputFeeUnits": "20",
+              "outputFeeUnits": "0",
+              "totalFeeUnits": "20",
+              "nextSqrtPriceX64": "3689349185271598"
+            }
+          }
+        ]
+      },
+      {
+        "id": "synthetic-sdk-1.5.1:42",
+        "status": "matched",
+        "reason": "all-applicable-records-matched",
+        "missingRecordIds": [],
+        "comparisons": [
+          {
+            "recordId": "synthetic-sdk-1.5.1:42",
+            "evidenceKind": "synthetic-sdk",
+            "scope": "synthetic-arithmetic",
+            "coverage": "raw-pool-only",
+            "hashes": {
+              "recordDigest": "12752965c11bf5592040bf6d7584abfbeec63f0c27205cd7fedb03fe3e89b104",
+              "sourceFileDigest": "9af7cc3d363c45e1198749ea6134b7d42e3d48f1163c86f4e050cf2ec3c5a962",
+              "poolByteDigest": "c8b1f052b91eddc28b52a4b99aad78873084bfc29d80f42528b16887e112581b",
+              "programBinaryDigest": null
+            },
+            "executable": false,
+            "financialExecution": false,
+            "status": "matched",
+            "reason": "exact-observed-deltas",
+            "actual": {
+              "outputUnits": "24497539656400",
+              "grossOutputUnits": "24497539656400",
+              "inputFeeUnits": "20000",
+              "outputFeeUnits": "0",
+              "totalFeeUnits": "20000",
+              "nextSqrtPriceX64": "3689719344430335"
+            }
+          }
+        ]
+      },
+      {
+        "id": "synthetic-sdk-1.5.1:43",
+        "status": "matched",
+        "reason": "all-applicable-records-matched",
+        "missingRecordIds": [],
+        "comparisons": [
+          {
+            "recordId": "synthetic-sdk-1.5.1:43",
+            "evidenceKind": "synthetic-sdk",
+            "scope": "synthetic-arithmetic",
+            "coverage": "raw-pool-only",
+            "hashes": {
+              "recordDigest": "a454a47d249652ca23c93f6ab710244d0f08ddb3d06e55614b147ea1b23dc86b",
+              "sourceFileDigest": "9af7cc3d363c45e1198749ea6134b7d42e3d48f1163c86f4e050cf2ec3c5a962",
+              "poolByteDigest": "c8b1f052b91eddc28b52a4b99aad78873084bfc29d80f42528b16887e112581b",
+              "programBinaryDigest": null
+            },
+            "executable": false,
+            "financialExecution": false,
+            "status": "matched",
+            "reason": "exact-observed-deltas",
+            "actual": {
+              "outputUnits": "22263978069951628",
+              "grossOutputUnits": "22263978069951628",
+              "inputFeeUnits": "20000000",
+              "outputFeeUnits": "0",
+              "totalFeeUnits": "20000000",
+              "nextSqrtPriceX64": "4059878503166931"
+            }
+          }
+        ]
+      },
+      {
+        "id": "synthetic-sdk-1.5.1:44",
+        "status": "matched",
+        "reason": "all-applicable-records-matched",
+        "missingRecordIds": [],
+        "comparisons": [
+          {
+            "recordId": "synthetic-sdk-1.5.1:44",
+            "evidenceKind": "synthetic-sdk",
+            "scope": "synthetic-arithmetic",
+            "coverage": "raw-pool-only",
+            "hashes": {
+              "recordDigest": "d0e0bdd587b2c2003767a9286c24388aedc44f08306669702af8cf03f960ca7a",
+              "sourceFileDigest": "9af7cc3d363c45e1198749ea6134b7d42e3d48f1163c86f4e050cf2ec3c5a962",
+              "poolByteDigest": "c8b1f052b91eddc28b52a4b99aad78873084bfc29d80f42528b16887e112581b",
+              "programBinaryDigest": null
+            },
+            "executable": false,
+            "financialExecution": false,
+            "status": "matched",
+            "reason": "expected-rejection",
+            "expectedErrorCode": "price_range",
+            "actualErrorCode": "price_range"
+          }
+        ]
+      },
+      {
+        "id": "synthetic-sdk-1.5.1:45",
+        "status": "matched",
+        "reason": "all-applicable-records-matched",
+        "missingRecordIds": [],
+        "comparisons": [
+          {
+            "recordId": "synthetic-sdk-1.5.1:45",
+            "evidenceKind": "synthetic-sdk",
+            "scope": "synthetic-arithmetic",
+            "coverage": "raw-pool-only",
+            "hashes": {
+              "recordDigest": "9e0aded0ecaacb2302a8fe4f018104c65db2c4279da2ea37a1b513c17d592454",
+              "sourceFileDigest": "9af7cc3d363c45e1198749ea6134b7d42e3d48f1163c86f4e050cf2ec3c5a962",
+              "poolByteDigest": "c8b1f052b91eddc28b52a4b99aad78873084bfc29d80f42528b16887e112581b",
+              "programBinaryDigest": null
+            },
+            "executable": false,
+            "financialExecution": false,
+            "status": "matched",
+            "reason": "expected-rejection",
+            "expectedErrorCode": "dust_output",
+            "actualErrorCode": "dust_output"
+          }
+        ]
+      },
+      {
+        "id": "synthetic-sdk-1.5.1:46",
+        "status": "matched",
+        "reason": "all-applicable-records-matched",
+        "missingRecordIds": [],
+        "comparisons": [
+          {
+            "recordId": "synthetic-sdk-1.5.1:46",
+            "evidenceKind": "synthetic-sdk",
+            "scope": "synthetic-arithmetic",
+            "coverage": "raw-pool-only",
+            "hashes": {
+              "recordDigest": "2a150b5071f5db5f5c3e866d9e508700b29003ce10b1224fa817d22a56d9dda0",
+              "sourceFileDigest": "9af7cc3d363c45e1198749ea6134b7d42e3d48f1163c86f4e050cf2ec3c5a962",
+              "poolByteDigest": "c8b1f052b91eddc28b52a4b99aad78873084bfc29d80f42528b16887e112581b",
+              "programBinaryDigest": null
+            },
+            "executable": false,
+            "financialExecution": false,
+            "status": "matched",
+            "reason": "expected-rejection",
+            "expectedErrorCode": "dust_output",
+            "actualErrorCode": "dust_output"
+          }
+        ]
+      },
+      {
+        "id": "synthetic-sdk-1.5.1:47",
+        "status": "matched",
+        "reason": "all-applicable-records-matched",
+        "missingRecordIds": [],
+        "comparisons": [
+          {
+            "recordId": "synthetic-sdk-1.5.1:47",
+            "evidenceKind": "synthetic-sdk",
+            "scope": "synthetic-arithmetic",
+            "coverage": "raw-pool-only",
+            "hashes": {
+              "recordDigest": "1285d5653dc643239cfb839141810fb5b419fa190dbc0e6116c8ddcd076fe1e0",
+              "sourceFileDigest": "9af7cc3d363c45e1198749ea6134b7d42e3d48f1163c86f4e050cf2ec3c5a962",
+              "poolByteDigest": "c8b1f052b91eddc28b52a4b99aad78873084bfc29d80f42528b16887e112581b",
+              "programBinaryDigest": null
+            },
+            "executable": false,
+            "financialExecution": false,
+            "status": "matched",
+            "reason": "expected-rejection",
+            "expectedErrorCode": "dust_output",
+            "actualErrorCode": "dust_output"
+          }
+        ]
+      },
+      {
+        "id": "synthetic-sdk-1.5.1:48",
+        "status": "matched",
+        "reason": "all-applicable-records-matched",
+        "missingRecordIds": [],
+        "comparisons": [
+          {
+            "recordId": "synthetic-sdk-1.5.1:48",
+            "evidenceKind": "synthetic-sdk",
+            "scope": "synthetic-arithmetic",
+            "coverage": "raw-pool-only",
+            "hashes": {
+              "recordDigest": "581362b94d75e5f605d2c62da181dcda1875101eb8aa849e3e3009e018faf29c",
+              "sourceFileDigest": "9af7cc3d363c45e1198749ea6134b7d42e3d48f1163c86f4e050cf2ec3c5a962",
+              "poolByteDigest": "c8b1f052b91eddc28b52a4b99aad78873084bfc29d80f42528b16887e112581b",
+              "programBinaryDigest": null
+            },
+            "executable": false,
+            "financialExecution": false,
+            "status": "matched",
+            "reason": "exact-observed-deltas",
+            "actual": {
+              "outputUnits": "38",
+              "grossOutputUnits": "39",
+              "inputFeeUnits": "0",
+              "outputFeeUnits": "1",
+              "totalFeeUnits": "1",
+              "nextSqrtPriceX64": "3689348799618250"
+            }
+          }
+        ]
+      },
+      {
+        "id": "synthetic-sdk-1.5.1:49",
+        "status": "matched",
+        "reason": "all-applicable-records-matched",
+        "missingRecordIds": [],
+        "comparisons": [
+          {
+            "recordId": "synthetic-sdk-1.5.1:49",
+            "evidenceKind": "synthetic-sdk",
+            "scope": "synthetic-arithmetic",
+            "coverage": "raw-pool-only",
+            "hashes": {
+              "recordDigest": "36a4f8b38a7d6ed2f8379a32e78a5e6ad052cc2292c1a50a0b69db42a9a95234",
+              "sourceFileDigest": "9af7cc3d363c45e1198749ea6134b7d42e3d48f1163c86f4e050cf2ec3c5a962",
+              "poolByteDigest": "c8b1f052b91eddc28b52a4b99aad78873084bfc29d80f42528b16887e112581b",
+              "programBinaryDigest": null
+            },
+            "executable": false,
+            "financialExecution": false,
+            "status": "matched",
+            "reason": "exact-observed-deltas",
+            "actual": {
+              "outputUnits": "39199",
+              "grossOutputUnits": "39999",
+              "inputFeeUnits": "0",
+              "outputFeeUnits": "800",
+              "totalFeeUnits": "800",
+              "nextSqrtPriceX64": "3689333691143154"
+            }
+          }
+        ]
+      },
+      {
+        "id": "synthetic-sdk-1.5.1:50",
+        "status": "matched",
+        "reason": "all-applicable-records-matched",
+        "missingRecordIds": [],
+        "comparisons": [
+          {
+            "recordId": "synthetic-sdk-1.5.1:50",
+            "evidenceKind": "synthetic-sdk",
+            "scope": "synthetic-arithmetic",
+            "coverage": "raw-pool-only",
+            "hashes": {
+              "recordDigest": "4e177ce6ebf614ce5e1c0d9580ce5f074a8255b94040f100ce794dcb9585a122",
+              "sourceFileDigest": "9af7cc3d363c45e1198749ea6134b7d42e3d48f1163c86f4e050cf2ec3c5a962",
+              "poolByteDigest": "c8b1f052b91eddc28b52a4b99aad78873084bfc29d80f42528b16887e112581b",
+              "programBinaryDigest": null
+            },
+            "executable": false,
+            "financialExecution": false,
+            "status": "matched",
+            "reason": "expected-rejection",
+            "expectedErrorCode": "dust_input",
+            "actualErrorCode": "dust_input"
+          }
+        ]
+      },
+      {
+        "id": "synthetic-sdk-1.5.1:51",
+        "status": "matched",
+        "reason": "all-applicable-records-matched",
+        "missingRecordIds": [],
+        "comparisons": [
+          {
+            "recordId": "synthetic-sdk-1.5.1:51",
+            "evidenceKind": "synthetic-sdk",
+            "scope": "synthetic-arithmetic",
+            "coverage": "raw-pool-only",
+            "hashes": {
+              "recordDigest": "dc368549fe2de642bcfa8292ef24358ffe928b92d6f71f5e68255a86616ad0c6",
+              "sourceFileDigest": "9af7cc3d363c45e1198749ea6134b7d42e3d48f1163c86f4e050cf2ec3c5a962",
+              "poolByteDigest": "c8b1f052b91eddc28b52a4b99aad78873084bfc29d80f42528b16887e112581b",
+              "programBinaryDigest": null
+            },
+            "executable": false,
+            "financialExecution": false,
+            "status": "matched",
+            "reason": "exact-observed-deltas",
+            "actual": {
+              "outputUnits": "24749997448",
+              "grossOutputUnits": "24749997448",
+              "inputFeeUnits": "10",
+              "outputFeeUnits": "0",
+              "totalFeeUnits": "10",
+              "nextSqrtPriceX64": "3689349189052513"
+            }
+          }
+        ]
+      },
+      {
+        "id": "synthetic-sdk-1.5.1:52",
+        "status": "matched",
+        "reason": "all-applicable-records-matched",
+        "missingRecordIds": [],
+        "comparisons": [
+          {
+            "recordId": "synthetic-sdk-1.5.1:52",
+            "evidenceKind": "synthetic-sdk",
+            "scope": "synthetic-arithmetic",
+            "coverage": "raw-pool-only",
+            "hashes": {
+              "recordDigest": "a8fc83254b7872d1de3b670ee8117d6d4c20f2981bd30224d9e2edee6fd297aa",
+              "sourceFileDigest": "9af7cc3d363c45e1198749ea6134b7d42e3d48f1163c86f4e050cf2ec3c5a962",
+              "poolByteDigest": "c8b1f052b91eddc28b52a4b99aad78873084bfc29d80f42528b16887e112581b",
+              "programBinaryDigest": null
+            },
+            "executable": false,
+            "financialExecution": false,
+            "status": "matched",
+            "reason": "exact-observed-deltas",
+            "actual": {
+              "outputUnits": "24747489191700",
+              "grossOutputUnits": "24747489191700",
+              "inputFeeUnits": "10000",
+              "outputFeeUnits": "0",
+              "totalFeeUnits": "10000",
+              "nextSqrtPriceX64": "3689723125345523"
+            }
+          }
+        ]
+      },
+      {
+        "id": "synthetic-sdk-1.5.1:53",
+        "status": "matched",
+        "reason": "all-applicable-records-matched",
+        "missingRecordIds": [],
+        "comparisons": [
+          {
+            "recordId": "synthetic-sdk-1.5.1:53",
+            "evidenceKind": "synthetic-sdk",
+            "scope": "synthetic-arithmetic",
+            "coverage": "raw-pool-only",
+            "hashes": {
+              "recordDigest": "92939930191cda544b30b3e0ec316891047c814f5eef67a44e8d020679988ba5",
+              "sourceFileDigest": "9af7cc3d363c45e1198749ea6134b7d42e3d48f1163c86f4e050cf2ec3c5a962",
+              "poolByteDigest": "c8b1f052b91eddc28b52a4b99aad78873084bfc29d80f42528b16887e112581b",
+              "programBinaryDigest": null
+            },
+            "executable": false,
+            "financialExecution": false,
+            "status": "matched",
+            "reason": "exact-observed-deltas",
+            "actual": {
+              "outputUnits": "22470235264407826",
+              "grossOutputUnits": "22470235264407826",
+              "inputFeeUnits": "10000000",
+              "outputFeeUnits": "0",
+              "totalFeeUnits": "10000000",
+              "nextSqrtPriceX64": "4063659418354942"
+            }
+          }
+        ]
+      },
+      {
+        "id": "synthetic-sdk-1.5.1:54",
+        "status": "matched",
+        "reason": "all-applicable-records-matched",
+        "missingRecordIds": [],
+        "comparisons": [
+          {
+            "recordId": "synthetic-sdk-1.5.1:54",
+            "evidenceKind": "synthetic-sdk",
+            "scope": "synthetic-arithmetic",
+            "coverage": "raw-pool-only",
+            "hashes": {
+              "recordDigest": "6406d01e1e7a73d53571a69c1e3c3cdaa68fc940de51fa15f4e513c335c24ddc",
+              "sourceFileDigest": "9af7cc3d363c45e1198749ea6134b7d42e3d48f1163c86f4e050cf2ec3c5a962",
+              "poolByteDigest": "c8b1f052b91eddc28b52a4b99aad78873084bfc29d80f42528b16887e112581b",
+              "programBinaryDigest": null
+            },
+            "executable": false,
+            "financialExecution": false,
+            "status": "matched",
+            "reason": "expected-rejection",
+            "expectedErrorCode": "price_range",
+            "actualErrorCode": "price_range"
+          }
+        ]
+      },
+      {
+        "id": "synthetic-sdk-1.5.1:55",
+        "status": "matched",
+        "reason": "all-applicable-records-matched",
+        "missingRecordIds": [],
+        "comparisons": [
+          {
+            "recordId": "synthetic-sdk-1.5.1:55",
+            "evidenceKind": "synthetic-sdk",
+            "scope": "synthetic-arithmetic",
+            "coverage": "raw-pool-only",
+            "hashes": {
+              "recordDigest": "9063579565ec42bf50cc3d11e9e71cdba4a399ea1f058c6e2630d8573c981e66",
+              "sourceFileDigest": "9af7cc3d363c45e1198749ea6134b7d42e3d48f1163c86f4e050cf2ec3c5a962",
+              "poolByteDigest": "c8b1f052b91eddc28b52a4b99aad78873084bfc29d80f42528b16887e112581b",
+              "programBinaryDigest": null
+            },
+            "executable": false,
+            "financialExecution": false,
+            "status": "matched",
+            "reason": "expected-rejection",
+            "expectedErrorCode": "dust_output",
+            "actualErrorCode": "dust_output"
+          }
+        ]
+      },
+      {
+        "id": "synthetic-sdk-1.5.1:56",
+        "status": "matched",
+        "reason": "all-applicable-records-matched",
+        "missingRecordIds": [],
+        "comparisons": [
+          {
+            "recordId": "synthetic-sdk-1.5.1:56",
+            "evidenceKind": "synthetic-sdk",
+            "scope": "synthetic-arithmetic",
+            "coverage": "raw-pool-only",
+            "hashes": {
+              "recordDigest": "f0ec4465107347495936644170c0d400ffc529ff607c1c5dc4e4dc11690f4605",
+              "sourceFileDigest": "9af7cc3d363c45e1198749ea6134b7d42e3d48f1163c86f4e050cf2ec3c5a962",
+              "poolByteDigest": "c8b1f052b91eddc28b52a4b99aad78873084bfc29d80f42528b16887e112581b",
+              "programBinaryDigest": null
+            },
+            "executable": false,
+            "financialExecution": false,
+            "status": "matched",
+            "reason": "expected-rejection",
+            "expectedErrorCode": "dust_output",
+            "actualErrorCode": "dust_output"
+          }
+        ]
+      },
+      {
+        "id": "synthetic-sdk-1.5.1:57",
+        "status": "matched",
+        "reason": "all-applicable-records-matched",
+        "missingRecordIds": [],
+        "comparisons": [
+          {
+            "recordId": "synthetic-sdk-1.5.1:57",
+            "evidenceKind": "synthetic-sdk",
+            "scope": "synthetic-arithmetic",
+            "coverage": "raw-pool-only",
+            "hashes": {
+              "recordDigest": "8345d769b3004a15fd1ecde0185dab0591f10d715197d1df44768d08fd2bc1b8",
+              "sourceFileDigest": "9af7cc3d363c45e1198749ea6134b7d42e3d48f1163c86f4e050cf2ec3c5a962",
+              "poolByteDigest": "c8b1f052b91eddc28b52a4b99aad78873084bfc29d80f42528b16887e112581b",
+              "programBinaryDigest": null
+            },
+            "executable": false,
+            "financialExecution": false,
+            "status": "matched",
+            "reason": "expected-rejection",
+            "expectedErrorCode": "dust_output",
+            "actualErrorCode": "dust_output"
+          }
+        ]
+      },
+      {
+        "id": "synthetic-sdk-1.5.1:58",
+        "status": "matched",
+        "reason": "all-applicable-records-matched",
+        "missingRecordIds": [],
+        "comparisons": [
+          {
+            "recordId": "synthetic-sdk-1.5.1:58",
+            "evidenceKind": "synthetic-sdk",
+            "scope": "synthetic-arithmetic",
+            "coverage": "raw-pool-only",
+            "hashes": {
+              "recordDigest": "b9595c1049497ad9f56018afb1643c74d132dc59af055d389f9af58971d42dd5",
+              "sourceFileDigest": "9af7cc3d363c45e1198749ea6134b7d42e3d48f1163c86f4e050cf2ec3c5a962",
+              "poolByteDigest": "c8b1f052b91eddc28b52a4b99aad78873084bfc29d80f42528b16887e112581b",
+              "programBinaryDigest": null
+            },
+            "executable": false,
+            "financialExecution": false,
+            "status": "matched",
+            "reason": "exact-observed-deltas",
+            "actual": {
+              "outputUnits": "38",
+              "grossOutputUnits": "39",
+              "inputFeeUnits": "0",
+              "outputFeeUnits": "1",
+              "totalFeeUnits": "1",
+              "nextSqrtPriceX64": "3689348799618250"
+            }
+          }
+        ]
+      },
+      {
+        "id": "synthetic-sdk-1.5.1:59",
+        "status": "matched",
+        "reason": "all-applicable-records-matched",
+        "missingRecordIds": [],
+        "comparisons": [
+          {
+            "recordId": "synthetic-sdk-1.5.1:59",
+            "evidenceKind": "synthetic-sdk",
+            "scope": "synthetic-arithmetic",
+            "coverage": "raw-pool-only",
+            "hashes": {
+              "recordDigest": "03cb9a30982229099bf7ad5204bf46aaf901ce56f249ca794040a8fc017ae80d",
+              "sourceFileDigest": "9af7cc3d363c45e1198749ea6134b7d42e3d48f1163c86f4e050cf2ec3c5a962",
+              "poolByteDigest": "c8b1f052b91eddc28b52a4b99aad78873084bfc29d80f42528b16887e112581b",
+              "programBinaryDigest": null
+            },
+            "executable": false,
+            "financialExecution": false,
+            "status": "matched",
+            "reason": "exact-observed-deltas",
+            "actual": {
+              "outputUnits": "39599",
+              "grossOutputUnits": "39999",
+              "inputFeeUnits": "0",
+              "outputFeeUnits": "400",
+              "totalFeeUnits": "400",
+              "nextSqrtPriceX64": "3689333691143154"
+            }
+          }
+        ]
+      },
+      {
+        "id": "synthetic-sdk-1.5.1:60",
+        "status": "matched",
+        "reason": "all-applicable-records-matched",
+        "missingRecordIds": [],
+        "comparisons": [
+          {
+            "recordId": "synthetic-sdk-1.5.1:60",
+            "evidenceKind": "synthetic-sdk",
+            "scope": "synthetic-arithmetic",
+            "coverage": "raw-pool-only",
+            "hashes": {
+              "recordDigest": "d54575bbc39a5e6dd0cddce2839e96b8b5abaa42257759fa0b5dfb994620eb89",
+              "sourceFileDigest": "9af7cc3d363c45e1198749ea6134b7d42e3d48f1163c86f4e050cf2ec3c5a962",
+              "poolByteDigest": "c8b1f052b91eddc28b52a4b99aad78873084bfc29d80f42528b16887e112581b",
+              "programBinaryDigest": null
+            },
+            "executable": false,
+            "financialExecution": false,
+            "status": "matched",
+            "reason": "expected-rejection",
+            "expectedErrorCode": "dust_input",
+            "actualErrorCode": "dust_input"
+          }
+        ]
+      },
+      {
+        "id": "synthetic-sdk-1.5.1:61",
+        "status": "matched",
+        "reason": "all-applicable-records-matched",
+        "missingRecordIds": [],
+        "comparisons": [
+          {
+            "recordId": "synthetic-sdk-1.5.1:61",
+            "evidenceKind": "synthetic-sdk",
+            "scope": "synthetic-arithmetic",
+            "coverage": "raw-pool-only",
+            "hashes": {
+              "recordDigest": "b4fa2723a00cd5a409185495827719d1719f8aa20a948790efac9581b8384161",
+              "sourceFileDigest": "9af7cc3d363c45e1198749ea6134b7d42e3d48f1163c86f4e050cf2ec3c5a962",
+              "poolByteDigest": "c8b1f052b91eddc28b52a4b99aad78873084bfc29d80f42528b16887e112581b",
+              "programBinaryDigest": null
+            },
+            "executable": false,
+            "financialExecution": false,
+            "status": "matched",
+            "reason": "exact-observed-deltas",
+            "actual": {
+              "outputUnits": "24749997448",
+              "grossOutputUnits": "24749997448",
+              "inputFeeUnits": "10",
+              "outputFeeUnits": "0",
+              "totalFeeUnits": "10",
+              "nextSqrtPriceX64": "3689349189052513"
+            }
+          }
+        ]
+      },
+      {
+        "id": "synthetic-sdk-1.5.1:62",
+        "status": "matched",
+        "reason": "all-applicable-records-matched",
+        "missingRecordIds": [],
+        "comparisons": [
+          {
+            "recordId": "synthetic-sdk-1.5.1:62",
+            "evidenceKind": "synthetic-sdk",
+            "scope": "synthetic-arithmetic",
+            "coverage": "raw-pool-only",
+            "hashes": {
+              "recordDigest": "ac32812ea3b79614d8efc2d1db64156253c770217aabe724051c6b3d96784279",
+              "sourceFileDigest": "9af7cc3d363c45e1198749ea6134b7d42e3d48f1163c86f4e050cf2ec3c5a962",
+              "poolByteDigest": "c8b1f052b91eddc28b52a4b99aad78873084bfc29d80f42528b16887e112581b",
+              "programBinaryDigest": null
+            },
+            "executable": false,
+            "financialExecution": false,
+            "status": "matched",
+            "reason": "exact-observed-deltas",
+            "actual": {
+              "outputUnits": "24747489191700",
+              "grossOutputUnits": "24747489191700",
+              "inputFeeUnits": "10000",
+              "outputFeeUnits": "0",
+              "totalFeeUnits": "10000",
+              "nextSqrtPriceX64": "3689723125345523"
+            }
+          }
+        ]
+      },
+      {
+        "id": "synthetic-sdk-1.5.1:63",
+        "status": "matched",
+        "reason": "all-applicable-records-matched",
+        "missingRecordIds": [],
+        "comparisons": [
+          {
+            "recordId": "synthetic-sdk-1.5.1:63",
+            "evidenceKind": "synthetic-sdk",
+            "scope": "synthetic-arithmetic",
+            "coverage": "raw-pool-only",
+            "hashes": {
+              "recordDigest": "6daff7ffdbe5d70ab6b2833621640ef5b896f77c6eddcb35f30c782a53647143",
+              "sourceFileDigest": "9af7cc3d363c45e1198749ea6134b7d42e3d48f1163c86f4e050cf2ec3c5a962",
+              "poolByteDigest": "c8b1f052b91eddc28b52a4b99aad78873084bfc29d80f42528b16887e112581b",
+              "programBinaryDigest": null
+            },
+            "executable": false,
+            "financialExecution": false,
+            "status": "matched",
+            "reason": "exact-observed-deltas",
+            "actual": {
+              "outputUnits": "22470235264407826",
+              "grossOutputUnits": "22470235264407826",
+              "inputFeeUnits": "10000000",
+              "outputFeeUnits": "0",
+              "totalFeeUnits": "10000000",
+              "nextSqrtPriceX64": "4063659418354942"
+            }
+          }
+        ]
+      },
+      {
+        "id": "synthetic-sdk-1.5.1:64",
+        "status": "matched",
+        "reason": "all-applicable-records-matched",
+        "missingRecordIds": [],
+        "comparisons": [
+          {
+            "recordId": "synthetic-sdk-1.5.1:64",
+            "evidenceKind": "synthetic-sdk",
+            "scope": "synthetic-arithmetic",
+            "coverage": "raw-pool-only",
+            "hashes": {
+              "recordDigest": "f4e1570fdea88e98d053d09b93862f9aaa35e29a6a8df4d0444a409b830ac364",
+              "sourceFileDigest": "9af7cc3d363c45e1198749ea6134b7d42e3d48f1163c86f4e050cf2ec3c5a962",
+              "poolByteDigest": "c8b1f052b91eddc28b52a4b99aad78873084bfc29d80f42528b16887e112581b",
+              "programBinaryDigest": null
+            },
+            "executable": false,
+            "financialExecution": false,
+            "status": "matched",
+            "reason": "expected-rejection",
+            "expectedErrorCode": "price_range",
+            "actualErrorCode": "price_range"
+          }
+        ]
+      },
+      {
+        "id": "synthetic-sdk-1.5.1:65",
+        "status": "matched",
+        "reason": "all-applicable-records-matched",
+        "missingRecordIds": [],
+        "comparisons": [
+          {
+            "recordId": "synthetic-sdk-1.5.1:65",
+            "evidenceKind": "synthetic-sdk",
+            "scope": "synthetic-arithmetic",
+            "coverage": "raw-pool-only",
+            "hashes": {
+              "recordDigest": "d56f79609ec0c9c7404c8cf992dfd874330fee88ae80a3969a93bc0d59cbf957",
+              "sourceFileDigest": "9af7cc3d363c45e1198749ea6134b7d42e3d48f1163c86f4e050cf2ec3c5a962",
+              "poolByteDigest": "c8b1f052b91eddc28b52a4b99aad78873084bfc29d80f42528b16887e112581b",
+              "programBinaryDigest": null
+            },
+            "executable": false,
+            "financialExecution": false,
+            "status": "matched",
+            "reason": "expected-rejection",
+            "expectedErrorCode": "dust_output",
+            "actualErrorCode": "dust_output"
+          }
+        ]
+      },
+      {
+        "id": "synthetic-sdk-1.5.1:66",
+        "status": "matched",
+        "reason": "all-applicable-records-matched",
+        "missingRecordIds": [],
+        "comparisons": [
+          {
+            "recordId": "synthetic-sdk-1.5.1:66",
+            "evidenceKind": "synthetic-sdk",
+            "scope": "synthetic-arithmetic",
+            "coverage": "raw-pool-only",
+            "hashes": {
+              "recordDigest": "7992eb665cfa454b16811c45d47a77c420d4bc9e12243c3349bf96217145b615",
+              "sourceFileDigest": "9af7cc3d363c45e1198749ea6134b7d42e3d48f1163c86f4e050cf2ec3c5a962",
+              "poolByteDigest": "c8b1f052b91eddc28b52a4b99aad78873084bfc29d80f42528b16887e112581b",
+              "programBinaryDigest": null
+            },
+            "executable": false,
+            "financialExecution": false,
+            "status": "matched",
+            "reason": "expected-rejection",
+            "expectedErrorCode": "dust_output",
+            "actualErrorCode": "dust_output"
+          }
+        ]
+      },
+      {
+        "id": "synthetic-sdk-1.5.1:67",
+        "status": "matched",
+        "reason": "all-applicable-records-matched",
+        "missingRecordIds": [],
+        "comparisons": [
+          {
+            "recordId": "synthetic-sdk-1.5.1:67",
+            "evidenceKind": "synthetic-sdk",
+            "scope": "synthetic-arithmetic",
+            "coverage": "raw-pool-only",
+            "hashes": {
+              "recordDigest": "80e77381b48109126c8321ea905f2311d327413030e824a0501027f6f5e5fdad",
+              "sourceFileDigest": "9af7cc3d363c45e1198749ea6134b7d42e3d48f1163c86f4e050cf2ec3c5a962",
+              "poolByteDigest": "c8b1f052b91eddc28b52a4b99aad78873084bfc29d80f42528b16887e112581b",
+              "programBinaryDigest": null
+            },
+            "executable": false,
+            "financialExecution": false,
+            "status": "matched",
+            "reason": "expected-rejection",
+            "expectedErrorCode": "dust_output",
+            "actualErrorCode": "dust_output"
+          }
+        ]
+      },
+      {
+        "id": "synthetic-sdk-1.5.1:68",
+        "status": "matched",
+        "reason": "all-applicable-records-matched",
+        "missingRecordIds": [],
+        "comparisons": [
+          {
+            "recordId": "synthetic-sdk-1.5.1:68",
+            "evidenceKind": "synthetic-sdk",
+            "scope": "synthetic-arithmetic",
+            "coverage": "raw-pool-only",
+            "hashes": {
+              "recordDigest": "cf5813b9f9311cc16e23aabe807a2921b337298d47a9716dc8de111c755a437c",
+              "sourceFileDigest": "9af7cc3d363c45e1198749ea6134b7d42e3d48f1163c86f4e050cf2ec3c5a962",
+              "poolByteDigest": "c8b1f052b91eddc28b52a4b99aad78873084bfc29d80f42528b16887e112581b",
+              "programBinaryDigest": null
+            },
+            "executable": false,
+            "financialExecution": false,
+            "status": "matched",
+            "reason": "exact-observed-deltas",
+            "actual": {
+              "outputUnits": "38",
+              "grossOutputUnits": "39",
+              "inputFeeUnits": "0",
+              "outputFeeUnits": "1",
+              "totalFeeUnits": "1",
+              "nextSqrtPriceX64": "3689348799618250"
+            }
+          }
+        ]
+      },
+      {
+        "id": "synthetic-sdk-1.5.1:69",
+        "status": "matched",
+        "reason": "all-applicable-records-matched",
+        "missingRecordIds": [],
+        "comparisons": [
+          {
+            "recordId": "synthetic-sdk-1.5.1:69",
+            "evidenceKind": "synthetic-sdk",
+            "scope": "synthetic-arithmetic",
+            "coverage": "raw-pool-only",
+            "hashes": {
+              "recordDigest": "6f378e5ab1314d97e52725664928be88553be48c88549080fdedbb290d5810f7",
+              "sourceFileDigest": "9af7cc3d363c45e1198749ea6134b7d42e3d48f1163c86f4e050cf2ec3c5a962",
+              "poolByteDigest": "c8b1f052b91eddc28b52a4b99aad78873084bfc29d80f42528b16887e112581b",
+              "programBinaryDigest": null
+            },
+            "executable": false,
+            "financialExecution": false,
+            "status": "matched",
+            "reason": "exact-observed-deltas",
+            "actual": {
+              "outputUnits": "39599",
+              "grossOutputUnits": "39999",
+              "inputFeeUnits": "0",
+              "outputFeeUnits": "400",
+              "totalFeeUnits": "400",
+              "nextSqrtPriceX64": "3689333691143154"
+            }
+          }
+        ]
+      },
+      {
+        "id": "synthetic-sdk-1.5.1:70",
+        "status": "matched",
+        "reason": "all-applicable-records-matched",
+        "missingRecordIds": [],
+        "comparisons": [
+          {
+            "recordId": "synthetic-sdk-1.5.1:70",
+            "evidenceKind": "synthetic-sdk",
+            "scope": "synthetic-arithmetic",
+            "coverage": "raw-pool-only",
+            "hashes": {
+              "recordDigest": "396057658e7fa54b5349777e3af96aedc7e2ec27ed3c80912d6d3cfae98776cf",
+              "sourceFileDigest": "9af7cc3d363c45e1198749ea6134b7d42e3d48f1163c86f4e050cf2ec3c5a962",
+              "poolByteDigest": "c8b1f052b91eddc28b52a4b99aad78873084bfc29d80f42528b16887e112581b",
+              "programBinaryDigest": null
+            },
+            "executable": false,
+            "financialExecution": false,
+            "status": "matched",
+            "reason": "expected-rejection",
+            "expectedErrorCode": "dust_input",
+            "actualErrorCode": "dust_input"
+          }
+        ]
+      },
+      {
+        "id": "synthetic-sdk-1.5.1:71",
+        "status": "matched",
+        "reason": "all-applicable-records-matched",
+        "missingRecordIds": [],
+        "comparisons": [
+          {
+            "recordId": "synthetic-sdk-1.5.1:71",
+            "evidenceKind": "synthetic-sdk",
+            "scope": "synthetic-arithmetic",
+            "coverage": "raw-pool-only",
+            "hashes": {
+              "recordDigest": "481bd9202d8dbbd4754b42c2598dcd6e57612e9467d6763ef551d905d5131e13",
+              "sourceFileDigest": "9af7cc3d363c45e1198749ea6134b7d42e3d48f1163c86f4e050cf2ec3c5a962",
+              "poolByteDigest": "c8b1f052b91eddc28b52a4b99aad78873084bfc29d80f42528b16887e112581b",
+              "programBinaryDigest": null
+            },
+            "executable": false,
+            "financialExecution": false,
+            "status": "matched",
+            "reason": "exact-observed-deltas",
+            "actual": {
+              "outputUnits": "24749997448",
+              "grossOutputUnits": "24749997448",
+              "inputFeeUnits": "10",
+              "outputFeeUnits": "0",
+              "totalFeeUnits": "10",
+              "nextSqrtPriceX64": "3689349189052513"
+            }
+          }
+        ]
+      },
+      {
+        "id": "synthetic-sdk-1.5.1:72",
+        "status": "matched",
+        "reason": "all-applicable-records-matched",
+        "missingRecordIds": [],
+        "comparisons": [
+          {
+            "recordId": "synthetic-sdk-1.5.1:72",
+            "evidenceKind": "synthetic-sdk",
+            "scope": "synthetic-arithmetic",
+            "coverage": "raw-pool-only",
+            "hashes": {
+              "recordDigest": "80004efdd3309cf9e3b61d51616f647ceb2e7e12d9916350004e6a6a48bd675c",
+              "sourceFileDigest": "9af7cc3d363c45e1198749ea6134b7d42e3d48f1163c86f4e050cf2ec3c5a962",
+              "poolByteDigest": "c8b1f052b91eddc28b52a4b99aad78873084bfc29d80f42528b16887e112581b",
+              "programBinaryDigest": null
+            },
+            "executable": false,
+            "financialExecution": false,
+            "status": "matched",
+            "reason": "exact-observed-deltas",
+            "actual": {
+              "outputUnits": "24747489191700",
+              "grossOutputUnits": "24747489191700",
+              "inputFeeUnits": "10000",
+              "outputFeeUnits": "0",
+              "totalFeeUnits": "10000",
+              "nextSqrtPriceX64": "3689723125345523"
+            }
+          }
+        ]
+      },
+      {
+        "id": "synthetic-sdk-1.5.1:73",
+        "status": "matched",
+        "reason": "all-applicable-records-matched",
+        "missingRecordIds": [],
+        "comparisons": [
+          {
+            "recordId": "synthetic-sdk-1.5.1:73",
+            "evidenceKind": "synthetic-sdk",
+            "scope": "synthetic-arithmetic",
+            "coverage": "raw-pool-only",
+            "hashes": {
+              "recordDigest": "1b1a8e595a970d041c6a913e5918bd95487966fcf0fff8e8156abfcbfa09302c",
+              "sourceFileDigest": "9af7cc3d363c45e1198749ea6134b7d42e3d48f1163c86f4e050cf2ec3c5a962",
+              "poolByteDigest": "c8b1f052b91eddc28b52a4b99aad78873084bfc29d80f42528b16887e112581b",
+              "programBinaryDigest": null
+            },
+            "executable": false,
+            "financialExecution": false,
+            "status": "matched",
+            "reason": "exact-observed-deltas",
+            "actual": {
+              "outputUnits": "22470235264407826",
+              "grossOutputUnits": "22470235264407826",
+              "inputFeeUnits": "10000000",
+              "outputFeeUnits": "0",
+              "totalFeeUnits": "10000000",
+              "nextSqrtPriceX64": "4063659418354942"
+            }
+          }
+        ]
+      },
+      {
+        "id": "synthetic-sdk-1.5.1:74",
+        "status": "matched",
+        "reason": "all-applicable-records-matched",
+        "missingRecordIds": [],
+        "comparisons": [
+          {
+            "recordId": "synthetic-sdk-1.5.1:74",
+            "evidenceKind": "synthetic-sdk",
+            "scope": "synthetic-arithmetic",
+            "coverage": "raw-pool-only",
+            "hashes": {
+              "recordDigest": "12ec96aacaa6684b0ff5ea52a9064ec46001db060fe59d882de13f16f80dcec4",
+              "sourceFileDigest": "9af7cc3d363c45e1198749ea6134b7d42e3d48f1163c86f4e050cf2ec3c5a962",
+              "poolByteDigest": "c8b1f052b91eddc28b52a4b99aad78873084bfc29d80f42528b16887e112581b",
+              "programBinaryDigest": null
+            },
+            "executable": false,
+            "financialExecution": false,
+            "status": "matched",
+            "reason": "expected-rejection",
+            "expectedErrorCode": "price_range",
+            "actualErrorCode": "price_range"
+          }
+        ]
+      },
+      {
+        "id": "synthetic-sdk-1.5.1:75",
+        "status": "matched",
+        "reason": "all-applicable-records-matched",
+        "missingRecordIds": [],
+        "comparisons": [
+          {
+            "recordId": "synthetic-sdk-1.5.1:75",
+            "evidenceKind": "synthetic-sdk",
+            "scope": "synthetic-arithmetic",
+            "coverage": "raw-pool-only",
+            "hashes": {
+              "recordDigest": "eb67d3b5aece2bdc64bfdac37a9739833b4bd54638468acbf07d7e6f7d9f4eeb",
+              "sourceFileDigest": "9af7cc3d363c45e1198749ea6134b7d42e3d48f1163c86f4e050cf2ec3c5a962",
+              "poolByteDigest": "c8b1f052b91eddc28b52a4b99aad78873084bfc29d80f42528b16887e112581b",
+              "programBinaryDigest": null
+            },
+            "executable": false,
+            "financialExecution": false,
+            "status": "matched",
+            "reason": "expected-rejection",
+            "expectedErrorCode": "dust_output",
+            "actualErrorCode": "dust_output"
+          }
+        ]
+      },
+      {
+        "id": "synthetic-sdk-1.5.1:76",
+        "status": "matched",
+        "reason": "all-applicable-records-matched",
+        "missingRecordIds": [],
+        "comparisons": [
+          {
+            "recordId": "synthetic-sdk-1.5.1:76",
+            "evidenceKind": "synthetic-sdk",
+            "scope": "synthetic-arithmetic",
+            "coverage": "raw-pool-only",
+            "hashes": {
+              "recordDigest": "d9dcdad252ba2e5b191409b94aea6f8b826600564cea26c2293121360a583b16",
+              "sourceFileDigest": "9af7cc3d363c45e1198749ea6134b7d42e3d48f1163c86f4e050cf2ec3c5a962",
+              "poolByteDigest": "c8b1f052b91eddc28b52a4b99aad78873084bfc29d80f42528b16887e112581b",
+              "programBinaryDigest": null
+            },
+            "executable": false,
+            "financialExecution": false,
+            "status": "matched",
+            "reason": "expected-rejection",
+            "expectedErrorCode": "dust_output",
+            "actualErrorCode": "dust_output"
+          }
+        ]
+      },
+      {
+        "id": "synthetic-sdk-1.5.1:77",
+        "status": "matched",
+        "reason": "all-applicable-records-matched",
+        "missingRecordIds": [],
+        "comparisons": [
+          {
+            "recordId": "synthetic-sdk-1.5.1:77",
+            "evidenceKind": "synthetic-sdk",
+            "scope": "synthetic-arithmetic",
+            "coverage": "raw-pool-only",
+            "hashes": {
+              "recordDigest": "f76ed52cbeadb50d2a47ebf21466bef3d54df7dbf912bd5f61888135059b7b6b",
+              "sourceFileDigest": "9af7cc3d363c45e1198749ea6134b7d42e3d48f1163c86f4e050cf2ec3c5a962",
+              "poolByteDigest": "c8b1f052b91eddc28b52a4b99aad78873084bfc29d80f42528b16887e112581b",
+              "programBinaryDigest": null
+            },
+            "executable": false,
+            "financialExecution": false,
+            "status": "matched",
+            "reason": "expected-rejection",
+            "expectedErrorCode": "dust_output",
+            "actualErrorCode": "dust_output"
+          }
+        ]
+      },
+      {
+        "id": "synthetic-sdk-1.5.1:78",
+        "status": "matched",
+        "reason": "all-applicable-records-matched",
+        "missingRecordIds": [],
+        "comparisons": [
+          {
+            "recordId": "synthetic-sdk-1.5.1:78",
+            "evidenceKind": "synthetic-sdk",
+            "scope": "synthetic-arithmetic",
+            "coverage": "raw-pool-only",
+            "hashes": {
+              "recordDigest": "8c8d28d326d1cc9b501feaee9abcf0a49718c9be9f89b39a4296ce47c3e703f9",
+              "sourceFileDigest": "9af7cc3d363c45e1198749ea6134b7d42e3d48f1163c86f4e050cf2ec3c5a962",
+              "poolByteDigest": "c8b1f052b91eddc28b52a4b99aad78873084bfc29d80f42528b16887e112581b",
+              "programBinaryDigest": null
+            },
+            "executable": false,
+            "financialExecution": false,
+            "status": "matched",
+            "reason": "exact-observed-deltas",
+            "actual": {
+              "outputUnits": "38",
+              "grossOutputUnits": "39",
+              "inputFeeUnits": "0",
+              "outputFeeUnits": "1",
+              "totalFeeUnits": "1",
+              "nextSqrtPriceX64": "3689348799618250"
+            }
+          }
+        ]
+      },
+      {
+        "id": "synthetic-sdk-1.5.1:79",
+        "status": "matched",
+        "reason": "all-applicable-records-matched",
+        "missingRecordIds": [],
+        "comparisons": [
+          {
+            "recordId": "synthetic-sdk-1.5.1:79",
+            "evidenceKind": "synthetic-sdk",
+            "scope": "synthetic-arithmetic",
+            "coverage": "raw-pool-only",
+            "hashes": {
+              "recordDigest": "3464b17bbb2be8788021b767035ca11f1150cfacad534f5a594a973e7e40736f",
+              "sourceFileDigest": "9af7cc3d363c45e1198749ea6134b7d42e3d48f1163c86f4e050cf2ec3c5a962",
+              "poolByteDigest": "c8b1f052b91eddc28b52a4b99aad78873084bfc29d80f42528b16887e112581b",
+              "programBinaryDigest": null
+            },
+            "executable": false,
+            "financialExecution": false,
+            "status": "matched",
+            "reason": "exact-observed-deltas",
+            "actual": {
+              "outputUnits": "39599",
+              "grossOutputUnits": "39999",
+              "inputFeeUnits": "0",
+              "outputFeeUnits": "400",
+              "totalFeeUnits": "400",
+              "nextSqrtPriceX64": "3689333691143154"
+            }
+          }
+        ]
+      },
+      {
+        "id": "captured-program:buy-att:second-0",
+        "status": "missing",
+        "reason": "exact-pre-swap-state-and-full-observed-deltas-not-retained",
+        "missingRecordIds": [],
+        "comparisons": []
+      },
+      {
+        "id": "captured-program:buy-att:second-88",
+        "status": "missing",
+        "reason": "exact-pre-swap-state-and-full-observed-deltas-not-retained",
+        "missingRecordIds": [],
+        "comparisons": []
+      },
+      {
+        "id": "captured-program:buy-att:second-89",
+        "status": "missing",
+        "reason": "exact-pre-swap-state-and-full-observed-deltas-not-retained",
+        "missingRecordIds": [],
+        "comparisons": []
+      },
+      {
+        "id": "captured-program:buy-att:second-90",
+        "status": "missing",
+        "reason": "exact-pre-swap-state-and-full-observed-deltas-not-retained",
+        "missingRecordIds": [],
+        "comparisons": []
+      },
+      {
+        "id": "captured-program:sell-att:second-0",
+        "status": "missing",
+        "reason": "exact-pre-swap-state-and-full-observed-deltas-not-retained",
+        "missingRecordIds": [],
+        "comparisons": []
+      },
+      {
+        "id": "captured-program:sell-att:second-88",
+        "status": "missing",
+        "reason": "exact-pre-swap-state-and-full-observed-deltas-not-retained",
+        "missingRecordIds": [],
+        "comparisons": []
+      },
+      {
+        "id": "captured-program:sell-att:second-89",
+        "status": "missing",
+        "reason": "exact-pre-swap-state-and-full-observed-deltas-not-retained",
+        "missingRecordIds": [],
+        "comparisons": []
+      },
+      {
+        "id": "captured-program:sell-att:second-90",
+        "status": "missing",
+        "reason": "exact-pre-swap-state-and-full-observed-deltas-not-retained",
+        "missingRecordIds": [],
+        "comparisons": []
+      }
+    ],
+    "counts": {
+      "matched": 80,
+      "missing": 8,
+      "failed": 0
+    },
+    "executable": false,
+    "financialExecution": false
+  },
+  "capturedProgramParity": "missing",
+  "guardedQuoteRuntimeParity": "not-yet-run",
+  "validation": {
+    "command": "node --test platform/quotes/quotes.test.mjs platform/pricing/pricing.test.mjs platform/evidence/quote-comparison.test.mjs",
+    "testsPassed": 17,
+    "testsFailed": 0,
+    "testsSkipped": 0,
+    "newComparisonTests": 7,
+    "nodeAndWebCryptoIdentical": true,
+    "edgeTypecheck": "passed",
+    "diffCheck": "passed"
+  },
+  "financialExecution": false,
+  "providerCalls": 0
+}

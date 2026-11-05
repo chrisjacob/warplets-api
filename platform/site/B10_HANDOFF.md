@@ -8,7 +8,7 @@ This slice adds local collection, Vault and Earn member disclosures. It does not
 - Operator-only whitelist dry-run CLI: bounded canonical Solana addresses, sorted deduplication, fixture source/digest, error/count report. It opens no database. Existing immutable stage publication consumes the reviewed wallets; no HTTP whitelist mutation is added.
 - React collection journeys: actual Genesis tranches/ballots, terms digest and publication time, accurate labels, Season schedule, material selection across at most four pages/100 assets, same-owner/Season/Level filtering, stale-quote hold, material downgrade risk, reroll state and original-claim continuity. SSR retains concealed metadata suppression and accurate allocation labels.
 - Vault: complete local owner snapshot bounded to 100 assets and 100 manifests in one SQLite transaction. Any concealed tracked asset or exceeded bound suppresses all aggregate amounts. Per-row immutable activation/cliff/full-vesting dates and recorded ownership timestamp. No fiat estimate or cross-token arithmetic.
-- Earn: server-derived finalized components; public capacity/action catalog; optional owner memberStatus UI. New isolated Node member projection separates current stake/admission, accepted entry, pending cutoff, verified action completions and latest sealed components. Shared domain computes multiplier bounds; no client multiplier arithmetic. Coordinator wired this through the existing Node repository/service /earn/me read. Worker /earn/me remains unavailable until its declared task.
+- Earn: server-derived finalized components; public capacity/action catalog; optional owner memberStatus UI. The member projection separates current stake/admission, accepted entry, pending cutoff, verified action completions and latest sealed components. Shared domain computes multiplier bounds; no client multiplier arithmetic. B06 subsequently wired the bounded projection through both Node and Worker shared services. B20-core proves real workerd browser authentication, admission and pending-cutoff presentation.
 
 ## Exact additive contract requirements
 
@@ -30,10 +30,20 @@ This slice adds local collection, Vault and Earn member disclosures. It does not
 
 ## Remaining B10 acceptance
 
-1. Shared schemas, generated client and Node service integration now pass172reference tests,14site tests, both typechecks, build and integrated browser rerun. Checkpoint push/CI follows.
-2. Broader browser populated/finalized Earn evidence (0.1X, cap, reset/rotation, pending cutoff, provenance) and Vault complete/concealed/over-bound summary states. Current isolated/domain/render tests cover these semantics; browser member test exercises ordinary populated records.
-3. Expand exact evidence-bound eligibility reasons and operator publication review UX beyond the offline dry-run report. Local finalized snapshot importer remains fixture-authoritative; no chain completeness claim.
-4. Additional acceptance combinations: expired/reactivated Season pairs and historical snapshots unchanged across all progression combinations, bound-exceeded material choice UX, current/late cutoff ownership changes. Existing reference/domain coverage is reusable, but this slice does not declare all B10 criteria verified.
-5. Physical mobile wallet and live source/provenance remain later release gates. Later prices and Sydney launch hours stay unset.
+1. Expand exact evidence-bound eligibility reasons and operator publication review UX beyond the offline dry-run report. Local finalized snapshot importer remains fixture-authoritative; no chain completeness claim. Keep operator intake behind the separate operator boundary.
+2. Additional acceptance combinations: expired/reactivated Season pairs and historical snapshots unchanged across all progression combinations, bound-exceeded material choice UX, current/late cutoff ownership changes. Existing reference/domain coverage is reusable, but this slice does not declare all B10 criteria verified. D1 mutation authority remains B11 work.
+3. Physical mobile wallet and live source/provenance remain later release gates. Later prices and Sydney launch hours stay unset.
 
 Coordinator integrated browser rerun: work/b10-integrated-browser (28screenshots;390px material chooser visually inspected). Additive /earn/me status is optional on the wire, principal-bound in the service, and uses injected server time. Vault summary is a discriminated complete/unavailable union in generated declarations.
+
+## B10.2 member evidence acceptance — 6 November 2026
+
+This acceptance-only slice adds `application/fixtures/member-evidence.mjs`, `site/tests/earn-details.spec.mjs` and `site/tests/member-evidence-qa.mjs`; the normal browser runner invokes the new matrix. No production UI, economic state logic, shared contract or migration changes were needed.
+
+The disposable fixture seeds explicitly synthetic sealed component rows and local Vault observations. It verifies read projections and presentation; it does not substitute for B07 settlement or claim real-chain provenance. All browser sessions use generated Ed25519 keys to sign genuine local challenges. No API response is mocked.
+
+- Earn: a prior ten-day streak followed by a sealed reset displays the server's latest 0.1X; a separate sealed maximum displays 10X, Level 10 and 99 purchase token-days. Disabled onboarding actions disappear, verified completion evidence stays with its owner, and absent final evidence stays pending without a zero-valued substitute.
+- Vault: 26 owned assets span two pages while the complete summary retains all 26 assets and exact 26,000 allocated / 13,000 available base units. Any concealed asset withholds aggregate amounts, and 101 assets produce the explicit asset-bound state. Per-asset clocks remain anchored to original activation; owner observation age and unavailable fiat pricing are shown. Concealed per-asset Vault reads remain unavailable and public HTML omits hidden metadata.
+- Three owners are exercised in the same SPA at 360/390/768/1440 widths. Sign-out and subsequent owner sign-in do not retain the prior private component or summary view. Keyboard pagination, browser Back, original-clock disclosure, overflow and page errors are checked.
+
+Evidence: focused real-API/render tests 2/2; full site suite 16/16; standalone member browser matrix and complete `site/tests/browser-qa.mjs` both passed. Logs: `work/b10-2-browser.log`, `work/b10-2-integrated-browser.log`. Twenty-four member screenshots appear in each corresponding screenshot directory; the 390px concealed Vault state was visually inspected. Owned-file `git diff --check` passed. Existing B20 site build/typecheck evidence applies because shipped frontend source and dependencies are unchanged. B10 remains partial for the collection cases listed above.
