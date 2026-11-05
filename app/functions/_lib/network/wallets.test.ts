@@ -30,6 +30,19 @@ function fixture(){
   return {db,env:{WARPLETS:sqliteD1(db),NEYNAR_API_KEY:'test',NETWORK_WALLET_CREDITS:'10000'} as WalletEnv};
 }
 describe('wallet valuation and top holdings',()=>{
+  it('gives sustained parallel Neynar readers fair turns without polling the database',async()=>{
+    const {db,env}=fixture();vi.useFakeTimers();
+    try{
+      const queries=vi.spyOn(env.WARPLETS,'prepare'),times:number[]=[];
+      vi.stubGlobal('fetch',vi.fn(async()=>{times.push(Date.now());return Response.json({});}));
+      const pending=Promise.all(Array.from({length:4},async()=>{for(let i=0;i<8;i++)await neynarRead(env,'/v2/test',2);}));
+      await vi.runAllTimersAsync();await pending;
+      expect(times).toHaveLength(32);
+      expect(times.slice(1).every((at,i)=>at-times[i]>=250)).toBe(true);
+      expect(queries.mock.calls.length).toBeLessThan(32*6);
+      expect(db.prepare('SELECT reserved FROM network_credit_budgets').get()?.reserved).toBe(64);
+    }finally{vi.useRealTimers();}
+  });
   it('uses fixed-point quantities and independently timestamped high-confidence quotes',()=>{
     expect(decimalScale('1.23456789',8)).toBe(123456789n);expect(decimalScale('1e-12',24)).toBe(1_000_000_000_000n);
     const now=Date.now(),q={price:1.25,decimals:6,timestamp:Math.floor(now/1000),confidence:.99};

@@ -35,19 +35,18 @@ export async function neynarRead(env: WalletEnv, path: string, maximumCredits: n
     ON CONFLICT(month) DO UPDATE SET reserved=network_credit_budgets.reserved+excluded.reserved WHERE network_credit_budgets.reserved+excluded.reserved<=? RETURNING reserved`)
     .bind(month, maximumCredits, maximumCredits, limit, limit).first();
   if (!reserved) throw Error('Network wallet credit cap reached');
-  let slot=false;
-  for(let i=0;i<40;i++){
-    const now=Date.now();
-    const row=await env.WARPLETS.prepare(`INSERT INTO network_sync(key,value,updated_at) VALUES('neynar_rate',?,?)
-      ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at WHERE CAST(network_sync.value AS INTEGER)<=? RETURNING value`).bind(String(now+250),now,now).first();
-    if(row){slot=true;break;}
-    await new Promise(resolve=>setTimeout(resolve,100));
-  }
-  if(!slot){
+  // Reserve a turn once, rather than repeatedly racing the other readers.
+  // The old polling gate could starve a reader and exhaust invocation queries.
+  const now=Date.now();
+  const slot=await env.WARPLETS.prepare(`INSERT INTO network_sync(key,value,updated_at) VALUES('neynar_rate',?,?)
+    ON CONFLICT(key) DO UPDATE SET value=CAST(MAX(CAST(network_sync.value AS INTEGER),?)+250 AS TEXT),updated_at=excluded.updated_at RETURNING value`).bind(String(now+250),now,now).first<{value:string}>();
+  const wait=slot?Number(slot.value)-250-Date.now():Infinity;
+  if(!Number.isFinite(wait)||wait>4000){
     // No provider attempt occurred, so this reservation is safe to release.
     await env.WARPLETS.prepare('UPDATE network_credit_budgets SET reserved=reserved-? WHERE month=?').bind(maximumCredits,month).run();
     throw Error('Neynar rate pause');
   }
+  if(wait>0)await new Promise(resolve=>setTimeout(resolve,wait));
   await reserveRequest(env, 'neynar-wallets');
   const host=target==='snapchain'?'snapchain-api.neynar.com':'api.neynar.com';
   const payload=await networkFetchJson(`https://${host}${path}`, { headers: { 'x-api-key': env.NEYNAR_API_KEY } }, 2_000_000);
