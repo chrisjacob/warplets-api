@@ -8,6 +8,7 @@ import { importWalletAssociations, importWalletBatch, refreshWalletPrices } from
 import { importNetworkActivity } from '../../app/functions/_lib/network/activity';
 import { publishSnapshot, syncGet, type NetworkEnv } from '../../app/functions/_lib/network/store';
 import { NETWORK_CURRENT_COHORT } from '../../app/functions/_lib/network/cohort';
+import { NETWORK_RECORD_REFRESH_MS } from '../../app/shared/network/refresh';
 
 const root=resolve(import.meta.dirname,'../..');
 if(!process.argv.includes('--remote'))throw Error('Explicit --remote is required; this runner updates production Network data');
@@ -82,7 +83,7 @@ if(task==='status'){
  credits:'SELECT * FROM network_credit_budgets ORDER BY month DESC LIMIT 2',
  activity:'SELECT (SELECT COUNT(*) FROM network_activity_months) observed,(SELECT COUNT(*) FROM network_activity_checks) checked',
  };
- for(const [key,sql]of Object.entries(queries)){const params=key==='profiles'||key==='associations'?[Date.now()-86_400_000]:key==='wallets'?[Date.now()-7*86_400_000]:[];console.log(JSON.stringify({[key]:(await query([{sql,params}]))[0].results}));}
+ for(const [key,sql]of Object.entries(queries)){const params=['profiles','associations','wallets'].includes(key)?[Date.now()-NETWORK_RECORD_REFRESH_MS]:[];console.log(JSON.stringify({[key]:(await query([{sql,params}]))[0].results}));}
 }else for(let i=0;i<steps;i++){
  let result:unknown;
  if(task==='profiles'||task==='scan')result=await advanceNetwork(env,{profilesOnly:task==='profiles',scanOnly:task==='scan'});

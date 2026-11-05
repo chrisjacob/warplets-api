@@ -1,4 +1,5 @@
 import { NETWORK_CURRENT_PROFILE } from './cohort';
+import { NETWORK_RECORD_REFRESH_HOURS } from '../../../shared/network/refresh';
 import type { NetworkCell, WalletSnapshot, NetworkToken } from '../../../shared/network/model';
 import { acceptedQuote, decimalScale, NATIVE_ASSET, type PricedPosition } from './wallets';
 type Account = { known: boolean; expected: number; ambiguous: number; measured: number; usd: bigint; excluded: number; assets: Map<string,bigint> };
@@ -25,7 +26,7 @@ export async function walletSnapshot(db: D1Database) {
     const rows=await db.prepare(`SELECT address,usd_units,positions,excluded,observed_at,price_oldest_at,source FROM network_wallet_values WHERE address>? ORDER BY address LIMIT 500`).bind(cursor).all<{address:string;usd_units:string;positions:string;excluded:number;observed_at:number;price_oldest_at:number|null;source:string}>();
     for(const row of rows.results){
       const owner=owners.get(row.address);if(!owner)continue;
-      if(row.source==='alchemy-base+defillama')summary.balanceRefreshHours=168;
+      summary.balanceRefreshHours=NETWORK_RECORD_REFRESH_HOURS;
       summary.measuredWallets++;summary.excludedBalances+=row.excluded;
       summary.oldestBalanceAt=Math.min(summary.oldestBalanceAt??row.observed_at,row.observed_at);summary.latestBalanceAt=Math.max(summary.latestBalanceAt??row.observed_at,row.observed_at);
       const positions=JSON.parse(row.positions??'[]') as PricedPosition[];

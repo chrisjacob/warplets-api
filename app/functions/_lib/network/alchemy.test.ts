@@ -159,16 +159,27 @@ describe('Alchemy free-tier guardrails',()=>{
   vi.stubGlobal('fetch',vi.fn(async(_url:string,init:RequestInit)=>JSON.parse(String(init.body)).method==='eth_getBalance'?rpc('0x0'):rpc({address:wallet,tokenBalances:[{contractAddress:token,tokenBalance:null,error:'execution reverted'}]})));
   expect(await importWalletValue(env)).toMatchObject({status:'retry',reason:'Priced Alchemy token balance unavailable'});expect(db.prepare('SELECT usd_units FROM network_wallet_values').get()?.usd_units).toBe('123');
  });
- it('refreshes a recent Neynar value through Alchemy before unmeasured wallets',async()=>{
+ it('populates an unmeasured new wallet before migrating an existing Neynar value',async()=>{
   const{db,env}=fixture();
   for(const fid of [1,2])db.prepare('INSERT INTO network_confirmed(fid,observed_at) VALUES(?,?)').run(fid,Date.now());
   db.prepare('INSERT INTO network_wallet_links VALUES(?,?,?)').run(1,wallet,Date.now());db.prepare('INSERT INTO network_wallet_links VALUES(?,?,?)').run(2,spam,Date.now());
   db.prepare('INSERT INTO network_wallet_values(address,usd_units,positions,excluded,observed_at,source) VALUES(?,?,?,?,?,?)').run(wallet,'123','[]',0,Date.now(),'neynar-base+defillama');
   db.prepare('INSERT INTO network_asset_prices VALUES(?,?,?)').run(NATIVE_ASSET,JSON.stringify({price:2000,confidence:1,timestamp:Math.floor(Date.now()/1000)}),Date.now());
-  vi.stubGlobal('fetch',vi.fn(async(_url:string,init:RequestInit)=>{const r=JSON.parse(String(init.body));expect(r.params[0]).toBe(wallet);return r.method==='eth_getBalance'?rpc('0xde0b6b3a7640000'):rpc({address:wallet,tokenBalances:[]});}));
+  vi.stubGlobal('fetch',vi.fn(async(_url:string,init:RequestInit)=>{const r=JSON.parse(String(init.body));expect(r.params[0]).toBe(spam);return r.method==='eth_getBalance'?rpc('0xde0b6b3a7640000'):rpc({address:spam,tokenBalances:[]});}));
   expect((await importWalletValue(env)).status).toBe('valued');
-  expect(db.prepare('SELECT usd_units,source FROM network_wallet_values WHERE address=?').get(wallet)).toEqual({usd_units:'200000000000',source:'alchemy-base+defillama'});
-  expect(db.prepare('SELECT COUNT(*) n FROM network_wallet_values WHERE address=?').get(spam)?.n).toBe(0);
+  expect(db.prepare('SELECT usd_units,source FROM network_wallet_values WHERE address=?').get(spam)).toEqual({usd_units:'200000000000',source:'alchemy-base+defillama'});
+  expect(db.prepare('SELECT usd_units,source FROM network_wallet_values WHERE address=?').get(wallet)).toEqual({usd_units:'123',source:'neynar-base+defillama'});
+ });
+ it('keeps a 29-day wallet value and refreshes it after the monthly interval',async()=>{
+  const {db,env}=fixture();const at=Date.now();
+  db.prepare('INSERT INTO network_confirmed(fid,observed_at) VALUES(1,?)').run(at);
+  db.prepare('INSERT INTO network_wallet_links VALUES(?,?,?)').run(1,wallet,at);
+  db.prepare('INSERT INTO network_wallet_values(address,usd_units,positions,excluded,observed_at,source) VALUES(?,?,?,?,?,?)').run(wallet,'123','[]',0,at-29*86400000,'alchemy-base+defillama');
+  db.prepare('INSERT INTO network_asset_prices VALUES(?,?,?)').run(NATIVE_ASSET,JSON.stringify({price:2000,confidence:1,timestamp:Math.floor(at/1000)}),at);
+  const fetcher=vi.fn(async(_url:string,init:RequestInit)=>JSON.parse(String(init.body)).method==='eth_getBalance'?rpc('0x0'):rpc({address:wallet,tokenBalances:[]}));vi.stubGlobal('fetch',fetcher);
+  expect((await importWalletValue(env)).status).toBe('complete');expect(fetcher).not.toHaveBeenCalled();
+  db.prepare('UPDATE network_wallet_values SET observed_at=?').run(at-31*86400000);
+  expect((await importWalletValue(env)).status).toBe('valued');expect(fetcher).toHaveBeenCalledTimes(2);
  });
  it('preserves the last value after a partial response and releases its lease',async()=>{
   const{db,env}=fixture();db.prepare('INSERT INTO network_confirmed(fid,observed_at) VALUES(1,?)').run(Date.now());db.prepare('INSERT INTO network_wallet_links VALUES(?,?,?)').run(1,wallet,Date.now());db.prepare('INSERT INTO network_wallet_values(address,usd_units,positions,excluded,observed_at) VALUES(?,?,?,?,?)').run(wallet,'123','[]',0,0);

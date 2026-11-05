@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DatabaseSync } from 'node:sqlite';
 import { readFileSync } from 'node:fs';
 import { sqliteD1 } from '../sqliteTestDb';
-import { acceptedQuote, decimalScale, importWalletValue, neynarRead, NATIVE_ASSET, priceBalances, type WalletEnv } from './wallets';
+import { acceptedQuote, decimalScale, importWalletAssociations, importWalletValue, neynarRead, NATIVE_ASSET, priceBalances, type WalletEnv } from './wallets';
 import { publishSnapshot } from './store';
 import { buildNetworkDashboard } from './aggregate';
 import { parseNetworkFilters } from '../../../shared/network/model';
@@ -30,6 +30,30 @@ function fixture(){
   return {db,env:{WARPLETS:sqliteD1(db),NEYNAR_API_KEY:'test',NETWORK_WALLET_CREDITS:'10000'} as WalletEnv};
 }
 describe('wallet valuation and top holdings',()=>{
+  it('reports the monthly balance cadence and marks balances overdue after 30 days',async()=>{
+    const {db,env}=fixture();const at=Date.now();
+    db.prepare('UPDATE network_wallet_values SET observed_at=?').run(at-29*86400000);
+    const current=await publishSnapshot(env.WARPLETS,true);
+    expect(current?.wallet?.balanceRefreshHours).toBe(720);
+    expect(buildNetworkDashboard(current,parseNetworkFilters(new URLSearchParams())).economics.stale).toBe(false);
+    expect((await readNetworkMembers(env.WARPLETS,new URLSearchParams())).members.find(row=>row.fid===1)?.wallet.stale).toBe(false);
+    db.prepare('UPDATE network_wallet_values SET observed_at=?').run(at-31*86400000);
+    const overdue=await publishSnapshot(env.WARPLETS,true);
+    expect(buildNetworkDashboard(overdue,parseNetworkFilters(new URLSearchParams())).economics.stale).toBe(true);
+    expect((await readNetworkMembers(env.WARPLETS,new URLSearchParams())).members.find(row=>row.fid===1)?.wallet.stale).toBe(true);
+  });
+  it('refreshes existing associations monthly while filling missing new-member associations immediately',async()=>{
+    const {db,env}=fixture();const at=Date.now();
+    db.prepare('UPDATE network_wallet_associations SET observed_at=?').run(at-29*86400000);
+    const fetcher=vi.fn(async(_url:string)=>Response.json({users:[{fid:5,verified_addresses:{eth_addresses:[]}}]}));vi.stubGlobal('fetch',fetcher);
+    expect(await importWalletAssociations(env)).toBe(0);expect(fetcher).not.toHaveBeenCalled();
+    db.prepare('DELETE FROM network_wallet_associations WHERE fid=5').run();
+    expect(await importWalletAssociations(env)).toBe(1);expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(String(fetcher.mock.calls[0][0])).toContain('fids=5');
+    db.prepare('UPDATE network_wallet_associations SET observed_at=? WHERE fid=5').run(at-31*86400000);
+    db.exec("DELETE FROM network_sync WHERE key LIKE 'neynar_rate%'");
+    expect(await importWalletAssociations(env)).toBe(1);expect(fetcher).toHaveBeenCalledTimes(2);
+  });
   it('seeks snapshot wallet links by captured cohort FIDs instead of regrouping the full cohort',async()=>{
     const {db,env}=fixture(),statements:string[]=[];
     const measured={...env.WARPLETS,prepare(sql:string){statements.push(sql);return env.WARPLETS.prepare(sql);}} as D1Database;

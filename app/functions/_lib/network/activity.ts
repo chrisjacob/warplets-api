@@ -1,4 +1,5 @@
 import { NETWORK_CURRENT_COHORT } from './cohort';
+import { NETWORK_RECORD_REFRESH_HOURS } from '../../../shared/network/refresh';
 import { nextMonth, utcMonth } from '../../../shared/network/activity';
 import { neynarRead, type WalletEnv } from './wallets';
 import { bounded, releaseNetworkLease, syncGet, syncSet } from './store';
@@ -23,24 +24,34 @@ export function activityEvidence(input: unknown, fid: number, acceptedAt: number
 // message. A target cast's hash is never saved as a reaction message hash.
 export async function indexedActivityEvidence(env:WalletEnv,fid:number,acceptedAt:number,month:string,now=Date.now()){
  for(const kind of ['reactions','casts'] as const){
+  let cursor='';const cursors=new Set<string>();
+  for(let page=0;page<10;page++){
   const path=kind==='reactions'?`/v2/farcaster/reactions/user/?fid=${fid}&type=all&limit=1`:`/v2/farcaster/feed/user/casts/?fid=${fid}&include_replies=true&limit=1`;
-  const payload=await neynarRead(env,path,kind==='reactions'?2:4) as {reactions?:{user:{fid:number};reaction_type:string;reaction_timestamp:string;cast:{hash:string;author:{fid:number}}}[];casts?:{hash:string;author:{fid:number};timestamp:string}[]};
+  const payload=await neynarRead(env,path+(cursor?`&cursor=${encodeURIComponent(cursor)}`:''),kind==='reactions'?2:4) as {reactions?:{user:{fid:number};reaction_type:string;reaction_timestamp:string;cast:{hash:string;author:{fid:number}}}[];casts?:{hash:string;author:{fid:number};timestamp:string}[];next?:{cursor:string|null}};
   const rows=kind==='reactions'?payload.reactions:payload.casts;
   if(!Array.isArray(rows)||rows.length>1)throw Error('Invalid indexed activity hint');
-  const hint=rows[0];if(!hint)continue;
+  const hint=rows[0];if(!hint)break;
   const reaction='reaction_type' in hint;
   const at=Date.parse(reaction?hint.reaction_timestamp:hint.timestamp);
   if((reaction?hint.user.fid:hint.author.fid)!==fid||!Number.isFinite(at))throw Error('Mismatched indexed activity hint');
-  if(at<acceptedAt||at>now||utcMonth(at)!==month)continue;
+  if(at<acceptedAt||utcMonth(at)<month)break;
+  if(at<=now&&utcMonth(at)===month){
   const hash=reaction?hint.cast.hash:hint.hash;
   if(!/^0x[a-f0-9]{40}$/i.test(hash))throw Error('Invalid indexed activity hash');
   if(reaction&&!['like','recast'].includes(hint.reaction_type))throw Error('Invalid indexed reaction type');
   const lookup=reaction?`reactionById?fid=${fid}&reaction_type=${hint.reaction_type==='like'?'Like':'Recast'}&target_fid=${hint.cast.author.fid}&target_hash=${hash}`:`castById?fid=${fid}&hash=${hash}`;
   let message:unknown;
   try{message=await neynarRead(env,`/v1/${lookup}`,100,'snapchain');}
-  catch(error){if(error instanceof Error&&error.message==='Network source HTTP 404')continue;throw error;}
+  catch(error){if(!(error instanceof Error&&error.message==='Network source HTTP 404'))throw error;}
+  if(message){
   const evidence=activityEvidence(message,fid,acceptedAt,month,[reaction?'MESSAGE_TYPE_REACTION_ADD':'MESSAGE_TYPE_CAST_ADD'],now);
   if(evidence&&evidence.at===at)return evidence;
+  }
+  }
+  const next=payload.next?.cursor;if(next===undefined||next===null||next==='')break;
+  if(typeof next!=='string'||next.length>2000||cursors.has(next))throw Error('Invalid indexed activity cursor');
+  cursors.add(next);cursor=next;
+  }
  }
  const following=await neynarRead(env,`/v2/farcaster/following/?fid=${fid}&sort_type=desc_chron&limit=1`,4) as {users:{user:{fid:number}}[]};
  if(!Array.isArray(following.users)||following.users.length>1)throw Error('Invalid indexed follow hint');
@@ -64,24 +75,25 @@ async function readNextActivity(env:WalletEnv,limit:number) {
   if(await syncGet(env.WARPLETS,'activity_cooldown',0)>Date.now())return {status:'cooldown'};
   const now=Date.now(),current=utcMonth(now);
   const rows=await env.WARPLETS.prepare(`SELECT fid,MIN(event_at) acceptedAt FROM network_events WHERE fid IN (${NETWORK_CURRENT_COHORT}) GROUP BY fid`).all<{fid:number;acceptedAt:number}>();
-  // Reserve the remaining month's daily association refreshes before activity
-  // retries spend the shared balance. Use the live per-FID tariff and 10% room
-  // for cohort growth; this is an app allocation, not a provider usage reading.
-  const date=new Date(now),days=Math.ceil((Date.UTC(date.getUTCFullYear(),date.getUTCMonth()+1,1)-now)/86_400_000);
-  const perFid=env.NETWORK_NEYNAR_PRICING_ENABLED==='true'?await neynarReservation(env,'/v2/farcaster/user/bulk?fids=1'):2;
-  const members=await env.WARPLETS.prepare(`SELECT COUNT(*) total FROM (${NETWORK_CURRENT_COHORT})`).first<{total:number}>();
-  env={...env,networkAssociationReserve:Math.ceil((members?.total??rows.results.length)*perFid*days*11/10)};
   const recorded=new Set((await env.WARPLETS.prepare('SELECT fid,month FROM network_activity_months').all<{fid:number;month:string}>()).results.map(r=>`${r.fid}:${r.month}`));
   const checks=new Map((await env.WARPLETS.prepare('SELECT fid,month,checked_at FROM network_activity_checks').all<{fid:number;month:string;checked_at:number}>()).results.map(r=>[`${r.fid}:${r.month}`,r.checked_at]));
   const candidates:{fid:number;acceptedAt:number;month:string;checked:number}[]=[];
-  for(const row of rows.results)for(let month=nextMonth(utcMonth(row.acceptedAt)),i=0;month<=current&&i<120;month=nextMonth(month),i++) {
+  // Only closed UTC months can receive a final negative check. An earlier
+  // provisional check must be revisited after month-end; positive proof stays.
+  for(const row of rows.results)for(let month=nextMonth(utcMonth(row.acceptedAt)),i=0;month<current&&i<120;month=nextMonth(month),i++) {
     const key=`${row.fid}:${month}`,checked=checks.get(key)??0;
-    if(recorded.has(key)||checked>now-86_400_000)continue;
+    if(recorded.has(key)||checked>=Date.parse(nextMonth(month)+'-01T00:00:00Z'))continue;
     candidates.push({...row,month,checked});
   }
   candidates.sort((a,b)=>a.checked-b.checked||a.fid-b.fid||a.month.localeCompare(b.month));
   const batch=candidates.slice(0,limit);
   if(!batch.length)return {status:'complete'};
+  // Reserve monthly association rotations (including 10% growth) before
+  // activity spends the shared allocation. This is not provider usage data.
+  const date=new Date(now),days=Math.ceil((Date.UTC(date.getUTCFullYear(),date.getUTCMonth()+1,1)-now)/86_400_000);
+  const perFid=env.NETWORK_NEYNAR_PRICING_ENABLED==='true'?await neynarReservation(env,'/v2/farcaster/user/bulk?fids=1'):2;
+  const members=await env.WARPLETS.prepare(`SELECT COUNT(*) total FROM (${NETWORK_CURRENT_COHORT})`).first<{total:number}>();
+  env={...env,networkAssociationReserve:Math.ceil((members?.total??rows.results.length)*perFid*Math.ceil(days/(NETWORK_RECORD_REFRESH_HOURS/24))*11/10)};
   let index=0,observed=0,unresolved=0,paused=false;
   const outcomes=await Promise.allSettled(Array.from({length:Math.min(4,batch.length)},async()=>{
    while(index<batch.length&&!paused){

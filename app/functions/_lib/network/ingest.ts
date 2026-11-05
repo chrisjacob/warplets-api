@@ -1,4 +1,5 @@
 import { NETWORK_CURRENT_COHORT } from './cohort';
+import { NETWORK_RECORD_REFRESH_HOURS } from '../../../shared/network/refresh';
 import { importNetworkActivity } from './activity';
 import { NETWORK_CONTRACT, NETWORK_DEPLOY_BLOCK } from '../../../shared/network/model';
 import { networkIdentity, normalizeNetworkProfile } from '../../../shared/network/normalize';
@@ -116,14 +117,14 @@ export async function advanceNetwork(env: NetworkEnv, options: { publish?: boole
     }
     if (!options.scanOnly && await syncGet(db, 'official_cooldown', 0) < Date.now()) {
       if (!options.locationBackfillOnly) await refreshNetworkCandidates(env);
-      const refresh = bounded(env.NETWORK_PROFILE_REFRESH_HOURS, 24, 168) * 3_600_000;
+      const refresh = bounded(env.NETWORK_PROFILE_REFRESH_HOURS, NETWORK_RECORD_REFRESH_HOURS, NETWORK_RECORD_REFRESH_HOURS) * 3_600_000;
       // Legacy imports discarded raw text even for unknown-country profiles.
       // Backfill missing/current observations before routine age-based refreshes;
       // an observed empty description is complete, not a reason to refetch.
       const missingLocation = '(g.fid IS NULL OR g.observed_at<>p.observed_at)';
       const cohort=options.locationBackfillOnly?NETWORK_CURRENT_COHORT:'SELECT fid FROM network_events UNION SELECT fid FROM network_candidates UNION SELECT fid FROM network_confirmed';
       const needsRefresh=options.locationBackfillOnly?`${missingLocation} AND p.observed_at>=?`:`p.fid IS NULL OR p.observed_at<? OR ${missingLocation}`;
-      const rows = await db.prepare(`SELECT s.fid FROM (${cohort}) s LEFT JOIN network_profiles p ON p.fid=s.fid LEFT JOIN network_profile_failures f ON f.fid=s.fid LEFT JOIN network_profile_locations g ON g.fid=s.fid WHERE (${needsRefresh}) AND (f.fid IS NULL OR f.retry_after<?) ORDER BY CASE WHEN p.fid IS NOT NULL AND p.country IS NULL AND ${missingLocation} THEN 0 WHEN p.fid IS NULL THEN 1 WHEN ${missingLocation} THEN 2 ELSE 3 END,COALESCE(p.observed_at,0),s.fid LIMIT ?`)
+      const rows = await db.prepare(`SELECT s.fid FROM (${cohort}) s LEFT JOIN network_profiles p ON p.fid=s.fid LEFT JOIN network_profile_failures f ON f.fid=s.fid LEFT JOIN network_profile_locations g ON g.fid=s.fid WHERE (${needsRefresh}) AND (f.fid IS NULL OR f.retry_after<?) ORDER BY CASE WHEN p.fid IS NULL THEN 0 WHEN p.country IS NULL AND ${missingLocation} THEN 1 WHEN ${missingLocation} THEN 2 ELSE 3 END,COALESCE(p.observed_at,0),s.fid LIMIT ?`)
         .bind(options.locationBackfillOnly?0:Date.now() - refresh, Date.now(), bounded(env.NETWORK_PROFILE_BATCH, 20, 100)).all<{ fid: number }>();
       // Four bounded readers; errors preserve the previous profile and are retried on a later run.
       let index = 0, paused = false;

@@ -64,6 +64,41 @@ describe('Man-Months',()=>{
   try{expect(await indexedActivityEvidence({} as Parameters<typeof indexedActivityEvidence>[0],7,Date.parse('2026-10-17'),'2026-11',now)).toMatchObject({hash:proof.hash,type:'MESSAGE_TYPE_CAST_ADD'});}
   finally{spy.mockRestore();}
  });
+ it('pages past current-month actions to find confirmed activity in the completed month',async()=>{
+  const spy=vi.spyOn(await import('./wallets'),'neynarRead'),target='0x'+'b'.repeat(40),proof=msg('2026-11-30',7,'MESSAGE_TYPE_REACTION_ADD');
+  const reaction=(at:string)=>({user:{fid:7},reaction_type:'like',reaction_timestamp:at,cast:{hash:target,author:{fid:9}}});
+  spy.mockResolvedValueOnce({reactions:[reaction('2026-12-01T00:00:00Z')],next:{cursor:'older'}}).mockResolvedValueOnce({reactions:[reaction('2026-11-30T00:00:00Z')],next:{cursor:null}}).mockResolvedValueOnce(proof);
+  try{
+   expect(await indexedActivityEvidence({} as Parameters<typeof indexedActivityEvidence>[0],7,Date.parse('2026-10-17'),'2026-11',now)).toMatchObject({hash:proof.hash});
+   expect(spy.mock.calls[1][1]).toContain('&cursor=older');expect(spy).toHaveBeenCalledTimes(3);
+  }finally{spy.mockRestore();}
+ });
+ it('rejects repeated indexed cursors instead of spending on an unbounded historical search',async()=>{
+  const spy=vi.spyOn(await import('./wallets'),'neynarRead');
+  spy.mockResolvedValue({casts:[{hash:'0x'+'a'.repeat(40),author:{fid:7},timestamp:'2026-12-01T00:00:00Z'}],reactions:[{user:{fid:7},reaction_type:'like',reaction_timestamp:'2026-12-01T00:00:00Z',cast:{hash:'0x'+'b'.repeat(40),author:{fid:9}}}],next:{cursor:'same'}});
+  try{await expect(indexedActivityEvidence({} as Parameters<typeof indexedActivityEvidence>[0],7,Date.parse('2026-10-17'),'2026-11',now)).rejects.toThrow('Invalid indexed activity cursor');expect(spy).toHaveBeenCalledTimes(2);}
+  finally{spy.mockRestore();}
+ });
+ it('checks a provisional negative once after UTC month-end and does not repeat completed-month reads',async()=>{
+  const db=new DatabaseSync(':memory:');
+  try{
+   for(const file of ['0095_network.sql','0096_network_members.sql','0097_network_wallets.sql','0098_network_activity.sql','0099_network_alchemy.sql','0100_network_geography.sql','0101_network_geography_matching.sql','0102_network_warplet_holders.sql','0103_network_warplet_images.sql'])db.exec(readFileSync(new URL(`../../../../migrations/${file}`,import.meta.url),'utf8'));
+   db.prepare('INSERT INTO network_events VALUES(?,?,?,?,?,?,?,?)').run('tx',1,1,'block',Date.parse('2026-10-17'),7,'address',now);
+   db.exec("INSERT INTO network_profiles(fid,location_status,token_status,opt_in_status,observed_at) VALUES(7,'unknown','none','opted_in',1)");
+   db.prepare('INSERT INTO network_activity_checks VALUES(?,?,?)').run(7,'2026-11',Date.parse('2026-11-05'));
+   const env={WARPLETS:sqliteD1(db),NEYNAR_API_KEY:'test',NETWORK_WALLET_CREDITS:'10000'};
+   const fetcher=vi.fn(async(url:string)=>Response.json(url.includes('/v2/')?{reactions:[],casts:[],users:[]}:{messages:[],nextPageToken:''}));vi.stubGlobal('fetch',fetcher);
+   vi.useFakeTimers();vi.setSystemTime(new Date('2026-11-30T23:59:59Z'));
+   expect((await importNetworkActivity(env)).status).toBe('complete');expect(fetcher).not.toHaveBeenCalled();
+   vi.setSystemTime(new Date('2026-12-01T00:00:00Z'));
+   const finalCheck=importNetworkActivity(env);await vi.runAllTimersAsync();expect((await finalCheck).status).toBe('unresolved');
+   expect(fetcher).toHaveBeenCalledTimes(5);
+   vi.setSystemTime(new Date('2026-12-16'));
+   expect((await importNetworkActivity(env)).status).toBe('complete');expect(fetcher).toHaveBeenCalledTimes(5);
+   expect(db.prepare('SELECT COUNT(*) n FROM network_activity_months').get()?.n).toBe(0);
+   expect(db.prepare('SELECT checked_at FROM network_activity_checks').get()?.checked_at).toBeGreaterThanOrEqual(Date.parse('2026-12-01'));
+  }finally{db.close();}
+ });
  it('saves one positive month, skips signing-month API reads, and respects the shared cap',async()=>{
   const db=new DatabaseSync(':memory:');
   try{
@@ -75,6 +110,8 @@ describe('Man-Months',()=>{
    const fetcher=vi.fn(async(url:string)=>Response.json(url.includes('/v2/')?{reactions:[],casts:[],users:[]}:{messages:[msg('2026-11-01',7,'MESSAGE_TYPE_USER_DATA_ADD')],nextPageToken:''}));vi.stubGlobal('fetch',fetcher);
    expect((await importNetworkActivity(env)).status).toBe('complete');expect(fetcher).not.toHaveBeenCalled();
    vi.setSystemTime(new Date('2026-11-05'));
+   expect((await importNetworkActivity(env)).status).toBe('complete');expect(fetcher).not.toHaveBeenCalled();
+   vi.setSystemTime(new Date('2026-12-01'));
    const observed=importNetworkActivity(env);await vi.runAllTimersAsync();expect((await observed).status).toBe('observed');
    expect((await importNetworkActivity(env)).status).toBe('complete');expect(fetcher).toHaveBeenCalledTimes(4);
    expect(db.prepare('SELECT fid,month FROM network_activity_months').all()).toEqual([{fid:7,month:'2026-11'}]);

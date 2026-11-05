@@ -2,6 +2,18 @@
 
 ## November refresh
 
+On 5 November the owner approved monthly refreshes for existing member records.
+Profiles, verified-wallet associations and balance observations rotate every
+30 days. Missing profiles, associations and wallets take priority and remain
+eligible immediately, so daily new-member discovery stays current. Independent
+asset prices still refresh hourly without re-reading token quantities.
+Activity checks cover completed UTC calendar months once after month-end;
+provisional checks made before a month closed are revisited, while accepted
+positive evidence is retained. The ongoing month remains a lower bound.
+Indexed hints page past newer-month actions with bounded cursors before raw
+protocol confirmation. Provider failures retry under existing cooldowns and
+budgets; an unresolved month never becomes confirmed inactivity.
+
 The `codex/network-release-2026-11-05` release repairs the post-reset queues.
 November had already reached Network's own 250,000-credit Neynar ceiling;
 this was not evidence that the account allowance was exhausted. The original
@@ -24,7 +36,7 @@ including while every selected member-month has been checked.
 An explicit official-client profile 404 marks current status unavailable and
 excludes that FID from the current-member cohort. Acceptance events, historical
 snapshots and cached profile fields/timestamps remain intact; no opt-out or zero
-value is inferred. Missing profiles retry daily, and a later successful profile
+value is inferred. New missing profiles retry daily, and a later successful profile
 restores observed quality and can establish current membership again.
 
 The documented billing endpoint returned HTTP 401 with the existing API key.
@@ -48,7 +60,7 @@ The batch importer permits up to six readers for an isolated operator request,
 while scheduled production keeps four. Both use the same ten-RPC/s gate and CU
 ledger; six matches the per-invocation outgoing-connection ceiling.
 Profile/chain collection, wallet refresh and activity now have independent cron
-leases; a slow portfolio or credit pause cannot hold up daily profile freshness.
+leases; a slow portfolio or credit pause cannot hold up new-member discovery.
 Neynar requests reserve both a 400-RPM global gate and a 240-RPM per-endpoint
 gate. These remain below even the legacy Starter limits of 500 global and 300
 per endpoint (the current Free tier allows 1,000/600). Query/FID parameters and
@@ -58,8 +70,8 @@ Both provider gates now atomically reserve future request times in one database
 call per turn. Sustained parallel readers cannot starve one another by winning
 repeated polling races; the rate and credit limits are unchanged. The original
 polling gate caused local rate pauses even without a provider rejection.
-Activity additionally preserves the projected cost of daily wallet-association
-refreshes for the rest of the UTC month, using the current cohort, live per-FID
+Activity additionally preserves the projected cost of monthly wallet-association
+rotations for the rest of the UTC month, using the current cohort, live per-FID
 tariff and 10% growth margin. Exhaustive activity retries therefore cannot spend
 the allowance needed to keep wallet associations current. This forecast is an
 app allocation; it does not claim to know the account's remaining credits.

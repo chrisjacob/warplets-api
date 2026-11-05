@@ -1,4 +1,5 @@
 import { NETWORK_CURRENT_COHORT, NETWORK_CURRENT_PROFILE } from './cohort';
+import { NETWORK_RECORD_REFRESH_MS } from '../../../shared/network/refresh';
 import { parseNetworkFilters, validateNetworkParams } from '../../../shared/network/model';
 import { acceptedQuote, decimalScale, NATIVE_ASSET, type PricedPosition } from './wallets';
 import { networkIdentity } from '../../../shared/network/normalize';
@@ -83,7 +84,7 @@ async function memberWallets(db:D1Database,fids:number[]) {
     const rows=links.results.filter(row=>row.fid===fid),measured=rows.filter(row=>row.address!==null);
     let usd=0n,stale=false;
     for(const row of measured){
-      if(row.observed_at!<Date.now()-7*86_400_000)stale=true;
+      if(row.observed_at!<Date.now()-NETWORK_RECORD_REFRESH_MS)stale=true;
       for(const p of JSON.parse(row.positions!) as PricedPosition[]){
         const quote=acceptedQuote(quotes.get(p.id),p.id);
         if(quote&&p.decimals===(p.id===NATIVE_ASSET?18:quote.decimals))usd+=BigInt(p.balance)*decimalScale(String(quote.price),24)/10n**BigInt(p.decimals)/10n**16n;
