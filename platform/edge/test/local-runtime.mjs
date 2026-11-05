@@ -2,10 +2,10 @@ import { Miniflare } from 'miniflare';
 import { build } from 'esbuild';
 import { readFileSync,readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-export async function localRuntime(t,entry) {
-  const bundle=await build({entryPoints:[fileURLToPath(entry)],bundle:true,platform:'browser',format:'esm',write:false,target:'es2022'});
+export async function localRuntime(t,entry,{nodeCompat=false}={}) {
+  const bundle=await build({entryPoints:[fileURLToPath(entry)],bundle:true,platform:'browser',format:'esm',write:false,target:'es2022',...(nodeCompat?{external:['node:*']}:{})});
   const mf=new Miniflare({workers:[{config:{name:'tenx-atomic-test',type:'worker',compatibilityDate:'2026-08-25',
-    manifest:{mainModule:'worker.mjs',modules:{'worker.mjs':{type:'esm',contents:bundle.outputFiles[0].text}}},
+    ...(nodeCompat?{compatibilityFlags:['nodejs_compat']}:{}),manifest:{mainModule:'worker.mjs',modules:{'worker.mjs':{type:'esm',contents:bundle.outputFiles[0].text}}},
     env:{DB:{type:'d1',id:'00000000-0000-4000-8000-000000000001'},MANIFESTS:{type:'r2',name:'tenx-local-manifests'}}}}]});
   t.after(()=>mf.dispose());const db=await mf.getD1Database('DB');
   const directory=new URL('../../storage/',import.meta.url);

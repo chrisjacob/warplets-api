@@ -1,0 +1,298 @@
+{
+  "taskId": "B20",
+  "profile": "core",
+  "status": "locally-verified-awaiting-commit",
+  "baseCommit": "b980366777757c89b8fc89bb6d62c46ea4196945",
+  "implementationCommit": null,
+  "classification": "complete synthetic local browser/Node/workerd/D1/R2 integration; no real-chain or production financial claim",
+  "commands": [
+    {
+      "command": "node platform/scripts/rehearse-hosted-slice.mjs --verify",
+      "exitCode": 0,
+      "browser": "installed Playwright1.64.1 / Chromium1248",
+      "evidence": "combinedBrowserAndTranscript"
+    },
+    {
+      "command": "node --test platform/edge/test/vertical-slice.test.mjs",
+      "tests": 1,
+      "exitCode": 0,
+      "elapsedMs": 66997
+    },
+    {
+      "command": "node platform/scripts/test-reference.mjs",
+      "tests": 318,
+      "exitCode": 0,
+      "elapsedMs": 24335.1266
+    },
+    {
+      "command": "node --test platform/site/tests/*.spec.mjs",
+      "tests": 14,
+      "exitCode": 0,
+      "elapsedMs": 8341.1756
+    },
+    {
+      "command": "edge/site TypeScript; Vite build; contracts generate --check; legacy recovery drill; blueprint --next --self-check",
+      "exitCode": 0
+    },
+    {
+      "command": "node --test platform/edge/test/*.test.mjs",
+      "tests": 53,
+      "exitCode": 0,
+      "elapsedMs": 398475.9527
+    }
+  ],
+  "assertions": [
+    "Single loopback origin serves built React and actual workerd; browser URL/Origin/Host/cookie identity is preserved, private fixture controls are not forwarded",
+    "Real generated Ed25519 signatures authenticate four browser sessions; one genuine browser admission joins API-admitted positive/fallback/rejected contributions",
+    "Four responsive widths, keyboard focus, loading/signature/error states, persisted session and logout/cache cleanup; unavailable collection/quote endpoints are not polled",
+    "Complete private recorded evidence establishes exact cutoff; missing source holds exact board; independently evidenced empty bootstrap burns day-one budgets once",
+    "A captured actual Worker transcript restores into isolated Node for same-input economic parity; required auth/lease fencing is explicit",
+    "Stale lease rejected before commit; accepted receipt replays without new effects; one source board, two original activation windows35minutes apart",
+    "Fault hooks explicitly verify interruption midway through private read, after lease acquisition, after public PUT and before catalog commit; retries preserve immutable identity",
+    "Byte-addressed public fetch and independently checked semantic commitments preserve older catalog objects; no private source URLs or moderation notes in public bundles",
+    "Fresh public/private D1/R2 restores verify all pinned objects, exact17table comparisons including jobs/receipts/outboxes/dependency sequences, years-later claims and proofs",
+    "Old session rejected at new and original origins; old lease rejected; new private recovered session authenticates; source remains unchanged"
+  ],
+  "combinedBrowserAndTranscript": {
+    "profile": "B20-core",
+    "synthetic": true,
+    "origin": "http://127.0.0.1:50741",
+    "browser": {
+      "widths": [
+        360,
+        390,
+        768,
+        1440
+      ],
+      "signatures": 4,
+      "admissionId": "79886f70-ef8c-4102-a11e-3718dd59d466",
+      "wallet": "G1i3NV5SNAkVYMi7rfWZiHkKYuB1XqmwjUqhAJZfrXgu",
+      "runtime": "workerd-local",
+      "financialExecution": false,
+      "injectedUiFaults": [
+        "declined-wallet-signature",
+        "delayed-capacity-response",
+        "unavailable-capability-discovery"
+      ]
+    },
+    "core": {
+      "classification": "complete synthetic local transcript",
+      "runtime": "workerd-local",
+      "submissions": 5,
+      "winners": 3,
+      "allocationWindows": [
+        {
+          "tokenId": "hosted-a",
+          "day": 3,
+          "startsMs": 1793926800000,
+          "vestsFromMs": 1794013200000,
+          "vestsThroughMs": 1794099600000
+        },
+        {
+          "tokenId": "hosted-b",
+          "day": 3,
+          "startsMs": 1793928900000,
+          "vestsFromMs": 1794015300000,
+          "vestsThroughMs": 1794101700000
+        }
+      ],
+      "bootstrapBurns": 2,
+      "commitments": [
+        {
+          "byteDigest": "2148cdb495cc0d151beb60e2563c765968355dd754321cb8099875033e1f61de",
+          "semanticDigest": "a9fed56358266c053bd4f115aa6301a99d0bf43f64b7408fa9fd64b97d654253",
+          "epoch": 20760
+        },
+        {
+          "byteDigest": "43cb135e104f88c6a4ef64e42e6a50a7549f1d74b84a80d6633e6e376e62bf24",
+          "semanticDigest": "1db1dad65312280413101828ac13ba0497fcff203839e6fb24393a540ec1ad06",
+          "epoch": 20762
+        },
+        {
+          "byteDigest": "513db2bdb573885833b49bc77c3af4319c3272954a88145357f7ef144c460a86",
+          "semanticDigest": "ada0962ebea75425ca60642c66121f8c58c3fc9d1bf1e2f927a1529162542ac1",
+          "epoch": 20762
+        }
+      ],
+      "recovery": {
+        "mode": "synthetic-integrated-recovery",
+        "sourceCommit": "b980366777757c89b8fc89bb6d62c46ea4196945",
+        "pinDirectory": "work/b20-independent-pins/integrated-recovery-HCznFs",
+        "sourceRuntime": "workerd-local",
+        "sourcePreserved": true,
+        "public": {
+          "steps": 10,
+          "report": {
+            "kind": "verified",
+            "mode": "public",
+            "objects": 3,
+            "publications": 3,
+            "tables": 0,
+            "sessionsRevoked": true,
+            "leasesFenced": false,
+            "financialExecution": false,
+            "chainStatus": "unproven"
+          },
+          "bytesCopied": 4741,
+          "retainedBundles": 3,
+          "allocations": 4,
+          "yearsLaterClaimsPreserved": true,
+          "mutationsDisabled": true
+        },
+        "private": {
+          "steps": 126,
+          "report": {
+            "kind": "verified",
+            "mode": "private",
+            "objects": 85,
+            "publications": 3,
+            "tables": 86,
+            "sessionsRevoked": true,
+            "leasesFenced": true,
+            "financialExecution": false,
+            "chainStatus": "unproven"
+          },
+          "bytesCopied": 588641,
+          "comparedTables": {
+            "earn_boards": 2,
+            "earn_allocations": 4,
+            "earn_awards": 6,
+            "earn_fixture_campaigns": 2,
+            "app_jobs": 31,
+            "app_job_attempts": 24,
+            "app_job_events": 6,
+            "app_job_outbox": 28,
+            "app_settlement_dependencies": 4,
+            "app_command_receipts": 118,
+            "app_artifact_publications": 6,
+            "app_execution_fences": 17,
+            "app_epoch_inputs": 2,
+            "app_complete_inputs": 2,
+            "app_snapshot_attempts": 4,
+            "app_settlement_incidents": 0,
+            "app_revisions": 3
+          },
+          "pendingJobs": 18,
+          "oldSessionRejected": true,
+          "oldLeaseRejected": true,
+          "newSessionAuthenticated": true
+        },
+        "measurements": {
+          "captures": {
+            "public": {
+              "sqlStatements": 1,
+              "batches": 1,
+              "objectReads": 3,
+              "objectWrites": 0,
+              "faultInjected": false
+            },
+            "private": {
+              "sqlStatements": 347,
+              "batches": 4,
+              "objectReads": 88,
+              "objectWrites": 40,
+              "faultInjected": false
+            }
+          },
+          "public": {
+            "totals": {
+              "calls": 17,
+              "sqlStatements": 158,
+              "batches": 58,
+              "objectReads": 19,
+              "objectWrites": 3
+            },
+            "maxSqlStatements": 24,
+            "maxCombinedPortOperations": 30
+          },
+          "private": {
+            "totals": {
+              "calls": 131,
+              "sqlStatements": 1990,
+              "batches": 481,
+              "objectReads": 338,
+              "objectWrites": 85
+            },
+            "maxSqlStatements": 179,
+            "maxCombinedPortOperations": 229
+          },
+          "elapsedMs": 38604
+        },
+        "financialExecution": false,
+        "chainStatus": "unproven"
+      },
+      "faults": [
+        "missing-required-evidence",
+        "mid-private-read",
+        "after-lease-acquisition",
+        "after-public-put",
+        "before-catalog-commit"
+      ],
+      "nodeD1Parity": true,
+      "financialExecution": false,
+      "providerCalls": 0,
+      "elapsedMs": 53677,
+      "measurements": {
+        "calls": 125,
+        "sqlStatements": 2771,
+        "batches": 1189,
+        "objectReads": 242,
+        "objectWrites": 130
+      }
+    }
+  },
+  "screenshots": [
+    {
+      "width": 360,
+      "path": "work/b20-browser/hosted-earn-360.png",
+      "sha256": "09fd6cbab8d50b470c79363c8833814f1e50ffb178667cd0683da48a9444e327",
+      "bytes": 38523
+    },
+    {
+      "width": 390,
+      "path": "work/b20-browser/hosted-earn-390.png",
+      "sha256": "742b7538fb7b0f5e07f5501783fef296a9028cb3ecb35ec9fcc341b04d373960",
+      "bytes": 40283
+    },
+    {
+      "width": 768,
+      "path": "work/b20-browser/hosted-earn-768.png",
+      "sha256": "3bbd4a42bb7301b49a631591d6a3ab912f0495352f78d49be24d83993539b601",
+      "bytes": 59470
+    },
+    {
+      "width": 1440,
+      "path": "work/b20-browser/hosted-earn-1440.png",
+      "sha256": "9fedbcd8a289ef11825a4cd0e232e9e319b4618c87b750321dea61aaa8fa4b5e",
+      "bytes": 63153
+    }
+  ],
+  "limits": [
+    "Synthetic transcript, not live-chain end-to-end evidence, physical-wallet compatibility, geographic latency or production recovery guarantee",
+    "Generated session nonces, IDs and wallet keys vary; each independently pinned captured transcript deterministically replays its exact commitments",
+    "Local fixture clock is frozen; restart disposable preview after five minutes to refresh browser challenges and entry evidence",
+    "Recorded control/query totals include rehearsal and explicit failure/retry checks, not a production workload or cost estimate",
+    "B20 full profile remains unverified until B00\u2013B19 complete; core pass does not authorize R-stage work"
+  ],
+  "financialExecution": false,
+  "providerCalls": 0,
+  "remoteCloudflareWrites": false,
+  "ci": {
+    "conclusion": "pending-tested-commit"
+  },
+  "independentInventoryPins": {
+    "public": "c37909c4be6544603eec186ea2578ee52ea07b5d130ba3d7894f96ec926250fd",
+    "private": "0270ee108e58ca611c5be188c18e47e194b7d9c1f8be35bc66e608999e6a2a90"
+  },
+  "recoverySchemaFingerprint": "29d1a724ce10b8be34b16afbbc658ba245770cf5fabf90d74c81a391beb764ab",
+  "finalEdgeTranscript": {
+    "tests": 1,
+    "elapsedMs": 74349.0971,
+    "retainedPublicBundles": 4,
+    "privateTables": 86,
+    "pendingJobs": 18,
+    "maximumRecoveryInvocationSql": 179,
+    "maximumRecoveryInvocationCombinedPortOperations": 233,
+    "note": "Bundle counts can differ when concurrent-ready publication jobs retain identical expanded bytes; every published identity remains retained."
+  }
+}

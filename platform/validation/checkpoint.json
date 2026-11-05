@@ -1,5 +1,5 @@
 {
   "policy": "prd-1.2",
   "scope": "local",
-  "checkpoint": "blueprint-b08-immutable-publication-isolated-recovery"
+  "checkpoint": "blueprint-b20-core-hosted-browser-settlement-recovery"
 }

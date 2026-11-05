@@ -5,7 +5,7 @@
   "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
   "currentTask": "B20",
-  "lastUpdatedAt": "2026-11-05T22:32:24.663971+00:00",
+  "lastUpdatedAt": "2026-11-05T22:53:05.841890+00:00",
   "migrationAllocation": {
     "next": 33,
     "reserved": [
@@ -26,7 +26,9 @@
     "core": {
       "status": "in_progress",
       "commit": null,
-      "evidence": []
+      "evidence": [
+        "platform/validation/runs/2026-11-06-overnight/B20-core.json"
+      ]
     },
     "full": {
       "status": "not_started",
@@ -268,8 +270,10 @@
       "baseCommit": "62f713a3d87386aec99eabcc4387e12061ee92cd",
       "implementationCommit": null,
       "pushed": false,
-      "evidence": [],
-      "nextAction": "Implement B20-core same-origin React/workerd rehearsal with synthetic signed API admission, complete evidence, fenced settlement/publication faults and freshD1/R2 recovery; agents own browser/runtime helper and integration recovery.",
+      "evidence": [
+        "platform/validation/runs/2026-11-06-overnight/B20-core.json"
+      ],
+      "nextAction": "All B20-core local acceptance passed: combined realbrowser/hostedCLI,318reference,53edge,14site,build/types/contracts/recovery. Commit/push core milestone, markonlycoreverified andfollowCI. SkipB20 task untilfullprerequisites; nextpriorityB14 plusindependentB10.2.",
       "blocker": null
     }
   },
