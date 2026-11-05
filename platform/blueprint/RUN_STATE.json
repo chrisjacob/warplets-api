@@ -4,8 +4,8 @@
   "phase": "executing",
   "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
-  "currentTask": "B08",
-  "lastUpdatedAt": "2026-11-05T22:25:45.196009+00:00",
+  "currentTask": "B20",
+  "lastUpdatedAt": "2026-11-05T22:32:24.663971+00:00",
   "migrationAllocation": {
     "next": 33,
     "reserved": [
@@ -24,7 +24,7 @@
   },
   "acceptanceProfiles": {
     "core": {
-      "status": "not_started",
+      "status": "in_progress",
       "commit": null,
       "evidence": []
     },
@@ -136,15 +136,15 @@
       "blocker": null
     },
     "B08": {
-      "status": "in_progress",
+      "status": "verified",
       "owner": "coordinator + frontend_b09 + snapshot_acceptance",
       "baseCommit": "30b9630823cdc2cff2c18e604696470337143257",
-      "implementationCommit": null,
-      "pushed": false,
+      "implementationCommit": "62f713a3d87386aec99eabcc4387e12061ee92cd",
+      "pushed": true,
       "evidence": [
         "platform/validation/runs/2026-11-06-overnight/B08.json"
       ],
-      "nextAction": "All local B08 acceptance passed:318 reference,52 edge, final9Node/2D1recovery,13publication,types/contracts/drills/CLIs. Commit/push tested milestone, follow test-only CI and immediately start B20-core.",
+      "nextAction": null,
       "blocker": null
     },
     "B09": {
@@ -263,13 +263,13 @@
       "blocker": null
     },
     "B20": {
-      "status": "not_started",
-      "owner": null,
-      "baseCommit": null,
+      "status": "in_progress",
+      "owner": "coordinator",
+      "baseCommit": "62f713a3d87386aec99eabcc4387e12061ee92cd",
       "implementationCommit": null,
       "pushed": false,
       "evidence": [],
-      "nextAction": null,
+      "nextAction": "Implement B20-core same-origin React/workerd rehearsal with synthetic signed API admission, complete evidence, fenced settlement/publication faults and freshD1/R2 recovery; agents own browser/runtime helper and integration recovery.",
       "blocker": null
     }
   },

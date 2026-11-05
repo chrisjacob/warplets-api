@@ -1,8 +1,8 @@
 # Continuing implementation checkpoint
 
-Branch work/10x-prd-foundation. B08 is locally verified and awaiting its tested milestone commit/push. Previous pushed handoff 7827a15; B07 product 30b9630 passed CI42116935604. Continue immediately into B20-core after recording B08's commit, while following test-only CI.
+Branch work/10x-prd-foundation. B08 product62f713a is locally verified and pushed; test-only CI42121459234 passed. B07 product30b9630 passed CI42116935604. B20-core is now in progress.
 
-B00–B07 and B09 are verified. B08 now passes immutable publication and separate public/private recovery acceptance. B10 remains partial; B20-core is next, and B20 must be skipped after core until full-profile prerequisites pass.
+B00Ã¢â‚¬â€œB07 and B09 are verified. B08 now passes immutable publication and separate public/private recovery acceptance. B10 remains partial; B20-core is next, and B20 must be skipped after core until full-profile prerequisites pass.
 
 Publication stages exact bytes privately, records source/job identity under the current lease, conditionally creates the public object, verifies readback and atomically publishes its catalog entry. Unknown writes retry the same plan; conflicts remain held. Older bundles and finalized awards are retained. Public retrieval is byte-addressed, while proofs preserve historical semantic commitments.
 
@@ -14,6 +14,8 @@ Run node platform/earn/settlement-cli.mjs --fixture-rehearsal for cutoff -> boar
 
 Migrations031 and032 add immutable publication/catalog and recovery isolation guards. Next migration033; preserve019 gap. Public artifacts are bounded2MiB, staging128KiB, recovery inventory256KiB and referenced objects24MiB. Capture and reconciliation preflight a conservative900 SQL/object-operation ceiling.
 
-Next executable step: commit/push B08, follow test-only CI, then implement B20-core's single loopback browser origin serving built React and dispatching /api/v1 to real local workerd. Seed genuine synthetic signature/admission/review/evidence through shared services, compare Node/D1 settlement and restore fresh local instances. Frontend agent has browser/dispatcher design; recovery agent has integration comparison design. Coordinator owns shared contracts, migrations and commits.
+Next executable step: implement B20-core's single loopback browser origin serving built React and dispatching /api/v1 to real local workerd. Seed genuine synthetic signature/admission/review/evidence through shared services, compare Node/D1 settlement and restore fresh local instances. Frontend agent has browser/dispatcher design; recovery agent has integration comparison design. Coordinator owns shared contracts, migrations and commits.
 
 B10.1 remaining combinations are recorded in platform/site/B10_HANDOFF.md. Use installed pinned dependencies. Scratch/logs remain in work/. Preserve newer/unrelated changes; never reset. No deployment, remote Cloudflare mutation/provisioning, spend, funding, broadcasting, subscriptions, external messages, main/dev merge or force push. Sydney launch hours, later mint prices and all R-stage approvals remain open.
+
+B20 WIP: frontend agent owns hosted-runtime.mjs loopback dispatcher, rehearsal CLI and real browser QA; recovery agent owns integrated-rehearsal.mjs and private recovery-control.ts. Coordinator owns synthetic hosted-slice.mjs seeding/transcript and vertical-slice-worker.ts/test. Seed includes generated message-only wallets, two campaigns35minutes apart, exact entry/closing samples, prior component action history and dedicated browser wallet. Transcript verify() is not implemented yet; do not claim core acceptance. Next: real API admissions/reviews, complete recorded cutoff evidence, faulted jobs/publication, Node/D1 parity and fresh recovery.
