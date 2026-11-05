@@ -41,8 +41,8 @@ edgeAuth.post('/auth/challenges',async c=>{
  const now=Date.now(),nonce=token(),origin=new URL(c.req.url).origin,expiresAt=new Date(now+300000).toISOString();
  const message=[origin+' requests a 10X.MEME wallet signature.','Action: Sign in to the local preview','Chain: solana',
   'Wallet: '+body.data.wallet,'Nonce: '+nonce,'Issued: '+new Date(now).toISOString(),'Expires: '+expiresAt].join('\n');
- await c.env.DB.batch([c.env.DB.prepare('DELETE FROM auth_challenges WHERE expires_at<=?').bind(now),
-  c.env.DB.prepare('DELETE FROM sessions WHERE expires_at<=?').bind(now),
+ await c.env.DB.batch([c.env.DB.prepare('DELETE FROM auth_challenges WHERE nonce IN (SELECT nonce FROM auth_challenges WHERE expires_at<=? ORDER BY expires_at LIMIT 100)').bind(now),
+  c.env.DB.prepare('DELETE FROM sessions WHERE token_hash IN (SELECT token_hash FROM sessions WHERE expires_at<=? ORDER BY expires_at LIMIT 100)').bind(now),
   c.env.DB.prepare('INSERT INTO auth_challenges VALUES(?,?,?,?,?,NULL)').bind(nonce,body.data.wallet,origin,message,now+300000)]);
  return c.json({nonce,message,expiresAt},201);
 });

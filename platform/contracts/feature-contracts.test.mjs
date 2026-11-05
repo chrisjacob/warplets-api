@@ -9,6 +9,7 @@ import { openapi } from '../server/api.mjs';
 import { TERMS } from '../notifications/notices.mjs';
 import { finalizeBoard, addCampaign, recordAllocation } from '../earn/workflow.mjs';
 import { DAY_MS } from '../domain/earn/index.mjs';
+import {configureWorkload} from '../earn/operations.mjs';
 import { readFileSync } from 'node:fs';
 
 // Assertions for the schema keywords emitted by this contract generator, not a
@@ -46,6 +47,7 @@ function schemasFor(spec,operationId) {
 test('generated client authenticates and exercises exact feature schemas through the application router',async t=>{
   const db=openDatabase();t.after(()=>db.close());
   const now=20_001*DAY_MS+5000,epoch=Math.floor(now/DAY_MS),origin='http://localhost';
+  configureWorkload(db,{effectiveEpoch:epoch,atMs:now-1,staffedMinutes:10,secondsPerReview:6,admissionLimit:100,operator:'synthetic-reviewer',reason:'Explicit HTTP fixture staffing'});
   const app=createApp(db,{clock:()=>now}),spec=openapi();let cookie='';
   const client=createClient({baseUrl:origin+'/api/v1',fetchImpl:async(url,init)=>{
     const headers=new Headers(init.headers);headers.set('origin',origin);if(cookie)headers.set('cookie',cookie);

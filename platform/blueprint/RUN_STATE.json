@@ -5,16 +5,10 @@
   "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
   "currentTask": "B06",
-  "lastUpdatedAt": "2026-11-05T21:11:43.207288+00:00",
+  "lastUpdatedAt": "2026-11-05T21:30:33.077016+00:00",
   "migrationAllocation": {
     "next": 30,
-    "reserved": [
-      {
-        "version": 29,
-        "task": "B06",
-        "purpose": "atomic signed action completion and direct recovered archive read revisions"
-      }
-    ],
+    "reserved": [],
     "historicalGap": 19
   },
   "acceptanceProfiles": {
@@ -112,18 +106,20 @@
       "baseCommit": "aa317bcb5c21f0384c508d8fe81a64c036c1fe44",
       "implementationCommit": null,
       "pushed": false,
-      "evidence": [],
-      "nextAction": "Portable reads and pure signed-action proof agents active; coordinator owns guarded service/HTTP wiring, atomic signed completion migration029 and shared contracts. Preserve Node reference fixture API, wire common service for live local HTTP.",
+      "evidence": [
+        "platform/validation/runs/2026-11-06-overnight/B06.json"
+      ],
+      "nextAction": "All local checks passed; commit/push and follow test-only CI, then B07.",
       "blocker": null
     },
     "B07": {
       "status": "not_started",
-      "owner": null,
-      "baseCommit": null,
+      "owner": "coordinator + frontend_b09 + snapshot_acceptance",
+      "baseCommit": "44db510",
       "implementationCommit": null,
       "pushed": false,
       "evidence": [],
-      "nextAction": null,
+      "nextAction": "Build complete-manifest settlement service, bounded fenced scheduling and durable publication outbox; measure full local D1 orchestration and parity.",
       "blocker": null
     },
     "B08": {

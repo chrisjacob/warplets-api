@@ -6,6 +6,7 @@ import { createApp } from '../server/application.mjs';
 import { addCampaign, submitContent } from '../earn/workflow.mjs';
 import { recordSamplePrice } from '../pricing/fixtures.mjs';
 import { DAY_MS } from '../domain/earn/index.mjs';
+import {configureWorkload} from '../earn/operations.mjs';
 
 const at=Date.UTC(2026,10,5,12);
 const setup=t=>{const db=openDatabase();t.after(()=>db.close());return db;};
@@ -64,6 +65,7 @@ test('unsettled reservations carry across UTC months and actual charges use thei
 });
 test('pause preserves wallet-specific replay and claim access in the actual Node app',async t=>{
   const db=setup(t);
+  configureWorkload(db,{effectiveEpoch:Math.floor(at/DAY_MS),atMs:at-1,staffedMinutes:10,secondsPerReview:6,admissionLimit:100,operator:'synthetic-reviewer',reason:'Explicit HTTP fixture staffing'});
   const tokenId='T',wallet='w';
   addCampaign(db,{tokenId,activationMs:at,originalUnits:'10000'});
   recordSamplePrice(db,{tokenId,wallet,asOfMs:at,stakedUnits:'10000000'});

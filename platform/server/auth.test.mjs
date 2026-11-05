@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {generateKeyPairSync,sign} from 'node:crypto';
+import {generateKeyPairSync,sign,createHash} from 'node:crypto';
 import {createApp} from './application.mjs';
 import {openDatabase} from '../storage/database.mjs';
 import {encode58} from './base58.mjs';
@@ -75,4 +75,16 @@ test('identity-point wallet cannot authenticate with a universal forged proof',a
   const signature=encode58(Buffer.concat([identity,Buffer.alloc(32)]));
   assert.equal((await f.request('/auth/verify',{nonce,signature})).status,400);
   assert.equal(f.db.prepare('SELECT count(*) AS n FROM sessions').get().n,0);
+});
+test('request cleanup is bounded and retained expired sessions remain unusable',async t=>{
+ const db=openDatabase();t.after(()=>db.close());const now=1800000000000,origin='http://localhost';
+ for(let i=0;i<201;i++){
+  db.prepare('INSERT INTO sessions VALUES(?,?,?,?)').run(createHash('sha256').update('expired'+i).digest('hex'),'synthetic-wallet',origin,now-i);
+  db.prepare('INSERT INTO auth_challenges VALUES(?,?,?,?,?,NULL)').run('nonce'+i,'synthetic-wallet',origin,'synthetic-message',now-i);
+  db.prepare('INSERT INTO request_limits VALUES(?,?,?)').run('synthetic-bucket'+i,now-i,1);
+ }
+ const app=createApp(db,{clock:()=>now}),response=await app(new Request(origin+'/api/v1/me',{headers:{cookie:'tenx_local_session=expired0'}}));
+ assert.equal(response.status,401);
+ for(const table of ['sessions','auth_challenges','request_limits'])assert.equal(db.prepare('SELECT COUNT(*) n FROM '+table).get().n,101);
+ assert.equal(db.prepare('SELECT COUNT(*) n FROM sessions WHERE token_hash=?').get(createHash('sha256').update('expired0').digest('hex')).n,1);
 });

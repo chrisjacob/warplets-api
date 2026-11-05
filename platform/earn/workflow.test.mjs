@@ -9,6 +9,7 @@ import { DAY_MS } from '../domain/earn/index.mjs';
 import { handleEarn } from './http.mjs';
 import { addCampaign, finalizeBoard, readLeaderboard, recordAllocation, recordReview, recordStakeRead, submitContent } from './workflow.mjs';
 import { recordOwnership, registerCollection } from './components.mjs';
+import {configureWorkload} from './operations.mjs';
 
 const epoch=20_000;
 const start=epoch*DAY_MS;
@@ -53,6 +54,7 @@ function writeOptions(wallet,body,key='web-key') {
 
 test('HTTP entry enforces wallet identity, origin, scoped idempotency and current stake', async t=>{
   const db=openDatabase(); t.after(()=>db.close()); setup(db);
+  configureWorkload(db,{effectiveEpoch:epoch,atMs:start-1,staffedMinutes:10,secondsPerReview:6,admissionLimit:100,operator:'synthetic-reviewer',reason:'Explicit HTTP fixture staffing'});
   const body={tokenId:token,url:'https://example.org/article'};
   const post=(options,time=start+1)=>api(db,'/submissions',time,options);
   const unauth=writeOptions(alice,body);delete unauth.headers.cookie;

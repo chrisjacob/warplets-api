@@ -4,7 +4,6 @@ import {z} from 'zod';
 import {sessionOwner,sessionCookie,boundedInput} from './wallet';
 import {projectEntitlement} from '../../vault/projection.mjs';
 import {describeFarm} from '../../stake/projection.mjs';
-import {claimableUnits} from '../../domain/earn/settlement.mjs';
 import {BALLOT_CHOICES} from '../../domain/collections/ballot.mjs';
 
 export const pillars=new Hono<{Bindings:Env}>();
@@ -58,31 +57,6 @@ pillars.get('/stake/positions',async c=>{
   const page=rows.slice(0,25);
   const events=page.length?await c.env.DB.batch(page.map(f=>c.env.DB.prepare(eventSQL).bind(f.market_id,at))):[];
   return c.json({items:page.map((row,i)=>describeFarm(row,at,wallet,events[i].results)),nextCursor:rows.length>25?rows[24].market_id:null,asOf:iso(at)});
-});
-pillars.get('/earn/epochs/:epoch/leaderboard',async c=>{
-  const date=c.req.param('epoch'),ms=Date.parse(date+'T00:00:00Z');
-  if(!/^\d{4}-\d\d-\d\d$/.test(date)||!Number.isSafeInteger(ms)||ms<0||iso(ms).slice(0,10)!==date)
-    return c.json(fail('invalid_epoch','Use a UTC calendar date.'),400);
-  const epoch=ms/86400000;
-  const [boards,allocations]=await c.env.DB.batch<Row>([
-    c.env.DB.prepare('SELECT snapshot_hash,finalized_ms,winners FROM earn_boards WHERE epoch=?').bind(epoch),
-    c.env.DB.prepare('SELECT token_id AS tokenId,day,budget AS budgetUnits,burn AS burnUnits,vests_from_ms AS vestsFromMs,vests_through_ms AS vestsThroughMs FROM earn_allocations WHERE epoch=? ORDER BY token_id,day').bind(epoch)
-  ]);
-  const row=boards.results[0];
-  return c.json({mode:'local-fixture',epoch,date,status:row?'final':'pending',items:row?JSON.parse(String(row.winners)).map((w:object,i:number)=>({rank:i+1,...w})):[],
-    allocations:allocations.results,snapshotId:row?.snapshot_hash??null,finalizedAtMs:row?.finalized_ms??null});
-});
-pillars.get('/earn/claims',async c=>{
- const wallet=await sessionOwner(c.req.raw,c.env.DB,getCookie(c,sessionCookie));
- if(!wallet)return c.json(fail('authentication_required','Connect your wallet.'),401);
- const raw=c.req.query('cursor')??'0',after=Number(raw);
- if(!/^\d{1,15}$/.test(raw)||!Number.isSafeInteger(after))return c.json(fail('invalid_cursor','Invalid claim cursor.'),400);
- const {results}=await c.env.DB.prepare(`SELECT a.rowid AS cursor,a.token_id AS tokenId,a.day,a.amount,c.vests_from_ms AS vestsFromMs,
- c.vests_through_ms AS vestsThroughMs FROM earn_awards a JOIN earn_allocations c ON c.token_id=a.token_id AND c.day=a.day
- WHERE a.wallet=? AND a.rowid>? ORDER BY a.rowid LIMIT 51`).bind(wallet,after).all<Row>();
- return c.json({mode:'local-fixture',executionEnabled:false,items:results.slice(0,50).map(r=>({tokenId:r.tokenId,day:r.day,
-   awardUnits:r.amount,vestedUnits:String(claimableUnits({awardedUnits:BigInt(String(r.amount)),claimedUnits:0n,window:r,nowMs:now()})),
-   vestsFromMs:r.vestsFromMs,vestsThroughMs:r.vestsThroughMs})),nextCursor:results.length>50?results[49].cursor:null});
 });
 pillars.post('/genesis/ballots/:id/votes',async c=>{
  const origin=new URL(c.req.url).origin;

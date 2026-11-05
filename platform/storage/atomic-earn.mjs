@@ -5,6 +5,7 @@ import { ADMIT_SUBMISSION, FINAL_REVIEW, admissionRequestBytes, reviewRequestByt
 import { canonicalContentUrl, name, nat, requireValue } from '../earn/validation.mjs';
 import { DAY_MS, MIN_STAKE_MICRO_USD } from '../domain/earn/index.mjs';
 import { sql, revisions, measureBatch, matchesExpectedRevisions } from './atomic-driver.mjs';
+import {admissionRead} from '../pricing/admission-read.mjs';
 const pending=(reason)=>({kind:'pending',reason,dependencyIds:[]});
 const conflict=code=>({kind:'conflict',code});
 function costHeld(usage,spend,nowMs) {
@@ -33,14 +34,28 @@ export function createAtomicEarnRepository(driver,{crypto,ids,telemetry={record(
         sql('SELECT * FROM earn_workload_policies WHERE effective_epoch<=? AND recorded_ms<=? ORDER BY effective_epoch DESC,recorded_ms DESC LIMIT 1',epoch,nowMs),
         sql('SELECT admitted FROM earn_admission_counts WHERE epoch=?',epoch),
         sql("SELECT paused FROM ops_scope_log WHERE scope='earn-admission' AND at_ms<=? ORDER BY at_ms DESC LIMIT 1",nowMs),
-        sql(`SELECT r.id,r.micro_usd,o.decision FROM price_observations o LEFT JOIN earn_stake_reads r ON r.id=o.read_id
+        sql(`SELECT r.id,r.micro_usd,r.wallet AS read_wallet,r.token_id AS read_token,r.observed_ms AS read_observed_ms,r.expires_ms AS read_expires_ms,
+          o.receipt,o.as_of_ms,o.policy_hash,p.policy_hash AS source_policy_hash,o.decision FROM price_observations o LEFT JOIN earn_stake_reads r ON r.id=o.read_id JOIN price_sources p ON p.token_id=o.token_id
           WHERE o.wallet=? AND o.token_id=? AND o.as_of_ms<=? ORDER BY o.as_of_ms DESC,o.revision DESC LIMIT 1`,principal.wallet,input.tokenId,nowMs),
         sql(`SELECT * FROM ops_usage u WHERE u.at_ms<=? AND NOT EXISTS(SELECT 1 FROM ops_usage n WHERE n.provider=u.provider
           AND n.metric=u.metric AND (u.metric='new-monthly-usd' OR n.period=u.period) AND n.at_ms>u.at_ms AND n.at_ms<=?) AND (u.metric='new-monthly-usd' OR u.period=?) ORDER BY u.provider LIMIT 101`,nowMs,nowMs,new Date(nowMs).toISOString().slice(0,10)),
         sql("SELECT * FROM ops_optional_spend WHERE at_ms<=? AND (status='reserved' OR COALESCE(settled_ms,at_ms)>=?) LIMIT 101",nowMs,Date.parse(new Date(nowMs).toISOString().slice(0,7)+'-01T00:00:00Z')),
+        sql('SELECT 1 FROM earn_recovered_boards LIMIT 1'),
+        sql('SELECT * FROM earn_submissions WHERE wallet=? AND request_key=?',principal.wallet,command.requestKey),
       ]);
-      const [versionsRows,campaign,board,duplicate,policies,counts,scope,observations,usage,spend]=rows;
+      const [versionsRows,campaign,board,duplicate,policies,counts,scope,observations,usage,spend,recovered,accepted]=rows;
       if(!matchesExpectedRevisions(command.expectedRevisions,revisions(versionsRows)))return conflict('revision_conflict');
+      if(accepted[0]){
+        const row=accepted[0];if(row.token_id!==input.tokenId||row.url!==input.url)return conflict('idempotency_conflict');
+        // Migration compatibility: adopt an already accepted reference result.
+        // The mandatory effect assertion checks the original persisted row and
+        // admission counter; no new submission or current-policy bypass occurs.
+        return execute({...command,nowMs:row.submitted_ms},{businessKey:canonicalJson([principal.wallet,row.token_id,row.epoch]),
+          input:{wallet:principal.wallet,...input,epoch:row.epoch,entryReadId:row.entry_read_id,adoptedReference:true},
+          result:{submission:{id:row.id,tokenId:row.token_id,epoch:row.epoch,url:row.url,submittedAtMs:row.submitted_ms},replay:true},
+          resultRef:row.id,version:revisions(versionsRows),child:()=>[]});
+      }
+      if(recovered.length)return conflict('read_only_archive');
       if(!campaign[0]||nowMs<campaign[0].activation_ms||nowMs>=campaign[0].activation_ms+10*DAY_MS)return conflict('campaign_inactive');
       if(board.length)return conflict('board_closed');if(duplicate.length)return conflict('already_submitted');
       if(scope[0]?.paused)return pending('operator-pause');
@@ -48,8 +63,8 @@ export function createAtomicEarnRepository(driver,{crypto,ids,telemetry={record(
       const policy=policies[0];if(!policy)return pending('staffing-required');
       const limit=Math.min(policy.admission_limit,Math.floor(policy.staffed_minutes*60/policy.seconds_per_review));
       if((counts[0]?.admitted??0)>=limit)return conflict('board_capacity');
-      const observation=observations[0],decision=observation?JSON.parse(observation.decision):null;
-      if(!observation?.id||decision?.status!=='verified'||decision.expiresMs<nowMs)return pending('stake-evidence');
+      const observation=observations[0],decision=admissionRead(observation,{wallet:principal.wallet,tokenId:input.tokenId,nowMs});
+      if(decision.status!=='verified')return pending('stake-evidence');
       if(BigInt(observation.micro_usd)<MIN_STAKE_MICRO_USD)return conflict('stake_ineligible');
       const id=ids.next(),value={submission:{id,tokenId:input.tokenId,epoch,url:input.url,submittedAtMs:nowMs},replay:false};
       return await execute(command,{businessKey:canonicalJson([principal.wallet,input.tokenId,epoch]),
@@ -68,13 +83,19 @@ export function createAtomicEarnRepository(driver,{crypto,ids,telemetry={record(
       const prior=await replay(command);if(prior)return prior;
       const [versionsRows,posts,reviews,closed,grants]=await read([
         sql('SELECT * FROM app_revisions ORDER BY name'),sql('SELECT * FROM earn_submissions WHERE id=?',input.submissionId),
-        sql('SELECT 1 FROM earn_reviews WHERE submission_id=?',input.submissionId),
+        sql('SELECT * FROM earn_reviews WHERE submission_id=?',input.submissionId),
         sql('SELECT 1 FROM earn_boards WHERE epoch=(SELECT epoch FROM earn_submissions WHERE id=?) OR epoch=?',input.submissionId,Math.floor(nowMs/DAY_MS)),
         sql("SELECT enabled FROM app_operator_scopes WHERE operator=? AND scope='earn-review'",principal.id),
       ]);
       if(!matchesExpectedRevisions(command.expectedRevisions,revisions(versionsRows)))return conflict('revision_conflict');
       if(!posts[0]||nowMs<posts[0].submitted_ms)return conflict('invalid_review_time');
-      if(reviews.length)return conflict('final_review');if(closed.length)return conflict('board_closed');
+      if(reviews.length){
+        const row=reviews[0];
+        if(row.content_score!==input.score||row.reason!==input.reason||row.source_ref!==input.sourceRef||row.moderator!==principal.id)return conflict('final_review');
+        return execute({...command,nowMs:row.reviewed_ms},{businessKey:input.submissionId,input:{...input,moderator:principal.id,adoptedReference:true},
+          result:{recorded:true,replayed:true},resultRef:input.submissionId,version:revisions(versionsRows),child:()=>[]});
+      }
+      if(closed.length)return conflict('board_closed');
       if(!grants[0]?.enabled)return conflict('operator_scope_required');
       return await execute(command,{businessKey:input.submissionId,input:{...input,moderator:principal.id},result:{recorded:true,replayed:false},
         resultRef:input.submissionId,version:revisions(versionsRows),

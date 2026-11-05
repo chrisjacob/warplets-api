@@ -3,6 +3,15 @@ import { createApplicationContext, deferredPort } from './context.mjs';
 import { createNodeCrypto } from '../security/node-crypto.mjs';
 import { createNodeEarnRepository } from '../storage/node/earn-repository.mjs';
 import { createEarnService } from '../earn/service.mjs';
+import {createNodeAtomicDriver} from '../storage/node/atomic-driver.mjs';
+import {createAtomicEarnRepository} from '../storage/atomic-earn.mjs';
+import {createAtomicActionRepository} from '../storage/atomic-actions.mjs';
+import {createEarnReadRepository} from '../storage/earn-reads.mjs';
+import {createGuardedEarnService} from '../earn/guarded-service.mjs';
+export function createNodeGuardedEarnService(db,{nowMs,ids={next:randomUUID}}){
+ const driver=createNodeAtomicDriver(db),ports={crypto:createNodeCrypto(),clock:{nowMs:()=>nowMs},ids};
+ return createGuardedEarnService({guarded:createAtomicEarnRepository(driver,ports),reads:createEarnReadRepository(driver),actions:createAtomicActionRepository(driver,ports),...ports});
+}
 export function createNodeEarnService(db,{nowMs,ids={next:randomUUID}}) {
   return createEarnService(createApplicationContext({clock:{nowMs:()=>nowMs},ids,crypto:createNodeCrypto(),
     repositories:{earn:createNodeEarnRepository(db,{ids})},evidence:deferredPort(),artifacts:deferredPort(),jobs:deferredPort(),

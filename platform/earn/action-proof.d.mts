@@ -1,0 +1,11 @@
+import type {CanonicalCrypto} from '../application/ports';
+export const PROOF_DOMAIN:'10x.local.earn-action.v1';
+export type ActionProof=Readonly<{domain:typeof PROOF_DOMAIN;issuerId:string;grantRevision:string;actionId:string;wallet:string;nonce:string;issuedAtMs:number;expiresMs:number;sourceHash:string}>;
+export type ActionProofInput=Readonly<{wallet:string;actionId:string;proof:ActionProof;signature:string}>;
+export type ActionIssuerGrant=Readonly<{issuerId:string;actionId:string;verifier:string;pubkey:string;fromEpoch:number;untilEpoch:number;recordedMs:number;revision:string;revokedMs:number|null}>;
+export type ActiveProofAction=Readonly<{actionId:string;verifier:string;startEpoch:number;enabled?:boolean}>;
+export type ActionProofIdentity=Readonly<{issuerId:string;nonce:string;wallet:string;actionId:string;sourceHash:string;proofDigest:string;message:Uint8Array}>;
+export type VerifiedActionProof=Readonly<{issuerId:string;nonce:string;wallet:string;actionId:string;sourceHash:string;proofDigest:string;verifiedAtMs:number;verifier:string;sourceRef:string}>;
+export function signedCompletionBytes(proof:ActionProof):Uint8Array;
+export function actionProofIdentity(input:ActionProofInput,crypto:CanonicalCrypto):Promise<ActionProofIdentity>;
+export function verifyActionProof(input:ActionProofInput&Readonly<{nowMs:number;grant:ActionIssuerGrant|null;activeAction:ActiveProofAction|null}>,crypto:CanonicalCrypto):Promise<VerifiedActionProof>;

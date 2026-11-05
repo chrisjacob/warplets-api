@@ -53,6 +53,13 @@ test('context is immutable, service binds principal and awaits rejected async re
   assert.deepEqual(seen.expectedRevisions,{});assert.equal(Object.isFrozen(context.executionPolicy),true);
   assert.throws(()=>createApplicationContext(input),/financial execution/);
 });
+test('final review captures caller revision expectations before asynchronous hashing',async()=>{
+ const expectedRevisions={earn:'1'},crypto=createNodeCrypto();let captured;
+ const service=createEarnService({clock:{nowMs:()=>fixture.start},crypto:{...crypto,async sha256(bytes){expectedRevisions.earn='2';return crypto.sha256(bytes);}},
+  repositories:{earn:{async recordFinalReview(command){captured=command;return {recorded:true,replayed:false};}}},executionPolicy:{mode:'local-validation',financialExecution:false}});
+ await service.recordFinalReview({kind:'operator',id:'synthetic-reviewer'},{submissionId:'synthetic-post',score:7,reason:'fixture',sourceRef:'fixture',expectedRevisions});
+ assert.deepEqual(captured.expectedRevisions,{earn:'1'});assert.equal(expectedRevisions.earn,'2');
+});
 
 // Local fixture covering the asynchronous gap between load and atomic commit.
 async function preparedBoard(t) {

@@ -15,6 +15,10 @@ export async function boundedJson(request,limit=4096) {
       chunks.push(value);
     }
   } finally {reader.releaseLock();}
-  try {return JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(Buffer.concat(chunks)));}
+  try {
+    const bytes=new Uint8Array(total);let offset=0;
+    for(const chunk of chunks){bytes.set(chunk,offset);offset+=chunk.byteLength;}
+    return JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(bytes));
+  }
   catch {throw new BodyInputError(400,'invalid_input','Expected valid UTF-8 JSON.');}
 }

@@ -6,6 +6,7 @@ import { observeAsset, recordVaultManifest } from '../vault/ledger.mjs';
 import { observeFarm, seedFarm } from '../stake/farms.mjs';
 import { seedBallot } from '../governance/ballots.mjs';
 import { addCampaign, recordStakeRead } from '../earn/workflow.mjs';
+import {configureWorkload} from '../earn/operations.mjs';
 import { createCollection, fulfillMint, fulfillProgression, inspectOperation, observeCollectionAsset,
   publishCollectionStage, reserveMint, listOwnOperations } from '../collect/store.mjs';
 
@@ -16,6 +17,7 @@ export async function checkMemberPages({ browser, db, origin }) {
   const keys=generateKeyPairSync('ed25519');
   const wallet=encode58(keys.publicKey.export({format:'der',type:'spki'}).subarray(-32));
   const now=Date.now(), start=Math.floor(now/1000)*1000-3*86_400_000;
+  configureWorkload(db,{effectiveEpoch:Math.floor(now/86400000),atMs:now-1,staffedMinutes:10,secondsPerReview:6,admissionLimit:100,operator:'browser-fixture',reason:'Explicit browser fixture staffing'});
   const startIso=new Date(start).toISOString();
   const key=n=>encode58(Buffer.alloc(32,n));
   importMarket(db,{id:'browser-att',symbol:'BROWSERATT',ogSymbol:'BROWSEROG',attMint:key(1),

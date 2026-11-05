@@ -32,15 +32,16 @@ export function createEarnService(context) {
       return await repository.admitSubmission(Object.freeze({principal,operationKind:ADMIT_SUBMISSION,
         businessIdentity:principal.wallet+'/'+tokenId,requestKey,requestDigest,expectedRevisions:Object.freeze({}),input,nowMs}));
     },
-    async recordFinalReview(principal,{submissionId,score,reason,sourceRef}) {
+    async recordFinalReview(principal,{submissionId,score,reason,sourceRef,expectedRevisions={}}) {
       if(principal?.kind!=='operator')throw new EarnError(403,'operator_required','Operator authentication required.');
       principal=Object.freeze({kind:'operator',id:name(principal.id,'operator')});
       name(submissionId,'submission');name(reason,'score reason');name(sourceRef,'source reference');
       requireValue(Number.isInteger(score)&&score>=0&&score<=10,'Score must be 0–10.');
       const input=Object.freeze({submissionId,score,reason,sourceRef});
+      const expected=Object.freeze({...expectedRevisions});
       const requestDigest=await context.crypto.sha256(reviewRequestBytes({principal,input}));
       return await repository.recordFinalReview(Object.freeze({principal,operationKind:FINAL_REVIEW,
-        businessIdentity:submissionId,requestKey:submissionId,requestDigest,expectedRevisions:Object.freeze({}),
+        businessIdentity:submissionId,requestKey:submissionId,requestDigest,expectedRevisions:expected,
         input,nowMs:nat(context.clock.nowMs(),'now')}));
     },
     async finalizeBoard({epoch,sourceComplete,sourceRef}) {

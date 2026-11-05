@@ -1,5 +1,5 @@
 {
   "policy": "prd-1.2",
   "scope": "local",
-  "checkpoint": "blueprint-b05-complete-private-cutoff-snapshots"
+  "checkpoint": "blueprint-b06-shared-guarded-earn-http"
 }

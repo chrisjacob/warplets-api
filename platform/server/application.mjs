@@ -19,9 +19,9 @@ export function createApp(db,{clock=Date.now}={}) {
   return async function dispatch(request,peer='loopback'){
     const now=clock();
     if(now>=nextCleanup) {
-      db.prepare('DELETE FROM request_limits WHERE resets_at<=?').run(now);
-      db.prepare('DELETE FROM sessions WHERE expires_at<=?').run(now);
-      db.prepare('DELETE FROM auth_challenges WHERE expires_at<=?').run(now);
+      db.prepare('DELETE FROM request_limits WHERE bucket IN (SELECT bucket FROM request_limits WHERE resets_at<=? ORDER BY resets_at LIMIT 100)').run(now);
+      db.prepare('DELETE FROM sessions WHERE token_hash IN (SELECT token_hash FROM sessions WHERE expires_at<=? ORDER BY expires_at LIMIT 100)').run(now);
+      db.prepare('DELETE FROM auth_challenges WHERE nonce IN (SELECT nonce FROM auth_challenges WHERE expires_at<=? ORDER BY expires_at LIMIT 100)').run(now);
       nextCleanup=now+60000;
     }
     const response=await handleAuth(db,request,peer,now)??handleOperations(db,request,now)??await handleQuotes(db,request,peer,now)??handleMarkets(db,request,now)??handleVault(db,request,now)?? 

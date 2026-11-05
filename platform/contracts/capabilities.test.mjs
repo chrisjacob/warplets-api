@@ -21,7 +21,9 @@ test('runtime inventories describe only scoped local routes and never advertise 
    }
  }
  assert.ok(node.features.some(f=>f.id==='earn-admission'));
- assert.ok(!worker.features.some(f=>['earn-admission','quote-preview','local-inbox','collection-fixture-requests'].includes(f.id)));
+ assert.ok(worker.features.some(f=>f.id==='earn-admission'));
+ assert.ok(worker.features.some(f=>f.id==='earn-actions'));
+ assert.ok(!worker.features.some(f=>['quote-preview','local-inbox','collection-fixture-requests'].includes(f.id)));
  assert.ok(worker.features.some(f=>f.id==='verified-manifest-read'));
  const advertised=new Set(node.features.flatMap(f=>f.routes.map(r=>r.method+' '+r.path.slice(7))));
  for(const [path,item] of Object.entries(spec.paths))for(const method of ['get','post','put','patch','delete']){

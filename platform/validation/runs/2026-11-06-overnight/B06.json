@@ -1,0 +1,54 @@
+{
+  "taskId": "B06",
+  "status": "verified",
+  "implementationCommit": null,
+  "baseCommit": "aa317bcb5c21f0384c508d8fe81a64c036c1fe44",
+  "classification": "synthetic local Node/workerd/D1 and browser fixtures; no live claims",
+  "migrations": [
+    "029-signed-actions.sql"
+  ],
+  "commands": [
+    {
+      "command": "node platform/scripts/test-reference.mjs",
+      "tests": 268,
+      "exitCode": 0
+    },
+    {
+      "command": "node --test platform/edge/test/*.test.mjs",
+      "tests": 31,
+      "exitCode": 0
+    },
+    {
+      "command": "site node --test tests/*.spec.mjs",
+      "tests": 14,
+      "exitCode": 0
+    },
+    {
+      "command": "edge and site TypeScript; Vite build; contracts generate --check; recovery-drill; blueprint --next --self-check; git diff --check",
+      "exitCode": 0
+    },
+    {
+      "command": "platform/web/member-smoke.mjs local browser acceptance",
+      "exitCode": 0
+    }
+  ],
+  "assertions": [
+    "Shared guarded Earn service and strict portable HTTP in Node and workerd; generated client DTO parity",
+    "Last staffed slot race; owner-only reads; same-key replay/body conflict; auth/origin/body/quota errors",
+    "Private final moderation exact replay and immutable conflict; expected revisions captured before async hashing",
+    "Prospective Ed25519 issuer grants, strict proof bytes and atomic nonce/completion insertion",
+    "Accepted receipts replay after expiry, revocation and pause; pre-migration accepted rows adopt receipts without duplicate writes",
+    "Admission stake identity, token, time, expiry, value and registered policy must match linked verified price read",
+    "Bounded pagination, response sizes and expired-session cleanup; recovered archive revisions guard read consistency",
+    "Browser 360/390/768/1440 widths and wallet-session flows passed with synthetic fixtures; financial capabilities false"
+  ],
+  "limits": [
+    "Browser uses Node plus Worker capability fixture; full D1 browser acceptance remains B20-core",
+    "Loopback only; no public moderator route or hosted identity approval",
+    "All fixture labels preserved; no real-chain evidence claimed"
+  ],
+  "providerAttempts": 0,
+  "remoteCloudflareWrites": false,
+  "financialExecution": false,
+  "ci": null
+}
