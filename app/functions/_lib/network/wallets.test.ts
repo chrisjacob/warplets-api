@@ -30,6 +30,17 @@ function fixture(){
   return {db,env:{WARPLETS:sqliteD1(db),NEYNAR_API_KEY:'test',NETWORK_WALLET_CREDITS:'10000'} as WalletEnv};
 }
 describe('wallet valuation and top holdings',()=>{
+  it('preserves the projected association allowance when activity reaches its allocation',async()=>{
+    const {db,env}=fixture(),month=new Date().toISOString().slice(0,7);
+    db.prepare('INSERT INTO network_credit_budgets(month,reserved) VALUES(?,998)').run(month);
+    const fetcher=vi.fn(async()=>Response.json({}));vi.stubGlobal('fetch',fetcher);
+    const activityEnv={...env,networkAssociationReserve:9000};
+    await neynarRead(activityEnv,'/v2/test',2);
+    await expect(neynarRead(activityEnv,'/v2/test',2)).rejects.toThrow('wallet refresh allowance retained');
+    await neynarRead(env,'/v2/test',2);
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    expect(db.prepare('SELECT reserved FROM network_credit_budgets').get()?.reserved).toBe(1002);
+  });
   it('gives sustained parallel Neynar readers fair turns without polling the database',async()=>{
     const {db,env}=fixture();vi.useFakeTimers();
     try{

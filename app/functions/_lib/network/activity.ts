@@ -2,6 +2,7 @@ import { NETWORK_CURRENT_COHORT } from './cohort';
 import { nextMonth, utcMonth } from '../../../shared/network/activity';
 import { neynarRead, type WalletEnv } from './wallets';
 import { bounded, syncGet, syncSet } from './store';
+import { neynarReservation } from './neynarPricing';
 
 const EPOCH = Date.UTC(2021,0,1);
 const routes = [
@@ -63,6 +64,13 @@ async function readNextActivity(env:WalletEnv,limit:number) {
   if(await syncGet(env.WARPLETS,'activity_cooldown',0)>Date.now())return {status:'cooldown'};
   const now=Date.now(),current=utcMonth(now);
   const rows=await env.WARPLETS.prepare(`SELECT fid,MIN(event_at) acceptedAt FROM network_events WHERE fid IN (${NETWORK_CURRENT_COHORT}) GROUP BY fid`).all<{fid:number;acceptedAt:number}>();
+  // Reserve the remaining month's daily association refreshes before activity
+  // retries spend the shared balance. Use the live per-FID tariff and 10% room
+  // for cohort growth; this is an app allocation, not a provider usage reading.
+  const date=new Date(now),days=Math.ceil((Date.UTC(date.getUTCFullYear(),date.getUTCMonth()+1,1)-now)/86_400_000);
+  const perFid=env.NETWORK_NEYNAR_PRICING_ENABLED==='true'?await neynarReservation(env,'/v2/farcaster/user/bulk?fids=1'):2;
+  const members=await env.WARPLETS.prepare(`SELECT COUNT(*) total FROM (${NETWORK_CURRENT_COHORT})`).first<{total:number}>();
+  env={...env,networkAssociationReserve:Math.ceil((members?.total??rows.results.length)*perFid*days*11/10)};
   const recorded=new Set((await env.WARPLETS.prepare('SELECT fid,month FROM network_activity_months').all<{fid:number;month:string}>()).results.map(r=>`${r.fid}:${r.month}`));
   const checks=new Map((await env.WARPLETS.prepare('SELECT fid,month,checked_at FROM network_activity_checks').all<{fid:number;month:string;checked_at:number}>()).results.map(r=>[`${r.fid}:${r.month}`,r.checked_at]));
   const candidates:{fid:number;acceptedAt:number;month:string;checked:number}[]=[];
