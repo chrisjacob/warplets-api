@@ -1,0 +1,5 @@
+{
+  "policy": "prd-1.2",
+  "scope": "local",
+  "checkpoint": "integrated-domains-wallet-ui-d1-and-randomness"
+}
