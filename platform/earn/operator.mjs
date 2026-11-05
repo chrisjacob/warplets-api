@@ -4,6 +4,7 @@ import { openDatabase } from '../storage/database.mjs';
 import { addCampaign, finalizeBoard, recordAllocation, recordReview, recordStakeRead } from './workflow.mjs';
 import { configureAction, registerCollection, recordOwnership, recordActionCompletion } from './components.mjs';
 import { registerPosition, recordPositionEvent, reconcilePosition } from './positions.mjs';
+import { recoveryMode } from './archive.mjs';
 
 const commands = {campaign:addCampaign,stake:recordStakeRead,review:recordReview,
   finalize:finalizeBoard,allocate:recordAllocation,action:configureAction,completion:recordActionCompletion,
@@ -15,7 +16,10 @@ export function runOperator(argv) {
   }
   const input=JSON.parse(readFileSync(fixture,'utf8'));
   const db=openDatabase(database);
-  try { return commands[action](db,input); }
+  try {
+    if (recoveryMode(db)) throw new Error('This public archive serves existing awards. Use an operator database for fixtures.');
+    return commands[action](db,input);
+  }
   finally { db.close(); }
 }
 if (process.argv[1] && import.meta.url===pathToFileURL(process.argv[1]).href) {

@@ -35,3 +35,17 @@ node platform/earn/operator.mjs ./earn-pilot.sqlite allocate day.json
 5. Finalize after the board closes and the operator attests the input set is complete. Missing evidence holds the board. A rejected submission needs no closing stake read. A late review still settles its original submission board, while an eligible approval advances the streak in its approval day. Finalization locks the evidence references, decisions and ranking in one transaction.
 6. Record each token/day from its designated board. A complete, empty prior board permits the first 1% budget to burn in the local ledger. The token/day uniqueness constraint makes replay safe. Inspect `GET /api/v1/earn/epochs/YYYY-MM-DD/leaderboard`; an unfinalized day reports `pending`, while a valid empty board reports `final`.
 7. A signed-in wallet can page through `/api/v1/earn/me` and `/api/v1/earn/claims` using `nextCursor`. Amounts are decimal strings in token base units. Remaining awards do not expire. A custody/distributor implementation and independently verified chain observations are release gates before this could pay real rewards.
+
+## Export and recover public awards
+
+The public archive contains ranked wallet awards, token supply, activation times, vesting windows and burns. It omits content URLs, private moderation records, sessions and source evidence. Keep separate backups of the operator database for those records.
+
+```text
+node platform/earn/archive-cli.mjs export ./earn-pilot.sqlite 20001 ./board-20001.json
+node platform/earn/archive-cli.mjs verify ./board-20001.json PINNED_DIGEST
+node platform/earn/archive-cli.mjs restore ./recovery.sqlite ./board-20001.json PINNED_DIGEST
+```
+
+Store the export digest independently of the file. Verification checks the pinned digest, board ranking, 10% caps, supply conservation and vesting schedule. The board commitment stays fixed. A later token allocation for the same board creates a new bundle digest. Recovery adds verified allocations, rejects conflicting records and safely accepts retries. Serve the local API against the recovery database to read the leaderboard and vested award previews without the original operator database. Recovery imports do not create private balances or enable transactions.
+
+Wallet owners can retrieve `/api/v1/earn/claims/proof?tokenId=ATT&day=2` and verify it against the allocation’s root in the pinned `/api/v1/earn/epochs/YYYY-MM-DD/manifest`. The local proof binds wallet, token base units, campaign day, board commitment and vesting window. Leaves sort by wallet, each pair keeps left/right order, and an unpaired node advances unchanged. All hashes use SHA-256 over UTF-8 canonical JSON arrays with explicit format and purpose labels. This is an offline integrity scheme. The eventual distributor must validate its own program-specific proof format.

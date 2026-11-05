@@ -2,6 +2,7 @@ import { consumeQuota, currentSession } from '../server/auth.mjs';
 import { failure, json } from '../server/api.mjs';
 import { DAY_MS } from '../domain/earn/index.mjs';
 import { listActiveActions } from './components.mjs';
+import { exportBoard, proofForWallet, recoveryMode } from './archive.mjs';
 import { EarnError, readLeaderboard, readWalletClaims, readWalletSubmissions, submitContent } from './workflow.mjs';
 
 const base='/api/v1/earn';
@@ -39,19 +40,23 @@ async function boundedJson(request) {
 
 export async function handleEarn(db,request,peer,now) {
   const url=new URL(request.url);
-  const board=url.pathname.match(/^\/api\/v1\/earn\/epochs\/([^/]+)\/leaderboard$/);
+  const board=url.pathname.match(/^\/api\/v1\/earn\/epochs\/([^/]+)\/(leaderboard|manifest)$/);
   const post=url.pathname===base+'/submissions';
   const me=url.pathname===base+'/me';
   const claims=url.pathname===base+'/claims';
+  const proof=url.pathname===base+'/claims/proof';
   const actions=url.pathname===base+'/actions';
-  if (!board && !post && !me && !claims && !actions) return null;
+  if (!board && !post && !me && !claims && !actions && !proof) return null;
   const expected=post?'POST':'GET';
   if (request.method!==expected) return failure(405,'method_not_allowed','Unsupported method.',{allow:expected});
   try {
     if (board || actions) {
       const quota=consumeQuota(db,'earn-read:'+peer,now,60);
       if (quota) return quota;
-      if (board) return json(readLeaderboard(db,dateEpoch(board[1])));
+      if (board) {
+        const epoch=dateEpoch(board[1]);
+        return json(board[2]==='manifest'?exportBoard(db,epoch):readLeaderboard(db,epoch));
+      }
       const epoch=Math.floor(now/DAY_MS);
       return json({epoch,mode:'local-fixture',items:listActiveActions(db,epoch)});
     }
@@ -60,7 +65,13 @@ export async function handleEarn(db,request,peer,now) {
     if (!session) return failure(401,'authentication_required','Connect your wallet.');
     const quota=consumeQuota(db,(post?'earn-submit:':'earn-wallet-read:')+session.wallet,now,post?10:60);
     if (quota) return quota;
+    if (proof) {
+      const day=url.searchParams.get('day'),tokenId=url.searchParams.get('tokenId');
+      if (!/^(?:[1-9]|10)$/.test(day??'') || !tokenId || tokenId.length>256) return failure(400,'invalid_input','Supply a tokenId and campaign day 1–10.');
+      return json(proofForWallet(db,{wallet:session.wallet,tokenId,day:Number(day)}));
+    }
     if (post) {
+      if (recoveryMode(db)) return failure(409,'read_only_archive','Public archive serves existing awards.');
       if (request.headers.get('content-type')?.split(';')[0]!=='application/json') return failure(415,'unsupported_media_type','Use application/json.');
       const body=await boundedJson(request);
       if (!body || typeof body!=='object' || Array.isArray(body) || Object.keys(body).some(k=>!['tokenId','url'].includes(k))) {

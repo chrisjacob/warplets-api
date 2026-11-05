@@ -4,6 +4,7 @@ import { DAY_MS, MIN_STAKE_MICRO_USD, advanceStreak, allocationWindow, claimable
   onboardingTenths, rankBoard, settleAllocation } from '../domain/earn/index.mjs';
 import { EarnError, conflict, decimal, digest, name, nat, requireValue } from './checks.mjs';
 import { deriveComponents } from './components.mjs';
+import { readRecoveredClaims, readRecoveredLeaderboard, recoveryMode } from './archive.mjs';
 export { EarnError } from './checks.mjs';
 function canonicalUrl(text) {
   requireValue(typeof text==='string' && text.length<=2048, 'Provide one HTTPS content URL.');
@@ -193,6 +194,7 @@ export function finalizeBoard(db,{epoch,nowMs,sourceComplete,sourceRef}) {
 
 export function readLeaderboard(db,epoch) {
   nat(epoch,'epoch');
+  if (recoveryMode(db)) return readRecoveredLeaderboard(db,epoch);
   const row=db.prepare('SELECT * FROM earn_boards WHERE epoch=?').get(epoch);
   const date=new Date(epoch*DAY_MS).toISOString().slice(0,10);
   const items=row ? JSON.parse(row.winners).map((w,i)=>({rank:i+1,...w})) : [];
@@ -224,6 +226,7 @@ export function recordAllocation(db,{tokenId,day,nowMs}) {
 
 export function readWalletClaims(db,{wallet,nowMs,after=0}) {
   nat(after,'cursor');
+  if (recoveryMode(db)) return readRecoveredClaims(db,{wallet,nowMs,after});
   const rows=db.prepare(`SELECT a.rowid AS cursor,a.token_id AS tokenId,a.day,a.amount,
     c.vests_from_ms AS vestsFromMs,c.vests_through_ms AS vestsThroughMs FROM earn_awards a
     JOIN earn_allocations c ON c.token_id=a.token_id AND c.day=a.day
