@@ -1,4 +1,4 @@
-import { NETWORK_CURRENT_COHORT } from './cohort';
+import { NETWORK_CURRENT_COHORT, NETWORK_CURRENT_PROFILE } from './cohort';
 import { parseNetworkFilters, validateNetworkParams } from '../../../shared/network/model';
 import { acceptedQuote, decimalScale, NATIVE_ASSET, type PricedPosition } from './wallets';
 import { networkIdentity } from '../../../shared/network/normalize';
@@ -71,7 +71,9 @@ async function memberWallets(db:D1Database,fids:number[]) {
   const addresses=[...new Set(links.results.map(row=>row.linkedAddress))],owners=new Map<string,number>();
   for(let i=0;i<addresses.length;i+=90){
     const batch=addresses.slice(i,i+90);
-    const rows=await db.prepare(`SELECT l.address,COUNT(*) AS owners FROM network_wallet_links l WHERE l.address IN (${batch.map(()=>'?').join(',')}) AND l.fid IN (${NETWORK_CURRENT_COHORT}) GROUP BY l.address`).bind(...batch).all<{address:string;owners:number}>();
+    // Start at this page's address index and check each linked profile by FID.
+    // IN(full cohort) made SQLite rescan the cohort for every address.
+    const rows=await db.prepare(`SELECT l.address,COUNT(*) AS owners FROM network_wallet_links l JOIN network_profiles p ON p.fid=l.fid WHERE l.address IN (${batch.map(()=>'?').join(',')}) AND ${NETWORK_CURRENT_PROFILE} GROUP BY l.address`).bind(...batch).all<{address:string;owners:number}>();
     for(const row of rows.results)owners.set(row.address,row.owners);
   }
   const assets=[...new Set(links.results.flatMap(row=>(JSON.parse(row.positions??'[]') as PricedPosition[]).map(p=>p.id)))];
