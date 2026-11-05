@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta name="description" content="Explore Solana attention markets, community vaults and Genesis and Season collections.">
+  <title>Markets · 10X.MEME</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/assets/10x.css">
+  <script type="module" src="/assets/client.mjs"></script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="bar">
+    <div class="bar-inner">
+      <a class="brand" href="/markets" aria-label="10X.MEME markets"><span class="brand-x">10X</span><span>.MEME</span></a>
+      <nav aria-label="Main navigation">
+        <a href="/markets">Markets</a><a href="/vault">Vault</a><a href="/stake">Stake</a><a href="/earn">Earn</a><a href="/collect">Collect</a>
+      </nav>
+      <button type="button" class="connect" id="wallet-button"><span aria-hidden="true">◎</span> <span id="wallet-name">Connect wallet</span></button>
+    </div>
+  </header>
+  <main id="main" class="main" tabindex="-1">
+    <div class="environment"><span class="signal" aria-hidden="true"></span>Local preview <span class="env-line"></span> Solana</div>
+    <div id="view" aria-busy="true"><p role="status">Loading product information…</p></div>
+    <noscript><p>Enable JavaScript to browse collection terms, markets and rewards.</p></noscript>
+  </main>
+  <footer><div class="footer-inner"><a class="brand" href="/markets">10X<span>.MEME</span></a><span>Solana preview</span><a href="/api/v1/openapi.json">API reference <span aria-hidden="true">↗</span></a></div></footer>
+  <dialog id="wallet-dialog" aria-labelledby="wallet-title">
+    <div class="dialog-head"><h2 id="wallet-title">Connect a wallet</h2><button type="button" id="close-wallet" aria-label="Close wallet panel">×</button></div>
+    <div id="wallet-panel"></div>
+    <p id="wallet-status" role="status" aria-live="polite"></p>
+  </dialog>
+</body>
+</html>
