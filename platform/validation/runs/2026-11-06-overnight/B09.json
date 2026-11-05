@@ -1,0 +1,138 @@
+{
+  "taskId": "B09",
+  "baseCommit": "d5ff2d8",
+  "implementationCommit": "6134ee56714a393394738fde9818a0ce22bcbd79",
+  "classification": "synthetic browser fixture",
+  "commands": [
+    {
+      "command": "node platform/site/node_modules/typescript/bin/tsc --noEmit -p platform/site",
+      "exitCode": 0
+    },
+    {
+      "command": "node platform/site/node_modules/vite/bin/vite.js build (site cwd)",
+      "exitCode": 0,
+      "modules": 285
+    },
+    {
+      "command": "node --test platform/site/tests/*.spec.mjs",
+      "exitCode": 0,
+      "tests": 11
+    },
+    {
+      "command": "node platform/site/tests/browser-qa.mjs with installed Playwright/Chromium",
+      "exitCode": 0,
+      "note": "Authorized outside sandbox, all external browser origins blocked."
+    }
+  ],
+  "assertions": [
+    "Unsupported reads never mounted/requested; unavailable not rendered as empty data",
+    "Capability discovery failure preserves public policy",
+    "Principal and Solana cache namespaces; cache removed on logout or expiry",
+    "Wallet account/disconnect and unregister cancel stale challenge; delayed signatures cannot complete canceled login",
+    "Node journeys and Worker capability profile at 360/390/768/1440"
+  ],
+  "screenshots": [
+    {
+      "file": "work/b09-browser/collect-1440.png",
+      "sha256": "0d1ed396b7a7096434e0dde6ffaf9002996738c8c29513a3dda3f5fcf0e51447"
+    },
+    {
+      "file": "work/b09-browser/collect-360.png",
+      "sha256": "3b2608e45ee90ed0927bf2dd829006f7178abd6b250ffa51e3b6462924942ada"
+    },
+    {
+      "file": "work/b09-browser/collect-390.png",
+      "sha256": "2d925f6080518844e9b6956c6240b08365caae063a0405ebd9d6d2bd4169a5a5"
+    },
+    {
+      "file": "work/b09-browser/collect-768.png",
+      "sha256": "27b79a12ca81365fb30a730137026d47dcc6b949a48417d08f2c525613ae3471"
+    },
+    {
+      "file": "work/b09-browser/earn-1440.png",
+      "sha256": "e8461ffbefc03cecf7f7309e739ddb1a07507b034e936104e3e1fd173d1042fb"
+    },
+    {
+      "file": "work/b09-browser/earn-360.png",
+      "sha256": "6e3452445fc02174515e7775e376df703968cd5370091ebe8d00125bd567c106"
+    },
+    {
+      "file": "work/b09-browser/earn-390.png",
+      "sha256": "7ad5bf9fbe1f380147d7834bf12b33a9d9504b788208cdf4f2335bc4fc37933d"
+    },
+    {
+      "file": "work/b09-browser/earn-768.png",
+      "sha256": "2a9e039e6d6e918128ec8f75a6594bc1ea45334d5aa9cd6c26579570cf5017d3"
+    },
+    {
+      "file": "work/b09-browser/markets-1440.png",
+      "sha256": "8af62d60e6e794ede9451921a1d25dd4e35ab9ea78cc883564ad71aa5bf23b55"
+    },
+    {
+      "file": "work/b09-browser/markets-360.png",
+      "sha256": "670aa31510bbb54380b5807d229f3767c85e1180c6884718c6b135bf6e1e756d"
+    },
+    {
+      "file": "work/b09-browser/markets-390.png",
+      "sha256": "d4b41124b4f39881238ea8f1d0ea7f916b07988bf2121ae6dbf9f2c0407d3b85"
+    },
+    {
+      "file": "work/b09-browser/markets-768.png",
+      "sha256": "7b7456317c8267c4f88c26a18d027b50d600cde8818db09af9f48311ab66d897"
+    },
+    {
+      "file": "work/b09-browser/stake-1440.png",
+      "sha256": "82f203242c0d0ecc65b31495e239479d33113cb845940f1906067c0526b397fd"
+    },
+    {
+      "file": "work/b09-browser/stake-360.png",
+      "sha256": "f5143469ca1623c0763be379fe051c6eafc7c160873681465adc6d141c864548"
+    },
+    {
+      "file": "work/b09-browser/stake-390.png",
+      "sha256": "a0140ba96ab6286f6f798b69975d38ce7df5f30b3ecda6e4b8d97fffd92b340a"
+    },
+    {
+      "file": "work/b09-browser/stake-768.png",
+      "sha256": "295b6cf938a6cd99f34336423153cd7da95c4eea3f971274ce6f4709066ae472"
+    },
+    {
+      "file": "work/b09-browser/vault-1440.png",
+      "sha256": "341572c854a50e84a136121cbbe51f4ecb508c2146292c266c350f9caca63117"
+    },
+    {
+      "file": "work/b09-browser/vault-360.png",
+      "sha256": "315b438539020c9bb0e96a73275db72626faac8c8ffa68597c5c3ba08e1c6502"
+    },
+    {
+      "file": "work/b09-browser/vault-390.png",
+      "sha256": "1f19def0bb79585122c69017b55046e2a9d9dcf15113dd2f99b2671dd43479c2"
+    },
+    {
+      "file": "work/b09-browser/vault-768.png",
+      "sha256": "f54e6538a72149a343219d56e94ece783a457e861eb3046fb79b6c22d4d4bda3"
+    },
+    {
+      "file": "work/b09-browser/worker-profile-collect-1440.png",
+      "sha256": "160cb33012743b76d831a4d25e02ca3502a2b588f58818a29fdbf7216db5e552"
+    },
+    {
+      "file": "work/b09-browser/worker-profile-collect-360.png",
+      "sha256": "ea71501d4f639b1c5254b4ea331bf76f674d12db0e3baae45233c4c0883f0f51"
+    },
+    {
+      "file": "work/b09-browser/worker-profile-collect-390.png",
+      "sha256": "ff3a1feef4931137030ca8471912ee91d91893b5a653e5b39f792fa06de43538"
+    },
+    {
+      "file": "work/b09-browser/worker-profile-collect-768.png",
+      "sha256": "bc027375165277f5c45fc10c4c1e369ebc7bdb349b096cf57ef53df583f9e301"
+    }
+  ],
+  "limits": [
+    "Worker browser uses advertised profile fixture; actual D1 backend remains B20-core acceptance",
+    "Physical wallets untested",
+    "No financial execution or remote mutation"
+  ],
+  "costUsd": 0
+}

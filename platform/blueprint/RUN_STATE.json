@@ -5,10 +5,16 @@
   "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
   "currentTask": "B02",
-  "lastUpdatedAt": "2026-11-05T13:25:18.768067+00:00",
+  "lastUpdatedAt": "2026-11-05T13:30:38.398214+00:00",
   "migrationAllocation": {
-    "next": 22,
-    "reserved": [],
+    "next": 23,
+    "reserved": [
+      {
+        "version": 22,
+        "task": "B02",
+        "purpose": "guarded command receipts, dependency revisions, operator scopes"
+      }
+    ],
     "historicalGap": 19
   },
   "acceptanceProfiles": {
@@ -41,7 +47,7 @@
       "owner": "coordinator",
       "baseCommit": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
       "implementationCommit": "ce59deed69820a4535d3985eb0812e6dc197cea8",
-      "pushed": false,
+      "pushed": true,
       "evidence": [
         "platform/validation/runs/2026-11-05-overnight/B01-1.json",
         "platform/validation/runs/2026-11-06-overnight/B01.json"
@@ -120,15 +126,16 @@
       "blocker": null
     },
     "B09": {
-      "status": "in_progress",
+      "status": "verified",
       "owner": "frontend_b09",
       "baseCommit": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
-      "implementationCommit": "469cc22",
-      "pushed": true,
+      "implementationCommit": "6134ee56714a393394738fde9818a0ce22bcbd79",
+      "pushed": false,
       "evidence": [
-        "platform/validation/runs/2026-11-05-overnight/B09-1.json"
+        "platform/validation/runs/2026-11-05-overnight/B09-1.json",
+        "platform/validation/runs/2026-11-06-overnight/B09.json"
       ],
-      "nextAction": "Mount capability-aware React boundaries; suppress unsupported queries/actions visually, then wallet events/private cache and four-width browser acceptance. Transport guard alone does not complete B09.",
+      "nextAction": null,
       "blocker": null
     },
     "B10": {

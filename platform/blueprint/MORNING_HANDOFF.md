@@ -11,3 +11,5 @@ B02 is next: implement guarded command receipts, SQL revisions, minimum operatin
 The reference input digest is not yet a D1 revision/fence. Reference sourceComplete remains a local attestation pending B05. B02-B08 and B20-core are unfinished. Continue the dependency queue without stopping at this checkpoint.
 
 No deployment, remote Cloudflare mutation, spending, funding, broadcasting or external messages. Financial execution remains disabled. Sydney launch hours, later prices and all R-stage gates remain open.
+
+B09 source milestone 6134ee56714a393394738fde9818a0ce22bcbd79: capability-aware client, account/session cache lifecycle and four-width browser acceptance passed (11 site tests, TypeScript, build, browser harness). The Worker-profile browser is a client fixture, not D1 integration; B20-core retains that gate. B01 CI 42035657295 passed. B02 is actively editing reserved migration 022 and atomic repository files; those are not yet verified or committed.

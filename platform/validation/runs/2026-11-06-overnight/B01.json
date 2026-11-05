@@ -41,5 +41,10 @@
     "B05 computed cutoff completeness remains unimplemented; reference sourceComplete attestation retained",
     "No migration, remote mutation, deployment, spend, signatures or financial execution"
   ],
-  "costUsd": 0
+  "costUsd": 0,
+  "ci": {
+    "url": "https://github.com/chrisjacob/warplets-api/actions/runs/42035657295",
+    "status": "success",
+    "head": "d5ff2d83621abbe92c56f876386f28754b581efc"
+  }
 }
