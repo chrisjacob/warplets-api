@@ -3,7 +3,7 @@
 <p id="feedback" role="status" aria-live="polite"></p>
 <form id="login" hidden><h2>Open a local session</h2><label>Startup code<input type="password" name="code" required autocomplete="off"></label><button>Sign in</button></form>
 <section id="workspace" hidden>
-<div class="toolbar"><label>UTC board date<input type="date" id="day"></label><label>Queue<select id="state"><option value="pending">Pending reviews</option><option value="reviewed">Final decisions</option></select></label><button id="logout">Sign out</button></div>
+<div class="toolbar"><label>UTC board date<input type="date" id="day"></label><label>Queue<select id="state" aria-label="Queue"><option value="pending">Pending reviews</option><option value="reviewed">Final decisions</option></select></label><button id="logout">Sign out</button></div>
 <section><h2>Review capacity</h2><p id="capacity"></p>
 <details><summary>Change staffing</summary><form id="staff">
 <label>Minutes available<input name="staffedMinutes" type="number" min="0" max="1440" required></label>
