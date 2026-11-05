@@ -7202,6 +7202,86 @@
           "expiresAt"
         ]
       },
+      "StageReservationStatus": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "enum": [
+              "available",
+              "unavailable",
+              "unknown"
+            ]
+          },
+          "reason": {
+            "enum": [
+              "eligible",
+              "not-signed-in",
+              "opening-hold",
+              "stage-scheduled",
+              "stage-closed",
+              "sold-out",
+              "snapshot-pending",
+              "not-on-list",
+              "wallet-limit",
+              "operator-only"
+            ]
+          },
+          "snapshotId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "used": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "remaining": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "stageStatus": {
+            "type": "string"
+          },
+          "asOf": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "source": {
+            "const": "local-fixture"
+          },
+          "executable": {
+            "const": false
+          }
+        },
+        "required": [
+          "status",
+          "reason",
+          "snapshotId",
+          "used",
+          "remaining",
+          "stageStatus",
+          "asOf",
+          "source",
+          "executable"
+        ]
+      },
       "Stage": {
         "type": "object",
         "properties": {
@@ -7306,6 +7386,9 @@
                 "type": "null"
               }
             ]
+          },
+          "reservationStatus": {
+            "$ref": "#/components/schemas/StageReservationStatus"
           }
         },
         "required": [

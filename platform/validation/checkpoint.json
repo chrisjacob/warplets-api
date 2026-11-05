@@ -1,5 +1,5 @@
 {
   "policy": "prd-1.2",
   "scope": "local",
-  "checkpoint": "blueprint-b14-quote-test-dependency-boundary"
+  "checkpoint": "blueprint-b10-complete-local-member-journeys"
 }

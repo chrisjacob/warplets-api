@@ -24,6 +24,7 @@ export async function checkCollectionDetails({browser,db,origin}){
     return route.fulfill({json:{items,nextCursor:cursor?null:'page-two',source:'local-fixture'}});
    }
    if(url.pathname==='/api/v1/collect/assets/fixture-material')return route.fulfill({json:{data:{...target,id:'fixture-material'}}});
+   if(url.pathname==='/api/v1/collect/assets/fixture-target')return route.fulfill({json:{data:target}});
    if(url.pathname.endsWith('/progression/quote')){
     quotes++;return route.fulfill({status:409,json:{error:{code:'stale_asset_version',message:'Fixture ownership changed; refresh the asset pair.'}}});
    }

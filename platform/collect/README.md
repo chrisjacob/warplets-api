@@ -1,5 +1,7 @@
 # Local collection inventory
 
+Use the [read-only eligibility preview](ELIGIBILITY_PREVIEW.md) to review fixed-cut source coverage, wallet normalization and conflicts before the existing immutable snapshot command.
+
 This SQLite fixture ledger tracks Genesis tranches, monthly Seasons, mint stages, commitments, reveal observations and progression. The browser can reserve a fixture slot or request a local upgrade or reroll. An operator CLI imports the subsequent evidence. No request signs a transaction, transfers SOL, creates a mainnet NFT or generates verifiable entropy.
 
 Run from `platform/`:

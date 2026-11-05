@@ -1,4 +1,5 @@
 import {AssetEvidence,InventoryEvidence,StageEvidence,eligibleMaterials} from './collection-details';
+import {ProgressionAssetContext} from './progression-review';
 import { Capability, useRuntimeQuery, principalKey } from './capabilities';
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from '@tanstack/react-router';
@@ -35,17 +36,22 @@ type Review={kind:'mint';inventory:Inventory;stage:Stage} | {kind:'progress';ass
 function ReviewOperation({review,wallet,onClose}:{review:Review;wallet:string;onClose:()=>void}){
   const navigate=useNavigate(),cache=useQueryClient();
   const quote=useRuntimeQuery('/api/v1/collect/assets/{id}',{queryKey:['private',wallet,'solana','quote',review],enabled:review.kind==='progress',staleTime:0,
-    queryFn:async()=>{
+    queryFn:async({signal})=>{
       if(review.kind!=='progress')throw Error('Select an asset.');
+      const target=await sdk.asset(review.asset.id,signal);
+      if(target.owner!==wallet||target.revealStatus!=='revealed'||target.version!==review.asset.version)
+        throw Error('The target ownership, reveal or version changed. Refresh the selected asset.');
       const req:ProgressionRequest={kind:review.materialId?'upgrade':'visual',targetId:review.asset.id,
         expectedTargetVersion:review.asset.version!};
+      let material:Asset|undefined;
       if(review.materialId){
-        const material=await sdk.asset(review.materialId);
-        if(material.version===undefined)throw Error('The material NFT must be revealed.');
+        material=await sdk.asset(review.materialId,signal);
+        if(material.owner!==wallet||material.revealStatus!=='revealed'||material.version===undefined)
+          throw Error('The material ownership or reveal changed. Refresh the selected pair.');
         req.materialId=material.id;req.expectedMaterialVersion=material.version;
       }
       const result=await sdk.quote(review.asset.inventoryId,req);
-      return {req,result};
+      return {req,result,target,material};
     }});
   const confirm=useMutation({mutationFn:async():Promise<Receipt>=>{
     if(review.kind==='mint'){
@@ -66,7 +72,10 @@ function ReviewOperation({review,wallet,onClose}:{review:Review;wallet:string;on
     {review.kind==='mint'?<><Facts items={[['Collection',review.inventory.id],['Stage',review.stage.id],['Mint price',sol(review.stage.priceLamports)],
       ['Creation and network quote',sol(review.stage.costLamports)],['Wallet limit',review.stage.walletLimit]]}/>
       <p>Reserve one local slot and wait for its committed draw. Your wallet pays no SOL in this preview.</p></>
-      :<Loaded query={quote}>{q=><QuoteDetails quote={q.result}/>}</Loaded>}
+      :<Loaded query={quote}>{q=><><QuoteDetails quote={q.result}/><div className="two-up">
+        <ProgressionAssetContext asset={q.target} wallet={wallet} label="Target"/>
+        {q.material&&<ProgressionAssetContext asset={q.material} wallet={wallet} label="Material"/>}
+      </div></>}</Loaded>}
     <button disabled={confirm.isPending || (review.kind==='progress' && !quote.data)} onClick={()=>confirm.mutate()}>
       {review.kind==='mint'?'Reserve preview slot':'Record preview request'}</button>
     {confirm.error&&<Signal>{friendlyError(confirm.error)}</Signal>}
@@ -77,8 +86,9 @@ function QuoteDetails({quote:q}:{quote:ProgressQuote}){
   if(q.kind==='visual')facts.push(['Traits replaced',q.fields?.join(', ')],['Cooldown after fulfillment',(q.cooldownMs??0)/3_600_000+' hours']);
   else facts.push(['Material NFT',q.materialId],['New target Level',q.nextTargetLevel],['Target expiry',q.nextTargetExpiry&&utc(q.nextTargetExpiry)]);
   return <><Facts items={facts}/>
+    {q.asOf&&<p>Server quote as of {utc(q.asOf)} · {q.source??'Local evidence'}.</p>}
     {q.materialProbabilities&&<details><summary>Material Level probabilities</summary>
-      <p>The material survives and may drop to a lower Level, shortening its future benefit period. Its past allocations remain intact.</p><Facts items={q.materialProbabilities.map(row=>['Level '+row.level,row.count+' of '+row.total+(row.expiresAt?' · expires '+utc(row.expiresAt):'')])}/></details>}
+      <p>The material survives and may drop to a lower Level, shortening its future benefit period. Its past allocations remain intact.</p><Facts items={q.materialProbabilities.map(row=>['Level '+row.level,row.count+' of '+row.total+(row.expiresAt?' · expires '+utc(row.expiresAt):'')+(row.remainingMs===undefined?'':' · '+row.remainingMs+' ms remaining at quote time')])}/></details>}
     <p>The selected assets remain reserved locally until the committed result arrives.</p></>;
 }
 

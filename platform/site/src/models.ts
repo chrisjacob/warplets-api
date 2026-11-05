@@ -27,6 +27,8 @@ export const stageModel=z.object({
   allocation:count,available:count,walletLimit:count,eligible:z.boolean().nullable(),
   walletReservations:count.nullable(),openingHold:text.nullable(),publishedAt:date.optional(),termsDigest:text.optional(),
   eligibility:z.object({status:z.enum(['eligible','ineligible','unknown']),reason:text,cutoffAt:nullableDate}).optional(),
+  reservationStatus:z.object({status:z.enum(['available','unavailable','unknown']),reason:z.enum(['eligible','not-signed-in','opening-hold','stage-scheduled','stage-closed','sold-out','snapshot-pending','not-on-list','wallet-limit','operator-only']),
+    snapshotId:text.nullable(),used:count.nullable(),remaining:count.nullable(),stageStatus:text,asOf:date,source:z.literal('local-fixture'),executable:z.literal(false)}).optional(),
 });
 export const inventoryModel=z.object({
   id:text,kind:z.enum(['genesis','season']),stages:z.array(stageModel),
@@ -48,6 +50,7 @@ export const receiptModel=z.object({
   priceLamports:units.nullable(),feeLamports:units.nullable(),costLamports:units.nullable(),
 });
 export const quoteModel=z.object({
+  asOf:date.optional(),source:text.optional(),
   kind:z.enum(['visual','upgrade']),feeLamports:units,materialId:text.nullable(),targetId:text,
   nextTargetLevel:count.optional(),nextTargetExpiry:date.optional(),cooldownMs:count.optional(),
   materialProbabilities:z.array(z.object({level:count,count,total:count,expiresAt:date.optional(),remainingMs:count.optional()})).optional(),

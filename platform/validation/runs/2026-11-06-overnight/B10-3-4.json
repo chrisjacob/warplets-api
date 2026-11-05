@@ -1,0 +1,73 @@
+{
+  "taskId": "B10",
+  "substeps": [
+    "B10.3",
+    "B10.4",
+    "B10.5"
+  ],
+  "status": "verified-local",
+  "baseCommit": "d7d50c065c540e331c9fc5d53e6002a3ca74deee",
+  "implementationCommit": null,
+  "classification": "synthetic fixture holdings and genuine local API/browser acceptance",
+  "commands": [
+    {
+      "command": "node --test platform/site/tests/*.spec.mjs",
+      "tests": 20,
+      "exitCode": 0
+    },
+    {
+      "command": "installed site TypeScript --noEmit",
+      "exitCode": 0
+    },
+    {
+      "command": "installed site Vite build",
+      "exitCode": 0
+    },
+    {
+      "command": "node platform/site/tests/browser-qa.mjs",
+      "exitCode": 0,
+      "log": "work/b10-4-integrated-browser.log"
+    },
+    {
+      "command": "four-width targeted collection regression",
+      "exitCode": 0,
+      "log": "work/b10-4-browser.log"
+    },
+    {
+      "command": "node --test platform/collect/collect.test.mjs platform/collect/eligibility.test.mjs platform/collect/eligibility-preview.test.mjs",
+      "passed": 18,
+      "exitCode": 0,
+      "log": "work/b10-coordinator-check.log"
+    },
+    {
+      "command": "node platform/site/tests/browser-qa.mjs",
+      "exitCode": 0,
+      "log": "work/b10-5-browser.log"
+    }
+  ],
+  "assertions": [
+    "fixed-opening complete Genesis1X eligibility survives later transfer/reveal",
+    "incomplete,omitted,contradictory and shifted cuts refused",
+    "all starting Levels1-9 preserve immutable traits/manifests/claimtotals through upgrade",
+    "reroll and subsequenttransfer preserve history/cooldown",
+    "101stasset outside100asset chooser refused beforequote",
+    "expiredpairreactivation usesrealserver outcomes",
+    "freshpair ownership/version review precedesquote",
+    "staleownership suppressesquote andhistoryrequests",
+    "exactNFT/token historical rows andoriginalvestingclocks, nofiatestimates",
+    "readonly operator preview supports10000holdings/100contiguouspages and exactsource/cutdigests",
+    "CLI databasebytes unchanged",
+    "currentreservation reasons separatefromfixedopeningeligibility",
+    "pending/incomplete/conflictingcoverage holds and neverclaims chaincompleteness"
+  ],
+  "financialExecution": false,
+  "remaining": [],
+  "releaseGates": [
+    "physicalmobilewallet",
+    "livechain provenance"
+  ],
+  "downstreamTasks": [
+    "B11 atomiccollectionquote/D1authority",
+    "B12 privilegedoperatorworkflows"
+  ]
+}

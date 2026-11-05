@@ -8,6 +8,22 @@ export function stageEligibility(stage,wallet) {
   const eligible=stage.type==='public'||Boolean(stage.wallets?.includes(wallet));
   return {status:eligible?'eligible':'ineligible',reason:stage.type==='public'?'public-stage':eligible?'included-in-published-list':'absent-from-published-list',cutoffAt};
 }
+/** Current admission availability is separate from immutable list membership. */
+export function stageReservationStatus(stage,wallet,{now,status,used,openingHold,snapshotId=null}){
+  const membership=stageEligibility(stage,wallet),remaining=wallet?Math.max(0,stage.walletLimit-used):null;
+  let reason='eligible',availability='available';
+  if(!wallet){reason='not-signed-in';availability='unknown';}
+  else if(openingHold){reason='opening-hold';availability='unavailable';}
+  else if(status==='scheduled'){reason='stage-scheduled';availability='unavailable';}
+  else if(status==='closed'){reason='stage-closed';availability='unavailable';}
+  else if(status==='sold-out'){reason='sold-out';availability='unavailable';}
+  else if(membership.status==='unknown'){reason='snapshot-pending';availability='unknown';}
+  else if(membership.status==='ineligible'){reason='not-on-list';availability='unavailable';}
+  else if(remaining===0){reason='wallet-limit';availability='unavailable';}
+  else if(stage.type==='founder'){reason='operator-only';availability='unavailable';}
+  return {status:availability,reason,snapshotId,used:wallet?used:null,remaining,stageStatus:status,
+    asOf:iso(now),source:'local-fixture',executable:false};
+}
 export function expirySchedule(start,now) {
   return LEVEL_QUOTAS.map((_,i)=>{const expiry=seasonExpiry(start,i+1);
     return {level:i+1,expiresAt:iso(expiry),remainingMs:Math.max(0,expiry-now)};});

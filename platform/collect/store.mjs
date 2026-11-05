@@ -1,4 +1,4 @@
-import {stageEligibility,expirySchedule,inventoryDisclosure} from './projections.mjs';
+import {stageEligibility,stageReservationStatus,expirySchedule,inventoryDisclosure} from './projections.mjs';
 import { createHash, randomUUID } from 'node:crypto';
 import { transaction } from '../storage/database.mjs';
 import { decode58 } from '../server/base58.mjs';
@@ -409,6 +409,7 @@ export function observeCollectionAsset(db,fixture,now=Date.now()) {
 function summarize(db,row,state,now,wallet) {
   const counts=inventoryCounts(state);
   const openingHold=trancheOpeningHold(db,row,state,now);
+  const snapshots=new Map(db.prepare('SELECT stage_id,snapshot_hash FROM collect_snapshots WHERE inventory_id=? LIMIT 32').all(row.id).map(snapshot=>[snapshot.stage_id,snapshot.snapshot_hash]));
   const stages=state.stages.map(stage=>{
     const admissions=state.admissions.filter(a=>a.stageId===stage.id);
     let status='open';
@@ -423,7 +424,8 @@ function summarize(db,row,state,now,wallet) {
       allocation:stage.allocation,available:Math.min(counts.unsold,stage.allocation-admissions.length),
       walletLimit:stage.walletLimit,eligibility:stageEligibility(stage,wallet),
       eligible:stageEligibility(stage,wallet).status==='unknown'?null:stageEligibility(stage,wallet).status==='eligible',
-      walletReservations:mine,termsDigest:stage.termsDigest,openingHold});
+      walletReservations:mine,termsDigest:stage.termsDigest,openingHold,
+      reservationStatus:stageReservationStatus(stage,wallet,{now,status,used:mine,openingHold,snapshotId:snapshots.get(stage.id)??null})});
   });
   return {id:row.id,kind:row.kind,tranche:row.tranche,seasonStart:row.season_start==null?null:iso(row.season_start),
     capacity:state.slots,...inventoryDisclosure(db,row.id,counts,row.season_start,now),initialLevelQuotas:LEVEL_QUOTAS,stages,source:'local-fixture',executable:false};

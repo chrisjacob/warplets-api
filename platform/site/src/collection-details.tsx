@@ -2,11 +2,16 @@ import type { Inventory, Stage, Asset } from './models';
 import { Facts, utc } from './common';
 export function StageEvidence({stage:s}:{stage:Stage}){
   const eligibility=s.eligibility?.status??(s.status==='awaiting-snapshot'||s.eligible===null?'unknown':s.eligible?'eligible':'ineligible');
+  const reasons={'eligible':'Eligible for a local reservation','not-signed-in':'Sign in to check the wallet limit','opening-hold':'Opening is held for the published dependency','stage-scheduled':'The stage has not opened','stage-closed':'The stage has closed','sold-out':'No stage or shared inventory remains','snapshot-pending':'Complete opening-cut evidence is pending','not-on-list':'Wallet is absent from the fixed eligibility list','wallet-limit':'The per-stage wallet limit has been used','operator-only':'Founder allocations require the separate operator command'};
   return <><Facts items={[
     ['Published',s.publishedAt?utc(s.publishedAt):'Unavailable'],['Terms digest',s.termsDigest??'Unavailable'],
     ['Eligibility',eligibility],['Evidence reason',s.eligibility?.reason??'No detailed evidence supplied'],
     ...(s.eligibility?.cutoffAt?[['Free-stage ownership cut',utc(s.eligibility.cutoffAt)] as [string,string]]:[]),
-  ]}/>{s.type==='free'&&<p>Eligibility uses revealed Genesis Level 1 ownership at the published opening time. Later evidence does not move this cut.</p>}</>;
+  ]}/>{s.reservationStatus&&<Facts items={[
+    ['Current reservation',s.reservationStatus.status==='available'?'Available for a local request':s.reservationStatus.status==='unknown'?'Availability is unknown':'Unavailable for a local request'],['Reservation reason',reasons[s.reservationStatus.reason]],
+    ['Stage reservations used',s.reservationStatus.used??'Unknown'],['Wallet slots remaining',s.reservationStatus.remaining??'Unknown'],
+    ['Accepted opening-cut digest',s.reservationStatus.snapshotId??'Not recorded'],['Availability as of',utc(s.reservationStatus.asOf)],
+  ]}/>}<p>Fixed-list eligibility and current reservation availability are separate. All reservations remain local previews.</p>{s.type==='free'&&<p>Eligibility uses revealed Genesis Level 1 ownership at the published opening time. Later evidence does not move this cut.</p>}</>;
 }
 export function InventoryEvidence({inventory:i}:{inventory:Inventory}){
   return <><Facts items={[
