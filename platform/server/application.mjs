@@ -5,6 +5,7 @@ import { handleLaunchPlans } from '../launch/router.mjs';
 import { handleBallots } from '../governance/ballots.mjs';
 import { handleEarn } from '../earn/http.mjs';
 import { handleWeb } from '../web/handler.mjs';
+import { handleVault } from '../vault/http.mjs';
 export function createApp(db,{clock=Date.now}={}) {
   let nextCleanup=0;
   return async (request,peer='loopback')=>{
@@ -15,7 +16,7 @@ export function createApp(db,{clock=Date.now}={}) {
       db.prepare('DELETE FROM auth_challenges WHERE expires_at<=?').run(now);
       nextCleanup=now+60000;
     }
-    return await handleAuth(db,request,peer,now)??handleMarkets(db,request,now)??
+    return await handleAuth(db,request,peer,now)??handleMarkets(db,request,now)??handleVault(db,request,now)??
       await handleBallots(db,request,peer,now)??
       await handleEarn(db,request,peer,now)??
       await handleLaunchPlans(request,{nowSeconds:Math.floor(now/1000)})??

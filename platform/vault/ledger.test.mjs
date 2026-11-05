@@ -1,0 +1,45 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {openDatabase} from '../storage/database.mjs';
+import {encode58} from '../server/base58.mjs';
+import {importMarket} from '../markets/catalog.mjs';
+import {observeAsset,readAsset,recordVaultManifest} from './ledger.mjs';
+import {handleVault} from './http.mjs';
+const key=n=>encode58(Buffer.alloc(32,n));
+const base=Date.UTC(2026,10,1);
+const at=hours=>new Date(base+hours*3600000).toISOString();
+test('reserved mature mint, partial claim, transfer and replay conserve attached balances',async t=>{
+ const db=openDatabase();t.after(()=>db.close());
+ importMarket(db,{id:'demo',symbol:'DEMO10X',ogSymbol:'DEMO',activatedAt:at(0),attMint:key(3),ogMint:key(4),poolAddress:key(5)});
+ const manifest={marketId:'demo',originalUnits:'402600000'};
+ recordVaultManifest(db,manifest);assert.deepEqual(recordVaultManifest(db,manifest).genesisUnits,'20130000');
+ assert.throws(()=>recordVaultManifest(db,{...manifest,originalUnits:'402600200'}),/immutable/);
+ const slot={kind:'genesis',tranche:1,level:1,ordinal:3},owner=key(1),buyer=key(2);
+ const observe=e=>observeAsset(db,e,Date.parse(at(72)));
+ observe({eventId:'mint',assetId:'nft',kind:'bind',at:at(36),owner,slot});
+ assert.throws(()=>observe({eventId:'double-bind',assetId:'other',kind:'bind',at:at(36),owner,slot}));
+ const first=readAsset(db,'nft',Date.parse(at(36))).items[0];
+ assert.deepEqual([first.allocated,first.claimable],['1000','500']);
+ const claim={eventId:'claim-1',assetId:'nft',kind:'claim',at:at(36),marketId:'demo',owner,units:'300'};
+ observe(claim);
+ observe({eventId:'sale',assetId:'nft',kind:'transfer',at:at(48),from:owner,to:buyer});
+ assert.equal(observe(claim).replayed,true);
+ assert.throws(()=>observe({...claim,eventId:'seller',at:at(49)}),/owner/);
+ assert.throws(()=>observe({...claim,eventId:'over',at:at(49),owner:buyer,units:'701'}),/exceeds/);
+ observe({...claim,eventId:'buyer',at:at(49),owner:buyer,units:'700'});
+ const response=await handleVault(db,new Request('http://localhost/api/v1/nfts/nft/vault'),Date.parse(at(50))).json();
+ assert.equal(response.items[0].claimed,'1000');assert.equal(response.items[0].claimable,'0');
+ assert.equal(handleVault(db,new Request('http://localhost/api/v1/vault'),Date.parse(at(50))).status,401);
+});
+test('Season slot inherits launch weight independently of later state',t=>{
+ const db=openDatabase();t.after(()=>db.close());
+ importMarket(db,{id:'season-launch',symbol:'ATT',ogSymbol:'OG',activatedAt:at(0),attMint:key(3),ogMint:key(4),poolAddress:key(5)});
+ const levels=Array(1000).fill(1); levels[0]=2;
+ const manifest=recordVaultManifest(db,{marketId:'season-launch',originalUnits:'40040000',
+  seasons:[{id:'nov',startsAt:at(0),levels}]});
+ assert.equal(manifest.seasonUnits,'1001000');
+ levels[0]=10;
+ observeAsset(db,{eventId:'mint',assetId:'nft',kind:'bind',at:at(49),owner:key(1),slot:{kind:'season',seasonId:'nov',slotIndex:0}},Date.parse(at(50)));
+ const balance=readAsset(db,'nft',Date.parse(at(50))).items[0];
+ assert.equal(balance.claimable,'2000');
+});
