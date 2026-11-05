@@ -1,6 +1,13 @@
 import { DatabaseSync } from 'node:sqlite';
 import { readFileSync, readdirSync } from 'node:fs';
+let savepointNumber=0;
 export function transaction(db, fn) {
+  if(db.isTransaction) {
+    const name='platform_sp_'+(++savepointNumber);
+    db.exec('SAVEPOINT '+name);
+    try {const result=fn();db.exec('RELEASE '+name);return result;}
+    catch(error){db.exec('ROLLBACK TO '+name);db.exec('RELEASE '+name);throw error;}
+  }
   db.exec('BEGIN IMMEDIATE');
   try { const result=fn(); db.exec('COMMIT'); return result; }
   catch(error) { db.exec('ROLLBACK'); throw error; }
