@@ -25,13 +25,14 @@ for(const [path,item] of Object.entries(spec.paths)){
   if(!op.operationId)continue;
   const id=op.operationId,params=[...(item.parameters??[]),...(op.parameters??[])];
   const pathKeys=[...path.matchAll(/\{([^}]+)\}/g)].map(m=>m[1]);
-  const opt=['headers?: HeadersInit','signal?: AbortSignal','idempotencyKey?: string'];
+  const idempotencyRequired=params.some(p=>p.in==='header'&&p.name.toLowerCase()==='idempotency-key'&&p.required);
+  const opt=['headers?: HeadersInit','signal?: AbortSignal','idempotencyKey'+(idempotencyRequired?'':'?')+': string'];
   if(pathKeys.length)opt.push('path: { '+pathKeys.map(s=>JSON.stringify(s)+': string').join('; ')+' }');
   const query=params.filter(p=>p.in==='query');
   if(query.length)opt.push('query?: { '+query.map(p=>JSON.stringify(p.name)+'?: '+type(p.schema)).join('; ')+' }');
   if(op.requestBody)opt.push('body'+(op.requestBody.required?'':'?')+': '+type(op.requestBody.content?.['application/json']?.schema));
   const response=Object.entries(op.responses).find(([status])=>status.startsWith('2'))?.[1];
-  declarations+='  '+id+'(options'+(pathKeys.length||op.requestBody?.required?'':'?')+': { '+opt.join('; ')+' }): Promise<'+type(response?.content?.[media]?.schema)+'>;\n';
+  declarations+='  '+id+'(options'+(pathKeys.length||op.requestBody?.required||idempotencyRequired?'':'?')+': { '+opt.join('; ')+' }): Promise<'+type(response?.content?.[media]?.schema)+'>;\n';
   operations.push({id,path,method:method.toUpperCase()});
  }
 }

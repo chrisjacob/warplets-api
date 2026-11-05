@@ -20,12 +20,586 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "properties": {
+                    "version": {
+                      "const": "prd-1.2"
+                    },
+                    "mode": {
+                      "const": "offline-validation"
+                    },
+                    "chain": {
+                      "const": "solana"
+                    },
+                    "pillars": {
+                      "type": "array",
+                      "items": {
+                        "anyOf": [
+                          {
+                            "const": "Vault"
+                          },
+                          {
+                            "const": "Stake"
+                          },
+                          {
+                            "const": "Earn"
+                          }
+                        ]
+                      }
+                    },
+                    "launch": {
+                      "type": "object",
+                      "properties": {
+                        "allocationBps": {
+                          "type": "object",
+                          "properties": {
+                            "liquidity": {
+                              "const": 8000
+                            },
+                            "earn": {
+                              "const": 1000
+                            },
+                            "stake": {
+                              "const": 500
+                            },
+                            "genesisVault": {
+                              "const": 250
+                            },
+                            "seasonVault": {
+                              "const": 250
+                            }
+                          },
+                          "required": [
+                            "liquidity",
+                            "earn",
+                            "stake",
+                            "genesisVault",
+                            "seasonVault"
+                          ]
+                        },
+                        "emptySeasonRecipient": {
+                          "const": "genesisVault"
+                        },
+                        "clock": {
+                          "const": "actual-activation"
+                        },
+                        "windowSydney": {
+                          "type": "null"
+                        },
+                        "feeStartBps": {
+                          "const": 9000
+                        },
+                        "feeFloorBps": {
+                          "const": 100
+                        },
+                        "feeDecreaseBpsPerSecond": {
+                          "const": 100
+                        },
+                        "campaignDays": {
+                          "const": 10
+                        },
+                        "maxActive": {
+                          "const": 10
+                        }
+                      },
+                      "required": [
+                        "allocationBps",
+                        "emptySeasonRecipient",
+                        "clock",
+                        "windowSydney",
+                        "feeStartBps",
+                        "feeFloorBps",
+                        "feeDecreaseBpsPerSecond",
+                        "campaignDays",
+                        "maxActive"
+                      ]
+                    },
+                    "vault": {
+                      "type": "object",
+                      "properties": {
+                        "cliffHours": {
+                          "const": 24
+                        },
+                        "vestHours": {
+                          "const": 24
+                        },
+                        "mintRestartsVesting": {
+                          "const": false
+                        }
+                      },
+                      "required": [
+                        "cliffHours",
+                        "vestHours",
+                        "mintRestartsVesting"
+                      ]
+                    },
+                    "earn": {
+                      "type": "object",
+                      "properties": {
+                        "board": {
+                          "const": "global"
+                        },
+                        "maxWinners": {
+                          "const": 100
+                        },
+                        "maxWalletBudgetBps": {
+                          "const": 1000
+                        },
+                        "maxMultiplierTenths": {
+                          "const": 100
+                        },
+                        "minimumCorrespondingStakeUsd": {
+                          "const": "10"
+                        },
+                        "claimsExpire": {
+                          "const": false
+                        },
+                        "appeals": {
+                          "const": false
+                        }
+                      },
+                      "required": [
+                        "board",
+                        "maxWinners",
+                        "maxWalletBudgetBps",
+                        "maxMultiplierTenths",
+                        "minimumCorrespondingStakeUsd",
+                        "claimsExpire",
+                        "appeals"
+                      ]
+                    },
+                    "genesis": {
+                      "type": "object",
+                      "properties": {
+                        "cap": {
+                          "const": 10000
+                        },
+                        "trancheSize": {
+                          "const": 1000
+                        },
+                        "ballotHours": {
+                          "const": 48
+                        },
+                        "noticeHours": {
+                          "const": 48
+                        },
+                        "choices": {
+                          "type": "array",
+                          "items": {
+                            "anyOf": [
+                              {
+                                "const": "ASAP"
+                              },
+                              {
+                                "const": "7d"
+                              },
+                              {
+                                "const": "14d"
+                              },
+                              {
+                                "const": "30d"
+                              }
+                            ]
+                          }
+                        },
+                        "votesPerWallet": {
+                          "const": 1
+                        },
+                        "mintsPerEligibleWalletPerStage": {
+                          "const": 1
+                        },
+                        "firstWhitelistPriceSol": {
+                          "const": "0.1"
+                        }
+                      },
+                      "required": [
+                        "cap",
+                        "trancheSize",
+                        "ballotHours",
+                        "noticeHours",
+                        "choices",
+                        "votesPerWallet",
+                        "mintsPerEligibleWalletPerStage",
+                        "firstWhitelistPriceSol"
+                      ]
+                    },
+                    "season": {
+                      "type": "object",
+                      "properties": {
+                        "monthlyCap": {
+                          "const": 1000
+                        },
+                        "freeStageRequires": {
+                          "const": "revealed-genesis-level-1"
+                        },
+                        "freeMintsPerEligibleWallet": {
+                          "const": 1
+                        }
+                      },
+                      "required": [
+                        "monthlyCap",
+                        "freeStageRequires",
+                        "freeMintsPerEligibleWallet"
+                      ]
+                    },
+                    "operations": {
+                      "type": "object",
+                      "properties": {
+                        "targetFirstTestBelowUsd": {
+                          "const": "10"
+                        },
+                        "firstTestPlanningCashPercent": {
+                          "const": 20
+                        },
+                        "exceptionCeilingUsd": {
+                          "const": "30"
+                        },
+                        "reserveGuidelinePercent": {
+                          "const": 50
+                        },
+                        "recurringMonthlyCeilingUsd": {
+                          "const": "5"
+                        }
+                      },
+                      "required": [
+                        "targetFirstTestBelowUsd",
+                        "firstTestPlanningCashPercent",
+                        "exceptionCeilingUsd",
+                        "reserveGuidelinePercent",
+                        "recurringMonthlyCeilingUsd"
+                      ]
+                    },
+                    "capabilities": {
+                      "type": "object",
+                      "properties": {
+                        "signsTransactions": {
+                          "const": false
+                        },
+                        "acceptsDeposits": {
+                          "const": false
+                        },
+                        "offersNftBurn": {
+                          "const": false
+                        }
+                      },
+                      "required": [
+                        "signsTransactions",
+                        "acceptsDeposits",
+                        "offersNftBurn"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "version",
+                    "mode",
+                    "chain",
+                    "pillars",
+                    "launch",
+                    "vault",
+                    "earn",
+                    "genesis",
+                    "season",
+                    "operations",
+                    "capabilities"
+                  ]
                 }
               },
               "application/vnd.10x.v1+json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "version": {
+                          "const": "prd-1.2"
+                        },
+                        "mode": {
+                          "const": "offline-validation"
+                        },
+                        "chain": {
+                          "const": "solana"
+                        },
+                        "pillars": {
+                          "type": "array",
+                          "items": {
+                            "anyOf": [
+                              {
+                                "const": "Vault"
+                              },
+                              {
+                                "const": "Stake"
+                              },
+                              {
+                                "const": "Earn"
+                              }
+                            ]
+                          }
+                        },
+                        "launch": {
+                          "type": "object",
+                          "properties": {
+                            "allocationBps": {
+                              "type": "object",
+                              "properties": {
+                                "liquidity": {
+                                  "const": 8000
+                                },
+                                "earn": {
+                                  "const": 1000
+                                },
+                                "stake": {
+                                  "const": 500
+                                },
+                                "genesisVault": {
+                                  "const": 250
+                                },
+                                "seasonVault": {
+                                  "const": 250
+                                }
+                              },
+                              "required": [
+                                "liquidity",
+                                "earn",
+                                "stake",
+                                "genesisVault",
+                                "seasonVault"
+                              ]
+                            },
+                            "emptySeasonRecipient": {
+                              "const": "genesisVault"
+                            },
+                            "clock": {
+                              "const": "actual-activation"
+                            },
+                            "windowSydney": {
+                              "type": "null"
+                            },
+                            "feeStartBps": {
+                              "const": 9000
+                            },
+                            "feeFloorBps": {
+                              "const": 100
+                            },
+                            "feeDecreaseBpsPerSecond": {
+                              "const": 100
+                            },
+                            "campaignDays": {
+                              "const": 10
+                            },
+                            "maxActive": {
+                              "const": 10
+                            }
+                          },
+                          "required": [
+                            "allocationBps",
+                            "emptySeasonRecipient",
+                            "clock",
+                            "windowSydney",
+                            "feeStartBps",
+                            "feeFloorBps",
+                            "feeDecreaseBpsPerSecond",
+                            "campaignDays",
+                            "maxActive"
+                          ]
+                        },
+                        "vault": {
+                          "type": "object",
+                          "properties": {
+                            "cliffHours": {
+                              "const": 24
+                            },
+                            "vestHours": {
+                              "const": 24
+                            },
+                            "mintRestartsVesting": {
+                              "const": false
+                            }
+                          },
+                          "required": [
+                            "cliffHours",
+                            "vestHours",
+                            "mintRestartsVesting"
+                          ]
+                        },
+                        "earn": {
+                          "type": "object",
+                          "properties": {
+                            "board": {
+                              "const": "global"
+                            },
+                            "maxWinners": {
+                              "const": 100
+                            },
+                            "maxWalletBudgetBps": {
+                              "const": 1000
+                            },
+                            "maxMultiplierTenths": {
+                              "const": 100
+                            },
+                            "minimumCorrespondingStakeUsd": {
+                              "const": "10"
+                            },
+                            "claimsExpire": {
+                              "const": false
+                            },
+                            "appeals": {
+                              "const": false
+                            }
+                          },
+                          "required": [
+                            "board",
+                            "maxWinners",
+                            "maxWalletBudgetBps",
+                            "maxMultiplierTenths",
+                            "minimumCorrespondingStakeUsd",
+                            "claimsExpire",
+                            "appeals"
+                          ]
+                        },
+                        "genesis": {
+                          "type": "object",
+                          "properties": {
+                            "cap": {
+                              "const": 10000
+                            },
+                            "trancheSize": {
+                              "const": 1000
+                            },
+                            "ballotHours": {
+                              "const": 48
+                            },
+                            "noticeHours": {
+                              "const": 48
+                            },
+                            "choices": {
+                              "type": "array",
+                              "items": {
+                                "anyOf": [
+                                  {
+                                    "const": "ASAP"
+                                  },
+                                  {
+                                    "const": "7d"
+                                  },
+                                  {
+                                    "const": "14d"
+                                  },
+                                  {
+                                    "const": "30d"
+                                  }
+                                ]
+                              }
+                            },
+                            "votesPerWallet": {
+                              "const": 1
+                            },
+                            "mintsPerEligibleWalletPerStage": {
+                              "const": 1
+                            },
+                            "firstWhitelistPriceSol": {
+                              "const": "0.1"
+                            }
+                          },
+                          "required": [
+                            "cap",
+                            "trancheSize",
+                            "ballotHours",
+                            "noticeHours",
+                            "choices",
+                            "votesPerWallet",
+                            "mintsPerEligibleWalletPerStage",
+                            "firstWhitelistPriceSol"
+                          ]
+                        },
+                        "season": {
+                          "type": "object",
+                          "properties": {
+                            "monthlyCap": {
+                              "const": 1000
+                            },
+                            "freeStageRequires": {
+                              "const": "revealed-genesis-level-1"
+                            },
+                            "freeMintsPerEligibleWallet": {
+                              "const": 1
+                            }
+                          },
+                          "required": [
+                            "monthlyCap",
+                            "freeStageRequires",
+                            "freeMintsPerEligibleWallet"
+                          ]
+                        },
+                        "operations": {
+                          "type": "object",
+                          "properties": {
+                            "targetFirstTestBelowUsd": {
+                              "const": "10"
+                            },
+                            "firstTestPlanningCashPercent": {
+                              "const": 20
+                            },
+                            "exceptionCeilingUsd": {
+                              "const": "30"
+                            },
+                            "reserveGuidelinePercent": {
+                              "const": 50
+                            },
+                            "recurringMonthlyCeilingUsd": {
+                              "const": "5"
+                            }
+                          },
+                          "required": [
+                            "targetFirstTestBelowUsd",
+                            "firstTestPlanningCashPercent",
+                            "exceptionCeilingUsd",
+                            "reserveGuidelinePercent",
+                            "recurringMonthlyCeilingUsd"
+                          ]
+                        },
+                        "capabilities": {
+                          "type": "object",
+                          "properties": {
+                            "signsTransactions": {
+                              "const": false
+                            },
+                            "acceptsDeposits": {
+                              "const": false
+                            },
+                            "offersNftBurn": {
+                              "const": false
+                            }
+                          },
+                          "required": [
+                            "signsTransactions",
+                            "acceptsDeposits",
+                            "offersNftBurn"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "version",
+                        "mode",
+                        "chain",
+                        "pillars",
+                        "launch",
+                        "vault",
+                        "earn",
+                        "genesis",
+                        "season",
+                        "operations",
+                        "capabilities"
+                      ]
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/Meta"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ]
                 }
               }
             }
@@ -43,12 +617,236 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "const": "genesis"
+                              },
+                              "status": {
+                                "const": "planned"
+                              },
+                              "cap": {
+                                "const": 10000
+                              },
+                              "trancheSize": {
+                                "const": 1000
+                              },
+                              "ballotHours": {
+                                "const": 48
+                              },
+                              "noticeHours": {
+                                "const": 48
+                              },
+                              "choices": {
+                                "type": "array",
+                                "items": {
+                                  "anyOf": [
+                                    {
+                                      "const": "ASAP"
+                                    },
+                                    {
+                                      "const": "7d"
+                                    },
+                                    {
+                                      "const": "14d"
+                                    },
+                                    {
+                                      "const": "30d"
+                                    }
+                                  ]
+                                }
+                              },
+                              "votesPerWallet": {
+                                "const": 1
+                              },
+                              "mintsPerEligibleWalletPerStage": {
+                                "const": 1
+                              },
+                              "firstWhitelistPriceSol": {
+                                "const": "0.1"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "status",
+                              "cap",
+                              "trancheSize",
+                              "ballotHours",
+                              "noticeHours",
+                              "choices",
+                              "votesPerWallet",
+                              "mintsPerEligibleWalletPerStage",
+                              "firstWhitelistPriceSol"
+                            ]
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "const": "seasons"
+                              },
+                              "status": {
+                                "const": "planned"
+                              },
+                              "monthlyCap": {
+                                "const": 1000
+                              },
+                              "freeStageRequires": {
+                                "const": "revealed-genesis-level-1"
+                              },
+                              "freeMintsPerEligibleWallet": {
+                                "const": 1
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "status",
+                              "monthlyCap",
+                              "freeStageRequires",
+                              "freeMintsPerEligibleWallet"
+                            ]
+                          }
+                        ]
+                      }
+                    },
+                    "nextCursor": {
+                      "type": "null"
+                    },
+                    "snapshotId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "nextCursor",
+                    "snapshotId"
+                  ]
                 }
               },
               "application/vnd.10x.v1+json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "const": "genesis"
+                              },
+                              "status": {
+                                "const": "planned"
+                              },
+                              "cap": {
+                                "const": 10000
+                              },
+                              "trancheSize": {
+                                "const": 1000
+                              },
+                              "ballotHours": {
+                                "const": 48
+                              },
+                              "noticeHours": {
+                                "const": 48
+                              },
+                              "choices": {
+                                "type": "array",
+                                "items": {
+                                  "anyOf": [
+                                    {
+                                      "const": "ASAP"
+                                    },
+                                    {
+                                      "const": "7d"
+                                    },
+                                    {
+                                      "const": "14d"
+                                    },
+                                    {
+                                      "const": "30d"
+                                    }
+                                  ]
+                                }
+                              },
+                              "votesPerWallet": {
+                                "const": 1
+                              },
+                              "mintsPerEligibleWalletPerStage": {
+                                "const": 1
+                              },
+                              "firstWhitelistPriceSol": {
+                                "const": "0.1"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "status",
+                              "cap",
+                              "trancheSize",
+                              "ballotHours",
+                              "noticeHours",
+                              "choices",
+                              "votesPerWallet",
+                              "mintsPerEligibleWalletPerStage",
+                              "firstWhitelistPriceSol"
+                            ]
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "const": "seasons"
+                              },
+                              "status": {
+                                "const": "planned"
+                              },
+                              "monthlyCap": {
+                                "const": 1000
+                              },
+                              "freeStageRequires": {
+                                "const": "revealed-genesis-level-1"
+                              },
+                              "freeMintsPerEligibleWallet": {
+                                "const": 1
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "status",
+                              "monthlyCap",
+                              "freeStageRequires",
+                              "freeMintsPerEligibleWallet"
+                            ]
+                          }
+                        ]
+                      }
+                    },
+                    "nextCursor": {
+                      "type": "null"
+                    },
+                    "snapshotId": {
+                      "type": "string"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/Meta"
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "nextCursor",
+                    "snapshotId",
+                    "meta"
+                  ]
                 }
               }
             }
@@ -66,7 +864,23 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string"
+                    },
+                    "mode": {
+                      "type": "string"
+                    },
+                    "policyVersion": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "mode",
+                    "policyVersion"
+                  ]
                 }
               },
               "application/vnd.10x.v1+json": {
@@ -132,6 +946,11 @@
           "201": {
             "description": "Single-use five-minute sign-in challenge",
             "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Challenge"
+                }
+              },
               "application/vnd.10x.v1+json": {
                 "schema": {
                   "type": "object",
@@ -154,6 +973,11 @@
           "403": {
             "description": "Origin mismatch",
             "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              },
               "application/vnd.10x.v1+json": {
                 "schema": {
                   "$ref": "#/components/schemas/Error"
@@ -164,6 +988,11 @@
           "429": {
             "description": "Rate limited",
             "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              },
               "application/vnd.10x.v1+json": {
                 "schema": {
                   "$ref": "#/components/schemas/Error"
@@ -203,6 +1032,19 @@
           "200": {
             "description": "Local HttpOnly session cookie",
             "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "wallet": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "wallet"
+                  ]
+                }
+              },
               "application/vnd.10x.v1+json": {
                 "schema": {
                   "type": "object",
@@ -233,6 +1075,11 @@
           "401": {
             "description": "Invalid or expired proof",
             "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              },
               "application/vnd.10x.v1+json": {
                 "schema": {
                   "$ref": "#/components/schemas/Error"
@@ -250,6 +1097,19 @@
           "200": {
             "description": "Session revoked",
             "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "revoked": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "revoked"
+                  ]
+                }
+              },
               "application/vnd.10x.v1+json": {
                 "schema": {
                   "type": "object",
@@ -287,6 +1147,11 @@
           "200": {
             "description": "Verified wallet and chain",
             "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Profile"
+                }
+              },
               "application/vnd.10x.v1+json": {
                 "schema": {
                   "type": "object",
@@ -309,6 +1174,11 @@
           "401": {
             "description": "Session required",
             "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              },
               "application/vnd.10x.v1+json": {
                 "schema": {
                   "$ref": "#/components/schemas/Error"
@@ -326,6 +1196,34 @@
           "200": {
             "description": "Verified wallet list",
             "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "address": {
+                            "type": "string"
+                          },
+                          "chain": {
+                            "const": "solana"
+                          }
+                        },
+                        "required": [
+                          "address",
+                          "chain"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "items"
+                  ]
+                }
+              },
               "application/vnd.10x.v1+json": {
                 "schema": {
                   "type": "object",
@@ -339,7 +1237,7 @@
                             "type": "string"
                           },
                           "chain": {
-                            "type": "string"
+                            "const": "solana"
                           }
                         },
                         "required": [
@@ -347,16 +1245,6 @@
                           "chain"
                         ]
                       }
-                    },
-                    "nextCursor": {
-                      "anyOf": [
-                        {
-                          "type": "string"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
                     },
                     "snapshotId": {
                       "type": "string"
@@ -367,7 +1255,6 @@
                   },
                   "required": [
                     "items",
-                    "nextCursor",
                     "snapshotId",
                     "meta"
                   ]
@@ -378,6 +1265,11 @@
           "401": {
             "description": "Session required",
             "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              },
               "application/vnd.10x.v1+json": {
                 "schema": {
                   "$ref": "#/components/schemas/Error"
@@ -414,6 +1306,33 @@
           "200": {
             "description": "Local fixture page with stable as-of time and cursor",
             "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Market"
+                      }
+                    },
+                    "nextCursor": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "nextCursor"
+                  ]
+                }
+              },
               "application/vnd.10x.v1+json": {
                 "schema": {
                   "type": "object",
@@ -471,6 +1390,11 @@
           "200": {
             "description": "Read-only market detail",
             "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Market"
+                }
+              },
               "application/vnd.10x.v1+json": {
                 "schema": {
                   "type": "object",
@@ -493,6 +1417,11 @@
           "404": {
             "description": "Unknown market",
             "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              },
               "application/vnd.10x.v1+json": {
                 "schema": {
                   "$ref": "#/components/schemas/Error"
@@ -510,6 +1439,30 @@
           "200": {
             "description": "Fee basis points for elapsed seconds zero through ninety",
             "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "points": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/FeePoint"
+                      }
+                    },
+                    "unit": {
+                      "type": "string"
+                    },
+                    "clock": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "points",
+                    "unit",
+                    "clock"
+                  ]
+                }
+              },
               "application/vnd.10x.v1+json": {
                 "schema": {
                   "type": "object",
@@ -594,7 +1547,43 @@
               },
               "application/vnd.10x.v1+json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "maxItems": 0,
+                      "items": {}
+                    },
+                    "terms": {
+                      "type": "object",
+                      "properties": {
+                        "mode": {
+                          "const": "offline-validation"
+                        },
+                        "executable": {
+                          "const": false
+                        },
+                        "maxEvidenceAgeSeconds": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 3600
+                        }
+                      }
+                    },
+                    "snapshotId": {
+                      "type": "string"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/Meta"
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "terms",
+                    "snapshotId",
+                    "meta"
+                  ]
                 }
               }
             }
@@ -1032,7 +2021,223 @@
               },
               "application/vnd.10x.v1+json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "mode": {
+                          "const": "offline-validation"
+                        },
+                        "executable": {
+                          "const": false
+                        },
+                        "proposedActivation": {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\\.0{1,3})?Z$",
+                          "description": "UTC RFC 3339 timestamp with whole-second precision, at or after 1970-01-01."
+                        },
+                        "sydneyLaunchDay": {
+                          "type": "string",
+                          "format": "date"
+                        },
+                        "assessedAt": {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\\.0{1,3})?Z$",
+                          "description": "UTC RFC 3339 timestamp with whole-second precision, at or after 1970-01-01."
+                        },
+                        "allocationBaseUnits": {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "properties": {
+                            "liquidity": {
+                              "type": "string",
+                              "pattern": "^(0|[1-9][0-9]{0,19})$",
+                              "description": "Canonical unsigned base-unit integer."
+                            },
+                            "earn": {
+                              "type": "string",
+                              "pattern": "^(0|[1-9][0-9]{0,19})$",
+                              "description": "Canonical unsigned base-unit integer."
+                            },
+                            "dailyEarn": {
+                              "type": "string",
+                              "pattern": "^(0|[1-9][0-9]{0,19})$",
+                              "description": "Canonical unsigned base-unit integer."
+                            },
+                            "stake": {
+                              "type": "string",
+                              "pattern": "^(0|[1-9][0-9]{0,19})$",
+                              "description": "Canonical unsigned base-unit integer."
+                            },
+                            "genesisVault": {
+                              "type": "string",
+                              "pattern": "^(0|[1-9][0-9]{0,19})$",
+                              "description": "Canonical unsigned base-unit integer."
+                            },
+                            "seasonVault": {
+                              "type": "string",
+                              "pattern": "^(0|[1-9][0-9]{0,19})$",
+                              "description": "Canonical unsigned base-unit integer."
+                            }
+                          },
+                          "required": [
+                            "liquidity",
+                            "earn",
+                            "dailyEarn",
+                            "stake",
+                            "genesisVault",
+                            "seasonVault"
+                          ]
+                        },
+                        "feeSchedule": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                              "elapsedSeconds": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 90
+                              },
+                              "feeBps": {
+                                "type": "integer",
+                                "minimum": 100,
+                                "maximum": 9000
+                              }
+                            },
+                            "required": [
+                              "elapsedSeconds",
+                              "feeBps"
+                            ]
+                          },
+                          "maxItems": 7
+                        },
+                        "simulatedFdvUsdMicros": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "pattern": "^[0-9]+$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "activeCampaigns": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 64
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "pilotCost": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "properties": {
+                                "totalCents": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 5000000000
+                                },
+                                "availableCashCents": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 1000000000,
+                                  "description": "USD cents."
+                                },
+                                "ordinaryTargetCents": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 1000000000,
+                                  "description": "USD cents."
+                                },
+                                "reserveGuidelineMet": {
+                                  "type": "boolean"
+                                },
+                                "founderExceptionNeeded": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "totalCents",
+                                "availableCashCents",
+                                "ordinaryTargetCents",
+                                "reserveGuidelineMet",
+                                "founderExceptionNeeded"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "gates": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 120
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "pass",
+                                  "blocked",
+                                  "review",
+                                  "unknown"
+                                ]
+                              },
+                              "detail": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "status",
+                              "detail"
+                            ]
+                          },
+                          "maxItems": 20
+                        }
+                      },
+                      "required": [
+                        "mode",
+                        "executable",
+                        "proposedActivation",
+                        "sydneyLaunchDay",
+                        "assessedAt",
+                        "allocationBaseUnits",
+                        "feeSchedule",
+                        "simulatedFdvUsdMicros",
+                        "activeCampaigns",
+                        "pilotCost",
+                        "gates"
+                      ]
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/Meta"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ]
                 }
               }
             }
@@ -1040,6 +2245,11 @@
           "400": {
             "description": "Malformed or unsupported scenario.",
             "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              },
               "application/vnd.10x.v1+json": {
                 "schema": {
                   "$ref": "#/components/schemas/Error"
@@ -1050,6 +2260,11 @@
           "413": {
             "description": "Body exceeds 32 KiB.",
             "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              },
               "application/vnd.10x.v1+json": {
                 "schema": {
                   "$ref": "#/components/schemas/Error"
@@ -1060,6 +2275,11 @@
           "415": {
             "description": "Send application/json.",
             "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              },
               "application/vnd.10x.v1+json": {
                 "schema": {
                   "$ref": "#/components/schemas/Error"
@@ -1077,9 +2297,60 @@
           "200": {
             "description": "Recent local advisory ballots",
             "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/GenesisBallot"
+                      }
+                    },
+                    "nextCursor": {
+                      "type": "null"
+                    },
+                    "asOf": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "nextCursor",
+                    "asOf"
+                  ]
+                }
+              },
               "application/vnd.10x.v1+json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/GenesisBallot"
+                      }
+                    },
+                    "nextCursor": {
+                      "type": "null"
+                    },
+                    "asOf": {
+                      "type": "string"
+                    },
+                    "snapshotId": {
+                      "type": "string"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/Meta"
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "nextCursor",
+                    "asOf",
+                    "snapshotId",
+                    "meta"
+                  ]
                 }
               }
             }
@@ -1104,32 +2375,17 @@
           "200": {
             "description": "Turnout and final decision when available",
             "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenesisBallot"
+                }
+              },
               "application/vnd.10x.v1+json": {
                 "schema": {
                   "type": "object",
                   "properties": {
                     "data": {
-                      "type": "object",
-                      "properties": {
-                        "id": {
-                          "type": "string"
-                        },
-                        "status": {
-                          "type": "string"
-                        },
-                        "eligibleWallets": {
-                          "type": "integer"
-                        },
-                        "votesCast": {
-                          "type": "integer"
-                        }
-                      },
-                      "required": [
-                        "id",
-                        "status",
-                        "eligibleWallets",
-                        "votesCast"
-                      ]
+                      "$ref": "#/components/schemas/GenesisBallot"
                     },
                     "meta": {
                       "$ref": "#/components/schemas/Meta"
@@ -1187,6 +2443,28 @@
           "200": {
             "description": "Original vote receipt on replay",
             "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "choice": {
+                      "enum": [
+                        "ASAP",
+                        "7",
+                        "14",
+                        "30"
+                      ]
+                    },
+                    "replayed": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "choice",
+                    "replayed"
+                  ]
+                }
+              },
               "application/vnd.10x.v1+json": {
                 "schema": {
                   "type": "object",
@@ -1226,6 +2504,28 @@
           "201": {
             "description": "Recorded vote",
             "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "choice": {
+                      "enum": [
+                        "ASAP",
+                        "7",
+                        "14",
+                        "30"
+                      ]
+                    },
+                    "replayed": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "choice",
+                    "replayed"
+                  ]
+                }
+              },
               "application/vnd.10x.v1+json": {
                 "schema": {
                   "type": "object",
@@ -1265,6 +2565,11 @@
           "409": {
             "description": "Closed ballot or conflicting vote",
             "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              },
               "application/vnd.10x.v1+json": {
                 "schema": {
                   "$ref": "#/components/schemas/Error"
@@ -1295,19 +2600,18 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "proof",
-                  "signature"
-                ],
                 "properties": {
                   "proof": {
-                    "type": "object"
+                    "$ref": "#/components/schemas/ActionCompletionProof"
                   },
                   "signature": {
                     "type": "string"
                   }
-                }
+                },
+                "required": [
+                  "proof",
+                  "signature"
+                ]
               }
             }
           }
@@ -1318,12 +2622,66 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "properties": {
+                    "actionId": {
+                      "type": "string"
+                    },
+                    "verifiedAtMs": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "proofDigest": {
+                      "type": "string"
+                    },
+                    "replay": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "actionId",
+                    "verifiedAtMs",
+                    "proofDigest",
+                    "replay"
+                  ]
                 }
               },
               "application/vnd.10x.v1+json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "actionId": {
+                          "type": "string"
+                        },
+                        "verifiedAtMs": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "proofDigest": {
+                          "type": "string"
+                        },
+                        "replay": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "actionId",
+                        "verifiedAtMs",
+                        "proofDigest",
+                        "replay"
+                      ]
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/Meta"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ]
                 }
               }
             }
@@ -1333,7 +2691,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/Error"
                 }
               },
               "application/vnd.10x.v1+json": {
@@ -1348,7 +2706,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/Error"
                 }
               },
               "application/vnd.10x.v1+json": {
@@ -1371,12 +2729,88 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "properties": {
+                    "mode": {
+                      "const": "local-fixture"
+                    },
+                    "epoch": {
+                      "type": "integer"
+                    },
+                    "limit": {
+                      "type": "integer"
+                    },
+                    "admitted": {
+                      "type": "integer"
+                    },
+                    "remaining": {
+                      "type": "integer"
+                    },
+                    "accepting": {
+                      "type": "boolean"
+                    },
+                    "policy": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "mode",
+                    "epoch",
+                    "limit",
+                    "admitted",
+                    "remaining",
+                    "accepting",
+                    "policy"
+                  ]
                 }
               },
               "application/vnd.10x.v1+json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "mode": {
+                          "const": "local-fixture"
+                        },
+                        "epoch": {
+                          "type": "integer"
+                        },
+                        "limit": {
+                          "type": "integer"
+                        },
+                        "admitted": {
+                          "type": "integer"
+                        },
+                        "remaining": {
+                          "type": "integer"
+                        },
+                        "accepting": {
+                          "type": "boolean"
+                        },
+                        "policy": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "mode",
+                        "epoch",
+                        "limit",
+                        "admitted",
+                        "remaining",
+                        "accepting",
+                        "policy"
+                      ]
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/Meta"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ]
                 }
               }
             }
@@ -1405,12 +2839,48 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "properties": {
+                    "sha256": {
+                      "type": "string"
+                    },
+                    "manifest": {
+                      "$ref": "#/components/schemas/EarnManifest"
+                    }
+                  },
+                  "required": [
+                    "sha256",
+                    "manifest"
+                  ]
                 }
               },
               "application/vnd.10x.v1+json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "sha256": {
+                          "type": "string"
+                        },
+                        "manifest": {
+                          "$ref": "#/components/schemas/EarnManifest"
+                        }
+                      },
+                      "required": [
+                        "sha256",
+                        "manifest"
+                      ]
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/Meta"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ]
                 }
               }
             }
@@ -1420,7 +2890,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/Error"
                 }
               },
               "application/vnd.10x.v1+json": {
@@ -1463,12 +2933,56 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "properties": {
+                    "mode": {
+                      "const": "local-fixture"
+                    },
+                    "manifestDigest": {
+                      "type": "string"
+                    },
+                    "proof": {
+                      "$ref": "#/components/schemas/EarnProof"
+                    }
+                  },
+                  "required": [
+                    "mode",
+                    "manifestDigest",
+                    "proof"
+                  ]
                 }
               },
               "application/vnd.10x.v1+json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "mode": {
+                          "const": "local-fixture"
+                        },
+                        "manifestDigest": {
+                          "type": "string"
+                        },
+                        "proof": {
+                          "$ref": "#/components/schemas/EarnProof"
+                        }
+                      },
+                      "required": [
+                        "mode",
+                        "manifestDigest",
+                        "proof"
+                      ]
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/Meta"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ]
                 }
               }
             }
@@ -1478,7 +2992,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/Error"
                 }
               },
               "application/vnd.10x.v1+json": {
@@ -1493,7 +3007,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/Error"
                 }
               },
               "application/vnd.10x.v1+json": {
@@ -1516,12 +3030,58 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "properties": {
+                    "mode": {
+                      "const": "local-fixture"
+                    },
+                    "epoch": {
+                      "type": "integer"
+                    },
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/EarnAction"
+                      }
+                    }
+                  },
+                  "required": [
+                    "mode",
+                    "epoch",
+                    "items"
+                  ]
                 }
               },
               "application/vnd.10x.v1+json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "properties": {
+                    "mode": {
+                      "const": "local-fixture"
+                    },
+                    "epoch": {
+                      "type": "integer"
+                    },
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/EarnAction"
+                      }
+                    },
+                    "snapshotId": {
+                      "type": "string"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/Meta"
+                    }
+                  },
+                  "required": [
+                    "mode",
+                    "epoch",
+                    "items",
+                    "snapshotId",
+                    "meta"
+                  ]
                 }
               }
             }
@@ -1575,12 +3135,84 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "properties": {
+                    "mode": {
+                      "const": "local-fixture"
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "tokenId": {
+                      "type": "string"
+                    },
+                    "epoch": {
+                      "type": "integer"
+                    },
+                    "url": {
+                      "type": "string",
+                      "format": "uri"
+                    },
+                    "submittedAtMs": {
+                      "type": "integer",
+                      "minimum": 0
+                    }
+                  },
+                  "required": [
+                    "mode",
+                    "id",
+                    "tokenId",
+                    "epoch",
+                    "url",
+                    "submittedAtMs"
+                  ]
                 }
               },
               "application/vnd.10x.v1+json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "mode": {
+                          "const": "local-fixture"
+                        },
+                        "id": {
+                          "type": "string"
+                        },
+                        "tokenId": {
+                          "type": "string"
+                        },
+                        "epoch": {
+                          "type": "integer"
+                        },
+                        "url": {
+                          "type": "string",
+                          "format": "uri"
+                        },
+                        "submittedAtMs": {
+                          "type": "integer",
+                          "minimum": 0
+                        }
+                      },
+                      "required": [
+                        "mode",
+                        "id",
+                        "tokenId",
+                        "epoch",
+                        "url",
+                        "submittedAtMs"
+                      ]
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/Meta"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ]
                 }
               }
             }
@@ -1590,12 +3222,84 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "properties": {
+                    "mode": {
+                      "const": "local-fixture"
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "tokenId": {
+                      "type": "string"
+                    },
+                    "epoch": {
+                      "type": "integer"
+                    },
+                    "url": {
+                      "type": "string",
+                      "format": "uri"
+                    },
+                    "submittedAtMs": {
+                      "type": "integer",
+                      "minimum": 0
+                    }
+                  },
+                  "required": [
+                    "mode",
+                    "id",
+                    "tokenId",
+                    "epoch",
+                    "url",
+                    "submittedAtMs"
+                  ]
                 }
               },
               "application/vnd.10x.v1+json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "mode": {
+                          "const": "local-fixture"
+                        },
+                        "id": {
+                          "type": "string"
+                        },
+                        "tokenId": {
+                          "type": "string"
+                        },
+                        "epoch": {
+                          "type": "integer"
+                        },
+                        "url": {
+                          "type": "string",
+                          "format": "uri"
+                        },
+                        "submittedAtMs": {
+                          "type": "integer",
+                          "minimum": 0
+                        }
+                      },
+                      "required": [
+                        "mode",
+                        "id",
+                        "tokenId",
+                        "epoch",
+                        "url",
+                        "submittedAtMs"
+                      ]
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/Meta"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ]
                 }
               }
             }
@@ -1605,7 +3309,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/Error"
                 }
               },
               "application/vnd.10x.v1+json": {
@@ -1620,7 +3324,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/Error"
                 }
               },
               "application/vnd.10x.v1+json": {
@@ -1635,7 +3339,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/Error"
                 }
               },
               "application/vnd.10x.v1+json": {
@@ -1650,7 +3354,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/Error"
                 }
               },
               "application/vnd.10x.v1+json": {
@@ -1684,12 +3388,135 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "properties": {
+                    "mode": {
+                      "const": "local-fixture"
+                    },
+                    "epoch": {
+                      "type": "integer"
+                    },
+                    "date": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "enum": [
+                        "pending",
+                        "final"
+                      ]
+                    },
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/EarnWinner"
+                      }
+                    },
+                    "allocations": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/EarnAllocation"
+                      }
+                    },
+                    "snapshotId": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "finalizedAtMs": {
+                      "anyOf": [
+                        {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "source": {
+                      "const": "public-archive"
+                    }
+                  },
+                  "required": [
+                    "mode",
+                    "epoch",
+                    "date",
+                    "status",
+                    "items",
+                    "allocations",
+                    "snapshotId",
+                    "finalizedAtMs"
+                  ]
                 }
               },
               "application/vnd.10x.v1+json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "properties": {
+                    "mode": {
+                      "const": "local-fixture"
+                    },
+                    "epoch": {
+                      "type": "integer"
+                    },
+                    "date": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "enum": [
+                        "pending",
+                        "final"
+                      ]
+                    },
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/EarnWinner"
+                      }
+                    },
+                    "allocations": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/EarnAllocation"
+                      }
+                    },
+                    "snapshotId": {
+                      "type": "string"
+                    },
+                    "finalizedAtMs": {
+                      "anyOf": [
+                        {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "source": {
+                      "const": "public-archive"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/Meta"
+                    }
+                  },
+                  "required": [
+                    "mode",
+                    "epoch",
+                    "date",
+                    "status",
+                    "items",
+                    "allocations",
+                    "snapshotId",
+                    "finalizedAtMs",
+                    "meta"
+                  ]
                 }
               }
             }
@@ -1718,12 +3545,72 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "properties": {
+                    "mode": {
+                      "const": "local-fixture"
+                    },
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/EarnOwnSubmission"
+                      }
+                    },
+                    "nextCursor": {
+                      "anyOf": [
+                        {
+                          "type": "integer"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "mode",
+                    "items",
+                    "nextCursor"
+                  ]
                 }
               },
               "application/vnd.10x.v1+json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "properties": {
+                    "mode": {
+                      "const": "local-fixture"
+                    },
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/EarnOwnSubmission"
+                      }
+                    },
+                    "nextCursor": {
+                      "anyOf": [
+                        {
+                          "type": "integer"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "snapshotId": {
+                      "type": "string"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/Meta"
+                    }
+                  },
+                  "required": [
+                    "mode",
+                    "items",
+                    "nextCursor",
+                    "snapshotId",
+                    "meta"
+                  ]
                 }
               }
             }
@@ -1733,7 +3620,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/Error"
                 }
               },
               "application/vnd.10x.v1+json": {
@@ -1767,12 +3654,86 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "properties": {
+                    "mode": {
+                      "const": "local-fixture"
+                    },
+                    "executionEnabled": {
+                      "const": false
+                    },
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/EarnClaim"
+                      }
+                    },
+                    "nextCursor": {
+                      "anyOf": [
+                        {
+                          "type": "integer"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "source": {
+                      "const": "public-archive"
+                    }
+                  },
+                  "required": [
+                    "mode",
+                    "executionEnabled",
+                    "items",
+                    "nextCursor"
+                  ]
                 }
               },
               "application/vnd.10x.v1+json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "properties": {
+                    "mode": {
+                      "const": "local-fixture"
+                    },
+                    "executionEnabled": {
+                      "const": false
+                    },
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/EarnClaim"
+                      }
+                    },
+                    "nextCursor": {
+                      "anyOf": [
+                        {
+                          "type": "integer"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "source": {
+                      "const": "public-archive"
+                    },
+                    "snapshotId": {
+                      "type": "string"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/Meta"
+                    }
+                  },
+                  "required": [
+                    "mode",
+                    "executionEnabled",
+                    "items",
+                    "nextCursor",
+                    "snapshotId",
+                    "meta"
+                  ]
                 }
               }
             }
@@ -1782,7 +3743,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/Error"
                 }
               },
               "application/vnd.10x.v1+json": {
@@ -1802,6 +3763,54 @@
           "200": {
             "description": "Owner-scoped list of fixture assets",
             "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "detail": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "detail"
+                        ]
+                      }
+                    },
+                    "nextCursor": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "source": {
+                      "const": "local-fixture"
+                    },
+                    "asOf": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "nextCursor",
+                    "source",
+                    "asOf"
+                  ]
+                }
+              },
               "application/vnd.10x.v1+json": {
                 "schema": {
                   "type": "object",
@@ -1834,6 +3843,13 @@
                         }
                       ]
                     },
+                    "source": {
+                      "const": "local-fixture"
+                    },
+                    "asOf": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
                     "snapshotId": {
                       "type": "string"
                     },
@@ -1844,6 +3860,8 @@
                   "required": [
                     "items",
                     "nextCursor",
+                    "source",
+                    "asOf",
                     "snapshotId",
                     "meta"
                   ]
@@ -1854,6 +3872,11 @@
           "401": {
             "description": "Session required",
             "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              },
               "application/vnd.10x.v1+json": {
                 "schema": {
                   "$ref": "#/components/schemas/Error"
@@ -1890,62 +3913,185 @@
           "200": {
             "description": "Public token quantities, with decimal strings in base units",
             "content": {
-              "application/vnd.10x.v1+json": {
+              "application/json": {
                 "schema": {
-                  "allOf": [
-                    {
-                      "type": "object",
-                      "properties": {
-                        "items": {
-                          "type": "array",
-                          "items": {
-                            "$ref": "#/components/schemas/VaultAllocation"
-                          }
-                        },
-                        "nextCursor": {
-                          "anyOf": [
-                            {
-                              "type": "string"
+                  "type": "object",
+                  "properties": {
+                    "assetId": {
+                      "type": "string"
+                    },
+                    "slot": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "const": "genesis"
                             },
-                            {
-                              "type": "null"
+                            "tranche": {
+                              "type": "integer"
+                            },
+                            "level": {
+                              "type": "integer"
+                            },
+                            "ordinal": {
+                              "type": "integer"
                             }
+                          },
+                          "required": [
+                            "kind",
+                            "tranche",
+                            "level",
+                            "ordinal"
                           ]
                         },
-                        "snapshotId": {
-                          "type": "string"
-                        },
-                        "meta": {
-                          "$ref": "#/components/schemas/Meta"
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "const": "season"
+                            },
+                            "seasonId": {
+                              "type": "string"
+                            },
+                            "slotIndex": {
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "kind",
+                            "seasonId",
+                            "slotIndex"
+                          ]
                         }
-                      },
-                      "required": [
-                        "items",
-                        "nextCursor",
-                        "snapshotId",
-                        "meta"
                       ]
                     },
-                    {
-                      "type": "object",
-                      "properties": {
-                        "assetId": {
+                    "source": {
+                      "const": "local-fixture"
+                    },
+                    "asOf": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/VaultAllocation"
+                      }
+                    },
+                    "nextCursor": {
+                      "anyOf": [
+                        {
                           "type": "string"
                         },
-                        "slot": {
-                          "type": "object"
-                        },
-                        "asOf": {
-                          "type": "string",
-                          "format": "date-time"
+                        {
+                          "type": "null"
                         }
-                      },
-                      "required": [
-                        "assetId",
-                        "slot",
-                        "asOf"
                       ]
                     }
+                  },
+                  "required": [
+                    "assetId",
+                    "slot",
+                    "source",
+                    "asOf",
+                    "items",
+                    "nextCursor"
+                  ]
+                }
+              },
+              "application/vnd.10x.v1+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "assetId": {
+                      "type": "string"
+                    },
+                    "slot": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "const": "genesis"
+                            },
+                            "tranche": {
+                              "type": "integer"
+                            },
+                            "level": {
+                              "type": "integer"
+                            },
+                            "ordinal": {
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "kind",
+                            "tranche",
+                            "level",
+                            "ordinal"
+                          ]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "const": "season"
+                            },
+                            "seasonId": {
+                              "type": "string"
+                            },
+                            "slotIndex": {
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "kind",
+                            "seasonId",
+                            "slotIndex"
+                          ]
+                        }
+                      ]
+                    },
+                    "source": {
+                      "const": "local-fixture"
+                    },
+                    "asOf": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/VaultAllocation"
+                      }
+                    },
+                    "nextCursor": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "snapshotId": {
+                      "type": "string"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/Meta"
+                    }
+                  },
+                  "required": [
+                    "assetId",
+                    "slot",
+                    "source",
+                    "asOf",
+                    "items",
+                    "nextCursor",
+                    "snapshotId",
+                    "meta"
                   ]
                 }
               }
@@ -1954,6 +4100,11 @@
           "404": {
             "description": "Unknown NFT",
             "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              },
               "application/vnd.10x.v1+json": {
                 "schema": {
                   "$ref": "#/components/schemas/Error"
@@ -1980,7 +4131,7 @@
           "200": {
             "description": "Owner positions including claimed and continuously earned units",
             "content": {
-              "application/vnd.10x.v1+json": {
+              "application/json": {
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -1991,6 +4142,31 @@
                         "properties": {
                           "marketId": {
                             "type": "string"
+                          },
+                          "fundedUnits": {
+                            "type": "string",
+                            "pattern": "^(0|[1-9][0-9]*)$"
+                          },
+                          "treasuryFeeBps": {
+                            "type": "integer"
+                          },
+                          "activationTime": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "emissionEnd": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "asOf": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "source": {
+                            "const": "local-fixture"
+                          },
+                          "executable": {
+                            "const": false
                           },
                           "principalUnits": {
                             "type": "string",
@@ -2007,23 +4183,21 @@
                           "harvestedGrossUnits": {
                             "type": "string",
                             "pattern": "^(0|[1-9][0-9]*)$"
-                          },
-                          "treasuryFeeBps": {
-                            "type": "integer"
-                          },
-                          "asOf": {
-                            "type": "string",
-                            "format": "date-time"
                           }
                         },
                         "required": [
                           "marketId",
+                          "fundedUnits",
+                          "treasuryFeeBps",
+                          "activationTime",
+                          "emissionEnd",
+                          "asOf",
+                          "source",
+                          "executable",
                           "principalUnits",
                           "earnedGrossUnits",
                           "claimableGrossUnits",
-                          "harvestedGrossUnits",
-                          "treasuryFeeBps",
-                          "asOf"
+                          "harvestedGrossUnits"
                         ]
                       }
                     },
@@ -2037,6 +4211,102 @@
                         }
                       ]
                     },
+                    "asOf": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "nextCursor",
+                    "asOf"
+                  ]
+                }
+              },
+              "application/vnd.10x.v1+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "marketId": {
+                            "type": "string"
+                          },
+                          "fundedUnits": {
+                            "type": "string",
+                            "pattern": "^(0|[1-9][0-9]*)$"
+                          },
+                          "treasuryFeeBps": {
+                            "type": "integer"
+                          },
+                          "activationTime": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "emissionEnd": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "asOf": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "source": {
+                            "const": "local-fixture"
+                          },
+                          "executable": {
+                            "const": false
+                          },
+                          "principalUnits": {
+                            "type": "string",
+                            "pattern": "^(0|[1-9][0-9]*)$"
+                          },
+                          "earnedGrossUnits": {
+                            "type": "string",
+                            "pattern": "^(0|[1-9][0-9]*)$"
+                          },
+                          "claimableGrossUnits": {
+                            "type": "string",
+                            "pattern": "^(0|[1-9][0-9]*)$"
+                          },
+                          "harvestedGrossUnits": {
+                            "type": "string",
+                            "pattern": "^(0|[1-9][0-9]*)$"
+                          }
+                        },
+                        "required": [
+                          "marketId",
+                          "fundedUnits",
+                          "treasuryFeeBps",
+                          "activationTime",
+                          "emissionEnd",
+                          "asOf",
+                          "source",
+                          "executable",
+                          "principalUnits",
+                          "earnedGrossUnits",
+                          "claimableGrossUnits",
+                          "harvestedGrossUnits"
+                        ]
+                      }
+                    },
+                    "nextCursor": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "asOf": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
                     "snapshotId": {
                       "type": "string"
                     },
@@ -2047,6 +4317,7 @@
                   "required": [
                     "items",
                     "nextCursor",
+                    "asOf",
                     "snapshotId",
                     "meta"
                   ]
@@ -2057,6 +4328,11 @@
           "401": {
             "description": "Session required",
             "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              },
               "application/vnd.10x.v1+json": {
                 "schema": {
                   "$ref": "#/components/schemas/Error"
@@ -2093,9 +4369,26 @@
           "200": {
             "description": "Local farm funding and hypothetical harvest fee",
             "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Farm"
+                }
+              },
               "application/vnd.10x.v1+json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Farm"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/Meta"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ]
                 }
               }
             }
@@ -2103,6 +4396,11 @@
           "404": {
             "description": "Unknown farm",
             "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              },
               "application/vnd.10x.v1+json": {
                 "schema": {
                   "$ref": "#/components/schemas/Error"
@@ -2130,9 +4428,26 @@
           "200": {
             "description": "Owner-scoped rehearsal state and current attempt",
             "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransactionIntent"
+                }
+              },
               "application/vnd.10x.v1+json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/TransactionIntent"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/Meta"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ]
                 }
               }
             }
@@ -2140,6 +4455,11 @@
           "401": {
             "description": "Session required",
             "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              },
               "application/vnd.10x.v1+json": {
                 "schema": {
                   "$ref": "#/components/schemas/Error"
@@ -2150,6 +4470,11 @@
           "404": {
             "description": "Unknown transaction",
             "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              },
               "application/vnd.10x.v1+json": {
                 "schema": {
                   "$ref": "#/components/schemas/Error"
@@ -2169,6 +4494,33 @@
           "200": {
             "description": "Local collection response",
             "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Inventory"
+                      }
+                    },
+                    "nextCursor": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "nextCursor"
+                  ]
+                }
+              },
               "application/vnd.10x.v1+json": {
                 "schema": {
                   "type": "object",
@@ -2236,6 +4588,11 @@
           "200": {
             "description": "Local collection response",
             "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Inventory"
+                }
+              },
               "application/vnd.10x.v1+json": {
                 "schema": {
                   "type": "object",
@@ -2276,6 +4633,11 @@
           "200": {
             "description": "Local collection response",
             "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionAsset"
+                }
+              },
               "application/vnd.10x.v1+json": {
                 "schema": {
                   "type": "object",
@@ -2307,6 +4669,33 @@
           "200": {
             "description": "Local collection response",
             "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/CollectionAsset"
+                      }
+                    },
+                    "nextCursor": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "nextCursor"
+                  ]
+                }
+              },
               "application/vnd.10x.v1+json": {
                 "schema": {
                   "type": "object",
@@ -2365,6 +4754,33 @@
           "200": {
             "description": "Local collection response",
             "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/CollectionOperation"
+                      }
+                    },
+                    "nextCursor": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "nextCursor"
+                  ]
+                }
+              },
               "application/vnd.10x.v1+json": {
                 "schema": {
                   "type": "object",
@@ -2432,6 +4848,11 @@
           "200": {
             "description": "Local collection response",
             "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionOperation"
+                }
+              },
               "application/vnd.10x.v1+json": {
                 "schema": {
                   "type": "object",
@@ -2480,6 +4901,23 @@
           "200": {
             "description": "Original operation on retry",
             "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "operation": {
+                      "$ref": "#/components/schemas/CollectionOperation"
+                    },
+                    "replayed": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "operation",
+                    "replayed"
+                  ]
+                }
+              },
               "application/vnd.10x.v1+json": {
                 "schema": {
                   "type": "object",
@@ -2514,6 +4952,23 @@
           "201": {
             "description": "Pending local evidence",
             "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "operation": {
+                      "$ref": "#/components/schemas/CollectionOperation"
+                    },
+                    "replayed": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "operation",
+                    "replayed"
+                  ]
+                }
+              },
               "application/vnd.10x.v1+json": {
                 "schema": {
                   "type": "object",
@@ -2548,6 +5003,11 @@
           "409": {
             "description": "State conflict",
             "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              },
               "application/vnd.10x.v1+json": {
                 "schema": {
                   "$ref": "#/components/schemas/Error"
@@ -2597,6 +5057,23 @@
           "200": {
             "description": "Original operation on retry",
             "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "operation": {
+                      "$ref": "#/components/schemas/CollectionOperation"
+                    },
+                    "replayed": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "operation",
+                    "replayed"
+                  ]
+                }
+              },
               "application/vnd.10x.v1+json": {
                 "schema": {
                   "type": "object",
@@ -2631,6 +5108,23 @@
           "201": {
             "description": "Pending local evidence",
             "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "operation": {
+                      "$ref": "#/components/schemas/CollectionOperation"
+                    },
+                    "replayed": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "operation",
+                    "replayed"
+                  ]
+                }
+              },
               "application/vnd.10x.v1+json": {
                 "schema": {
                   "type": "object",
@@ -2665,6 +5159,11 @@
           "409": {
             "description": "State conflict",
             "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              },
               "application/vnd.10x.v1+json": {
                 "schema": {
                   "$ref": "#/components/schemas/Error"
@@ -2738,6 +5237,11 @@
           "200": {
             "description": "Local collection response",
             "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProgressionQuote"
+                }
+              },
               "application/vnd.10x.v1+json": {
                 "schema": {
                   "type": "object",
@@ -2803,9 +5307,78 @@
           "200": {
             "description": "Local scope decisions. Claims, principal and recovery are protected.",
             "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "mode": {
+                      "const": "local-fixture"
+                    },
+                    "boundary": {
+                      "const": "application-only"
+                    },
+                    "scopes": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/OperationScope"
+                      }
+                    },
+                    "protectedScopes": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "required": [
+                    "mode",
+                    "boundary",
+                    "scopes",
+                    "protectedScopes"
+                  ]
+                }
+              },
               "application/vnd.10x.v1+json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "mode": {
+                          "const": "local-fixture"
+                        },
+                        "boundary": {
+                          "const": "application-only"
+                        },
+                        "scopes": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/OperationScope"
+                          }
+                        },
+                        "protectedScopes": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "required": [
+                        "mode",
+                        "boundary",
+                        "scopes",
+                        "protectedScopes"
+                      ]
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/Meta"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ]
                 }
               }
             }
@@ -2823,12 +5396,86 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "properties": {
+                    "channel": {
+                      "const": "local-inbox"
+                    },
+                    "topics": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "terms": {
+                      "type": "string"
+                    },
+                    "delivery": {
+                      "type": "string"
+                    },
+                    "externalTransport": {
+                      "const": false
+                    },
+                    "dailyLimit": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "channel",
+                    "topics",
+                    "terms",
+                    "delivery",
+                    "externalTransport",
+                    "dailyLimit"
+                  ]
                 }
               },
               "application/vnd.10x.v1+json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "channel": {
+                          "const": "local-inbox"
+                        },
+                        "topics": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "terms": {
+                          "type": "string"
+                        },
+                        "delivery": {
+                          "type": "string"
+                        },
+                        "externalTransport": {
+                          "const": false
+                        },
+                        "dailyLimit": {
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "channel",
+                        "topics",
+                        "terms",
+                        "delivery",
+                        "externalTransport",
+                        "dailyLimit"
+                      ]
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/Meta"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ]
                 }
               }
             }
@@ -2846,12 +5493,24 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/NoticePreferences"
                 }
               },
               "application/vnd.10x.v1+json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/NoticePreferences"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/Meta"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ]
                 }
               }
             }
@@ -2861,7 +5520,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/Error"
                 }
               },
               "application/vnd.10x.v1+json": {
@@ -2938,12 +5597,56 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "properties": {
+                    "appliedRevision": {
+                      "type": "integer"
+                    },
+                    "preference": {
+                      "$ref": "#/components/schemas/NoticePreferences"
+                    },
+                    "replay": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "appliedRevision",
+                    "preference",
+                    "replay"
+                  ]
                 }
               },
               "application/vnd.10x.v1+json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "appliedRevision": {
+                          "type": "integer"
+                        },
+                        "preference": {
+                          "$ref": "#/components/schemas/NoticePreferences"
+                        },
+                        "replay": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "appliedRevision",
+                        "preference",
+                        "replay"
+                      ]
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/Meta"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ]
                 }
               }
             }
@@ -2953,7 +5656,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/Error"
                 }
               },
               "application/vnd.10x.v1+json": {
@@ -2968,7 +5671,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/Error"
                 }
               },
               "application/vnd.10x.v1+json": {
@@ -3000,12 +5703,72 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "properties": {
+                    "mode": {
+                      "const": "local-inbox"
+                    },
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/LocalNotice"
+                      }
+                    },
+                    "nextCursor": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "mode",
+                    "items",
+                    "nextCursor"
+                  ]
                 }
               },
               "application/vnd.10x.v1+json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "properties": {
+                    "mode": {
+                      "const": "local-inbox"
+                    },
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/LocalNotice"
+                      }
+                    },
+                    "nextCursor": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "snapshotId": {
+                      "type": "string"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/Meta"
+                    }
+                  },
+                  "required": [
+                    "mode",
+                    "items",
+                    "nextCursor",
+                    "snapshotId",
+                    "meta"
+                  ]
                 }
               }
             }
@@ -3015,7 +5778,556 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/Error"
+                }
+              },
+              "application/vnd.10x.v1+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/markets/{id}/quote-status": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "operationId": "getQuoteAvailability",
+        "responses": {
+          "200": {
+            "description": "Whether fresh verified local evidence is available.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "available": {
+                      "type": "boolean"
+                    },
+                    "expiresAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "reason": {
+                      "type": "string"
+                    },
+                    "attDecimals": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "ogDecimals": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "source": {
+                      "const": "local-fixture"
+                    },
+                    "executable": {
+                      "const": false
+                    }
+                  },
+                  "required": [
+                    "available",
+                    "source",
+                    "executable"
+                  ]
+                }
+              },
+              "application/vnd.10x.v1+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "available": {
+                          "type": "boolean"
+                        },
+                        "expiresAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "reason": {
+                          "type": "string"
+                        },
+                        "attDecimals": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "ogDecimals": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "source": {
+                          "const": "local-fixture"
+                        },
+                        "executable": {
+                          "const": false
+                        }
+                      },
+                      "required": [
+                        "available",
+                        "source",
+                        "executable"
+                      ]
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/Meta"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/quotes": {
+      "post": {
+        "operationId": "previewSwapQuote",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "marketId",
+                  "direction",
+                  "inputUnits",
+                  "slippageBps"
+                ],
+                "properties": {
+                  "marketId": {
+                    "type": "string"
+                  },
+                  "direction": {
+                    "enum": [
+                      "buy-att",
+                      "sell-att"
+                    ]
+                  },
+                  "inputUnits": {
+                    "type": "string",
+                    "pattern": "^(0|[1-9][0-9]*)$"
+                  },
+                  "slippageBps": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 500
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Exact-in local price, included trading fee, impact, min output and evidence-bound expiry.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "version": {
+                      "const": 1
+                    },
+                    "marketId": {
+                      "type": "string"
+                    },
+                    "direction": {
+                      "enum": [
+                        "buy-att",
+                        "sell-att"
+                      ]
+                    },
+                    "inputMint": {
+                      "type": "string"
+                    },
+                    "outputMint": {
+                      "type": "string"
+                    },
+                    "inputDecimals": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "outputDecimals": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "inputUnits": {
+                      "type": "string",
+                      "pattern": "^(0|[1-9][0-9]*)$"
+                    },
+                    "expectedOutputUnits": {
+                      "type": "string",
+                      "pattern": "^(0|[1-9][0-9]*)$"
+                    },
+                    "minimumOutputUnits": {
+                      "type": "string",
+                      "pattern": "^(0|[1-9][0-9]*)$"
+                    },
+                    "grossOutputUnits": {
+                      "type": "string",
+                      "pattern": "^(0|[1-9][0-9]*)$"
+                    },
+                    "inputFeeUnits": {
+                      "type": "string",
+                      "pattern": "^(0|[1-9][0-9]*)$"
+                    },
+                    "outputFeeUnits": {
+                      "type": "string",
+                      "pattern": "^(0|[1-9][0-9]*)$"
+                    },
+                    "feeBps": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "priceImpactBps": {
+                      "type": "string",
+                      "pattern": "^(0|[1-9][0-9]*)$"
+                    },
+                    "nextSqrtPriceX64": {
+                      "type": "string",
+                      "pattern": "^(0|[1-9][0-9]*)$"
+                    },
+                    "slippageBps": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "quotedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "expiresAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "contextSlot": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "observedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "sourceHash": {
+                      "type": "string"
+                    },
+                    "spotFdvUsdMicros": {
+                      "type": "string",
+                      "pattern": "^(0|[1-9][0-9]*)$"
+                    },
+                    "effectiveBuyFdvUsdMicros": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "pattern": "^(0|[1-9][0-9]*)$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "fees": {
+                      "type": "object",
+                      "required": [
+                        "asset",
+                        "side",
+                        "networkLamports",
+                        "accountRentLamports"
+                      ],
+                      "properties": {
+                        "asset": {
+                          "type": "string"
+                        },
+                        "side": {
+                          "enum": [
+                            "input",
+                            "output"
+                          ]
+                        },
+                        "networkLamports": {
+                          "type": "null"
+                        },
+                        "accountRentLamports": {
+                          "type": "null"
+                        }
+                      }
+                    },
+                    "source": {
+                      "const": "local-fixture"
+                    },
+                    "route": {
+                      "const": "meteora-damm-v2"
+                    },
+                    "executable": {
+                      "const": false
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "version",
+                    "marketId",
+                    "direction",
+                    "inputMint",
+                    "outputMint",
+                    "inputDecimals",
+                    "outputDecimals",
+                    "inputUnits",
+                    "expectedOutputUnits",
+                    "minimumOutputUnits",
+                    "grossOutputUnits",
+                    "inputFeeUnits",
+                    "outputFeeUnits",
+                    "feeBps",
+                    "priceImpactBps",
+                    "nextSqrtPriceX64",
+                    "slippageBps",
+                    "quotedAt",
+                    "expiresAt",
+                    "contextSlot",
+                    "observedAt",
+                    "sourceHash",
+                    "spotFdvUsdMicros",
+                    "effectiveBuyFdvUsdMicros",
+                    "fees",
+                    "source",
+                    "route",
+                    "executable"
+                  ]
+                }
+              },
+              "application/vnd.10x.v1+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "version": {
+                          "const": 1
+                        },
+                        "marketId": {
+                          "type": "string"
+                        },
+                        "direction": {
+                          "enum": [
+                            "buy-att",
+                            "sell-att"
+                          ]
+                        },
+                        "inputMint": {
+                          "type": "string"
+                        },
+                        "outputMint": {
+                          "type": "string"
+                        },
+                        "inputDecimals": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "outputDecimals": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "inputUnits": {
+                          "type": "string",
+                          "pattern": "^(0|[1-9][0-9]*)$"
+                        },
+                        "expectedOutputUnits": {
+                          "type": "string",
+                          "pattern": "^(0|[1-9][0-9]*)$"
+                        },
+                        "minimumOutputUnits": {
+                          "type": "string",
+                          "pattern": "^(0|[1-9][0-9]*)$"
+                        },
+                        "grossOutputUnits": {
+                          "type": "string",
+                          "pattern": "^(0|[1-9][0-9]*)$"
+                        },
+                        "inputFeeUnits": {
+                          "type": "string",
+                          "pattern": "^(0|[1-9][0-9]*)$"
+                        },
+                        "outputFeeUnits": {
+                          "type": "string",
+                          "pattern": "^(0|[1-9][0-9]*)$"
+                        },
+                        "feeBps": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "priceImpactBps": {
+                          "type": "string",
+                          "pattern": "^(0|[1-9][0-9]*)$"
+                        },
+                        "nextSqrtPriceX64": {
+                          "type": "string",
+                          "pattern": "^(0|[1-9][0-9]*)$"
+                        },
+                        "slippageBps": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "quotedAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "expiresAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "contextSlot": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "observedAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "sourceHash": {
+                          "type": "string"
+                        },
+                        "spotFdvUsdMicros": {
+                          "type": "string",
+                          "pattern": "^(0|[1-9][0-9]*)$"
+                        },
+                        "effectiveBuyFdvUsdMicros": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "pattern": "^(0|[1-9][0-9]*)$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "fees": {
+                          "type": "object",
+                          "required": [
+                            "asset",
+                            "side",
+                            "networkLamports",
+                            "accountRentLamports"
+                          ],
+                          "properties": {
+                            "asset": {
+                              "type": "string"
+                            },
+                            "side": {
+                              "enum": [
+                                "input",
+                                "output"
+                              ]
+                            },
+                            "networkLamports": {
+                              "type": "null"
+                            },
+                            "accountRentLamports": {
+                              "type": "null"
+                            }
+                          }
+                        },
+                        "source": {
+                          "const": "local-fixture"
+                        },
+                        "route": {
+                          "const": "meteora-damm-v2"
+                        },
+                        "executable": {
+                          "const": false
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "version",
+                        "marketId",
+                        "direction",
+                        "inputMint",
+                        "outputMint",
+                        "inputDecimals",
+                        "outputDecimals",
+                        "inputUnits",
+                        "expectedOutputUnits",
+                        "minimumOutputUnits",
+                        "grossOutputUnits",
+                        "inputFeeUnits",
+                        "outputFeeUnits",
+                        "feeBps",
+                        "priceImpactBps",
+                        "nextSqrtPriceX64",
+                        "slippageBps",
+                        "quotedAt",
+                        "expiresAt",
+                        "contextSlot",
+                        "observedAt",
+                        "sourceHash",
+                        "spotFdvUsdMicros",
+                        "effectiveBuyFdvUsdMicros",
+                        "fees",
+                        "source",
+                        "route",
+                        "executable"
+                      ]
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/Meta"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Pool range, dust or risk limit prevents a quote.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              },
+              "application/vnd.10x.v1+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Source missing, held or expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
                 }
               },
               "application/vnd.10x.v1+json": {
@@ -3712,6 +7024,908 @@
           "targetId",
           "materialId",
           "feeLamports",
+          "source",
+          "executable"
+        ]
+      },
+      "EarnWinner": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string"
+          },
+          "wallet": {
+            "type": "string"
+          },
+          "submissionId": {
+            "type": "string"
+          },
+          "tokenId": {
+            "type": "string"
+          },
+          "submittedAtMs": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "contentScore": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10
+          },
+          "multiplierTenths": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "pointsTenths": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000
+          },
+          "rank": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          }
+        },
+        "required": [
+          "userId",
+          "wallet",
+          "submissionId",
+          "tokenId",
+          "submittedAtMs",
+          "contentScore",
+          "multiplierTenths",
+          "pointsTenths",
+          "rank"
+        ]
+      },
+      "EarnAllocation": {
+        "type": "object",
+        "properties": {
+          "tokenId": {
+            "type": "string"
+          },
+          "day": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10
+          },
+          "budgetUnits": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "burnUnits": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "vestsFromMs": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "vestsThroughMs": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "tokenId",
+          "day",
+          "budgetUnits",
+          "burnUnits",
+          "vestsFromMs",
+          "vestsThroughMs"
+        ]
+      },
+      "EarnComponents": {
+        "type": "object",
+        "properties": {
+          "actionTenths": {
+            "type": "integer"
+          },
+          "streakDays": {
+            "type": "integer"
+          },
+          "highestEligibleLevel": {
+            "type": "integer"
+          },
+          "purchaseTokenDays": {
+            "type": "integer"
+          },
+          "sourceRef": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "actionTenths",
+          "streakDays",
+          "highestEligibleLevel",
+          "purchaseTokenDays",
+          "sourceRef"
+        ]
+      },
+      "EarnOwnSubmission": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "tokenId": {
+            "type": "string"
+          },
+          "epoch": {
+            "type": "integer"
+          },
+          "url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "submittedAtMs": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "status": {
+            "enum": [
+              "pending",
+              "final"
+            ]
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "eligible": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "components": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EarnComponents"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "entryStakeMicroUsd": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "closingStakeMicroUsd": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(0|[1-9][0-9]*)$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "tokenId",
+          "epoch",
+          "url",
+          "submittedAtMs",
+          "status",
+          "score",
+          "eligible",
+          "reason",
+          "components",
+          "entryStakeMicroUsd",
+          "closingStakeMicroUsd"
+        ]
+      },
+      "EarnClaim": {
+        "type": "object",
+        "properties": {
+          "tokenId": {
+            "type": "string"
+          },
+          "day": {
+            "type": "integer"
+          },
+          "awardUnits": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "vestedUnits": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "vestsFromMs": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "vestsThroughMs": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "tokenId",
+          "day",
+          "awardUnits",
+          "vestedUnits",
+          "vestsFromMs",
+          "vestsThroughMs"
+        ]
+      },
+      "EarnAction": {
+        "type": "object",
+        "properties": {
+          "actionId": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "verifier": {
+            "type": "string"
+          },
+          "startEpoch": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "actionId",
+          "label",
+          "verifier",
+          "startEpoch"
+        ]
+      },
+      "EarnProofContext": {
+        "type": "object",
+        "properties": {
+          "boardId": {
+            "type": "string"
+          },
+          "tokenId": {
+            "type": "string"
+          },
+          "day": {
+            "type": "integer"
+          },
+          "vestsFromMs": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "vestsThroughMs": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "boardId",
+          "tokenId",
+          "day",
+          "vestsFromMs",
+          "vestsThroughMs"
+        ]
+      },
+      "EarnAward": {
+        "type": "object",
+        "properties": {
+          "wallet": {
+            "type": "string"
+          },
+          "amountUnits": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          }
+        },
+        "required": [
+          "wallet",
+          "amountUnits"
+        ]
+      },
+      "EarnProof": {
+        "type": "object",
+        "properties": {
+          "format": {
+            "const": "10x.local.earn.public.v1"
+          },
+          "context": {
+            "$ref": "#/components/schemas/EarnProofContext"
+          },
+          "award": {
+            "$ref": "#/components/schemas/EarnAward"
+          },
+          "path": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "side": {
+                  "enum": [
+                    "left",
+                    "right"
+                  ]
+                },
+                "hash": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "side",
+                "hash"
+              ]
+            }
+          },
+          "root": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "format",
+          "context",
+          "award",
+          "path",
+          "root"
+        ]
+      },
+      "EarnManifest": {
+        "type": "object",
+        "properties": {
+          "format": {
+            "const": "10x.local.earn.public.v1"
+          },
+          "boardId": {
+            "type": "string"
+          },
+          "board": {
+            "type": "object",
+            "properties": {
+              "epoch": {
+                "type": "integer"
+              },
+              "finalizedAtMs": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "snapshotId": {
+                "type": "string"
+              },
+              "winners": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "userId": {
+                      "type": "string"
+                    },
+                    "wallet": {
+                      "type": "string"
+                    },
+                    "submissionId": {
+                      "type": "string"
+                    },
+                    "tokenId": {
+                      "type": "string"
+                    },
+                    "submittedAtMs": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "contentScore": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 10
+                    },
+                    "multiplierTenths": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 100
+                    },
+                    "pointsTenths": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 1000
+                    }
+                  },
+                  "required": [
+                    "userId",
+                    "wallet",
+                    "submissionId",
+                    "tokenId",
+                    "submittedAtMs",
+                    "contentScore",
+                    "multiplierTenths",
+                    "pointsTenths"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "epoch",
+              "finalizedAtMs",
+              "snapshotId",
+              "winners"
+            ]
+          },
+          "allocations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "tokenId": {
+                  "type": "string"
+                },
+                "day": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 10
+                },
+                "budgetUnits": {
+                  "type": "string",
+                  "pattern": "^(0|[1-9][0-9]*)$"
+                },
+                "burnUnits": {
+                  "type": "string",
+                  "pattern": "^(0|[1-9][0-9]*)$"
+                },
+                "vestsFromMs": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "vestsThroughMs": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "boardId": {
+                  "type": "string"
+                },
+                "activationMs": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "originalUnits": {
+                  "type": "string",
+                  "pattern": "^(0|[1-9][0-9]*)$"
+                },
+                "startsAtMs": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "awards": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/EarnAward"
+                  }
+                },
+                "awardRoot": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "tokenId",
+                "day",
+                "budgetUnits",
+                "burnUnits",
+                "vestsFromMs",
+                "vestsThroughMs",
+                "boardId",
+                "activationMs",
+                "originalUnits",
+                "startsAtMs",
+                "awards",
+                "awardRoot"
+              ]
+            }
+          }
+        },
+        "required": [
+          "format",
+          "boardId",
+          "board",
+          "allocations"
+        ]
+      },
+      "ActionCompletionProof": {
+        "type": "object",
+        "properties": {
+          "domain": {
+            "const": "10x.local.earn-action.v1"
+          },
+          "issuerId": {
+            "type": "string"
+          },
+          "grantRevision": {
+            "type": "string"
+          },
+          "actionId": {
+            "type": "string"
+          },
+          "wallet": {
+            "type": "string"
+          },
+          "nonce": {
+            "type": "string"
+          },
+          "issuedAtMs": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "expiresMs": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "sourceHash": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "domain",
+          "issuerId",
+          "grantRevision",
+          "actionId",
+          "wallet",
+          "nonce",
+          "issuedAtMs",
+          "expiresMs",
+          "sourceHash"
+        ]
+      },
+      "NoticePreferences": {
+        "type": "object",
+        "properties": {
+          "channel": {
+            "const": "local-inbox"
+          },
+          "revision": {
+            "type": "integer"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "topics": {
+            "type": "array",
+            "items": {
+              "enum": [
+                "launch",
+                "voting",
+                "rewards"
+              ]
+            }
+          },
+          "terms": {
+            "const": "10x-notice-local-inbox-v1"
+          },
+          "changedAtMs": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "channel",
+          "revision",
+          "enabled",
+          "topics",
+          "terms",
+          "changedAtMs"
+        ]
+      },
+      "LocalNotice": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "topic": {
+            "enum": [
+              "launch",
+              "voting",
+              "rewards"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "target": {
+            "type": "string"
+          },
+          "deliveredMs": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "id",
+          "topic",
+          "title",
+          "message",
+          "target",
+          "deliveredMs"
+        ]
+      },
+      "OperationScope": {
+        "type": "object",
+        "properties": {
+          "scope": {
+            "type": "string"
+          },
+          "allowed": {
+            "type": "boolean"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "revision": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "scope",
+          "allowed",
+          "reason"
+        ]
+      },
+      "GenesisBallot": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "source": {
+            "const": "local-fixture"
+          },
+          "status": {
+            "enum": [
+              "scheduled",
+              "open",
+              "closed"
+            ]
+          },
+          "opensAt": {
+            "type": "string"
+          },
+          "closesAt": {
+            "type": "string"
+          },
+          "choices": {
+            "type": "array",
+            "items": {
+              "enum": [
+                "ASAP",
+                "7",
+                "14",
+                "30"
+              ]
+            }
+          },
+          "eligibleWallets": {
+            "type": "integer"
+          },
+          "votesCast": {
+            "type": "integer"
+          },
+          "counts": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "7": {
+                    "type": "integer"
+                  },
+                  "14": {
+                    "type": "integer"
+                  },
+                  "30": {
+                    "type": "integer"
+                  },
+                  "ASAP": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "7",
+                  "14",
+                  "30",
+                  "ASAP"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "decision": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "choice": {
+                    "enum": [
+                      "ASAP",
+                      "7",
+                      "14",
+                      "30"
+                    ]
+                  },
+                  "rationale": {
+                    "type": "string"
+                  },
+                  "earliestOpening": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "choice",
+                  "rationale",
+                  "earliestOpening"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "source",
+          "status",
+          "opensAt",
+          "closesAt",
+          "choices",
+          "eligibleWallets",
+          "votesCast",
+          "counts",
+          "decision"
+        ]
+      },
+      "Farm": {
+        "type": "object",
+        "properties": {
+          "marketId": {
+            "type": "string"
+          },
+          "fundedUnits": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "treasuryFeeBps": {
+            "type": "integer"
+          },
+          "activationTime": {
+            "type": "string"
+          },
+          "emissionEnd": {
+            "type": "string"
+          },
+          "asOf": {
+            "type": "string"
+          },
+          "source": {
+            "const": "local-fixture"
+          },
+          "executable": {
+            "const": false
+          },
+          "status": {
+            "enum": [
+              "scheduled",
+              "active",
+              "ended"
+            ]
+          },
+          "totalStakedUnits": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "earnedGrossUnits": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "unusedRecoverableUnits": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "roundingReserveUnits": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          }
+        },
+        "required": [
+          "marketId",
+          "fundedUnits",
+          "treasuryFeeBps",
+          "activationTime",
+          "emissionEnd",
+          "asOf",
+          "source",
+          "executable",
+          "status"
+        ]
+      },
+      "TransactionIntent": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string"
+          },
+          "subject": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string"
+          },
+          "revision": {
+            "type": "integer"
+          },
+          "planHash": {
+            "type": "string"
+          },
+          "attemptId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "source": {
+            "const": "local-rehearsal"
+          },
+          "executable": {
+            "const": false
+          }
+        },
+        "required": [
+          "id",
+          "action",
+          "subject",
+          "state",
+          "revision",
+          "planHash",
+          "attemptId",
           "source",
           "executable"
         ]

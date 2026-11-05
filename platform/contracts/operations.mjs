@@ -219,5 +219,15 @@ export const operations = [
     "id": "getMyLocalNotices",
     "path": "/notifications/inbox",
     "method": "GET"
+  },
+  {
+    "id": "getQuoteAvailability",
+    "path": "/markets/{id}/quote-status",
+    "method": "GET"
+  },
+  {
+    "id": "previewSwapQuote",
+    "path": "/quotes",
+    "method": "POST"
   }
 ];

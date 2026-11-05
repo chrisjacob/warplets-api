@@ -1,0 +1,657 @@
+{
+  "source": "cp-amm-sdk 1.5.1 / synthetic raw pool bytes / no RPC",
+  "activationMs": 1800000000000,
+  "originalSupplyUnits": "1000000000000000000",
+  "pool": {
+    "address": "US517G5965aydkZ46HS38QLi7UQiSojurfbQfKCELFx",
+    "owner": "cpamdpZCGKUy5JxQXB4dcpGPiikHawvSWAd6mEn1sGG",
+    "data": "8ZptBBGxbbwA6aQ1AAAAAAAAAAAAAFkAAQAAAAAAAACAlpgAAAAAAAAAAAAAAAAAFAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA3fJPKihICAAAAAAAAAAAAAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDA+7+osQobhfZePIcIels4XlWcVBFFgAkJOVTl4JAAKaTyhaVZK25z7Pl2SPsLG3INruYb/R9u0Aw9YA6py9JeasAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIlrFLM3TNeYXywAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADd8k8qKEgIAAAAAAAAAAADvp8ZLN4lBAAAAAAAAAAAAliGOdXEbDQAAAAAAAAAAAADSSWsAAAAAAQAAAAEAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIlrFLM3TNeYXywAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+  },
+  "attMint": {
+    "address": "8qbHbw2BbbTHBW1sbeqakYXVKRQM8Ne7pLK7m6CVfeR",
+    "owner": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+    "data": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABkp7O24A0JAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
+  },
+  "ogMint": {
+    "address": "CktRuQ2mttgRGkXJtyksdKHjUdc2C4TgDzyB98oEzy8",
+    "owner": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+    "data": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABkp7O24A0GAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
+  },
+  "attVault": {
+    "address": "H5wEXhi47De8hHmXEoVGnPiS6yTYg74cG73YHeTkTxRg",
+    "owner": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+    "data": "AgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgLyzNU1rKXxc2rIIt0Hc+TZL72KWbKUA1AClakBHHOp5QAAUOzCKxoLAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+  },
+  "ogVault": {
+    "address": "EbsL2HkifJ53dE2DTFv1deTZD4aARVvLnwpvCh5Q9SLi",
+    "owner": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+    "data": "AwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwPyzNU1rKXxc2rIIt0Hc+TZL72KWbKUA1AClakBHHOp5QAAUOzCKxoLAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+  },
+  "ogPriceMicros": "2000000",
+  "results": [
+    {
+      "elapsedSeconds": 0,
+      "direction": "buy-att",
+      "inputUnits": "1",
+      "outputUnits": "0",
+      "nextSqrtPriceX64": "3689348814741910",
+      "feeUnits": "1"
+    },
+    {
+      "elapsedSeconds": 0,
+      "direction": "buy-att",
+      "inputUnits": "1000",
+      "outputUnits": "2499999916",
+      "nextSqrtPriceX64": "3689348852551061",
+      "feeUnits": "900"
+    },
+    {
+      "elapsedSeconds": 0,
+      "direction": "buy-att",
+      "inputUnits": "1000000",
+      "outputUnits": "2499974379777",
+      "nextSqrtPriceX64": "3689386623893790",
+      "feeUnits": "900000"
+    },
+    {
+      "elapsedSeconds": 0,
+      "direction": "buy-att",
+      "inputUnits": "1000000000",
+      "outputUnits": "2474639422169167",
+      "nextSqrtPriceX64": "3727157966622014",
+      "feeUnits": "900000000"
+    },
+    {
+      "elapsedSeconds": 0,
+      "direction": "buy-att",
+      "inputUnits": "1000000000000",
+      "error": "price_range"
+    },
+    {
+      "elapsedSeconds": 0,
+      "direction": "sell-att",
+      "inputUnits": "1",
+      "outputUnits": "0",
+      "nextSqrtPriceX64": "3689348814741910",
+      "feeUnits": "0"
+    },
+    {
+      "elapsedSeconds": 0,
+      "direction": "sell-att",
+      "inputUnits": "1000",
+      "outputUnits": "0",
+      "nextSqrtPriceX64": "3689348814741895",
+      "feeUnits": "0"
+    },
+    {
+      "elapsedSeconds": 0,
+      "direction": "sell-att",
+      "inputUnits": "1000000",
+      "outputUnits": "0",
+      "nextSqrtPriceX64": "3689348814726787",
+      "feeUnits": "0"
+    },
+    {
+      "elapsedSeconds": 0,
+      "direction": "sell-att",
+      "inputUnits": "1000000000",
+      "outputUnits": "3",
+      "nextSqrtPriceX64": "3689348799618250",
+      "feeUnits": "36"
+    },
+    {
+      "elapsedSeconds": 0,
+      "direction": "sell-att",
+      "inputUnits": "1000000000000",
+      "outputUnits": "3999",
+      "nextSqrtPriceX64": "3689333691143154",
+      "feeUnits": "36000"
+    },
+    {
+      "elapsedSeconds": 1,
+      "direction": "buy-att",
+      "inputUnits": "1",
+      "outputUnits": "0",
+      "nextSqrtPriceX64": "3689348814741910",
+      "feeUnits": "1"
+    },
+    {
+      "elapsedSeconds": 1,
+      "direction": "buy-att",
+      "inputUnits": "1000",
+      "outputUnits": "2749999964",
+      "nextSqrtPriceX64": "3689348856331977",
+      "feeUnits": "890"
+    },
+    {
+      "elapsedSeconds": 1,
+      "direction": "buy-att",
+      "inputUnits": "1000000",
+      "outputUnits": "2749968999563",
+      "nextSqrtPriceX64": "3689390404808978",
+      "feeUnits": "890000"
+    },
+    {
+      "elapsedSeconds": 1,
+      "direction": "buy-att",
+      "inputUnits": "1000000000",
+      "outputUnits": "2719344798169945",
+      "nextSqrtPriceX64": "3730938881810024",
+      "feeUnits": "890000000"
+    },
+    {
+      "elapsedSeconds": 1,
+      "direction": "buy-att",
+      "inputUnits": "1000000000000",
+      "error": "price_range"
+    },
+    {
+      "elapsedSeconds": 1,
+      "direction": "sell-att",
+      "inputUnits": "1",
+      "outputUnits": "0",
+      "nextSqrtPriceX64": "3689348814741910",
+      "feeUnits": "0"
+    },
+    {
+      "elapsedSeconds": 1,
+      "direction": "sell-att",
+      "inputUnits": "1000",
+      "outputUnits": "0",
+      "nextSqrtPriceX64": "3689348814741895",
+      "feeUnits": "0"
+    },
+    {
+      "elapsedSeconds": 1,
+      "direction": "sell-att",
+      "inputUnits": "1000000",
+      "outputUnits": "0",
+      "nextSqrtPriceX64": "3689348814726787",
+      "feeUnits": "0"
+    },
+    {
+      "elapsedSeconds": 1,
+      "direction": "sell-att",
+      "inputUnits": "1000000000",
+      "outputUnits": "4",
+      "nextSqrtPriceX64": "3689348799618250",
+      "feeUnits": "35"
+    },
+    {
+      "elapsedSeconds": 1,
+      "direction": "sell-att",
+      "inputUnits": "1000000000000",
+      "outputUnits": "4399",
+      "nextSqrtPriceX64": "3689333691143154",
+      "feeUnits": "35600"
+    },
+    {
+      "elapsedSeconds": 30,
+      "direction": "buy-att",
+      "inputUnits": "1",
+      "outputUnits": "0",
+      "nextSqrtPriceX64": "3689348814741910",
+      "feeUnits": "1"
+    },
+    {
+      "elapsedSeconds": 30,
+      "direction": "buy-att",
+      "inputUnits": "1000",
+      "outputUnits": "9999999555",
+      "nextSqrtPriceX64": "3689348965978517",
+      "feeUnits": "600"
+    },
+    {
+      "elapsedSeconds": 30,
+      "direction": "buy-att",
+      "inputUnits": "1000000",
+      "outputUnits": "9999590089129",
+      "nextSqrtPriceX64": "3689500051349430",
+      "feeUnits": "600000"
+    },
+    {
+      "elapsedSeconds": 30,
+      "direction": "buy-att",
+      "inputUnits": "1000000000",
+      "outputUnits": "9606214701946841",
+      "nextSqrtPriceX64": "3840585422262327",
+      "feeUnits": "600000000"
+    },
+    {
+      "elapsedSeconds": 30,
+      "direction": "buy-att",
+      "inputUnits": "1000000000000",
+      "error": "price_range"
+    },
+    {
+      "elapsedSeconds": 30,
+      "direction": "sell-att",
+      "inputUnits": "1",
+      "outputUnits": "0",
+      "nextSqrtPriceX64": "3689348814741910",
+      "feeUnits": "0"
+    },
+    {
+      "elapsedSeconds": 30,
+      "direction": "sell-att",
+      "inputUnits": "1000",
+      "outputUnits": "0",
+      "nextSqrtPriceX64": "3689348814741895",
+      "feeUnits": "0"
+    },
+    {
+      "elapsedSeconds": 30,
+      "direction": "sell-att",
+      "inputUnits": "1000000",
+      "outputUnits": "0",
+      "nextSqrtPriceX64": "3689348814726787",
+      "feeUnits": "0"
+    },
+    {
+      "elapsedSeconds": 30,
+      "direction": "sell-att",
+      "inputUnits": "1000000000",
+      "outputUnits": "15",
+      "nextSqrtPriceX64": "3689348799618250",
+      "feeUnits": "24"
+    },
+    {
+      "elapsedSeconds": 30,
+      "direction": "sell-att",
+      "inputUnits": "1000000000000",
+      "outputUnits": "15999",
+      "nextSqrtPriceX64": "3689333691143154",
+      "feeUnits": "24000"
+    },
+    {
+      "elapsedSeconds": 60,
+      "direction": "buy-att",
+      "inputUnits": "1",
+      "outputUnits": "0",
+      "nextSqrtPriceX64": "3689348814741910",
+      "feeUnits": "1"
+    },
+    {
+      "elapsedSeconds": 60,
+      "direction": "buy-att",
+      "inputUnits": "1000",
+      "outputUnits": "17499998733",
+      "nextSqrtPriceX64": "3689349079405973",
+      "feeUnits": "300"
+    },
+    {
+      "elapsedSeconds": 60,
+      "direction": "buy-att",
+      "inputUnits": "1000000",
+      "outputUnits": "17498744686588",
+      "nextSqrtPriceX64": "3689613478805070",
+      "feeUnits": "300000"
+    },
+    {
+      "elapsedSeconds": 60,
+      "direction": "buy-att",
+      "inputUnits": "1000000000",
+      "outputUnits": "16328627713582521",
+      "nextSqrtPriceX64": "3954012877902639",
+      "feeUnits": "300000000"
+    },
+    {
+      "elapsedSeconds": 60,
+      "direction": "buy-att",
+      "inputUnits": "1000000000000",
+      "error": "price_range"
+    },
+    {
+      "elapsedSeconds": 60,
+      "direction": "sell-att",
+      "inputUnits": "1",
+      "outputUnits": "0",
+      "nextSqrtPriceX64": "3689348814741910",
+      "feeUnits": "0"
+    },
+    {
+      "elapsedSeconds": 60,
+      "direction": "sell-att",
+      "inputUnits": "1000",
+      "outputUnits": "0",
+      "nextSqrtPriceX64": "3689348814741895",
+      "feeUnits": "0"
+    },
+    {
+      "elapsedSeconds": 60,
+      "direction": "sell-att",
+      "inputUnits": "1000000",
+      "outputUnits": "0",
+      "nextSqrtPriceX64": "3689348814726787",
+      "feeUnits": "0"
+    },
+    {
+      "elapsedSeconds": 60,
+      "direction": "sell-att",
+      "inputUnits": "1000000000",
+      "outputUnits": "27",
+      "nextSqrtPriceX64": "3689348799618250",
+      "feeUnits": "12"
+    },
+    {
+      "elapsedSeconds": 60,
+      "direction": "sell-att",
+      "inputUnits": "1000000000000",
+      "outputUnits": "27999",
+      "nextSqrtPriceX64": "3689333691143154",
+      "feeUnits": "12000"
+    },
+    {
+      "elapsedSeconds": 88,
+      "direction": "buy-att",
+      "inputUnits": "1",
+      "outputUnits": "0",
+      "nextSqrtPriceX64": "3689348814741910",
+      "feeUnits": "1"
+    },
+    {
+      "elapsedSeconds": 88,
+      "direction": "buy-att",
+      "inputUnits": "1000",
+      "outputUnits": "24499997511",
+      "nextSqrtPriceX64": "3689349185271598",
+      "feeUnits": "20"
+    },
+    {
+      "elapsedSeconds": 88,
+      "direction": "buy-att",
+      "inputUnits": "1000000",
+      "outputUnits": "24497539656400",
+      "nextSqrtPriceX64": "3689719344430335",
+      "feeUnits": "20000"
+    },
+    {
+      "elapsedSeconds": 88,
+      "direction": "buy-att",
+      "inputUnits": "1000000000",
+      "outputUnits": "22263978069951628",
+      "nextSqrtPriceX64": "4059878503166931",
+      "feeUnits": "20000000"
+    },
+    {
+      "elapsedSeconds": 88,
+      "direction": "buy-att",
+      "inputUnits": "1000000000000",
+      "error": "price_range"
+    },
+    {
+      "elapsedSeconds": 88,
+      "direction": "sell-att",
+      "inputUnits": "1",
+      "outputUnits": "0",
+      "nextSqrtPriceX64": "3689348814741910",
+      "feeUnits": "0"
+    },
+    {
+      "elapsedSeconds": 88,
+      "direction": "sell-att",
+      "inputUnits": "1000",
+      "outputUnits": "0",
+      "nextSqrtPriceX64": "3689348814741895",
+      "feeUnits": "0"
+    },
+    {
+      "elapsedSeconds": 88,
+      "direction": "sell-att",
+      "inputUnits": "1000000",
+      "outputUnits": "0",
+      "nextSqrtPriceX64": "3689348814726787",
+      "feeUnits": "0"
+    },
+    {
+      "elapsedSeconds": 88,
+      "direction": "sell-att",
+      "inputUnits": "1000000000",
+      "outputUnits": "38",
+      "nextSqrtPriceX64": "3689348799618250",
+      "feeUnits": "1"
+    },
+    {
+      "elapsedSeconds": 88,
+      "direction": "sell-att",
+      "inputUnits": "1000000000000",
+      "outputUnits": "39199",
+      "nextSqrtPriceX64": "3689333691143154",
+      "feeUnits": "800"
+    },
+    {
+      "elapsedSeconds": 89,
+      "direction": "buy-att",
+      "inputUnits": "1",
+      "outputUnits": "0",
+      "nextSqrtPriceX64": "3689348814741910",
+      "feeUnits": "1"
+    },
+    {
+      "elapsedSeconds": 89,
+      "direction": "buy-att",
+      "inputUnits": "1000",
+      "outputUnits": "24749997448",
+      "nextSqrtPriceX64": "3689349189052513",
+      "feeUnits": "10"
+    },
+    {
+      "elapsedSeconds": 89,
+      "direction": "buy-att",
+      "inputUnits": "1000000",
+      "outputUnits": "24747489191700",
+      "nextSqrtPriceX64": "3689723125345523",
+      "feeUnits": "10000"
+    },
+    {
+      "elapsedSeconds": 89,
+      "direction": "buy-att",
+      "inputUnits": "1000000000",
+      "outputUnits": "22470235264407826",
+      "nextSqrtPriceX64": "4063659418354942",
+      "feeUnits": "10000000"
+    },
+    {
+      "elapsedSeconds": 89,
+      "direction": "buy-att",
+      "inputUnits": "1000000000000",
+      "error": "price_range"
+    },
+    {
+      "elapsedSeconds": 89,
+      "direction": "sell-att",
+      "inputUnits": "1",
+      "outputUnits": "0",
+      "nextSqrtPriceX64": "3689348814741910",
+      "feeUnits": "0"
+    },
+    {
+      "elapsedSeconds": 89,
+      "direction": "sell-att",
+      "inputUnits": "1000",
+      "outputUnits": "0",
+      "nextSqrtPriceX64": "3689348814741895",
+      "feeUnits": "0"
+    },
+    {
+      "elapsedSeconds": 89,
+      "direction": "sell-att",
+      "inputUnits": "1000000",
+      "outputUnits": "0",
+      "nextSqrtPriceX64": "3689348814726787",
+      "feeUnits": "0"
+    },
+    {
+      "elapsedSeconds": 89,
+      "direction": "sell-att",
+      "inputUnits": "1000000000",
+      "outputUnits": "38",
+      "nextSqrtPriceX64": "3689348799618250",
+      "feeUnits": "1"
+    },
+    {
+      "elapsedSeconds": 89,
+      "direction": "sell-att",
+      "inputUnits": "1000000000000",
+      "outputUnits": "39599",
+      "nextSqrtPriceX64": "3689333691143154",
+      "feeUnits": "400"
+    },
+    {
+      "elapsedSeconds": 90,
+      "direction": "buy-att",
+      "inputUnits": "1",
+      "outputUnits": "0",
+      "nextSqrtPriceX64": "3689348814741910",
+      "feeUnits": "1"
+    },
+    {
+      "elapsedSeconds": 90,
+      "direction": "buy-att",
+      "inputUnits": "1000",
+      "outputUnits": "24749997448",
+      "nextSqrtPriceX64": "3689349189052513",
+      "feeUnits": "10"
+    },
+    {
+      "elapsedSeconds": 90,
+      "direction": "buy-att",
+      "inputUnits": "1000000",
+      "outputUnits": "24747489191700",
+      "nextSqrtPriceX64": "3689723125345523",
+      "feeUnits": "10000"
+    },
+    {
+      "elapsedSeconds": 90,
+      "direction": "buy-att",
+      "inputUnits": "1000000000",
+      "outputUnits": "22470235264407826",
+      "nextSqrtPriceX64": "4063659418354942",
+      "feeUnits": "10000000"
+    },
+    {
+      "elapsedSeconds": 90,
+      "direction": "buy-att",
+      "inputUnits": "1000000000000",
+      "error": "price_range"
+    },
+    {
+      "elapsedSeconds": 90,
+      "direction": "sell-att",
+      "inputUnits": "1",
+      "outputUnits": "0",
+      "nextSqrtPriceX64": "3689348814741910",
+      "feeUnits": "0"
+    },
+    {
+      "elapsedSeconds": 90,
+      "direction": "sell-att",
+      "inputUnits": "1000",
+      "outputUnits": "0",
+      "nextSqrtPriceX64": "3689348814741895",
+      "feeUnits": "0"
+    },
+    {
+      "elapsedSeconds": 90,
+      "direction": "sell-att",
+      "inputUnits": "1000000",
+      "outputUnits": "0",
+      "nextSqrtPriceX64": "3689348814726787",
+      "feeUnits": "0"
+    },
+    {
+      "elapsedSeconds": 90,
+      "direction": "sell-att",
+      "inputUnits": "1000000000",
+      "outputUnits": "38",
+      "nextSqrtPriceX64": "3689348799618250",
+      "feeUnits": "1"
+    },
+    {
+      "elapsedSeconds": 90,
+      "direction": "sell-att",
+      "inputUnits": "1000000000000",
+      "outputUnits": "39599",
+      "nextSqrtPriceX64": "3689333691143154",
+      "feeUnits": "400"
+    },
+    {
+      "elapsedSeconds": 300,
+      "direction": "buy-att",
+      "inputUnits": "1",
+      "outputUnits": "0",
+      "nextSqrtPriceX64": "3689348814741910",
+      "feeUnits": "1"
+    },
+    {
+      "elapsedSeconds": 300,
+      "direction": "buy-att",
+      "inputUnits": "1000",
+      "outputUnits": "24749997448",
+      "nextSqrtPriceX64": "3689349189052513",
+      "feeUnits": "10"
+    },
+    {
+      "elapsedSeconds": 300,
+      "direction": "buy-att",
+      "inputUnits": "1000000",
+      "outputUnits": "24747489191700",
+      "nextSqrtPriceX64": "3689723125345523",
+      "feeUnits": "10000"
+    },
+    {
+      "elapsedSeconds": 300,
+      "direction": "buy-att",
+      "inputUnits": "1000000000",
+      "outputUnits": "22470235264407826",
+      "nextSqrtPriceX64": "4063659418354942",
+      "feeUnits": "10000000"
+    },
+    {
+      "elapsedSeconds": 300,
+      "direction": "buy-att",
+      "inputUnits": "1000000000000",
+      "error": "price_range"
+    },
+    {
+      "elapsedSeconds": 300,
+      "direction": "sell-att",
+      "inputUnits": "1",
+      "outputUnits": "0",
+      "nextSqrtPriceX64": "3689348814741910",
+      "feeUnits": "0"
+    },
+    {
+      "elapsedSeconds": 300,
+      "direction": "sell-att",
+      "inputUnits": "1000",
+      "outputUnits": "0",
+      "nextSqrtPriceX64": "3689348814741895",
+      "feeUnits": "0"
+    },
+    {
+      "elapsedSeconds": 300,
+      "direction": "sell-att",
+      "inputUnits": "1000000",
+      "outputUnits": "0",
+      "nextSqrtPriceX64": "3689348814726787",
+      "feeUnits": "0"
+    },
+    {
+      "elapsedSeconds": 300,
+      "direction": "sell-att",
+      "inputUnits": "1000000000",
+      "outputUnits": "38",
+      "nextSqrtPriceX64": "3689348799618250",
+      "feeUnits": "1"
+    },
+    {
+      "elapsedSeconds": 300,
+      "direction": "sell-att",
+      "inputUnits": "1000000000000",
+      "outputUnits": "39599",
+      "nextSqrtPriceX64": "3689333691143154",
+      "feeUnits": "400"
+    }
+  ]
+}

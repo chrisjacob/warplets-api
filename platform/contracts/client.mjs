@@ -23,8 +23,14 @@ export function createClient({baseUrl='/api/v1',fetchImpl=globalThis.fetch}={}) 
     const init={method,headers,credentials:'same-origin',signal:options.signal};
     if(options.body!==undefined){headers.set('content-type','application/json');init.body=JSON.stringify(options.body);}
     const response=await fetchImpl(root+pathname+(params.size?'?'+params:''),init);
-    const data=await response.json();
-    if(!response.ok)throw new PlatformApiError(response.status,data.error??{requestId:response.headers.get('x-request-id')});
+    let data;
+    try {data=await response.json();}
+    catch {
+      throw new PlatformApiError(response.ok?502:response.status,{code:'invalid_response',
+        message:'The API returned an unreadable response.',requestId:response.headers.get('x-request-id'),
+        retryable:response.status===429||response.status>=500});
+    }
+    if(!response.ok)throw new PlatformApiError(response.status,data?.error??{requestId:response.headers.get('x-request-id')});
     return data;
   }]));
 }

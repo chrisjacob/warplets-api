@@ -1,4 +1,6 @@
 // Wire types shared by the OpenAPI document and generated client declarations.
+import { featureShapes, rawFeatureSuccess } from './feature-shapes.mjs';
+import { policy } from './policy.mjs';
 const str={type:'string'},integer={type:'integer'},bool={type:'boolean'},units={type:'string',pattern:'^(0|[1-9][0-9]*)$'};
 const iso={type:'string',format:'date-time'};
 const object=(properties,required=Object.keys(properties))=>({type:'object',properties,required});
@@ -51,6 +53,34 @@ Object.assign(success,{
  getStakePositions:page(object({marketId:str,principalUnits:units,earnedGrossUnits:units,claimableGrossUnits:units,
    harvestedGrossUnits:units,treasuryFeeBps:integer,asOf:iso})),getWallets:page(object({address:str,chain:str})),
 });
+Object.assign(shapes,featureShapes);
+function fromValue(value) {
+ if(value===null)return {type:'null'};
+ if(Array.isArray(value))return array(value.length?{anyOf:value.map(fromValue)}:{});
+ if(typeof value==='object')return object(Object.fromEntries(Object.entries(value).map(([k,v])=>[k,fromValue(v)])));
+ return {const:value};
+}
+const rawSuccess={...rawFeatureSuccess,getPolicy:fromValue(policy),
+ listCollections:object({items:array({anyOf:[
+  object({id:{const:'genesis'},status:{const:'planned'},...fromValue(policy.genesis).properties}),
+  object({id:{const:'seasons'},status:{const:'planned'},...fromValue(policy.season).properties}),
+ ]}),nextCursor:{type:'null'},snapshotId:str}),
+ getWallets:object({items:array(object({address:str,chain:{const:'solana'}}))}),
+ getMyVault:object({items:array(object({id:str,detail:str})),nextCursor:nullable(str),source:{const:'local-fixture'},asOf:iso}),
+ getNftVault:object({assetId:str,slot:{anyOf:[
+  object({kind:{const:'genesis'},tranche:integer,level:integer,ordinal:integer}),
+  object({kind:{const:'season'},seasonId:str,slotIndex:integer}),
+ ]},source:{const:'local-fixture'},asOf:iso,items:array(ref('VaultAllocation')),nextCursor:nullable(str)}),
+ getStakePositions:object({items:array(object({marketId:str,fundedUnits:units,treasuryFeeBps:integer,activationTime:iso,emissionEnd:iso,
+  asOf:iso,source:{const:'local-fixture'},executable:{const:false},principalUnits:units,earnedGrossUnits:units,
+  claimableGrossUnits:units,harvestedGrossUnits:units})),nextCursor:nullable(str),asOf:iso})};
+function wrapped(schema) {
+ if(schema.type==='object'&&schema.properties?.items){
+  return {...schema,properties:{...schema.properties,snapshotId:str,meta:ref('Meta')},
+    required:[...new Set([...(schema.required??[]),'snapshotId','meta'])]};
+ }
+ return enriched(schema);
+}
 const cursorMethods=new Set(['getMyVault','getNftVault','getStakePositions','listLocalInventories','listMyCollectionAssets','listMyCollectionOperations']);
 const progression=object({kind:{enum:['visual','upgrade']},targetId:str,expectedTargetVersion:integer,
   materialId:str,expectedMaterialVersion:integer},['kind','targetId','expectedTargetVersion']);
@@ -62,9 +92,21 @@ export function describeResponses(paths) {
   if(!['get','post','delete','patch','put'].includes(method))continue;
   if(cursorMethods.has(operation.operationId))operation.parameters=[...(operation.parameters??[]),{in:'query',name:'cursor',schema:str}];
   if(bodies[operation.operationId])operation.requestBody={required:true,content:{'application/json':{schema:bodies[operation.operationId]}}};
+  if(operation.operationId==='submitSignedActionCompletion')operation.requestBody.content['application/json'].schema=object({proof:ref('ActionCompletionProof'),signature:str});
   for(const [status,response] of Object.entries(operation.responses??{})){
-   const schema=Number(status)>=400?ref('Error'):success[operation.operationId]??{type:'object'};
-   response.content={...response.content,'application/vnd.10x.v1+json':{schema}};
+   if(Number(status)>=400){response.content={'application/json':{schema:ref('Error')},'application/vnd.10x.v1+json':{schema:ref('Error')}};continue;}
+   const original=response.content?.['application/json']?.schema;
+   const raw=rawSuccess[operation.operationId]??(original?.properties?original:null);
+   const schema=raw?wrapped(raw):success[operation.operationId]??{type:'object'};
+   // Legacy curated success entries already describe the envelope; remove only
+   // fields injected by transport when providing their ordinary JSON contract.
+   let ordinary=raw;
+   if(!ordinary&&schema.properties?.data)ordinary=schema.properties.data;
+   if(!ordinary&&schema.properties?.items){
+    const {meta,snapshotId,...properties}=schema.properties;
+    ordinary={...schema,properties,required:schema.required.filter(k=>k!=='meta'&&k!=='snapshotId')};
+   }
+   response.content={...response.content,...(ordinary?{'application/json':{schema:ordinary}}:{}),'application/vnd.10x.v1+json':{schema}};
   }
  }
  return result;
