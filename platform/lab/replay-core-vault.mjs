@@ -1,0 +1,149 @@
+// Exercise the actual Core Execute and Rewards programs together. No custom
+// contract signs for a claimant, and no production wallet or connection exists.
+import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
+import { resolve } from 'node:path';
+import { setTimeout as delay } from 'node:timers/promises';
+
+const ref = resolve(process.argv[2]), qa=createRequire(resolve(ref,'packages/meme-qa/package.json')), lab=createRequire(resolve(ref,'packages/meme-protocol/package.json'));
+const { Surfnet }=qa('@solana/surfpool'), { keccak256 }=qa('viem');
+const web3=lab('@solana/web3.js'),spl=lab('@solana/spl-token');
+const { PublicKey,Keypair,TransactionInstruction,Transaction,SystemProgram,ComputeBudgetProgram,Connection,
+  AddressLookupTableProgram,TransactionMessage,VersionedTransaction }=web3;
+const pin = candidate => JSON.parse(readFileSync(new URL('./fixtures/'+candidate+'-program.json',import.meta.url)));
+const corePin=pin('core'),rewardPin=pin('rewards');
+const core=new PublicKey(corePin.program),rewards=new PublicKey(rewardPin.program),system=SystemProgram.programId,token=spl.TOKEN_PROGRAM_ID;
+const key = seed => Keypair.fromSeed(new Uint8Array(32).fill(seed));
+const [admin,alice,bob,assetKey,seed,mintKey]=[81,82,83,84,85,86].map(key);
+const asset=assetKey.publicKey,mint=mintKey.publicKey;
+const pda=(program,prefix,...keys)=>PublicKey.findProgramAddressSync([Buffer.from(prefix),...keys.map(k=>k.toBuffer())],program);
+const [signer]=pda(core,'mpl-core-execute',asset),[event]=pda(rewards,'event_authority');
+const [dist,bump]=pda(rewards,'merkle_distribution',mint,admin.publicKey,seed.publicKey);
+const [claimId,claimBump]=pda(rewards,'merkle_claim',dist,signer),[marker]=pda(rewards,'revocation',dist,signer);
+const vault=spl.getAssociatedTokenAddressSync(mint,dist,true),ata=(owner)=>spl.getAssociatedTokenAddressSync(mint,owner,true);
+const r=pubkey=>({pubkey,isSigner:false,isWritable:false}),w=pubkey=>({...r(pubkey),isWritable:true}),s=(pubkey,writable=false)=>({...r(pubkey),isSigner:true,isWritable:writable});
+const u64=n=>{const b=Buffer.alloc(8);b.writeBigUInt64LE(BigInt(n));return b;};
+const u32=n=>{const b=Buffer.alloc(4);b.writeUInt32LE(n);return b;};
+const str=text=>{const b=Buffer.from(text);return Buffer.concat([u32(b.length),b]);};
+const ix=(programId,keys,...data)=>new TransactionInstruction({programId,keys,data:Buffer.concat(data)});
+const start=1_800_000_000,day=86_400;
+const schedule=Buffer.concat([Buffer.from([1]),u64(start+day),u64(start+2*day)]);
+const keccak=bytes=>Buffer.from(keccak256(bytes).slice(2),'hex');
+const leaf=keccak(Buffer.concat([Buffer.from([0]),keccak(Buffer.concat([signer.toBuffer(),u64(100),schedule]))]));
+// A complete 16,384-leaf tree exercises the 14-sibling proof size of a
+// Genesis-wide launch. Other leaves use zero-amount synthetic slot data.
+const zeros=Array.from({length:16383},(_,i)=>keccak(Buffer.concat([Buffer.from([0]),keccak(Buffer.concat([u64(i),Buffer.from('unused simulation slot')]))])));
+const proof=[];
+let tree=[leaf,...zeros];
+while(tree.length>1) {
+  proof.push(tree[1]); const next=[];
+  for(let i=0;i<tree.length;i+=2) next.push(keccak(Buffer.concat([tree[i],tree[i+1]].sort(Buffer.compare))));
+  tree=next;
+}
+const root=tree[0];
+function execute(owner, inner) {
+  return ix(core, [w(asset),r(core),r(signer),s(owner,true),r(core),r(system),r(inner.programId),
+    ...inner.keys.map(meta=>meta.pubkey.equals(signer)?{...meta,isSigner:false}:meta)],
+    Buffer.from([31]),u32(inner.data.length),inner.data);
+}
+function coreTransfer(owner,newOwner) {
+  return ix(core,[w(asset),r(core),s(owner,true),r(core),r(newOwner),r(system),r(core)],Buffer.from([14,0]));
+}
+function claim(owner, destination, requested) {
+  return execute(owner,ix(rewards,[s(owner,true),s(signer),w(dist),w(claimId),r(marker),r(mint),w(vault),w(destination),
+    r(system),r(token),r(event),r(rewards)],Buffer.from([6,claimBump]),u64(100),u64(requested),schedule,u32(proof.length),...proof));
+}
+function signedSweep(owner, holding, destination, units) {
+  return [execute(owner,spl.createTransferInstruction(holding,destination,signer,units)),
+    execute(owner,spl.createCloseAccountInstruction(holding,owner,signer))];
+}
+const net=Surfnet.startWithConfig({offline:true,blockProductionMode:'transaction'});
+try {
+  const endpoint=new URL(net.rpcUrl); assert(endpoint.protocol==='http:'&&['127.0.0.1','localhost','[::1]'].includes(endpoint.hostname));
+  for(const [pin,path] of [[rewardPin,process.argv[3]],[corePin,process.argv[4]]]) {
+    const bytes=readFileSync(path);
+    assert.equal(createHash('sha256').update(bytes).digest('hex'),pin.allocatedElfSha256);
+    net.deploy({programId:pin.program,soBytes:bytes});
+  }
+  const rpc=new Connection(net.rpcUrl,{commitment:'confirmed',wsEndpoint:net.wsUrl});
+  for(const account of [admin,alice,bob])net.fundSol(account.publicKey.toBase58(),10_000_000_000);
+  let sequence=0;
+  const wireSizes=[];
+  async function send(ixs,payer=admin,extra=[],lookup) {
+    const block=await rpc.getLatestBlockhash('confirmed');
+    const all=[ComputeBudgetProgram.setComputeUnitLimit({units:1_400_000 - (++sequence%128)}),...ixs];
+    let raw;
+    if(lookup) {
+      const msg=new TransactionMessage({payerKey:payer.publicKey,recentBlockhash:block.blockhash,instructions:all}).compileToV0Message([lookup]);
+      const tx=new VersionedTransaction(msg);tx.sign([payer,...extra]);raw=tx.serialize();
+      assert(raw.length<=1232,'v0 transaction exceeds packet cap: '+raw.length);
+      wireSizes.push(raw.length);
+    } else {
+      const tx=new Transaction({feePayer:payer.publicKey,...block}).add(...all);tx.sign(payer,...extra);raw=tx.serialize();
+    }
+    const sig=await rpc.sendRawTransaction(raw,{skipPreflight:false,maxRetries:0});
+    const deadline=performance.now()+10000;
+    while(performance.now()<deadline) {
+      const {value}=await rpc.getSignatureStatus(sig,{searchTransactionHistory:true});
+      if(value?.err)throw Error(JSON.stringify(value.err));
+      if(value?.confirmationStatus==='finalized')return sig;
+      await delay(25);
+    }
+    throw Error('Unknown simulator transaction: '+sig);
+  }
+  const amount=async address=>(await spl.getAccount(rpc,address)).amount;
+  net.timeTravelToTimestamp(start*1000);
+  await send([SystemProgram.createAccount({fromPubkey:admin.publicKey,newAccountPubkey:mint,space:spl.MINT_SIZE,programId:token,
+    lamports:await rpc.getMinimumBalanceForRentExemption(spl.MINT_SIZE)}),spl.createInitializeMint2Instruction(mint,0,admin.publicKey,null)],admin,[mintKey]);
+  await send([...[admin,alice,bob].map(owner=>spl.createAssociatedTokenAccountIdempotentInstruction(admin.publicKey,ata(owner.publicKey),owner.publicKey,mint)),
+    spl.createMintToInstruction(mint,ata(admin.publicKey),admin.publicKey,100)]);
+  await send([ix(rewards,[s(admin.publicKey,true),s(admin.publicKey),s(seed.publicKey),w(dist),r(mint),w(vault),w(ata(admin.publicKey)),
+    r(system),r(token),r(spl.ASSOCIATED_TOKEN_PROGRAM_ID),r(event),r(rewards)],
+    Buffer.from([5,bump,0]),u64(100),root,u64(100),u64((1n<<63n)-1n))],admin,[seed]);
+  assert.equal(await amount(vault),100n);
+  assert.equal(await rpc.getAccountInfo(asset),null);
+  // Reusable per-campaign ALT; only common accounts go in it. No per-NFT
+  // table allocation. Confirm the table and sign with official v0 encoding.
+  const recentSlot=await rpc.getSlot('finalized');
+  const [makeTable,tableId]=AddressLookupTableProgram.createLookupTable({authority:admin.publicKey,payer:admin.publicKey,recentSlot});
+  const shared=[rewards,system,token,event,dist,vault,mint];
+  await send([makeTable]);
+  await send([AddressLookupTableProgram.extendLookupTable({payer:admin.publicKey,authority:admin.publicKey,lookupTable:tableId,addresses:shared})]);
+  const table=(await rpc.getAddressLookupTable(tableId)).value;assert(table);
+  async function prepareHolding(owner,seedByte) {
+    const holding=key(seedByte);
+    await send([SystemProgram.createAccount({fromPubkey:owner.publicKey,newAccountPubkey:holding.publicKey,
+      space:spl.ACCOUNT_SIZE,lamports:await rpc.getMinimumBalanceForRentExemption(spl.ACCOUNT_SIZE),programId:token}),
+      spl.createInitializeAccount3Instruction(holding.publicKey,mint,signer)],owner,[holding]);
+    return holding.publicKey;
+  }
+  const aliceHolding=await prepareHolding(alice,89);
+  // Asset public key is in the root but not yet minted. Nobody can invoke
+  // its signer. No future draw/order policy is proved by this fixture.
+  await assert.rejects(send([claim(alice.publicKey,aliceHolding,30)],alice,[],table));
+  assert.equal(await amount(vault),100n);
+  net.timeTravelToTimestamp((start+day+day/2)*1000);
+  await send([ix(core,[s(asset,true),r(core),r(core),s(alice.publicKey,true),r(alice.publicKey),r(core),r(system),r(core)],
+    Buffer.from([0,0]),str('10X reserve fixture'),str('urn:10x:fixture'),Buffer.from([0]))],alice,[assetKey]);
+  const assetState=async()=>{const a=await rpc.getAccountInfo(asset);assert.equal(a.owner.toBase58(),core.toBase58());return a;};
+  assert.equal(new PublicKey((await assetState()).data.subarray(1,33)).toBase58(),alice.publicKey.toBase58());
+  const lamportsBefore=(await assetState()).lamports;
+  await send([claim(alice.publicKey,aliceHolding,30),...signedSweep(alice.publicKey,aliceHolding,ata(alice.publicKey),30n)],alice,[],table);
+  assert.equal(await amount(ata(alice.publicKey)),30n);assert.equal(await amount(vault),70n);
+  assert.equal(await rpc.getAccountInfo(aliceHolding),null);
+  const threeExecuteFees=(await assetState()).lamports-lamportsBefore;
+  await send([coreTransfer(alice.publicKey,bob.publicKey)],alice);
+  assert.equal(new PublicKey((await assetState()).data.subarray(1,33)).toBase58(),bob.publicKey.toBase58());
+  const bobHolding=await prepareHolding(bob,90);
+  net.timeTravelToTimestamp((start+800*day)*1000);
+  await assert.rejects(send([claim(alice.publicKey,bobHolding,70)],alice,[],table));
+  assert.equal(await amount(vault),70n);
+  await send([claim(bob.publicKey,bobHolding,70),...signedSweep(bob.publicKey,bobHolding,ata(bob.publicKey),70n)],bob,[],table);
+  assert.equal(await amount(ata(bob.publicKey)),70n);assert.equal(await amount(vault),0n);
+  assert.equal(await rpc.getAccountInfo(bobHolding),null);
+  console.log(JSON.stringify({coreDeployment:corePin.deployedSlot,rewardsDeployment:rewardPin.deployedSlot,
+    unrealizedReserve:100,originalOwnerClaim:30,buyerClaim:70,formerOwnerAttempt:'rejected',proofDepth:proof.length,
+    v0PacketBytes:wireSizes,threeExecuteFeesLamports:threeExecuteFees,assetBurnAndPlugins:'separate gates'}));
+} finally {net.stop();}

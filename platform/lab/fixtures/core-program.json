@@ -1,0 +1,12 @@
+{
+  "program": "CoREENxT6tW1HoK8ypY1SxRMZTcVPm7R94rH4PZNhX7d",
+  "programData": "9ZC25KLUrfgSoFVgjE1rrydZBbZns58UXi8A8ZhTdGfr",
+  "contextSlot": 465657853,
+  "programDataLength": 848365,
+  "deployedSlot": "455005931",
+  "upgradeAuthority": "bfQVv6niKVgEURYqQ1beJmiEQQN7MrvLRvk3mZGFubb",
+  "allocatedElfSha256": "51d41542456639a01820c747e72b9d3b4ca258930a5bbb7e78db0cda133dc209",
+  "observedAt": "2026-11-05T09:39:22.8321954Z",
+  "sourceInspected": "c8732ac66066ec5174beaaab51f9dabf05089f26",
+  "sourceMatchVerified": false
+}
