@@ -134,6 +134,10 @@ try {
   assert.equal(await amount(ata(alice.publicKey)),30n);assert.equal(await amount(vault),70n);
   assert.equal(await rpc.getAccountInfo(aliceHolding),null);
   const threeExecuteFees=(await assetState()).lamports-lamportsBefore;
+  // A previous owner can authorize a lasting SPL delegate on a persistent
+  // PDA-owned token account, independently of Core's later owner transfer.
+  await send([spl.createAssociatedTokenAccountIdempotentInstruction(alice.publicKey,ata(signer),signer,mint),
+    execute(alice.publicKey,spl.createApproveInstruction(ata(signer),alice.publicKey,signer,100n))],alice);
   await send([coreTransfer(alice.publicKey,bob.publicKey)],alice);
   assert.equal(new PublicKey((await assetState()).data.subarray(1,33)).toBase58(),bob.publicKey.toBase58());
   const bobHolding=await prepareHolding(bob,90);
@@ -143,6 +147,9 @@ try {
   await send([claim(bob.publicKey,bobHolding,70),...signedSweep(bob.publicKey,bobHolding,ata(bob.publicKey),70n)],bob,[],table);
   assert.equal(await amount(ata(bob.publicKey)),70n);assert.equal(await amount(vault),0n);
   assert.equal(await rpc.getAccountInfo(bobHolding),null);
+  await send([spl.createMintToInstruction(mint,ata(signer),admin.publicKey,1)],admin);
+  await send([spl.createTransferInstruction(ata(signer),ata(alice.publicKey),alice.publicKey,1)],alice);
+  assert.equal(await amount(ata(signer)),0n);
   console.log(JSON.stringify({coreDeployment:corePin.deployedSlot,rewardsDeployment:rewardPin.deployedSlot,
     unrealizedReserve:100,originalOwnerClaim:30,buyerClaim:70,formerOwnerAttempt:'rejected',proofDepth:proof.length,
     v0PacketBytes:wireSizes,threeExecuteFeesLamports:threeExecuteFees,assetBurnAndPlugins:'separate gates'}));
@@ -188,12 +195,44 @@ try {
   await assert.rejects(send([burn(protectedAsset.publicKey,alice.publicKey)],alice));
   const removeOracle=ix(core,[w(protectedAsset.publicKey),r(core),s(alice.publicKey,true),r(core),r(system),r(core)],
     Buffer.from([24,1]),oracle.toBuffer());
-  await assert.rejects(send([removeOracle],alice));
-  await send([ix(core,[w(protectedAsset.publicKey),r(core),s(alice.publicKey,true),r(core),r(bob.publicKey),r(system),r(core)],
-    Buffer.from([14,0]))],alice);
-  assert.equal(new PublicKey((await rpc.getAccountInfo(protectedAsset.publicKey)).data.subarray(1,33)).toBase58(),bob.publicKey.toBase58());
-  await assert.rejects(send([burn(protectedAsset.publicKey,bob.publicKey,[r(oracle)])],bob));
-  console.log(JSON.stringify({optionalPolicy:'immutable burn-only Oracle',sharedOracleRentLamports:oracleInfo.lamports,
-    ownerBurn:'rejected',missingOracle:'rejected',updateAuthorityRemoval:'rejected',normalTransfer:'succeeded',
-    independentReview:'required'}));
+  // Setting adapter Authority::None doesn't remove the *asset* update
+  // authority's program-level permission to remove the whole adapter.
+  await send([removeOracle],alice);
+  await send([burn(protectedAsset.publicKey,alice.publicKey)],alice);
+  console.log(JSON.stringify({updateAuthorityCanRemoveOracle:true,postRemovalBurn:'succeeded',
+    previousOwnerPersistentTokenDelegate:'can spend independently of Core owner',freshAtomicPayout:'protected'}));
+
+  // Separate candidate; no operator can sign on behalf of a PDA derived
+  // under the built-in System Program. This also constrains metadata updates
+  // and must not be silently chosen as production product policy.
+  const locked=key(93),[deadAuthority]=pda(system,'10x-unreachable-update-authority',locked.publicKey);
+  assert.equal(PublicKey.isOnCurve(deadAuthority.toBytes()),false);
+  await send([ix(core,[s(locked.publicKey,true),r(core),r(core),s(alice.publicKey,true),r(alice.publicKey),
+    r(deadAuthority),r(system),r(core)],Buffer.from([20,0]),str('Locked oracle fixture'),str('urn:10x:locked'),
+    Buffer.from([0,1]),u32(1),oracleAdapter)],alice,[locked]);
+  const removeLocked=owner=>ix(core,[w(locked.publicKey),r(core),s(owner,true),r(core),r(system),r(core)],Buffer.from([24,1]),oracle.toBuffer());
+  const manage=(owner,data)=>ix(core,[w(locked.publicKey),r(core),s(owner,true),r(core),r(system),r(core)],...data);
+  await assert.rejects(send([removeLocked(alice.publicKey)],alice));
+  await assert.rejects(send([removeLocked(admin.publicKey)],admin));
+  // Replace the Oracle settings with no lifecycle checks; then attempt
+  // to give the owner a force-approval PermanentBurnDelegate after issue.
+  await assert.rejects(send([manage(alice.publicKey,[Buffer.from([26,1]),oracle.toBuffer(),Buffer.from([1,1]),u32(0),Buffer.from([0,0])])],alice));
+  await assert.rejects(send([manage(alice.publicKey,[Buffer.from([2,8,1,3]),alice.publicKey.toBuffer()])],alice));
+  await assert.rejects(send([burn(locked.publicKey,alice.publicKey,[r(oracle)])],alice));
+  await assert.rejects(send([burn(locked.publicKey,alice.publicKey)],alice));
+  await send([ix(core,[w(locked.publicKey),r(core),s(alice.publicKey,true),r(core),r(bob.publicKey),r(system),r(core)],Buffer.from([14,0]))],alice);
+  assert.equal(new PublicKey((await rpc.getAccountInfo(locked.publicKey)).data.subarray(1,33)).toBase58(),bob.publicKey.toBase58());
+  await assert.rejects(send([burn(locked.publicKey,bob.publicKey,[r(oracle)])],bob));
+  console.log(JSON.stringify({optionalPolicy:'frozen burn-only Oracle with unreachable asset update authority',
+    sharedOracleRentLamports:oracleInfo.lamports,ownerBurn:'rejected',missingOracle:'rejected',ownerRemoval:'rejected',
+    formerIssuerRemoval:'rejected',normalTransfer:'succeeded',metadataMutability:'separate design gate',independentReview:'required'}));
+
+  // An issuer-created force-approval delegate is a different asset class.
+  // Never infer protection from an Oracle in isolation.
+  const bypass=key(94);
+  await send([ix(core,[s(bypass.publicKey,true),r(core),r(core),s(alice.publicKey,true),r(alice.publicKey),
+    r(deadAuthority),r(system),r(core)],Buffer.from([20,0]),str('Unsafe delegate fixture'),str('urn:10x:bypass'),
+    Buffer.from([1]),u32(1),Buffer.from([8,1,3]),alice.publicKey.toBuffer(),Buffer.from([1]),u32(1),oracleAdapter)],alice,[bypass]);
+  await send([burn(bypass.publicKey,alice.publicKey,[r(oracle)])],alice);
+  console.log(JSON.stringify({mintedPermanentBurnDelegate:'can force a burn despite the veto',assetAndCollectionPluginAllowlist:'required'}));
 } finally {net.stop();}
