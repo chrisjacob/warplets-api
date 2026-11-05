@@ -33,7 +33,7 @@ or a remaining balance. Observed `x-ratelimit-*` headers concern request rate;
 they are not monthly credits. These caps therefore remain explicit app-side
 allocations, never presented as live account-wide usage.
 
-Production now refreshes 100 profiles and up to 500 wallets per invocation,
+Production now refreshes 60 profiles, 25 wallets and 10 activity candidates per invocation,
 with four readers, shared leases and existing global Alchemy pacing. Ingestion
 renews its lease during long batches. Finalized contract logs use a validated
 public Base RPC with configurable ranges up to 1,000 blocks; every range still
@@ -46,6 +46,9 @@ Profile/chain collection, wallet refresh and activity now have independent cron
 leases; a slow portfolio or credit pause cannot hold up daily profile freshness.
 Neynar requests share a four-request/s gate, below the observed 300-request/min
 key limit; that rate limit is distinct from the monthly credit allocation.
+The initial larger live batches exhausted the shared invocation's database
+request allowance, preventing cleanup. Production batches now leave room for
+the existing scheduled applications, and sanitized runtime failures are logged.
 
 `scripts/network/production.ts --remote --task=status` reports the live queues.
 Explicit `profiles`, `scan`, `associations`, `wallets`, `activity`, `prices` and
