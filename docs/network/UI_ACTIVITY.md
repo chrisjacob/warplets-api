@@ -46,7 +46,14 @@ includes observed consecutive-month retention counts and denominators; a final
 churn count or exact retention rate needs complete archival/live-event coverage.
 No future activity or synthetic retention data is shown.
 
-Reads use a namespaced concurrency lease, daily retry checks, source cooldown,
+Completed UTC months are checked once after month-end. A provisional negative
+check made before month-end is revisited; positive evidence is retained.
+New pledge signatures count immediately, and the ongoing month remains
+provisional. Indexed cast/reaction hints page past newer actions with bounded
+cursors, then require the original protocol proof. Missing/pruned evidence
+still cannot establish inactivity.
+
+Reads use a namespaced concurrency lease, source cooldown,
 shared request budget and the same monthly Neynar credit reservation cap as
 wallet collection. No new paid service or signer permission was created.
 The existing scheduler and local CLI call the collector; manual invocation is

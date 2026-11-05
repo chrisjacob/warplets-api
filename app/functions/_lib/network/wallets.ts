@@ -1,5 +1,6 @@
 import { NETWORK_CURRENT_COHORT } from './cohort';
 import {alchemyWalletBalances,alchemyTokenMetadata} from './alchemy';
+import {NETWORK_RECORD_REFRESH_MS} from '../../../shared/network/refresh';
 import { networkFetchJson } from './source';
 import { neynarReservation } from './neynarPricing';
 import { bounded, releaseNetworkLease, reserveRequest, syncGet, syncSet, type NetworkEnv } from './store';
@@ -118,7 +119,7 @@ export function priceBalances(rows: Balance[], quotes: Map<string,unknown>, now 
 async function walletCandidates(env:WalletEnv,limit:number){
   const legacy=env.ALCHEMY_API_KEY?"v.address IS NOT NULL AND v.source<>'alchemy-base+defillama'":'0';
   const rows=await env.WARPLETS.prepare(`SELECT l.address FROM network_wallet_links l JOIN (${NETWORK_CURRENT_COHORT}) c ON c.fid=l.fid LEFT JOIN network_wallet_values v ON v.address=l.address LEFT JOIN network_wallet_retries r ON r.address=l.address
-    WHERE (v.address IS NULL OR v.observed_at<? OR (${legacy})) AND (r.address IS NULL OR r.retry_after<?) GROUP BY l.address ORDER BY CASE WHEN (${legacy}) THEN 0 ELSE 1 END,(v.address IS NULL) DESC,COALESCE(v.observed_at,0),MIN(l.fid),l.address LIMIT ?`).bind(Date.now()-(env.ALCHEMY_API_KEY?7:1)*86_400_000,Date.now(),limit).all<{address:string}>();
+    WHERE (v.address IS NULL OR v.observed_at<? OR (${legacy})) AND (r.address IS NULL OR r.retry_after<?) GROUP BY l.address ORDER BY (v.address IS NULL) DESC,CASE WHEN (${legacy}) THEN 0 ELSE 1 END,COALESCE(v.observed_at,0),MIN(l.fid),l.address LIMIT ?`).bind(Date.now()-NETWORK_RECORD_REFRESH_MS,Date.now(),limit).all<{address:string}>();
   return rows.results;
 }
 async function valueNextWallet(env: WalletEnv,selectedAddress?:string) {
@@ -126,7 +127,7 @@ async function valueNextWallet(env: WalletEnv,selectedAddress?:string) {
   const legacy=env.ALCHEMY_API_KEY?"v.address IS NOT NULL AND v.source<>'alchemy-base+defillama'":'0';
   const row=selectedAddress?{address:selectedAddress}:(await walletCandidates(env,1))[0];
   if (!row) {
-    const remaining=await env.WARPLETS.prepare(`SELECT COUNT(DISTINCT l.address) n FROM network_wallet_links l JOIN (${NETWORK_CURRENT_COHORT}) c ON c.fid=l.fid LEFT JOIN network_wallet_values v ON v.address=l.address WHERE v.address IS NULL OR v.observed_at<? OR (${legacy})`).bind(Date.now()-(env.ALCHEMY_API_KEY?7:1)*86_400_000).first<{n:number}>();
+    const remaining=await env.WARPLETS.prepare(`SELECT COUNT(DISTINCT l.address) n FROM network_wallet_links l JOIN (${NETWORK_CURRENT_COHORT}) c ON c.fid=l.fid LEFT JOIN network_wallet_values v ON v.address=l.address WHERE v.address IS NULL OR v.observed_at<? OR (${legacy})`).bind(Date.now()-NETWORK_RECORD_REFRESH_MS).first<{n:number}>();
     return {status:remaining?.n?'waiting':'complete'};
   }
   try {
@@ -206,7 +207,7 @@ export async function importWalletAssociations(env: WalletEnv, batch = 100) {
   if(await syncGet(env.WARPLETS,'wallet_cooldown',0)>Date.now())return 0;
   const rows = await env.WARPLETS.prepare(`SELECT c.fid FROM (${NETWORK_CURRENT_COHORT}) c
     LEFT JOIN network_wallet_associations a ON a.fid=c.fid WHERE a.fid IS NULL OR a.observed_at<? ORDER BY COALESCE(a.observed_at,0),c.fid LIMIT ?`)
-    .bind(Date.now() - 86_400_000, Math.min(100, batch)).all<{ fid: number }>();
+    .bind(Date.now() - NETWORK_RECORD_REFRESH_MS, Math.min(100, batch)).all<{ fid: number }>();
   if (!rows.results.length) return 0;
   const fids = rows.results.map(row => row.fid);
   const payload = await neynarRead(env, `/v2/farcaster/user/bulk?fids=${fids.join(',')}`, fids.length*2) as { users: { fid: number; verified_addresses?: { eth_addresses?: unknown } }[] };

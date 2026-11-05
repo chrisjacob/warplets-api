@@ -37,13 +37,14 @@ https://www.alchemy.com/docs/data/token-api/token-api-endpoints/alchemy-get-toke
 storage, plus a partial index for priced assets. This keeps hourly quote refresh
 from scanning every unpriced spam-token cache entry.
 
-Existing non-Alchemy valuations are refreshed first, even if still recent.
+Unmeasured wallets take priority, followed by existing non-Alchemy valuations,
+even if still recent.
 Their source is changed only after a successful Alchemy read and independent
 valuation; failures retain the previous value and remain queued for retry.
-The queue then prioritizes unmeasured wallets, followed by earlier FIDs. Refreshes
-rotate weekly. Each wallet must finish all token pages and native retrieval
+Existing values then refresh by observation age and earlier FIDs. Refreshes
+rotate every 30 days. Each wallet must finish all token pages and native retrieval
 before replacing a valid estimate. Repeated cursors, malformed records and the
-100-page safety bound never produce a measured zero. Individual token errors
+1,000-page safety bound never produce a measured zero. Individual token errors
 can be excluded only when the token has no accepted independent price. An
 unavailable balance for a reliably priced token defers the wallet instead.
 
@@ -65,7 +66,7 @@ with `--alchemy` to prevent accidental provider fallback when the key is absent.
 Snapshots publish roughly every ten minutes and at batch exit. A budget stop
 waits for the next UTC day; the monthly reservation still prevents any calls
 until the monthly cap resets. Source throttling pauses for an hour. Caught-up
-jobs check again daily, with balance retrieval still on a weekly rotation.
+jobs check again daily for new wallets, with existing balances on a monthly rotation.
 
 Ignored logs: `.tmp/network-wallet-worker.out.log` and
 `.tmp/network-wallet-worker.err.log`; PID: `.tmp/network-wallet-worker.pid`.

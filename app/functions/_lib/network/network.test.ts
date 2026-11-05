@@ -56,6 +56,22 @@ describe('cross-filtered public statistics', () => {
   it('validates filters and preserves token chain identity', () => { expect(() => parseNetworkFilters(new URLSearchParams('country=DROP TABLE'))).toThrow(); expect(() => parseNetworkFilters(new URLSearchParams('vote=no'))).toThrow(); expect(parseNetworkFilters(new URLSearchParams('token=none')).tokens).toEqual(['none']); });
 });
 describe('durable storage and bounded ingestion', () => {
+  it('populates new profiles immediately and refreshes existing profiles monthly',async()=>{
+    const {env,db}=database(),at=Date.now();env.NETWORK_PROFILE_BATCH='1';
+    db.prepare("INSERT INTO network_sync VALUES('candidate_refresh',?,?)").run(JSON.stringify(at),at);
+    for(const fid of [1,2,3])db.prepare('INSERT INTO network_confirmed(fid,observed_at) VALUES(?,?)').run(fid,at);
+    for(const [fid,days] of [[1,31],[2,29]]){
+      db.prepare("INSERT INTO network_profiles(fid,location_status,token_status,opt_in_status,observed_at) VALUES(?,'unknown','none','opted_in',?)").run(fid,at-days*86400000);
+      db.prepare("INSERT INTO network_profile_locations(fid,description,observed_at) VALUES(?,'',?)").run(fid,at-days*86400000);
+    }
+    const requested:number[]=[];vi.stubGlobal('fetch',vi.fn(async(url:string)=>{
+      const fid=Number(new URL(url).searchParams.get('fid'));requested.push(fid);
+      return Response.json({result:{user:{fid,profile:{location:{description:''}},viewerContext:{optInStatus:'opted_in'}}}});
+    }));
+    await advanceNetwork(env,{profilesOnly:true});expect(requested).toEqual([3]);
+    await advanceNetwork(env,{profilesOnly:true});expect(requested).toEqual([3,1]);
+    await advanceNetwork(env,{profilesOnly:true});expect(requested).toEqual([3,1]);
+  });
   it('reserves attempts atomically and stops at the combined provider budget', async () => { const { env } = database(); env.NETWORK_REQUESTS_PER_DAY = '1'; await reserveRequest(env, 'base'); await expect(reserveRequest(env, 'official-client')).rejects.toThrow('budget'); });
   it('backfills missing raw locations for unknown countries before stale known profiles, without refetching observed blanks',async()=>{
     const {env,db}=database(),now=Date.now();env.NETWORK_PROFILE_BATCH='1';
@@ -63,8 +79,8 @@ describe('durable storage and bounded ingestion', () => {
     for(const fid of [1,2,3,4])db.prepare('INSERT INTO network_confirmed(fid,observed_at) VALUES(?,?)').run(fid,now);
     // A routine stale profile, two legacy unknowns (one with mismatched raw
     // observation), and a recent genuine blank that must not re-enter the queue.
-    for(const [fid,country,at] of [[1,'AU',now-2*86400000],[2,null,now],[3,null,now],[4,null,now]])db.prepare("INSERT INTO network_profiles(fid,country,location_status,token_status,opt_in_status,observed_at) VALUES(?,?,'unknown','none','opted_in',?)").run(fid,country,at);
-    db.prepare("INSERT INTO network_profile_locations(fid,description,observed_at) VALUES(1,'Sydney, Australia',?)").run(now-2*86400000);
+    for(const [fid,country,at] of [[1,'AU',now-31*86400000],[2,null,now],[3,null,now],[4,null,now]])db.prepare("INSERT INTO network_profiles(fid,country,location_status,token_status,opt_in_status,observed_at) VALUES(?,?,'unknown','none','opted_in',?)").run(fid,country,at);
+    db.prepare("INSERT INTO network_profile_locations(fid,description,observed_at) VALUES(1,'Sydney, Australia',?)").run(now-31*86400000);
     db.prepare("INSERT INTO network_profile_locations(fid,description,observed_at) VALUES(3,'Old text',?)").run(now-1);
     db.prepare("INSERT INTO network_profile_locations(fid,description,observed_at) VALUES(4,'',?)").run(now);
     const requested:number[]=[];
