@@ -4,10 +4,10 @@
   "phase": "executing",
   "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
-  "currentTask": "B14",
-  "lastUpdatedAt": "2026-11-05T23:33:12.456248+00:00",
+  "currentTask": "B11",
+  "lastUpdatedAt": "2026-11-05T23:53:15.546963+00:00",
   "migrationAllocation": {
-    "next": 35,
+    "next": 36,
     "reserved": [
       {
         "version": 31,
@@ -28,6 +28,11 @@
         "version": 34,
         "task": "B14",
         "purpose": "financial read source revision triggers and bounded owner-observation lookup index"
+      },
+      {
+        "version": 35,
+        "task": "B11",
+        "purpose": "private immutable collection source records, eligibility list seals and bounded root closure seals; no active publication"
       }
     ],
     "historicalGap": 19
@@ -177,7 +182,7 @@
       "owner": "frontend_b09",
       "baseCommit": "a3f2f9c",
       "implementationCommit": "96cdfa1fb6334fcb27deb831d786243227b9d1a8",
-      "pushed": false,
+      "pushed": true,
       "evidence": [
         "platform/validation/runs/2026-11-06-overnight/B10-1.json",
         "platform/validation/runs/2026-11-06-overnight/B10-2.json",
@@ -193,7 +198,7 @@
       "implementationCommit": null,
       "pushed": false,
       "evidence": [],
-      "nextAction": "Implement bounded normalizedcollection state codec and namedcommand DTOs from measuredinventory limits; coordinator reserves035 afterB14.3 sharedmigration.",
+      "nextAction": "Finish bounded immutable source intake with migration035 and Node/D1 atomic receipts; preserve source codec/mint-planning foundation and governance pure planning. Closure seals remain private staging, not publication authority.",
       "blocker": null
     },
     "B12": {
@@ -217,16 +222,17 @@
       "blocker": null
     },
     "B14": {
-      "status": "in_progress",
+      "status": "verified",
       "owner": "coordinator",
       "baseCommit": "b18dec7c9cca695db06d6f7d9fea90deb0c6667c",
-      "implementationCommit": "0a59402f15099170b5541f316a38f0c2ce563805",
-      "pushed": true,
+      "implementationCommit": "88eb0dd01c84a89cec0ca493221b31875d85a370",
+      "pushed": false,
       "evidence": [
         "platform/validation/runs/2026-11-06-overnight/B14-1-comparison.json",
-        "platform/validation/runs/2026-11-06-overnight/B14-2.json"
+        "platform/validation/runs/2026-11-06-overnight/B14-2.json",
+        "platform/validation/runs/2026-11-06-overnight/B14-3.json"
       ],
-      "nextAction": "Follow replacement quote CI after moving bundle assertion to edge phase; then continue B14.3 sharedVault/farm source-bound reads. Activeuncommitted034+cursor/farmrepo scaffolds and Vaultagent files are not yet verified.",
+      "nextAction": null,
       "blocker": null
     },
     "B15": {

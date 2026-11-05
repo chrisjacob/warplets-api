@@ -4,7 +4,7 @@
   "status": "verified-local",
   "classification": "Shared bounded local Vault and farm reads, revision-bound opaque cursors and Node/workerd/browser acceptance; no chain authority or financial execution",
   "lastTestedBaseCommit": "981a1c3863b447586fb520627296011ab975fdb0",
-  "implementationCommit": null,
+  "implementationCommit": "88eb0dd01c84a89cec0ca493221b31875d85a370",
   "commands": [
     {
       "command": "node --test platform/vault/read-projection.test.mjs platform/vault/member-projection.test.mjs platform/vault/ledger.test.mjs",
