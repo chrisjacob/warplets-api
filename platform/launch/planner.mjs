@@ -1,6 +1,7 @@
 import { CAMPAIGN_SECONDS, U64_MAX, launchAllocations, launchFeeBps } from '../domain/economics/index.mjs';
 import { decode58 } from '../server/base58.mjs';
 import { launchPlanTerms, validateInput } from './schema.mjs';
+import { assessPilotBudget } from '../costs/budget.mjs';
 
 const calendar = new Intl.DateTimeFormat('en-AU', {
   timeZone: 'Australia/Sydney', day: '2-digit', month: '2-digit', year: 'numeric',
@@ -74,10 +75,10 @@ function checkCost(cost, gates) {
     return null;
   }
   const totalCents = cost.networkCents + cost.rentCents + cost.protocolCents + cost.retryCents + cost.otherCents;
-  const ordinaryTargetCents = Math.min(1000, Math.floor(cost.availableCashCents / 5));
-  const founderExceptionNeeded = totalCents >= 1000 || totalCents > ordinaryTargetCents;
-  const reserveGuidelineMet = (cost.availableCashCents - totalCents) * 2 >= cost.availableCashCents;
-  if (totalCents > 3000 || totalCents > cost.availableCashCents) {
+  const reviewed = assessPilotBudget(BigInt(totalCents)*10000n, BigInt(cost.availableCashCents)*10000n);
+  const ordinaryTargetCents = Number(BigInt(reviewed.ordinaryTargetUsdMicros)/10000n);
+  const { founderExceptionNeeded, reserveGuidelineMet } = reviewed;
+  if (reviewed.status==='blocked') {
     gates.push(gate('pilotCost', 'blocked', 'The total exceeds available cash or the US$30 exception ceiling.'));
   } else {
     gates.push(gate('pilotCost', founderExceptionNeeded ? 'review' : 'pass', founderExceptionNeeded ?
