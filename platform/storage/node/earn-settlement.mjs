@@ -24,7 +24,7 @@ export function loadReferenceBoard(db,{epoch,nowMs,sourceComplete,sourceRef}) {
   }
   const late=db.prepare(`SELECT s.wallet,r.reviewed_ms,d.qualified FROM earn_reviews r
     JOIN earn_submissions s ON s.id=r.submission_id LEFT JOIN earn_decisions d ON d.submission_id=s.id
-    WHERE r.reviewed_ms BETWEEN ? AND ? AND s.epoch<? AND r.content_score>0`).all(epoch*DAY_MS,cutoff,epoch);
+    WHERE r.reviewed_ms BETWEEN ? AND ? AND s.epoch<? AND r.content_score>0 ORDER BY r.reviewed_ms,r.rowid`).all(epoch*DAY_MS,cutoff,epoch);
   for(const wallet of new Set([...posts.map(p=>p.wallet),...late.map(p=>p.wallet)])) {
     previousStreaks[wallet]=db.prepare('SELECT epoch,days,last_approval_ms AS lastApprovalMs FROM earn_streaks WHERE epoch=? AND wallet=?').get(epoch-1,wallet)??null;
   }

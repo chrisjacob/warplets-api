@@ -33,7 +33,8 @@ export function validateSource(value){
  if(['damm-pool-v1','spl-mint-v1','spl-vault-v1'].includes(s.decoderVersion))requireEvidence(text(s.policy.ownerProgram),'source-program-required');
  if(s.decoderVersion==='damm-pool-v1')requireEvidence(['attMint','ogMint','attVault','ogVault'].every(k=>text(s.policy.expected?.[k])),'source-pool-identities');
  if(s.decoderVersion==='spl-vault-v1')requireEvidence(text(s.policy.expected?.mint),'source-vault-mint');
- if(s.decoderVersion==='synthetic-position-history-v1')requireEvidence(['wallet','tokenId','farmProgram','swapProgram'].every(k=>text(s.policy[k]))&&time(s.policy.enrolledAtMs),'source-history-identities');
+ if(['synthetic-position-history-v1','synthetic-position-history-v2'].includes(s.decoderVersion))requireEvidence(['wallet','tokenId','farmProgram','swapProgram'].every(k=>text(s.policy[k]))&&time(s.policy.enrolledAtMs),'source-history-identities');
+ if(s.decoderVersion==='synthetic-cutoff-facts-v1')requireEvidence(['campaign-registry','ownership','position-inventory','action-completions'].includes(s.policy.kind)&&time(s.policy.fromMs),'source-cutoff-policy');
  requireEvidence(utf8(canonicalJson(s)).byteLength<=65536,'source-config-bound');return Object.freeze(s);
 }
 export const streamKey=e=>canonicalJson([e.sourceId,e.subject.kind,e.subject.id,e.requestedCutoffMs]);

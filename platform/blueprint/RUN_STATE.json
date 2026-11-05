@@ -5,14 +5,14 @@
   "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
   "currentTask": "B05",
-  "lastUpdatedAt": "2026-11-05T20:34:19.974477+00:00",
+  "lastUpdatedAt": "2026-11-05T20:46:47.664276+00:00",
   "migrationAllocation": {
-    "next": 28,
+    "next": 29,
     "reserved": [
       {
-        "version": 27,
+        "version": 28,
         "task": "B05",
-        "purpose": "frozen epoch admission inventory and exact-cutoff manifests"
+        "purpose": "immutable cutoff snapshot attempts and private manifest roots"
       }
     ],
     "historicalGap": 19
@@ -100,7 +100,7 @@
       "implementationCommit": null,
       "pushed": false,
       "evidence": [],
-      "nextAction": "Coordinator: freeze/paginate SQL inventory, verify position checkpoint chain and persist private manifest. Agent: pure requirement selection, synthetic coverage facts/historyv2 decoders. Migration027 reserved.",
+      "nextAction": "B05.1 freeze/requirement selection/paged late inputs tested; checkpoint push/CI next. Then integrate pure position-chain verifier and implement cutoff-inventory/snapshot private-page persistence. Decisions in decisions/B05-cutoff-snapshots.md. B05 not complete.",
       "blocker": null
     },
     "B06": {

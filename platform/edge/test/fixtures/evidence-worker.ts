@@ -8,8 +8,16 @@ import {createEvidenceService} from '../../../evidence/service.mjs';
 import {createRecordedReader} from '../../../evidence/recorded.mjs';
 import {canonicalJson} from '../../../security/canonical.mjs';
 import type {EvidenceSource,Recording} from '../../../evidence/types';
+import type {EvidenceResult} from '../../../evidence/types';
+import {buildRequirementSpecs,selectRequirementReceipts} from '../../../evidence/requirements.mjs';
+import type {RequirementInput} from '../../../evidence/requirements.mjs';
 export default {async fetch(request:Request,env:Env){
  if(new URL(request.url).hostname!=='localhost')return new Response('fixture only',{status:403});
+ if(new URL(request.url).pathname==='/select'){
+  const body=await request.json() as {inputs:RequirementInput[];heads:[string,EvidenceResult|null][]};
+  const cryptoPort=createWebCrypto(),specs=await buildRequirementSpecs(body.inputs,cryptoPort);
+  return Response.json(await selectRequirementReceipts(specs,new Map(body.heads),cryptoPort));
+ }
  const b=await request.json() as {source:EvidenceSource;records:Array<Omit<Recording,'bytes'>&{bytes:number[]}>;now:number;action:'register'|'ingest'|'head';recordId:string;cutoff:number;supersedes:string|null;key:string;fault?:string};
  const cryptoPort=createWebCrypto(),base=createD1AtomicDriver(env.DB);let injected=false;
  const driver={...base,async batch(statements:Parameters<typeof base.batch>[0]){

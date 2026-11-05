@@ -3,17 +3,18 @@ import {normalizePolicy,assessObservation} from '../pricing/policy.mjs';
 import {applyPurchaseActivity,enrollPosition} from '../domain/earn/index.mjs';
 import {canonicalJson} from '../security/canonical.mjs';
 import {time,text} from './envelope.mjs';
+import {decodeCutoffFacts} from './cutoff-facts.mjs';
 const decision=(status,reason,scope,decoded=null,gaps=[])=>({status,reason,scope,coverage:{complete:false,gaps},decoded});
 const legacy=n=>n==='local-solana'||n==='solana-local';
 function history(source,payload,envelope){
  const p=source.policy;
  if(source.mode!=='synthetic-fixture'||!legacy(payload.network))return decision('incompatible','history-adapter-unavailable','decoder-only');
  if(payload.wallet!==p.wallet||payload.tokenId!==p.tokenId)return decision('incompatible','position-identity','synthetic-transcript');
- if(!time(payload.enrolledAtMs)||payload.enrolledAtMs!==p.enrolledAtMs||!time(payload.throughMs))return decision('invalid','history-time','synthetic-transcript');
+ if(!time(payload.enrolledAtMs)||payload.enrolledAtMs!==p.enrolledAtMs||!time(payload.throughMs)||payload.throughMs<payload.enrolledAtMs)return decision('invalid','history-time','synthetic-transcript');
  if(!Array.isArray(payload.pages)||payload.pages.length>20)return decision('invalid','history-page-bound','synthetic-transcript');
  if(!payload.pages.length)return decision('pending','history-coverage-missing','synthetic-transcript');
  let cursor=null,position=enrollPosition(p.wallet,p.tokenId),previousTime=payload.enrolledAtMs,count=0;
- const signatures=new Set(),purchases=new Set(),cursors=new Set();let pageIndex=0;
+ const signatures=new Set(),purchases=new Set(),cursors=new Set(),events=[];let pageIndex=0;
  for(const page of payload.pages){
   if(pageIndex++>0&&cursor===null)return decision('invalid','history-after-terminal-page','synthetic-transcript');
   if(page.nextCursor!==null&&!text(page.nextCursor))return decision('invalid','history-cursor','synthetic-transcript');
@@ -42,12 +43,22 @@ function history(source,payload,envelope){
       return decision('incompatible','unlinked-purchase-deposit','synthetic-transcript');
    }
    position=applyPurchaseActivity(position,e);previousTime=e.atMs;
+   if(source.decoderVersion==='synthetic-position-history-v2'){
+    const normalized={type:e.type,signature:e.signature,instructionIndex:e.instructionIndex,wallet:e.wallet,tokenId:e.tokenId,
+     sequence:e.sequence,atMs:e.atMs,confirmed:true};
+    if(e.type==='verified-buy-and-stake'){
+     if(e.netBoughtUnits<=0n||e.depositedUnits<=0n)return decision('invalid','history-purchase-units','synthetic-transcript');
+     Object.assign(normalized,{swapIndex:e.swap.instructionIndex,netBoughtUnits:String(e.netBoughtUnits),depositedUnits:String(e.depositedUnits)});
+    }else if(e.type==='withdrawal')Object.assign(normalized,{withdrawnUnits:String(e.withdrawnUnits),remainingStakeUnits:String(e.remainingStakeUnits)});
+    events.push(normalized);
+   }
   }
   cursor=page.nextCursor;
  }
  if(cursor!==null||payload.complete!==true||payload.throughMs!==envelope.requestedCutoffMs)return decision('pending','incomplete-history','synthetic-transcript',null,['history-coverage']);
  return {status:'verified',reason:'synthetic-history-validated',scope:'synthetic-transcript',coverage:{complete:true,fromMs:payload.enrolledAtMs,toMs:payload.throughMs,gaps:[]},
-  decoded:{wallet:p.wallet,tokenId:p.tokenId,sequence:position.sequence,creditedUnits:String(position.creditedUnits),flags:position.flags,legacyNetwork:payload.network}};
+  decoded:{wallet:p.wallet,tokenId:p.tokenId,sequence:position.sequence,creditedUnits:String(position.creditedUnits),flags:position.flags,legacyNetwork:payload.network,
+   ...(source.decoderVersion==='synthetic-position-history-v2'?{events}:{})}};
 }
 export function decodeRecorded(source,record,envelope){
  let payload;
@@ -62,7 +73,8 @@ export function decodeRecorded(source,record,envelope){
  if(envelope.blockTimeMs>effectiveCutoff)return decision('pending','future-cutoff-observation','decoder-only');
  if(effectiveCutoff-envelope.blockTimeMs>source.maxAgeMs)return decision('pending','stale-cutoff-observation','decoder-only');
  try{
-  if(source.decoderVersion==='synthetic-position-history-v1')return history(source,payload,envelope);
+  if(['synthetic-position-history-v1','synthetic-position-history-v2'].includes(source.decoderVersion))return history(source,payload,envelope);
+  if(source.decoderVersion==='synthetic-cutoff-facts-v1')return decodeCutoffFacts(source,payload,envelope);
   if(source.decoderVersion==='synthetic-pricing-v1'){
    if(source.mode!=='synthetic-fixture'||payload.pool?.network!=='local-solana')return decision('incompatible','legacy-fixture-mode-required','decoder-only');
    const policy=normalizePolicy(source.policy);

@@ -1,0 +1,66 @@
+{
+  "taskId": "B05",
+  "substep": "B05.1",
+  "status": "in_progress",
+  "implementationCommit": null,
+  "migration": "027-cutoff-manifests.sql (admission freeze foundations)",
+  "classification": "synthetic local Node and workerd/D1/R2",
+  "commands": [
+    {
+      "command": "node platform/scripts/test-reference.mjs",
+      "tests": 209,
+      "exitCode": 0
+    },
+    {
+      "command": "node --test platform/evidence/*.test.mjs platform/pricing/*.test.mjs platform/earn/components.test.mjs platform/quotes/*.test.mjs",
+      "tests": 38,
+      "exitCode": 0
+    },
+    {
+      "command": "node --test platform/edge/test/evidence.test.mjs",
+      "tests": 1,
+      "exitCode": 0
+    },
+    {
+      "command": "node --test platform/edge/test/cutoff.test.mjs",
+      "tests": 1,
+      "exitCode": 0
+    },
+    {
+      "command": "node --test platform/edge/test/board-input.test.mjs",
+      "tests": 2,
+      "exitCode": 0
+    },
+    {
+      "command": "edge TypeScript and git diff --check",
+      "exitCode": 0
+    }
+  ],
+  "assertions": [
+    "Epoch freezes100canonical admission row digests atomically and rejects later insert/update/delete",
+    "Scope revoked during hash rejects freeze; omitted child rolls back; response loss recovers receipt",
+    "100current+101late wallets including equal-time pagination match reference on Node/D1",
+    "Mid-page source change rejects entire snapshot",
+    "Requirement selection binds current receipt, exact values/cutoff/coverage and separate authorities",
+    "Synthetic terminal pages distinguish completeempty from missing coverage",
+    "Historyv2 binds full normalized journal and preservesv1"
+  ],
+  "measurements": {
+    "freezeNodeBatchBytes": 13670,
+    "freezeD1BatchBytes": 13697,
+    "freezeMaxParameters": 23,
+    "currentWallets": 100,
+    "lateWallets": 101,
+    "boardInputBytes": 91428,
+    "boardInputReadBatches": 14
+  },
+  "review": "Independent agent inspection of freeze/paging plus coordinator trust/shape inspection; no demonstrated remaining defect in this substep",
+  "remaining": [
+    "Full frozen inventory enumeration and source bindings",
+    "Chronological purchase checkpoint proof integration",
+    "Private paginated immutable manifest persistence/CAS and pending jobs",
+    "Complete snapshot acceptance cases before B05verification"
+  ],
+  "providerAttempts": 0,
+  "remoteCloudflareWrites": false
+}

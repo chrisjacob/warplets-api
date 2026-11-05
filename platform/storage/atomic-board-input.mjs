@@ -18,14 +18,14 @@ export async function loadAtomicBoardInput(driver,crypto,{epoch,nowMs,sourceRef}
   if(nowMs<=cutoff)return pending('board-open');
   let readBatches=0;
   const read=async statements=>{readBatches++;return (await driver.batch(statements)).map(r=>r.rows);};
-  const [versionRows,closed,previousOpen,posts,late,campaigns,collections,intervals]=await read([
+  const [versionRows,closed,previousOpen,posts,firstLate,campaigns,collections,intervals]=await read([
     sql('SELECT * FROM app_revisions ORDER BY name'),sql('SELECT snapshot_hash,winners FROM earn_boards WHERE epoch=?',epoch),
     sql('SELECT 1 FROM earn_submissions s WHERE s.epoch=? AND NOT EXISTS(SELECT 1 FROM earn_boards b WHERE b.epoch=s.epoch) LIMIT 1',epoch-1),
     sql(`SELECT s.*,r.content_score,r.reviewed_ms,r.source_ref AS review_ref,r.reason,r.moderator,e.micro_usd AS entry_micro_usd
       FROM earn_submissions s JOIN earn_stake_reads e ON e.id=s.entry_read_id LEFT JOIN earn_reviews r ON r.submission_id=s.id
       WHERE s.epoch=? ORDER BY s.id LIMIT 101`,epoch),
-    sql(`SELECT s.wallet,r.reviewed_ms,d.qualified FROM earn_reviews r JOIN earn_submissions s ON s.id=r.submission_id
-      LEFT JOIN earn_decisions d ON d.submission_id=s.id WHERE r.reviewed_ms BETWEEN ? AND ? AND s.epoch<? AND r.content_score>0 LIMIT 101`,epoch*DAY_MS,cutoff,epoch),
+    sql(`SELECT s.wallet,r.reviewed_ms,d.qualified,r.rowid AS cursor_row FROM earn_reviews r JOIN earn_submissions s ON s.id=r.submission_id
+      LEFT JOIN earn_decisions d ON d.submission_id=s.id WHERE r.reviewed_ms BETWEEN ? AND ? AND s.epoch<? AND r.content_score>0 ORDER BY r.reviewed_ms,r.rowid LIMIT 100`,epoch*DAY_MS,cutoff,epoch),
     sql(`SELECT DISTINCT c.token_id AS tokenId,c.activation_ms AS activationMs FROM earn_fixture_campaigns c
       JOIN earn_submissions s ON s.token_id=c.token_id WHERE s.epoch=? ORDER BY c.token_id LIMIT 101`,epoch),
     sql('SELECT * FROM earn_known_collections ORDER BY collection_id LIMIT 101'),
@@ -35,9 +35,19 @@ export async function loadAtomicBoardInput(driver,crypto,{epoch,nowMs,sourceRef}
   ]);
   if(closed[0])return {kind:'final',epoch,snapshotId:closed[0].snapshot_hash,winners:JSON.parse(closed[0].winners)};
   if(previousOpen.length)return pending('previous-board');
-  if(![posts,late,campaigns,collections,intervals].every(bounded))return pending('board-input-bound');
-  const wallets=[...new Set([...posts.map(p=>p.wallet),...late.map(p=>p.wallet)])];
-  if(wallets.length>100)return pending('board-input-bound');
+  if(![posts,campaigns,collections,intervals].every(bounded))return pending('board-input-bound');
+  const lateRows=[...firstLate];let page=firstLate;
+  while(page.length===100){
+    const cursor=page.at(-1);
+    [page]=await read([sql(`SELECT s.wallet,r.reviewed_ms,d.qualified,r.rowid AS cursor_row FROM earn_reviews r
+      JOIN earn_submissions s ON s.id=r.submission_id LEFT JOIN earn_decisions d ON d.submission_id=s.id
+      WHERE r.reviewed_ms BETWEEN ? AND ? AND s.epoch<? AND r.content_score>0
+       AND (r.reviewed_ms>? OR (r.reviewed_ms=? AND r.rowid>?)) ORDER BY r.reviewed_ms,r.rowid LIMIT 100`,
+      epoch*DAY_MS,cutoff,epoch,cursor.reviewed_ms,cursor.reviewed_ms,cursor.cursor_row)]);
+    lateRows.push(...page);if(lateRows.length>1000)return pending('late-approval-bound');
+  }
+  const late=lateRows.map(({cursor_row,...row})=>row);
+  const wallets=[...new Set(posts.map(p=>p.wallet))],currentWallets=new Set(wallets),lateOnly=[...new Set(late.map(p=>p.wallet))].filter(wallet=>!currentWallets.has(wallet));
   const closingStake=Object.create(null),facts=Object.create(null),previousStreaks=Object.create(null);
   const walletStatements=wallet=>[
       sql(`SELECT CASE WHEN length(assets)<=262144 THEN assets ELSE NULL END AS assets,source_ref
@@ -77,9 +87,17 @@ export async function loadAtomicBoardInput(driver,crypto,{epoch,nowMs,sourceRef}
     }
   }
   }
+  // Late approvals need the prior streak only. They do not require current
+  // ownership or position reads, and do not consume the100 current admissions.
+  if(lateOnly.length){
+    const statements=[];for(let offset=0;offset<lateOnly.length;offset+=99){const group=lateOnly.slice(offset,offset+99);
+      statements.push(sql(`SELECT wallet,epoch,days,last_approval_ms AS lastApprovalMs FROM earn_streaks WHERE epoch=? AND wallet IN (${group.map(()=>'?').join(',')})`,epoch-1,...group));}
+    const rows=(await read(statements)).flat(),byWallet=new Map(rows.map(({wallet,...streak})=>[wallet,streak]));
+    for(const wallet of lateOnly)previousStreaks[wallet]=byWallet.get(wallet)??null;
+  }
   const input={epoch,cutoff,nowMs,sourceRef,posts,closingStake,facts,late,previousStreaks,campaigns};
   const bytes=utf8(canonicalJson(input));if(bytes.byteLength>256*1024)return pending('board-input-bound');
   const current=revisions((await read([sql('SELECT * FROM app_revisions ORDER BY name')]))[0]),captured=revisions(versionRows);
   if(canonicalJson(current)!==canonicalJson(captured))return {kind:'conflict',code:'revision_conflict'};
-  return {kind:'loaded',input,versions:captured,inputDigest:await crypto.sha256(bytes),measurements:{inputBytes:bytes.byteLength,participants:wallets.length,posts:posts.length,readBatches}};
+  return {kind:'loaded',input,versions:captured,inputDigest:await crypto.sha256(bytes),measurements:{inputBytes:bytes.byteLength,participants:wallets.length+lateOnly.length,posts:posts.length,readBatches}};
 }

@@ -8,6 +8,7 @@ import {decodeRecorded} from './decoders.mjs';
 import {samplePolicy,sampleObservation} from '../pricing/fixtures.mjs';
 import {inspectCapture,captureSha256} from '../lab/capture.mjs';
 import {evidenceFixture} from './fixtures.mjs';
+import {buildRequirementSpecs,normalizeRequirementValue} from './requirements.mjs';
 const crypto=createNodeCrypto(),now=100000;
 function decode(source,payload,changes={}){return decodeRecorded(source,{bytes:utf8(canonicalJson(payload))},{contextSlot:'100',blockTimeMs:now,requestedCutoffMs:now,finality:'finalized',chainGenesis:null,...changes});}
 test('synthetic pricing reuses pinned integer policy and retains legacy network without rewriting observation clocks',()=>{
@@ -55,6 +56,33 @@ test('repeated empty history page cursors cannot assert complete coverage',()=>{
  const complete=decode(source,{...payload,pages:[page(null,'x'),page('x','y'),page('y',null)]});
  assert.equal(complete.status,'verified');assert.equal(complete.coverage.complete,true);
  assert.equal(decode(source,{...payload,pages:[page(null,'x')]}).status,'pending');
+});
+test('history v2 preserves the economic journal so an exit and repurchase cannot hide behind the same terminal credit',async()=>{
+ const policy={wallet:'alice',tokenId:'ATT',farmProgram:'fixture-farm',swapProgram:'fixture-swap',enrolledAtMs:now-1000};
+ const source={mode:'synthetic-fixture',decoderVersion:'synthetic-position-history-v2',policy,maxBytes:262144,maxAgeMs:300000};
+ const event=(sequence,type)=>({wallet:'alice',tokenId:'ATT',program:policy.farmProgram,finality:'finalized',type,sequence,atMs:now-1000+sequence*100,
+  signature:'tx'+sequence,instructionIndex:2,sourceRef:'untrusted-label'});
+ const buy=sequence=>({...event(sequence,'verified-buy-and-stake'),netBoughtUnits:'12',depositedUnits:'12',
+  swap:{program:policy.swapProgram,wallet:'alice',tokenId:'ATT',signature:'tx'+sequence,instructionIndex:1,netBoughtUnits:'12'},
+  deposit:{wallet:'alice',tokenId:'ATT',signature:'tx'+sequence,instructionIndex:2,depositedUnits:'12'}});
+ const payload=events=>({network:'solana-local',wallet:'alice',tokenId:'ATT',enrolledAtMs:policy.enrolledAtMs,throughMs:now,complete:true,
+  pages:[{cursor:null,nextCursor:null,events}]});
+ const withdrawn=decode(source,payload([buy(1),{...event(2,'withdrawal'),withdrawnUnits:'12',remainingStakeUnits:'0'},buy(3)]));
+ const retained=decode(source,payload([buy(1),event(2,'deposit'),event(3,'reward')]));
+ assert.equal(withdrawn.status,'verified');assert.equal(retained.status,'verified');
+ assert.equal(withdrawn.decoded.sequence,retained.decoded.sequence);assert.equal(withdrawn.decoded.creditedUnits,retained.decoded.creditedUnits);
+ const value=d=>normalizeRequirementValue('position-history',source.decoderVersion,d.decoded);
+ const input=decoded=>({authority:'evidence',kind:'position-history',subject:{kind:'position',id:'alice:ATT'},cutoffMs:now,sourceId:'history',sourceRevision:'1',
+  decoderVersion:source.decoderVersion,value:value(decoded),coverage:{required:'interval',fromMs:policy.enrolledAtMs,toMs:now}});
+ const [a]=await buildRequirementSpecs([input(withdrawn)],crypto),[b]=await buildRequirementSpecs([input(retained)],crypto);
+ assert.notEqual(a.expectedValueDigest,b.expectedValueDigest);
+ assert.deepEqual(withdrawn.decoded.events[1],{type:'withdrawal',signature:'tx2',instructionIndex:2,wallet:'alice',tokenId:'ATT',sequence:2,atMs:now-800,
+  confirmed:true,withdrawnUnits:'12',remainingStakeUnits:'0'});
+ assert.equal(withdrawn.decoded.events[0].swapIndex,1);assert.equal(Object.hasOwn(withdrawn.decoded.events[0],'sourceRef'),false);
+ assert.equal(Object.hasOwn(withdrawn.decoded.events[0],'program'),false);
+ const v1=decode({...source,decoderVersion:'synthetic-position-history-v1'},payload([buy(1)]));
+ assert.equal(Object.hasOwn(v1.decoded,'events'),false,'v1 output shape stays unchanged');
+ assert.equal(decode(source,{...payload([]),throughMs:policy.enrolledAtMs-1}).reason,'history-time');
 });
 test('genuine pinned public account capture remains a decoder-only vector with absent genesis/block time',async()=>{
  const archive=readFileSync(new URL('../lab/fixtures/programs-mainnet.json.gz',import.meta.url)),pin=JSON.parse(readFileSync(new URL('../lab/fixtures/programs.json',import.meta.url)));
