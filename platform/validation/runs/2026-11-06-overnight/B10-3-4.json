@@ -7,7 +7,7 @@
   ],
   "status": "verified-local",
   "baseCommit": "d7d50c065c540e331c9fc5d53e6002a3ca74deee",
-  "implementationCommit": null,
+  "implementationCommit": "96cdfa1fb6334fcb27deb831d786243227b9d1a8",
   "classification": "synthetic fixture holdings and genuine local API/browser acceptance",
   "commands": [
     {
