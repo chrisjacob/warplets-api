@@ -1,0 +1,67 @@
+{
+  "taskId": "B00",
+  "baseCommit": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
+  "environment": {
+    "node": "22.22.3",
+    "pnpm": "10.26.0",
+    "os": "Windows",
+    "mode": "local-validation"
+  },
+  "checks": [
+    {
+      "command": "node platform/scripts/test-reference.mjs",
+      "exitCode": 0,
+      "tests": 128
+    },
+    {
+      "command": "pnpm --dir platform/site build",
+      "exitCode": 0,
+      "tests": null
+    },
+    {
+      "command": "pnpm --dir platform/site test",
+      "exitCode": 0,
+      "tests": 4
+    },
+    {
+      "command": "pnpm --dir platform/edge typecheck",
+      "exitCode": 0,
+      "tests": null
+    },
+    {
+      "command": "pnpm --dir platform/edge test",
+      "exitCode": 0,
+      "tests": 1
+    },
+    {
+      "command": "pnpm --dir platform/beacon test",
+      "exitCode": 0,
+      "tests": 2
+    },
+    {
+      "command": "node platform/contracts/generate.mjs --check",
+      "exitCode": 0,
+      "tests": null
+    },
+    {
+      "command": "node platform/earn/recovery-drill.mjs",
+      "exitCode": 0,
+      "tests": null
+    }
+  ],
+  "permissionObservations": "Sandbox pnpm produced EPERM; sandbox reference run had4failures. Authorized outside-sandbox rerun passed128/128. No code changed to obtain passing baseline.",
+  "initialDirtyPaths": [],
+  "fixtureClassification": "Synthetic application tests; existing recorded beacon vector. No live financial evidence.",
+  "capabilities": {
+    "node": "full local reference",
+    "worker": "narrow local D1/R2",
+    "financialExecution": false
+  },
+  "migrations": {
+    "latest": 21,
+    "next": 22,
+    "gapPreserved": 19
+  },
+  "deployment": false,
+  "spend": 0
+}

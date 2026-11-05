@@ -1,0 +1,205 @@
+{
+  "source": "Captured from pre-B01 Node behavior at 1c2dc7030060d411f58eb6f99fa1f22a566042a2; sanitized synthetic archive.test scenario with stable submission IDs.",
+  "epoch": 20001,
+  "start": 1728086400000,
+  "cutoff": 1728172799999,
+  "bundle": {
+    "sha256": "d19cdfd5f04dbcb8123b3e8835d58bade5e56018f48bb837607927b4f8882e4f",
+    "manifest": {
+      "format": "10x.local.earn.public.v1",
+      "board": {
+        "epoch": 20001,
+        "finalizedAtMs": 1728172800000,
+        "snapshotId": "68d416e1208c3f8dd865b054e17943eb10a9aa3a6d4986eef3a154f6e7e3181d",
+        "winners": [
+          {
+            "userId": "w1",
+            "wallet": "w1",
+            "submissionId": "submission-w1",
+            "tokenId": "A",
+            "submittedAtMs": 1728086400000,
+            "contentScore": 7,
+            "multiplierTenths": 1,
+            "pointsTenths": 7
+          },
+          {
+            "userId": "w2",
+            "wallet": "w2",
+            "submissionId": "submission-w2",
+            "tokenId": "A",
+            "submittedAtMs": 1728086400000,
+            "contentScore": 7,
+            "multiplierTenths": 1,
+            "pointsTenths": 7
+          },
+          {
+            "userId": "w3",
+            "wallet": "w3",
+            "submissionId": "submission-w3",
+            "tokenId": "A",
+            "submittedAtMs": 1728086400000,
+            "contentScore": 7,
+            "multiplierTenths": 1,
+            "pointsTenths": 7
+          }
+        ]
+      },
+      "boardId": "c17f1264f558a895268cdfdbbc51e8f9008538a971d34853e0fe2fc7d1c1d828",
+      "allocations": [
+        {
+          "boardId": "c17f1264f558a895268cdfdbbc51e8f9008538a971d34853e0fe2fc7d1c1d828",
+          "tokenId": "A",
+          "day": 2,
+          "activationMs": 1728086400000,
+          "originalUnits": "1000000",
+          "startsAtMs": 1728172800000,
+          "vestsFromMs": 1728259200000,
+          "vestsThroughMs": 1728345600000,
+          "budgetUnits": "10000",
+          "burnUnits": "7000",
+          "awards": [
+            {
+              "wallet": "w1",
+              "amountUnits": "1000"
+            },
+            {
+              "wallet": "w2",
+              "amountUnits": "1000"
+            },
+            {
+              "wallet": "w3",
+              "amountUnits": "1000"
+            }
+          ],
+          "awardRoot": "3e34a1dd3f7d105fe536f51079dddf1f0b8cdf64d6f1ea7cbdb5f1ae0f049f2a"
+        }
+      ]
+    }
+  },
+  "allocationDigest": "2506480270980e5be6e8211cf67c3af09a3f9020b3c8499def260eca8a2d0d5f",
+  "proofs": [
+    {
+      "mode": "local-fixture",
+      "manifestDigest": "d19cdfd5f04dbcb8123b3e8835d58bade5e56018f48bb837607927b4f8882e4f",
+      "proof": {
+        "format": "10x.local.earn.public.v1",
+        "context": {
+          "boardId": "c17f1264f558a895268cdfdbbc51e8f9008538a971d34853e0fe2fc7d1c1d828",
+          "tokenId": "A",
+          "day": 2,
+          "vestsFromMs": 1728259200000,
+          "vestsThroughMs": 1728345600000
+        },
+        "award": {
+          "wallet": "w1",
+          "amountUnits": "1000"
+        },
+        "path": [
+          {
+            "side": "right",
+            "hash": "91855461a1f3416c28b3b60d6a6d72a87225dd53d481fbd8b5e1924d7c255846"
+          },
+          {
+            "side": "right",
+            "hash": "b27a79861b207dc4a7d367f158d388340dc25c5605ee73f4a8e484b210541549"
+          }
+        ],
+        "root": "3e34a1dd3f7d105fe536f51079dddf1f0b8cdf64d6f1ea7cbdb5f1ae0f049f2a"
+      }
+    },
+    {
+      "mode": "local-fixture",
+      "manifestDigest": "d19cdfd5f04dbcb8123b3e8835d58bade5e56018f48bb837607927b4f8882e4f",
+      "proof": {
+        "format": "10x.local.earn.public.v1",
+        "context": {
+          "boardId": "c17f1264f558a895268cdfdbbc51e8f9008538a971d34853e0fe2fc7d1c1d828",
+          "tokenId": "A",
+          "day": 2,
+          "vestsFromMs": 1728259200000,
+          "vestsThroughMs": 1728345600000
+        },
+        "award": {
+          "wallet": "w2",
+          "amountUnits": "1000"
+        },
+        "path": [
+          {
+            "side": "left",
+            "hash": "1f258f93eb2ef63ae702dcb62d2584a790c82f671b580693e774deefb6c117ad"
+          },
+          {
+            "side": "right",
+            "hash": "b27a79861b207dc4a7d367f158d388340dc25c5605ee73f4a8e484b210541549"
+          }
+        ],
+        "root": "3e34a1dd3f7d105fe536f51079dddf1f0b8cdf64d6f1ea7cbdb5f1ae0f049f2a"
+      }
+    },
+    {
+      "mode": "local-fixture",
+      "manifestDigest": "d19cdfd5f04dbcb8123b3e8835d58bade5e56018f48bb837607927b4f8882e4f",
+      "proof": {
+        "format": "10x.local.earn.public.v1",
+        "context": {
+          "boardId": "c17f1264f558a895268cdfdbbc51e8f9008538a971d34853e0fe2fc7d1c1d828",
+          "tokenId": "A",
+          "day": 2,
+          "vestsFromMs": 1728259200000,
+          "vestsThroughMs": 1728345600000
+        },
+        "award": {
+          "wallet": "w3",
+          "amountUnits": "1000"
+        },
+        "path": [
+          {
+            "side": "left",
+            "hash": "57bb078c9bf278ef5d427d6576cc78e76adab0ce3a17dcee01dfd7c3d9e2ff5a"
+          }
+        ],
+        "root": "3e34a1dd3f7d105fe536f51079dddf1f0b8cdf64d6f1ea7cbdb5f1ae0f049f2a"
+      }
+    }
+  ],
+  "auditHead": "b77cacb309be2925f6bb6e328b7504858e6b62724edc84ef7baf5572d48d8adf",
+  "configCheckpoint": {
+    "format": "10x-local-config-audit-v1",
+    "chain": {
+      "format": "10x-local-config-audit-v1",
+      "events": 2,
+      "head": "b77cacb309be2925f6bb6e328b7504858e6b62724edc84ef7baf5572d48d8adf"
+    },
+    "tables": {
+      "earn_action_catalog": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "earn_action_changes": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "earn_workload_policies": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "price_sources": {
+        "rows": 1,
+        "sha256": "faf289d8ace5d99c0e42b1feb93c68a2189b0cf517b23ca471745ec1c6ad6f42"
+      },
+      "ops_scope_log": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "earn_issuer_grants": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "earn_issuer_revocations": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    "digest": "2398eab88cca9bb51bcd38d76cae6082d9aad885dcd156655ca005730400702c"
+  }
+}

@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
-  "runId": null,
-  "phase": "planned",
-  "baselineHead": "5f3cafffc08d2404976ea14532dad2d2751cffcd",
+  "runId": "2026-11-05-overnight",
+  "phase": "executing",
+  "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
-  "currentTask": null,
-  "lastUpdatedAt": null,
+  "currentTask": "B01",
+  "lastUpdatedAt": "2026-11-05T12:20:55.190Z",
   "migrationAllocation": {
     "next": 22,
     "reserved": [],
@@ -25,23 +25,25 @@
   },
   "tasks": {
     "B00": {
-      "status": "not_started",
-      "owner": null,
-      "baseCommit": null,
+      "status": "in_progress",
+      "owner": "coordinator",
+      "baseCommit": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
       "implementationCommit": null,
       "pushed": false,
-      "evidence": [],
-      "nextAction": null,
+      "evidence": [
+        "platform/validation/runs/2026-11-05-overnight/B00.json"
+      ],
+      "nextAction": "Pin golden archive fixture and commit baseline.",
       "blocker": null
     },
     "B01": {
-      "status": "not_started",
-      "owner": null,
-      "baseCommit": null,
+      "status": "in_progress",
+      "owner": "earn",
+      "baseCommit": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
       "implementationCommit": null,
       "pushed": false,
       "evidence": [],
-      "nextAction": null,
+      "nextAction": "Portable crypto and Node service extraction.",
       "blocker": null
     },
     "B02": {
@@ -115,13 +117,13 @@
       "blocker": null
     },
     "B09": {
-      "status": "not_started",
-      "owner": null,
-      "baseCommit": null,
+      "status": "in_progress",
+      "owner": "coordinator",
+      "baseCommit": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
       "implementationCommit": null,
       "pushed": false,
       "evidence": [],
-      "nextAction": null,
+      "nextAction": "B09.1 guard implemented; complete capability-aware rendering and wallet/session lifecycle.",
       "blocker": null
     },
     "B10": {
