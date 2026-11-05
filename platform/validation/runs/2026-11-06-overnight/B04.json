@@ -1,0 +1,68 @@
+{
+  "taskId": "B04",
+  "status": "tested",
+  "implementationCommit": null,
+  "migration": "026-evidence-provenance.sql",
+  "classification": "synthetic transcripts and separately labeled pinned genuine public decoder vector; local Node and workerd/D1/R2 only",
+  "commands": [
+    {
+      "command": "node --test platform/evidence/*.test.mjs platform/pricing/*.test.mjs platform/earn/components.test.mjs platform/quotes/*.test.mjs",
+      "tests": 28,
+      "exitCode": 0
+    },
+    {
+      "command": "node --test platform/edge/test/evidence.test.mjs",
+      "tests": 1,
+      "exitCode": 0
+    },
+    {
+      "command": "node platform/scripts/test-reference.mjs",
+      "tests": 196,
+      "exitCode": 0
+    },
+    {
+      "command": "node --test platform/edge/test/*.test.mjs",
+      "tests": 21,
+      "exitCode": 0
+    },
+    {
+      "command": "edge TypeScript and contract drift",
+      "exitCode": 0
+    }
+  ],
+  "assertions": [
+    "Registered recording digest binds metadata and byte digests",
+    "Distinct context/block/retrieval/ingestion/cutoff times preserved",
+    "Wrong identity, byte mutation, truncation, missing/future time and decoder drift fail or hold",
+    "Complete synthetic histories process ordered direct activity through shared purchase reducer",
+    "Current pending/invalid head masks prior verified receipt",
+    "Concurrent correction and missing-head rollback preserve immutable lineage",
+    "Duplicate evidence replay and private byte deduplication",
+    "Lost-response recovery and accepted replay survive missing reader and revoked scope"
+  ],
+  "review": {
+    "method": "coordinator trust/identity/replay inspection plus regression tests",
+    "fixed": [
+      "Accepted ingest replay previously required recording adapter availability"
+    ]
+  },
+  "genuineVector": {
+    "path": "platform/lab/fixtures/programs-mainnet.json.gz",
+    "sha256": "4159978c9699c5ae450fff95a2c1b022ab04d38a49b2c5b4675f3dfbfa9c6296",
+    "classification": "decoder-only; missing genesis/block time retained, historical coverage pending"
+  },
+  "bounds": {
+    "rawBytes": 262144,
+    "sourceConfigBytes": 65536,
+    "recordedEntries": 100,
+    "historyPages": 20,
+    "eventsPerPage": 100,
+    "historyEvents": 1000
+  },
+  "providerAttempts": 0,
+  "remoteCloudflareWrites": false,
+  "remaining": [
+    "B05 exact requirement coverage and sealed input manifests",
+    "No runtime/live historical source claim; missing coverage stays pending"
+  ]
+}

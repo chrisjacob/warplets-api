@@ -1,7 +1,7 @@
 {
   "taskId": "B03",
-  "status": "tested",
-  "implementationCommit": null,
+  "status": "verified",
+  "implementationCommit": "e9cf8c1ee814664b53ec8b734d2b25a4d4af2ae5",
   "migration": "025-durable-jobs.sql",
   "classification": "synthetic local Node/SQLite and actual workerd/D1; zero external calls",
   "commands": [
@@ -78,5 +78,10 @@
     "B07 measure full Worker query budget before raising per-tick job count"
   ],
   "financialExecution": false,
-  "remoteCloudflareWrites": false
+  "remoteCloudflareWrites": false,
+  "ci": {
+    "runId": 42103178723,
+    "status": "success",
+    "url": "https://github.com/chrisjacob/warplets-api/actions/runs/42103178723"
+  }
 }

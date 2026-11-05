@@ -1,10 +1,10 @@
 # Morning handoff - continuing overnight run
 
-Branch: work/10x-prd-foundation. Latest tested product code: 7df678b7d4de102e74e638baca0f66b756203b37. This is a resumable checkpoint, not a stopping condition.
+Branch: work/10x-prd-foundation. Latest tested product code: e9cf8c1ee814664b53ec8b734d2b25a4d4af2ae5. This is a resumable checkpoint, not a stopping condition.
 
 ## Working behavior
 
-B00, B01, B02 and B09 are verified. Earn admission, final moderation, board computation and allocation now cross portable services in the Node reference; golden commitments remain unchanged. The client gates queries/actions by runtime capability, isolates wallet caches and handles account/disconnect/cancel/expiry. Browser journeys passed 360/390/768/1440 using Node and a clearly labeled Worker capability fixture.
+B00, B01, B02, B03 and B09 are verified. Earn admission, final moderation, board computation and allocation now cross portable services in the Node reference; golden commitments remain unchanged. The client gates queries/actions by runtime capability, isolates wallet caches and handles account/disconnect/cancel/expiry. Browser journeys passed 360/390/768/1440 using Node and a clearly labeled Worker capability fixture.
 
 B02 persistence is verified; CI42099312849 passed. Tested substeps add guarded Node/D1 admission/review receipts, exact attempt nonces and abort assertions; explicit staffing and scope checks; immutable private filesystem/R2 objects; scope/staffing audits; cost reservation/settlement; pre-attempt quota records; verified private object references; bounded multi-batch board input reads. Migrations022–024 are applied locally. Fenced board/allocation commits and immutable input pointers now preserve golden results on Node/D1, including100wallets. Next migration025; preserve019 gap.
 
@@ -29,3 +29,5 @@ B02.3 review reproduced lease expiry during final transport; SQL now checks data
 B03 in progress: migration025 and jobs/model,repository,handlers,runner plus4passing Node tests are uncommitted. Next add typed ports/local Worker invocation, actualD1 races, provider-attempt gating and CLI rehearsal; validate bounded deadlines and unknown outcomes before marking verified. B04 agent owns evidence modules against coordinator migration026.
 
 B03 implementation now passes10focused Node tests,2D1 job cases, local CLI, edge types and recovery. Combined worktree passes196reference/21edge including B04. Review fixes bind provider configuration, advance sequential checkpoints and bound all I/O waits. B04 is ready separately with14evidence tests and1D1 integration. Next push/follow B03 CI, then B04 CI, then B05 exact-cutoff requirement inventory.
+
+B03 CI42103178723 passed. B04 is being committed as the next tested milestone; follow its CI before marking verified. Next dependency is B05, with coordinator owning frozen SQL inventory/manifests and the implementation agent preparing pure requirement selection/coverage decoder contracts. Migration027 is next.

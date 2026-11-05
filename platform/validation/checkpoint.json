@@ -1,5 +1,5 @@
 {
   "policy": "prd-1.2",
   "scope": "local",
-  "checkpoint": "blueprint-b03-durable-jobs"
+  "checkpoint": "blueprint-b04-recorded-evidence"
 }

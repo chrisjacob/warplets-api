@@ -4,17 +4,11 @@
   "phase": "executing",
   "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
-  "currentTask": "B03",
-  "lastUpdatedAt": "2026-11-05T20:24:52.395584+00:00",
+  "currentTask": "B04",
+  "lastUpdatedAt": "2026-11-05T20:27:54.619472+00:00",
   "migrationAllocation": {
     "next": 27,
-    "reserved": [
-      {
-        "version": 26,
-        "task": "B04",
-        "purpose": "immutable evidence provenance and corrections"
-      }
-    ],
+    "reserved": [],
     "historicalGap": 19
   },
   "acceptanceProfiles": {
@@ -70,13 +64,15 @@
       "blocker": null
     },
     "B03": {
-      "status": "in_progress",
+      "status": "verified",
       "owner": "coordinator",
       "baseCommit": "a546e4e6e2fe2175c5e55ddd47a1cafca672abe3",
-      "implementationCommit": null,
-      "pushed": false,
-      "evidence": [],
-      "nextAction": "B03 tested: push checkpoint and follow CI, then verify task and begin B05 with B04. Deadline races and replay configuration fixes included.",
+      "implementationCommit": "e9cf8c1ee814664b53ec8b734d2b25a4d4af2ae5",
+      "pushed": true,
+      "evidence": [
+        "platform/validation/runs/2026-11-06-overnight/B03.json"
+      ],
+      "nextAction": null,
       "blocker": null
     },
     "B04": {

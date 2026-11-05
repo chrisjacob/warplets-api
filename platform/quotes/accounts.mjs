@@ -1,3 +1,4 @@
+import { Buffer } from 'node:buffer';
 import { encode58 } from '../server/base58.mjs';
 import { QUOTE_PROGRAM, requireQuote } from './math.mjs';
 

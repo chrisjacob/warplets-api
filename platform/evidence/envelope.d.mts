@@ -1,0 +1,11 @@
+import type {EvidenceEnvelope} from '../application/ports';
+import type {EvidenceSource} from './types';
+export const MAX_EVIDENCE_BYTES:262144;
+export function clone<T>(value:T):T;
+export function digest(value:unknown):value is string;
+export function text(value:unknown):value is string;
+export function time(value:unknown):value is number;
+export function requireEvidence(condition:unknown,reason:string):asserts condition;
+export function validateEnvelope(value:unknown):EvidenceEnvelope;
+export function validateSource(value:unknown):EvidenceSource;
+export function streamKey(envelope:EvidenceEnvelope):string;
