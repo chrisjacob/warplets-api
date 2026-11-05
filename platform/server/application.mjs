@@ -1,5 +1,6 @@
 import { handleAuth } from './auth.mjs';
 import { readApi } from './api.mjs';
+import { handleMarkets } from '../markets/catalog.mjs';
 export function createApp(db,{clock=Date.now}={}) {
   let nextCleanup=0;
   return async (request,peer='loopback')=>{
@@ -10,6 +11,6 @@ export function createApp(db,{clock=Date.now}={}) {
       db.prepare('DELETE FROM auth_challenges WHERE expires_at<=?').run(now);
       nextCleanup=now+60000;
     }
-    return await handleAuth(db,request,peer,now)??readApi(request);
+    return await handleAuth(db,request,peer,now)??handleMarkets(db,request,now)??readApi(request);
   };
 }
