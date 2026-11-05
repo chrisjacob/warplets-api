@@ -5,3 +5,8 @@ export const ADMIT_SUBMISSION='earn.admit-submission.v1';
 export const admissionRequestBytes=({principal,input})=>utf8(canonicalJson([
   ADMIT_SUBMISSION,principal.wallet,{tokenId:input.tokenId,url:input.url},
 ]));
+
+export const FINAL_REVIEW='earn.final-review.v1';
+export const reviewRequestBytes=({principal,input})=>utf8(canonicalJson([
+  FINAL_REVIEW,principal.id,input,
+]));

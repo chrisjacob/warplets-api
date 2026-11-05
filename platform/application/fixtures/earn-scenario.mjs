@@ -1,7 +1,7 @@
 // Sanitized deterministic counterpart of earn/archive.test.mjs. The pinned JSON
 // was captured before extraction; this builder now drives the injected service.
 import { DAY_MS } from '../../domain/earn/index.mjs';
-import { addCampaign, finalizeBoard, recordAllocation, recordReview, recordStakeRead } from '../../earn/workflow.mjs';
+import { addCampaign, recordStakeRead } from '../../earn/workflow.mjs';
 import { recordOwnership } from '../../earn/components.mjs';
 import { exportBoard, proofForWallet } from '../../earn/archive.mjs';
 import { commitment } from '../../earn/commitments.mjs';
@@ -19,12 +19,12 @@ export async function buildGoldenScenario(db) {
     const service=createNodeEarnService(db,{nowMs:start,ids:{next:()=> 'submission-'+wallet}});
     const post=(await service.submitContent({kind:'wallet',wallet},{tokenId:'A',requestKey:'synthetic-key-'+wallet,
       url:'https://example.test/posts/'+wallet})).submission;
-    recordReview(db,{submissionId:post.id,score:7,moderator:'synthetic-reviewer',reason:'Synthetic assessment',sourceRef:'synthetic-review',reviewedMs:start});
+    await service.recordFinalReview({kind:'operator',id:'synthetic-reviewer'},{submissionId:post.id,score:7,reason:'Synthetic assessment',sourceRef:'synthetic-review'});
     recordStakeRead(db,{...read,observedMs:cutoff,expiresMs:cutoff});
     recordOwnership(db,{wallet,epoch,asOfMs:cutoff,assets:[],sourceRef:'synthetic-owner'});
   }
-  finalizeBoard(db,{epoch,nowMs:cutoff+1,sourceRef:'synthetic-reconciliation',sourceComplete:true});
-  recordAllocation(db,{tokenId:'A',day:2,nowMs:start+DAY_MS});
+  await createNodeEarnService(db,{nowMs:cutoff+1}).finalizeBoard({epoch,sourceRef:'synthetic-reconciliation',sourceComplete:true});
+  await createNodeEarnService(db,{nowMs:start+DAY_MS}).recordAllocation({tokenId:'A',day:2});
   const bundle=exportBoard(db,epoch);
   const auditHead=appendAudit(db,{category:'synthetic',entity:'golden-vector',changeKey:'v1',atMs:start,
     actor:'synthetic-operator',evidenceRef:'synthetic-only',payload:{b:2,a:'golden'}});

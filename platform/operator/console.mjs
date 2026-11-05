@@ -1,11 +1,11 @@
 import {randomBytes,createHash,timingSafeEqual} from 'node:crypto';
 import {readFile,mkdir} from 'node:fs/promises';
 import {fileURLToPath,pathToFileURL} from 'node:url';
-import {openDatabase,transaction} from '../storage/database.mjs';
+import {openDatabase} from '../storage/database.mjs';
 import {createLocalServer} from '../server/start.mjs';
 import {json,failure} from '../server/api.mjs';
 import {moderatorQueue,workloadMetrics,configureWorkload} from '../earn/operations.mjs';
-import {recordReview} from '../earn/workflow.mjs';
+import {createNodeEarnService} from '../application/node-context.mjs';
 import {EarnError} from '../earn/checks.mjs';
 import {DAY_MS} from '../domain/earn/index.mjs';
 
@@ -65,17 +65,8 @@ export function createOperatorApp(db,{bootToken,clock=Date.now}){
    if(pathname==='/ops/reviews'&&request.method==='POST'){
     const b=await body(request);
     if(b.final!==true)return failure(422,'final_required','A published review is final.');
-    const result=transaction(db,()=>{
-      const prior=db.prepare('SELECT content_score,reason,moderator,source_ref FROM earn_reviews WHERE submission_id=?').get(String(b.submissionId));
-      const ref='operator/review/'+b.submissionId;
-      if(prior){
-        if(prior.content_score===b.score&&prior.reason===b.reason&&prior.moderator==='local-founder'&&prior.source_ref===ref)
-          return {recorded:true,replayed:true};
-        throw new EarnError(409,'final_review','This submission has a final decision.');
-      }
-      recordReview(db,{submissionId:b.submissionId,score:b.score,reason:b.reason,moderator:'local-founder',sourceRef:ref,reviewedMs:now});
-      return {recorded:true,replayed:false};
-    });
+    const result=await createNodeEarnService(db,{nowMs:now}).recordFinalReview({kind:'operator',id:'local-founder'},
+      {submissionId:b.submissionId,score:b.score,reason:b.reason,sourceRef:'operator/review/'+b.submissionId});
     return json(result);
    }
    return failure(404,'not_found','Unknown operator resource.');

@@ -1,11 +1,11 @@
 // Node reference persistence. Transactions remain synchronous; portable services
 // call this implementation only through named repository commands.
+import { loadReferenceBoard, saveReferenceBoard, loadReferenceAllocation, saveReferenceAllocation } from './earn-settlement.mjs';
+import { computeBoard, computeAllocation } from '../../earn/settlement.mjs';
 import { randomUUID } from 'node:crypto';
 import { transaction } from '../database.mjs';
-import { DAY_MS, MIN_STAKE_MICRO_USD, advanceStreak, allocationWindow, claimableUnits, epochAt,
-  onboardingTenths, rankBoard, settleAllocation } from '../../domain/earn/index.mjs';
+import { DAY_MS, MIN_STAKE_MICRO_USD, claimableUnits, epochAt, onboardingTenths } from '../../domain/earn/index.mjs';
 import { EarnError, conflict, decimal, digest, name, nat, requireValue } from '../../earn/checks.mjs';
-import { deriveComponents } from '../../earn/components.mjs';
 import { readRecoveredClaims, readRecoveredLeaderboard, recoveryMode } from '../../earn/archive.mjs';
 import { verifiedStakeAt as readAt } from '../../pricing/evidence.mjs';
 import { capacityAt } from '../../earn/operations.mjs';
@@ -89,85 +89,15 @@ export function recordReview(db,{submissionId,score,reason,moderator,sourceRef,r
   });
 }
 
-function stakeEvidence(row,wallet,tokenId,asOfMs) {
-  return row ? { status:'verified',userId:wallet,tokenId,asOfMs,microUsd:BigInt(row.micro_usd) } : null;
-}
-
-// Single writer transaction seals the completeness attestation, decisions and
-// payout ranking together. Reopening the database returns the same published board.
-export function finalizeBoard(db,{epoch,nowMs,sourceComplete,sourceRef}) {
-  nat(epoch,'epoch');nat(nowMs,'now');name(sourceRef,'source reference');
-  const cutoff=(epoch+1)*DAY_MS-1;
+// Compatibility wrapper retains synchronous CLI behavior. Application callers
+// use the repository's read/compute/guarded-commit boundary instead.
+export function finalizeBoard(db,args) {
   return transaction(db,()=>{
-    if (db.prepare('SELECT 1 FROM earn_boards WHERE epoch=?').get(epoch)) return readLeaderboard(db,epoch);
-    if (nowMs<=cutoff) return pending(epoch,'board-open');
-    if (sourceComplete!==true) return pending(epoch,'incomplete-source');
-    // The previous day's admissions must be closed before their streak evidence can be consumed.
-    const previousOpen=db.prepare(`SELECT 1 FROM earn_submissions s WHERE s.epoch=?
-      AND NOT EXISTS(SELECT 1 FROM earn_boards b WHERE b.epoch=s.epoch) LIMIT 1`).get(epoch-1);
-    if (previousOpen) return pending(epoch,'previous-board');
-    const posts=db.prepare(`SELECT s.*,r.content_score,r.reviewed_ms,r.source_ref AS review_ref,r.reason,r.moderator,
-      e.micro_usd AS entry_micro_usd FROM earn_submissions s JOIN earn_stake_reads e ON e.id=s.entry_read_id
-      LEFT JOIN earn_reviews r ON r.submission_id=s.id WHERE s.epoch=? ORDER BY s.id`).all(epoch);
-    const decisions=[];
-    const submissions=[];
-    const qualifiedWallets=new Set();
-    const approvals=new Map();
-    function noteApproval(wallet,when) {
-      const times=approvals.get(wallet) ?? [];
-      times.push(when);
-      approvals.set(wallet,times);
-    }
-    for (const post of posts) {
-      if (post.content_score==null || post.reviewed_ms>nowMs) return pending(epoch,'moderation');
-      const read=post.content_score>0 ? readAt(db,post.wallet,post.token_id,cutoff) : null;
-      if (!read && post.content_score>0) return pending(epoch,'stake-evidence');
-      const qualified=post.content_score>0 && BigInt(read.micro_usd)>=MIN_STAKE_MICRO_USD;
-      decisions.push({submissionId:post.id,qualified,cutoffEvidence:read?.id??null});
-      submissions.push({submissionId:post.id,userId:post.wallet,tokenId:post.token_id,submittedAtMs:post.submitted_ms,
-        contentScore:post.content_score,atSubmission:stakeEvidence({micro_usd:post.entry_micro_usd},post.wallet,post.token_id,post.submitted_ms),
-        atSnapshot:stakeEvidence(read,post.wallet,post.token_id,cutoff)});
-      if (qualified) {
-        qualifiedWallets.add(post.wallet);
-        if (epochAt(post.reviewed_ms)===epoch) noteApproval(post.wallet,post.reviewed_ms);
-      }
-    }
-    // A delayed moderation decision still references the original board; its
-    // qualifying approval advances the streak only in the UTC day it happened.
-    const late=db.prepare(`SELECT s.wallet,r.reviewed_ms,d.qualified FROM earn_reviews r
-      JOIN earn_submissions s ON s.id=r.submission_id LEFT JOIN earn_decisions d ON d.submission_id=s.id
-      WHERE r.reviewed_ms BETWEEN ? AND ? AND s.epoch<? AND r.content_score>0`).all(epoch*DAY_MS,cutoff,epoch);
-    for (const row of late) {
-      if (row.qualified==null) return pending(epoch,'unsettled-approval');
-      if (row.qualified) noteApproval(row.wallet,row.reviewed_ms);
-    }
-    const streaks=new Map();
-    for (const [wallet,times] of approvals) {
-      const prev=db.prepare('SELECT epoch,days,last_approval_ms AS lastApprovalMs FROM earn_streaks WHERE epoch=? AND wallet=?').get(epoch-1,wallet);
-      streaks.set(wallet,advanceStreak({epoch,previous:prev,approvalsMs:times}));
-    }
-    const participants=[];
-    const factSources=[];
-    for (const wallet of qualifiedWallets) {
-      const fact=deriveComponents(db,epoch,wallet);
-      if (fact.status!=='ready') return pending(epoch,fact.reason);
-      participants.push({userId:wallet,wallet,components:{...fact.components,streakDays:streaks.get(wallet)?.days??0}});
-      factSources.push([wallet,fact.sourceRef,fact.payload]);
-    }
-    const campaigns=db.prepare(`SELECT DISTINCT c.token_id AS tokenId,c.activation_ms AS activationMs
-      FROM earn_fixture_campaigns c JOIN earn_submissions s ON s.token_id=c.token_id WHERE s.epoch=? ORDER BY c.token_id`).all(epoch);
-    const board=rankBoard({epoch,complete:true,campaigns,participants,submissions});
-    if (board.status!=='final') return pending(epoch,board.reason);
-    const hash=digest({policy:'prd-1.2',epoch,posts,decisions,campaigns,participants,factSources,late,sourceRef,winners:board.winners});
-    db.prepare('INSERT INTO earn_boards VALUES(?,?,?,?,?)').run(epoch,JSON.stringify(board.winners),nowMs,hash,sourceRef);
-    const saveFacts=db.prepare(`INSERT INTO earn_member_facts VALUES(?,?,?,?)
-      ON CONFLICT(epoch,wallet) DO UPDATE SET payload=excluded.payload,source_ref=excluded.source_ref`);
-    for (const [wallet,ref,payload] of factSources) saveFacts.run(epoch,wallet,payload,ref);
-    const saveDecision=db.prepare('INSERT INTO earn_decisions VALUES(?,?,?,?)');
-    for (const d of decisions) saveDecision.run(d.submissionId,epoch,Number(d.qualified),d.cutoffEvidence);
-    const saveStreak=db.prepare('INSERT INTO earn_streaks VALUES(?,?,?,?)');
-    for (const [wallet,s] of streaks) saveStreak.run(epoch,wallet,s.days,s.lastApprovalMs);
-    return readLeaderboard(db,epoch);
+    const loaded=loadReferenceBoard(db,args);
+    if(loaded.result)return loaded.result;
+    const plan=computeBoard(loaded.input);
+    if(plan.status!=='ready')return pending(args.epoch,plan.reason);
+    return saveReferenceBoard(db,{...plan,snapshotId:digest(plan.commitmentInput),finalizedAtMs:args.nowMs});
   });
 }
 
@@ -183,23 +113,13 @@ export function readLeaderboard(db,epoch) {
     snapshotId:row?.snapshot_hash??null,finalizedAtMs:row?.finalized_ms??null};
 }
 
-export function recordAllocation(db,{tokenId,day,nowMs}) {
-  name(tokenId,'token');nat(nowMs,'now');requireValue(Number.isInteger(day)&&day>=1&&day<=10,'Invalid campaign day.');
+export function recordAllocation(db,args) {
   return transaction(db,()=>{
-    const campaign=db.prepare('SELECT * FROM earn_fixture_campaigns WHERE token_id=?').get(tokenId);
-    requireValue(campaign,'Unknown fixture campaign.');
-    const window=allocationWindow(campaign.activation_ms,day);
-    const stored=db.prepare('SELECT * FROM earn_allocations WHERE token_id=? AND day=?').get(tokenId,day);
-    if (stored) return {mode:'local-fixture',status:'recorded',allocation:{...stored}};
-    const board=db.prepare('SELECT epoch,winners FROM earn_boards WHERE epoch=?').get(window.boardEpoch);
-    const plan=settleAllocation({tokenId,originalSupplyUnits:BigInt(campaign.original_units),activationMs:campaign.activation_ms,
-      day,nowMs,board:board ? {epoch:board.epoch,status:'final',winners:JSON.parse(board.winners)} : undefined});
-    if (plan.status!=='ready') return {mode:'local-fixture',status:plan.status,tokenId,day,epoch:plan.boardEpoch};
-    db.prepare('INSERT INTO earn_allocations VALUES(?,?,?,?,?,?,?,?)').run(tokenId,day,plan.boardEpoch,
-      plan.startsAtMs,plan.vestsFromMs,plan.vestsThroughMs,String(plan.budgetUnits),String(plan.burnUnits));
-    const save=db.prepare('INSERT INTO earn_awards VALUES(?,?,?,?)');
-    for (const award of plan.awards) save.run(tokenId,day,award.wallet,String(award.amountUnits));
-    return {mode:'local-fixture',status:'recorded',allocation:{...db.prepare('SELECT * FROM earn_allocations WHERE token_id=? AND day=?').get(tokenId,day)}};
+    const loaded=loadReferenceAllocation(db,args);
+    if(loaded.result)return loaded.result;
+    const plan=computeAllocation(loaded.input);
+    if(plan.status!=='ready')return {mode:'local-fixture',status:plan.status,tokenId:args.tokenId,day:args.day,epoch:plan.boardEpoch};
+    return saveReferenceAllocation(db,plan);
   });
 }
 
