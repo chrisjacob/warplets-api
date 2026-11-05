@@ -42,6 +42,9 @@ existing reorg checks. Source attempts are capped at 500k/day and 3M/month.
 Alchemy allocation is 6M CU/day and 20M/month, leaving 10M outside Network
 within its published 30M free allowance; the ten-RPC/s gate is unchanged.
 No provider plan or billing setting is changed.
+The batch importer permits up to six readers for an isolated operator request,
+while scheduled production keeps four. Both use the same ten-RPC/s gate and CU
+ledger; six matches the per-invocation outgoing-connection ceiling.
 Profile/chain collection, wallet refresh and activity now have independent cron
 leases; a slow portfolio or credit pause cannot hold up daily profile freshness.
 Neynar requests reserve both a 400-RPM global gate and a 240-RPM per-endpoint

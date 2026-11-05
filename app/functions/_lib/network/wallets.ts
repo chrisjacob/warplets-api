@@ -184,7 +184,7 @@ export async function importWalletValue(env:WalletEnv){return withWalletValueLea
 // Candidates are deduplicated once; all in-flight readers settle before releasing
 // the lease, including after a budget or provider failure.
 export async function importWalletBatch(env:WalletEnv,limit=25,concurrency=4){
-  if(!Number.isSafeInteger(limit)||limit<1||limit>25||!Number.isSafeInteger(concurrency)||concurrency<1||concurrency>4)throw Error('Invalid wallet batch');
+  if(!Number.isSafeInteger(limit)||limit<1||limit>25||!Number.isSafeInteger(concurrency)||concurrency<1||concurrency>6)throw Error('Invalid wallet batch');
   return withWalletValueLease(env,async()=>{
     if(await syncGet(env.WARPLETS,'wallet_cooldown',0)>Date.now())return {status:'cooldown',results:[]};
     const rows=await walletCandidates(env,limit);
