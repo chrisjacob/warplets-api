@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "recordedDate": "2026-10-30",
+  "timezone": "Australia/Sydney",
+  "approvedBy": "Project owner (reply in this Codex conversation)",
+  "response": "Approve proposed policy",
+  "approvedPolicyId": "jito-locked-v1",
+  "supersedes": "2026-10-30-design.json: distributor-specific policy pending status",
+  "sourceCommit": "2246e13af662dbdea57cbba4599e38c323467c48",
+  "sourcePath": "packages/meme-protocol/policy/jito-locked-v1-proposal.json",
+  "sourceBlob": "f2fa2278018f66ba4cc36f76388c0f172812f854",
+  "sourceSha256": "583d0670f0315d182282b445174bd1ab47872f87c658b2f486582994d7f5d60a",
+  "reviewDocument": {
+    "path": "docs/10x/JITO-LOCKED-PROPOSAL.md",
+    "sourceSha256": "200a4a807080ef987916d4b499519370c1491361a38f2460338d016f72b0358d"
+  },
+  "approved": {
+    "fullyLockedRewards": true,
+    "vestingSeconds": 1,
+    "clawbackDaysAfterFinalRelease": 365,
+    "permissionlessClawback": true,
+    "adminAndReceiverCustody": "2-of-3 vault",
+    "directFundedClaimsCannotBeApplicationPaused": true
+  },
+  "stillRequired": [
+    "Actual custody addresses and multisig execution validation",
+    "Executed pinned-program tests and funding/claim recovery proof",
+    "Separate deployment and financial authorization"
+  ],
+  "deploymentAuthorized": false,
+  "financialActionsAuthorized": false,
+  "newResourcesOrProviderSpendAuthorized": false
+}

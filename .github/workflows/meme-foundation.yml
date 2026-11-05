@@ -1,0 +1,105 @@
+name: Meme foundation
+on:
+  push:
+    branches: [codex/10x-daily-launchpad, 'codex/10x-*']
+  pull_request:
+    paths:
+      - 'meme/**'
+      - 'packages/connect/**'
+      - 'packages/meme-protocol/**'
+      - 'packages/meme-qa/**'
+      - 'patches/bigint-buffer@1.1.5.patch'
+      - 'package.json'
+      - 'docs/10x/**'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - '.github/workflows/meme-foundation.yml'
+permissions:
+  contents: read
+concurrency:
+  group: meme-foundation-${{ github.ref }}
+  cancel-in-progress: true
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+jobs:
+  qa:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v5
+        with:
+          version: 10.26.0
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --dir packages/meme-qa check
+      - name: Build offline gateway fixture
+        # CI never opens a tunnel or connects real wallets. Public supervised
+        # QA uses qa:build, whose configuration preflight is tested separately.
+        env:
+          VITE_WALLETCONNECT_PROJECT_ID: ''
+        run: pnpm --dir meme exec vite build --outDir .tmp/restricted-qa-web && pnpm --dir meme qa:migrate
+      - name: Real local gateway and Worker proof round-trip (no tunnel)
+        shell: bash
+        run: |
+          set -euo pipefail
+          qa_private="$RUNNER_TEMP/meme-restricted-qa"
+          qa_state="$GITHUB_WORKSPACE/meme/.wrangler/restricted-qa-state"
+          pnpm --dir packages/meme-qa gateway prepare "$qa_private" https://isolated-qa.trycloudflare.com 1431382
+          MEME_OPERATOR_TARGET=restricted-qa pnpm --dir meme operator init
+          pnpm --dir meme exec wrangler dev --config "$qa_private/wrangler.jsonc" --local --ip 127.0.0.1 --port 8799 --persist-to "$qa_state" > "$RUNNER_TEMP/meme-qa-worker.log" 2>&1 &
+          qa_pid=$!
+          trap 'kill "$qa_pid" 2>/dev/null || true' EXIT
+          ready=false
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:8799/health > /dev/null; then ready=true; break; fi
+            sleep 1
+          done
+          if [ "$ready" != true ]; then echo 'Local QA Worker failed to start'; exit 1; fi
+          pnpm --dir packages/meme-qa gateway:probe "$qa_private/gateway.json"
+          MEME_QA_DISPOSABLE_OPERATIONS=true pnpm --dir packages/meme-qa operations:probe
+          MEME_OPERATOR_TARGET=restricted-qa pnpm --dir meme operator status --check
+      - name: Local 100-account pilot and 1200-account stress benchmark
+        run: pnpm --dir packages/meme-qa benchmark
+      - name: Lifetime history, compact polling and whole-campaign reward pages
+        run: pnpm --dir packages/meme-qa benchmark:reads
+      - name: Bounded trading publication and collection-free market/leaderboard reads
+        run: pnpm --dir packages/meme-qa benchmark:growth
+      - name: Execute captured protocol binaries offline
+        run: pnpm --dir packages/meme-qa test:chains
+      - run: pnpm --dir packages/meme-qa exec playwright install --with-deps chromium webkit
+      - name: Native access form origin regression in Chromium and WebKit
+        run: pnpm --dir packages/meme-qa test:gateway-browser
+      - name: Desktop and mobile viewport journeys against the isolated Worker
+        run: pnpm --dir packages/meme-qa test:browser
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: meme-qa-results
+          path: .tmp/meme-qa/
+          retention-days: 7
+  foundation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v5
+        with:
+          version: 10.26.0
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Check isolated local foundation
+        run: pnpm --dir meme check
+      - name: Root security and production dependency gate
+        run: pnpm typecheck && pnpm security:preflight && pnpm security:test:redirects && pnpm security:test:solana-rpc && pnpm security:test:rendering && pnpm audit --prod --audit-level high
+      - name: Shared Connect regressions
+        run: pnpm --dir app test
+      - name: Offline protocol feasibility and dependency regressions
+        run: pnpm --dir packages/meme-protocol check
+      - name: Verify existing production app stays separate
+        run: pnpm --dir app build && pnpm --dir app release:check

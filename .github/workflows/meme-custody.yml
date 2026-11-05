@@ -1,0 +1,48 @@
+name: Meme custody source proof
+on:
+  pull_request:
+    paths:
+      - 'packages/meme-qa/custody/**'
+      - 'packages/meme-qa/package.json'
+      - 'packages/meme-qa/scripts/build-custody.sh'
+      - '.github/workflows/meme-custody.yml'
+      - 'pnpm-lock.yaml'
+permissions:
+  contents: read
+concurrency:
+  group: meme-custody-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  custody:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v5
+        with:
+          repository: Squads-Protocol/v4
+          ref: af94153ff77a28b6effe46b9c94baaa93742b48c
+          path: .tmp/squads-source
+          persist-credentials: false
+      - uses: pnpm/action-setup@v5
+        with:
+          version: 10.26.0
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Build pinned unmodified upstream Squads source
+        run: bash packages/meme-qa/scripts/build-custody.sh
+      - name: Execute threshold, timelock, CPI and duplicate-recovery proof offline
+        env:
+          MEME_SQUADS_ELF: .tmp/squads-build/squads_multisig_program.so
+        run: pnpm --dir packages/meme-qa test:custody
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: meme-custody-proof
+          path: .tmp/meme-qa/custody/
+          retention-days: 7

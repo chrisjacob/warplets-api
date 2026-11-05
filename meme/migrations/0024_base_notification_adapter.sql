@@ -1,0 +1,5 @@
+CREATE TABLE meme_base_notification_status(scope TEXT NOT NULL,app_url TEXT NOT NULL,wallet TEXT NOT NULL,fid INTEGER NOT NULL,status TEXT NOT NULL CHECK(status IN('enabled','disabled','unknown')),observed_at INTEGER NOT NULL,proof_hash TEXT NOT NULL,PRIMARY KEY(scope,app_url,wallet));
+CREATE TABLE meme_base_notification_outbox(id TEXT PRIMARY KEY,event_id TEXT NOT NULL REFERENCES meme_notification_events(id),scope TEXT NOT NULL,app_url TEXT NOT NULL,wallet TEXT NOT NULL,fid INTEGER NOT NULL,state TEXT NOT NULL CHECK(state IN('queued','processing','sent','retry','unknown','cancelled')),attempts INTEGER NOT NULL DEFAULT 0,retry_at INTEGER NOT NULL,lease TEXT,lease_until INTEGER,created_at INTEGER NOT NULL,UNIQUE(event_id,app_url,wallet));
+CREATE INDEX meme_base_notification_due ON meme_base_notification_outbox(state,retry_at);
+CREATE TABLE meme_base_notification_request_usage(scope TEXT NOT NULL,app_url TEXT NOT NULL,minute INTEGER NOT NULL,used INTEGER NOT NULL,PRIMARY KEY(scope,app_url,minute));
+CREATE TABLE meme_base_notification_pacer(scope TEXT NOT NULL,app_url TEXT NOT NULL,next_at INTEGER NOT NULL,PRIMARY KEY(scope,app_url));

@@ -1,0 +1,34 @@
+{
+  "source": "https://github.com/jito-foundation/distributor/blob/2cf79f63973a79e6354871dc9355a63aa1d15139/test/merkle_tree.json",
+  "sourceSha256": "cd23e74eee11db61fb360c47d937e68733f7c54d622a0d98774f2c5a6465d233",
+  "root": "e9d8bcb1000f819fda5379a06e651b075960d81549b9480146b8835db12e7dab",
+  "nodes": [
+    {
+      "wallet": "FLYqJsmJ5AGMxMxK3Qy1rSen4ES2dqqo6h51W3C1tYS",
+      "unlocked": "100000000000",
+      "locked": "100000000000",
+      "proof": [
+        "b63f39b6d122b6e8e48a92d2743a9c98506925562ca117a068aca9a9420817f5",
+        "743a070953ade5d63346c7196713fd4b3149276964fb3cbf3b66527a519bce2f"
+      ]
+    },
+    {
+      "wallet": "EDGARWktv3nDxRYjufjdbZmryqGXceaFPoPpbUzdpqED",
+      "unlocked": "100000000000",
+      "locked": "100000000000",
+      "proof": [
+        "f5a600ec738fd9289c298ee6b0914c1de605de32deff4a90d51df60935356bac",
+        "743a070953ade5d63346c7196713fd4b3149276964fb3cbf3b66527a519bce2f"
+      ]
+    },
+    {
+      "wallet": "EDGARWktv3nDxRYjufjdbZmryqGXceaFPoPpbUzdpqEH",
+      "unlocked": "100000000000",
+      "locked": "100000000000",
+      "proof": [
+        "dc3a4e7c657cd286561adae22d2582da8e9315ece3f5d7894310fc009d8a9c5c",
+        "3fec3c02e07fc757d4f06a55b8f3239a250e7c381ac6276f7f38ac3a6489a1ab"
+      ]
+    }
+  ]
+}

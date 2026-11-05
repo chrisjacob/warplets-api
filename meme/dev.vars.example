@@ -1,0 +1,3 @@
+# Copy to .dev.vars locally only after provider/key/budget approval. Never commit real keys.
+HELIUS_API_KEY=""
+PYTH_API_KEY=""

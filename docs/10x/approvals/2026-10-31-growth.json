@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "date": "2026-10-31",
+  "authority": "owner-in-chat",
+  "scope": "autonomous implementation, review branches, commits and pushes",
+  "decisions": {
+    "attn": "Each daily launch token, paired with its selected OG",
+    "traderRanking": "ATTN-only realized net USD P&L",
+    "costBasis": "Moving weighted average; separate from reward accounting",
+    "visibility": "All verified traders public by default with onboarding disclosure",
+    "publicBlockchainReadAttempts": 50,
+    "readBudget": "One persistent overnight allowance, including retries and batch entries"
+  },
+  "unchanged": [
+    "Approved participation/Jito rules",
+    "One raw OG initialization unit",
+    "Existing provider caps",
+    "Finalized historical entitlements"
+  ],
+  "disabled": [
+    "Merging",
+    "Deployment",
+    "Public QA exposure",
+    "Notification delivery",
+    "Mainnet writes",
+    "Funding requests",
+    "Remote resource creation"
+  ]
+}

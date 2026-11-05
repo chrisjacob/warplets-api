@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "approvedOn": "2026-10-30",
+  "timezone": "Australia/Sydney",
+  "decision": "Allow one raw OG unit; include it explicitly in the launch budget",
+  "requirement": { "quoteInitializationMinimumRaw": "1", "maximumApprovedInitializationQuoteRaw": "1", "includeSeparatelyInBudget": true },
+  "evidence": {
+    "program": "cpamdpZCGKUy5JxQXB4dcpGPiikHawvSWAd6mEn1sGG",
+    "deployedBinarySha256": "967ff9fb161eec2e62f66d2c899100739fb747c445f697b8625c86b31b9a2022",
+    "capturedFinalizedSlot": 463107036,
+    "sourceReference": "https://github.com/MeteoraAg/damm-v2/blob/5398b5c7c534de014091132da37c6478cce671a8/programs/cp-amm/src/instructions/initialize_pool/ix_initialize_customizable_pool.rs#L381"
+  },
+  "mainnetTransactionsApproved": false,
+  "deploymentApproved": false,
+  "remaining": ["OG mint and decimals", "numeric liquidity range and pricing", "opening fees", "authorities and custody", "treasury policy"]
+}

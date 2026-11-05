@@ -1,0 +1,183 @@
+{
+  "sourceCommit": "2cf79f63973a79e6354871dc9355a63aa1d15139",
+  "idlSha256": "607bd0864aaa53a278c4c58372f11d0cd3c705de7110974d265d0c573ec5c29f",
+  "instructions": [
+    {
+      "name": "newDistributor",
+      "accounts": [
+        {
+          "name": "distributor",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "clawbackReceiver",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "mint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "tokenVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "associatedTokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "version",
+          "type": "u64"
+        },
+        {
+          "name": "root",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "maxTotalClaim",
+          "type": "u64"
+        },
+        {
+          "name": "maxNumNodes",
+          "type": "u64"
+        },
+        {
+          "name": "startVestingTs",
+          "type": "i64"
+        },
+        {
+          "name": "endVestingTs",
+          "type": "i64"
+        },
+        {
+          "name": "clawbackStartTs",
+          "type": "i64"
+        }
+      ]
+    },
+    {
+      "name": "newClaim",
+      "accounts": [
+        {
+          "name": "distributor",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "claimStatus",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "from",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "to",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "claimant",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "amountUnlocked",
+          "type": "u64"
+        },
+        {
+          "name": "amountLocked",
+          "type": "u64"
+        },
+        {
+          "name": "proof",
+          "type": {
+            "vec": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "claimLocked",
+      "accounts": [
+        {
+          "name": "distributor",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "claimStatus",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "from",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "to",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "claimant",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    }
+  ]
+}

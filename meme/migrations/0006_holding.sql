@@ -1,0 +1,15 @@
+CREATE TABLE meme_campaigns(id TEXT PRIMARY KEY,mint TEXT NOT NULL UNIQUE,symbol TEXT NOT NULL,launched_at INTEGER NOT NULL,ends_at INTEGER NOT NULL,total_supply TEXT NOT NULL,decimals INTEGER NOT NULL,mode TEXT NOT NULL CHECK(mode IN('observed','simulated')),launch_evidence TEXT NOT NULL);
+CREATE TABLE meme_ledger_events(id TEXT PRIMARY KEY,campaign_id TEXT NOT NULL REFERENCES meme_campaigns(id),signature TEXT NOT NULL,event_index INTEGER NOT NULL,slot INTEGER NOT NULL,event_at INTEGER NOT NULL,payload TEXT NOT NULL,payload_hash TEXT NOT NULL,UNIQUE(campaign_id,signature,event_index));
+CREATE TABLE meme_ledger_checkpoints(campaign_id TEXT NOT NULL REFERENCES meme_campaigns(id),scope_hash TEXT NOT NULL,through_at INTEGER NOT NULL,through_slot INTEGER NOT NULL,cursor TEXT NOT NULL,evidence_hash TEXT NOT NULL,mode TEXT NOT NULL,state TEXT NOT NULL CHECK(state IN('importing','ready')),scope_wallets TEXT NOT NULL,PRIMARY KEY(campaign_id,scope_hash));
+CREATE TABLE meme_vote_wallets(round_id TEXT NOT NULL,fid INTEGER NOT NULL,address TEXT NOT NULL,PRIMARY KEY(round_id,fid,address),FOREIGN KEY(round_id,fid) REFERENCES meme_votes(round_id,fid));
+ALTER TABLE meme_votes ADD COLUMN wallet_scope_hash TEXT NOT NULL DEFAULT '';
+UPDATE meme_votes SET wallet_scope_hash='legacy:'||reward_wallet;
+INSERT INTO meme_vote_wallets SELECT round_id,fid,reward_wallet FROM meme_votes;
+CREATE TABLE meme_receipt_claims(campaign_id TEXT NOT NULL,signature TEXT NOT NULL,wallet TEXT NOT NULL,event_id TEXT NOT NULL REFERENCES meme_ledger_events(id),PRIMARY KEY(campaign_id,signature,wallet));
+CREATE INDEX meme_ledger_order ON meme_ledger_events(campaign_id,slot,signature,event_index);
+CREATE TABLE meme_ledger_seals(campaign_id TEXT NOT NULL,scope_hash TEXT NOT NULL,through_at INTEGER NOT NULL,through_slot INTEGER NOT NULL,evidence_hash TEXT NOT NULL,mode TEXT NOT NULL,scope_wallets TEXT NOT NULL,PRIMARY KEY(campaign_id,scope_hash,through_at));
+CREATE TRIGGER meme_seal_immutable BEFORE UPDATE ON meme_ledger_seals BEGIN SELECT RAISE(ABORT,'Source seals are immutable'); END;
+CREATE TRIGGER meme_seal_no_delete BEFORE DELETE ON meme_ledger_seals BEGIN SELECT RAISE(ABORT,'Source seals are immutable'); END;
+CREATE TRIGGER meme_ledger_immutable BEFORE UPDATE ON meme_ledger_events BEGIN SELECT RAISE(ABORT,'Ledger events are immutable'); END;
+CREATE TRIGGER meme_ledger_no_delete BEFORE DELETE ON meme_ledger_events BEGIN SELECT RAISE(ABORT,'Ledger events are immutable'); END;
+CREATE TRIGGER meme_campaign_immutable BEFORE UPDATE ON meme_campaigns BEGIN SELECT RAISE(ABORT,'Campaign inputs are immutable'); END;

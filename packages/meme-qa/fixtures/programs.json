@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "captureSha256": "4159978c9699c5ae450fff95a2c1b022ab04d38a49b2c5b4675f3dfbfa9c6296",
+  "capturedAt": "2026-10-30T01:54:35.023Z",
+  "context": 463107036,
+  "sourceCodeMatchVerified": false,
+  "programs": [
+    {
+      "address": "cpamdpZCGKUy5JxQXB4dcpGPiikHawvSWAd6mEn1sGG",
+      "binarySha256": "967ff9fb161eec2e62f66d2c899100739fb747c445f697b8625c86b31b9a2022",
+      "upgradeAuthority": "JADaUV8kvDpDbJr55wxXJHVaBS3VCj8thZZHjfeuCVLd",
+      "deployedSlot": "457080014"
+    },
+    {
+      "address": "mERKcfxMC5SqJn4Ld4BUris3WKZZ1ojjWJ3A3J5CKxv",
+      "binarySha256": "51043e9794e69f0b071d741abd29fc274694ab60e412a1ed6d0dd38e258703ac",
+      "upgradeAuthority": null,
+      "deployedSlot": "234207504"
+    }
+  ]
+}

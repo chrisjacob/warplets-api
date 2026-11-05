@@ -1,0 +1,11 @@
+# Performance, security and UX follow-up
+
+Measured locally on Windows/Node 22, simulated 1,000-trader / 40,000-event import took 13.84 seconds across separate bounded imports; board publication took 73.4 ms over 56 SQLite statements, paging at 64 sources. Market/leaderboard reads used one SELECT each, no writes/provider calls, p95 0.66 ms and a maximum 61,902-byte response. These are in-process lab observations, not network/D1 throughput certification. The existing 365-campaign/3,650-entitlement read benchmark also passed and retained a 99.917% compact-poll payload reduction. CI repeats both benchmarks.
+
+Startup remains bounded by the existing 80 KiB gzip gate; new market, leaderboard, share and notification views load separately. API responses now enforce an actual 1 MiB streamed-byte ceiling and reject malformed UTF-8, rather than trusting Content-Length or consuming an unbounded JSON body. Cancellation, timeout and expired-session behavior retain their regressions.
+
+Today polling retains a 15-second successful cadence, backs off to 30/60/120 seconds on failures, pauses while hidden/offline and stops automatic retry after authentication rejection. Returning online, a manual retry or identity change can recover. A successful response clears backoff. Private rewards and notification settings use distinct account-scoped React keys and discard cancelled responses. Onboarding stays dismissed for the current page when persistent storage is unavailable; Help can replay it.
+
+Operator health adds fixed-size summaries for market/trading freshness, pending card images and notification unknown outcomes/expired leases. It remains SELECT-only, with no tokens, wallet lists, raw plans or provider requests. Real delivery and financial readiness remain false. Source budgets are unchanged.
+
+Chrome DevTools MCP is not connected. The [web-perf skill](C:/Users/cjacob/.codex/skills/web-perf/SKILL.md) requires it for its trace workflow; no DevTools audit or field Core Web Vitals result is claimed. The owner requested no new confirmation questions, so this work uses the existing local browser, startup and SQLite harnesses. Real host/device performance still requires later physical testing. Lab diagnostics cannot certify 75th-percentile field experience; see [Web Vitals](https://web.dev/articles/vitals).

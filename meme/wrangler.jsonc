@@ -1,0 +1,28 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "tenx-meme-local",
+  "main": "src/worker/index.ts",
+  "compatibility_date": "2026-10-29",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": false,
+  "preview_urls": false,
+  "routes": [],
+  "observability": {
+    "enabled": true,
+  },
+  "vars": {
+    "LOCAL_PREVIEW_ONLY": "true",
+    "LOCAL_PARTICIPATION_ENABLED": "true",
+    "LOCAL_OPERATIONS_ENABLED": "false",
+    "MEME_QA_ORIGIN": "",
+    "MEME_QA_FIDS": "",
+    "MEME_QA_GATEWAY_TOKEN": "",
+  },
+  "d1_databases": [
+    {
+      "binding": "MEME_DB",
+      "database_name": "meme-local",
+      "migrations_dir": "migrations",
+    },
+  ],
+}

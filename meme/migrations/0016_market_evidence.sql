@@ -1,0 +1,20 @@
+-- Isolated display/trading evidence. This never certifies a reward ownership/history freeze.
+CREATE TABLE meme_markets(id TEXT PRIMARY KEY,definition TEXT NOT NULL,definition_hash TEXT NOT NULL,created_at INTEGER NOT NULL);
+CREATE TABLE meme_market_imports(key TEXT PRIMARY KEY,market_id TEXT NOT NULL REFERENCES meme_markets(id),payload_hash TEXT NOT NULL,created_at INTEGER NOT NULL);
+CREATE TABLE meme_market_observations(id TEXT PRIMARY KEY,market_id TEXT NOT NULL REFERENCES meme_markets(id),import_key TEXT NOT NULL REFERENCES meme_market_imports(key),at INTEGER NOT NULL,observed_at INTEGER NOT NULL,payload TEXT NOT NULL);
+CREATE INDEX meme_market_by_time ON meme_market_observations(market_id,at,id);
+CREATE TABLE meme_market_corrections(key TEXT PRIMARY KEY,old_id TEXT NOT NULL UNIQUE REFERENCES meme_market_observations(id),new_id TEXT NOT NULL REFERENCES meme_market_observations(id),reason TEXT NOT NULL,request_hash TEXT NOT NULL,created_at INTEGER NOT NULL);
+CREATE TRIGGER meme_market_correction_valid BEFORE INSERT ON meme_market_corrections WHEN NEW.old_id=NEW.new_id OR EXISTS(SELECT 1 FROM meme_market_corrections WHERE old_id=NEW.new_id) OR NOT EXISTS(SELECT 1 FROM meme_market_observations a JOIN meme_market_observations b ON a.market_id=b.market_id AND a.at=b.at WHERE a.id=NEW.old_id AND b.id=NEW.new_id) BEGIN SELECT RAISE(ABORT,'Invalid market correction'); END;
+CREATE TRIGGER meme_market_correction_fixed BEFORE UPDATE ON meme_market_corrections BEGIN SELECT RAISE(ABORT,'Market correction is immutable'); END;
+CREATE TRIGGER meme_market_correction_kept BEFORE DELETE ON meme_market_corrections BEGIN SELECT RAISE(ABORT,'Market correction is immutable'); END;
+CREATE TABLE meme_market_views(id TEXT PRIMARY KEY,market_id TEXT NOT NULL REFERENCES meme_markets(id),window TEXT NOT NULL CHECK(window IN('24h','30d','all')),as_of INTEGER NOT NULL,input_hash TEXT NOT NULL,payload TEXT NOT NULL);
+CREATE TABLE meme_market_heads(market_id TEXT NOT NULL REFERENCES meme_markets(id),window TEXT NOT NULL,view_id TEXT NOT NULL REFERENCES meme_market_views(id),as_of INTEGER NOT NULL,PRIMARY KEY(market_id,window));
+CREATE TRIGGER meme_market_definition_fixed BEFORE UPDATE ON meme_markets BEGIN SELECT RAISE(ABORT,'Market definition is immutable'); END;
+CREATE TRIGGER meme_market_definition_kept BEFORE DELETE ON meme_markets BEGIN SELECT RAISE(ABORT,'Market definition is immutable'); END;
+CREATE TRIGGER meme_market_import_fixed BEFORE UPDATE ON meme_market_imports BEGIN SELECT RAISE(ABORT,'Market provenance is immutable'); END;
+CREATE TRIGGER meme_market_import_kept BEFORE DELETE ON meme_market_imports BEGIN SELECT RAISE(ABORT,'Market provenance is immutable'); END;
+CREATE TRIGGER meme_market_observation_fixed BEFORE UPDATE ON meme_market_observations BEGIN SELECT RAISE(ABORT,'Market evidence is immutable'); END;
+CREATE TRIGGER meme_market_observation_kept BEFORE DELETE ON meme_market_observations BEGIN SELECT RAISE(ABORT,'Market evidence is immutable'); END;
+CREATE TRIGGER meme_market_view_fixed BEFORE UPDATE ON meme_market_views BEGIN SELECT RAISE(ABORT,'Market view is immutable'); END;
+CREATE TRIGGER meme_market_view_kept BEFORE DELETE ON meme_market_views BEGIN SELECT RAISE(ABORT,'Market view is immutable'); END;
+CREATE TRIGGER meme_market_head_no_rewind BEFORE UPDATE ON meme_market_heads WHEN NEW.as_of<OLD.as_of BEGIN SELECT RAISE(ABORT,'Market publication cannot rewind'); END;

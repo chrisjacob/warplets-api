@@ -1,0 +1,50 @@
+diff --git a/dist/node.js b/dist/node.js
+index 513168c89e387668a79b6beb109587b3eb41a7d0..7175b2e69a30e5cbd6af237a39f5e25571198440 100644
+--- a/dist/node.js
++++ b/dist/node.js
+@@ -1,15 +1,8 @@
+ 'use strict';
+ 
+ Object.defineProperty(exports, "__esModule", { value: true });
+-let converter;
+-{
+-    try {
+-        converter = require('bindings')('bigint_buffer');
+-    }
+-    catch (e) {
+-        console.warn('bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)');
+-    }
+-}
++// Security patch: never load the unpatched native converter (CVE-2025-3194).
++const converter = undefined;
+ /**
+  * Convert a little-endian buffer into a BigInt.
+  * @param buf The little-endian buffer to convert
+@@ -51,6 +44,7 @@ exports.toBigIntBE = toBigIntBE;
+  * @returns A little-endian buffer representation of num.
+  */
+ function toBufferLE(num, width) {
++    if (typeof num !== "bigint" || !Number.isSafeInteger(width) || width < 0 || width > 1024 || num < 0n || num >= (1n << BigInt(width * 8))) throw new RangeError("BigInt does not fit buffer width");
+     if (converter === undefined) {
+         const hex = num.toString(16);
+         const buffer = Buffer.from(hex.padStart(width * 2, '0').slice(0, width * 2), 'hex');
+@@ -68,6 +62,7 @@ exports.toBufferLE = toBufferLE;
+  * @returns A big-endian buffer representation of num.
+  */
+ function toBufferBE(num, width) {
++    if (typeof num !== "bigint" || !Number.isSafeInteger(width) || width < 0 || width > 1024 || num < 0n || num >= (1n << BigInt(width * 8))) throw new RangeError("BigInt does not fit buffer width");
+     if (converter === undefined) {
+         const hex = num.toString(16);
+         return Buffer.from(hex.padStart(width * 2, '0').slice(0, width * 2), 'hex');
+diff --git a/package.json b/package.json
+index ea456c2fb65a6e891fb0dff5fbb254fc267fdc22..0e8a059bb714fea51fafc0d7dcf8f4aa62b9eae4 100644
+--- a/package.json
++++ b/package.json
+@@ -12,7 +12,6 @@
+     "coverage": "istanbul cover ./test/index.js",
+     "coveralls": "npm run coverage && coveralls <coverage/lcov.info",
+     "lint": "gts check",
+-    "install": "npm run rebuild || echo \"Couldn't build bindings. Non-native version used.\"",
+     "prepare": "npm run compile",
+     "prepublishOnly": "rm -rf build/Release; rm build/Makefile; rm build/gyp-*; rm build/*.mk; rm build/*.Makefile; rm *.tgz",
+     "test:browser": "karma start karma.conf.js",

@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "date": "2026-10-30",
+  "decision": "approved-temporary-restricted-qa-access",
+  "ownerResponse": "Approve temporary restricted QA access",
+  "reviewedPr": "https://github.com/chrisjacob/warplets-api/pull/103",
+  "reviewedCodeCommit": "5b319bc3d0569ffa2087b27c5f612c04207c2e5d",
+  "approvedFids": [1431382],
+  "scope": [
+    "Temporary invitation-protected HTTPS Quick Tunnel",
+    "Isolated local launchpad Worker and database",
+    "Supervised warpmoji desktop/iOS authentication and off-chain message proofs"
+  ],
+  "excluded": [
+    "Production deployment or routing changes",
+    "Financial transactions, funding or token launches",
+    "Changes to external account links or settings",
+    "Other participant identities or public enrollment",
+    "Provider budget increases"
+  ],
+  "sessionExpiresAt": "2026-10-30T06:27:16.260Z",
+  "publicBoundaryChecksPassedAt": "2026-10-30T04:29:07.489Z",
+  "physicalIosVerified": false,
+  "runtimeRecord": "Private local session manifest and validation report outside Git; credentials and hostname are not published here"
+}

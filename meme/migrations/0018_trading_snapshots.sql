@@ -1,0 +1,10 @@
+CREATE TABLE meme_trading_sources(id TEXT PRIMARY KEY,fid INTEGER NOT NULL,parent_id TEXT REFERENCES meme_trading_sources(id),reason TEXT NOT NULL,payload TEXT NOT NULL,through_at INTEGER NOT NULL,created_at INTEGER NOT NULL);
+CREATE TABLE meme_trading_source_heads(fid INTEGER PRIMARY KEY,source_id TEXT NOT NULL REFERENCES meme_trading_sources(id));
+CREATE TABLE meme_trading_boards(id TEXT PRIMARY KEY,window TEXT NOT NULL,as_of INTEGER NOT NULL,payload TEXT NOT NULL);
+CREATE TABLE meme_trading_board_heads(window TEXT PRIMARY KEY,board_id TEXT NOT NULL REFERENCES meme_trading_boards(id),as_of INTEGER NOT NULL);
+CREATE TRIGGER meme_trading_source_immutable_update BEFORE UPDATE ON meme_trading_sources BEGIN SELECT RAISE(ABORT,'Immutable trading source');END;
+CREATE TRIGGER meme_trading_source_immutable_delete BEFORE DELETE ON meme_trading_sources BEGIN SELECT RAISE(ABORT,'Immutable trading source');END;
+CREATE TRIGGER meme_trading_board_immutable_update BEFORE UPDATE ON meme_trading_boards BEGIN SELECT RAISE(ABORT,'Immutable trading board');END;
+CREATE TRIGGER meme_trading_board_immutable_delete BEFORE DELETE ON meme_trading_boards BEGIN SELECT RAISE(ABORT,'Immutable trading board');END;
+CREATE TRIGGER meme_trading_source_matching_head BEFORE INSERT ON meme_trading_source_heads WHEN NOT EXISTS(SELECT 1 FROM meme_trading_sources WHERE id=NEW.source_id AND fid=NEW.fid) BEGIN SELECT RAISE(ABORT,'Mismatched trading source');END;
+CREATE TRIGGER meme_trading_source_matching_update BEFORE UPDATE ON meme_trading_source_heads WHEN NOT EXISTS(SELECT 1 FROM meme_trading_sources WHERE id=NEW.source_id AND fid=NEW.fid) BEGIN SELECT RAISE(ABORT,'Mismatched trading source');END;

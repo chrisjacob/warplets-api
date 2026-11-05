@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "recordedDate": "2026-10-30",
+  "timezone": "Australia/Sydney",
+  "approvedBy": "Project owner (reply in this Codex conversation)",
+  "approvedPolicyId": "participation-v1-2026-10-30",
+  "participation": {
+    "response": "Proceed with the current design",
+    "scope": "Current participation policy design for the future controlled cohort",
+    "sourceCommit": "d949063a943ad2b348e4c5e44c7afe539307633d",
+    "sourcePath": "docs/10x/RULES-REVIEW.md",
+    "sourceBlob": "ece9253d38caa46072b7851c36fbe3cf24a30f30",
+    "sourceSha256": "411aa7a64da9605264e981205448d85e574cd06577f80e3797f37f9ebf5ce931",
+    "runtimeRulesUnchanged": "local-v1",
+    "finalizedEntitlementsUnchanged": true
+  },
+  "distributor": {
+    "response": "Evaluate Jito with fully locked rewards and an approved vesting/clawback policy",
+    "direction": "Jito fully locked evaluation",
+    "specificTimingApproved": false,
+    "custodyAddressesApproved": false
+  },
+  "exclusions": [
+    "Deployment or activation",
+    "Mainnet signing, funding or claims",
+    "New remote resources",
+    "New provider credentials, requests or budgets",
+    "Unspecified vesting/clawback/custody parameters",
+    "Unspecified treasury or public Sybil/dispute procedures"
+  ]
+}

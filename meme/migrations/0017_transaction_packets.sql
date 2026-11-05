@@ -1,0 +1,8 @@
+CREATE TABLE meme_transaction_packets(id TEXT PRIMARY KEY,attempt_id TEXT NOT NULL REFERENCES meme_transaction_attempts(id),plan_hash TEXT NOT NULL,message_hash TEXT NOT NULL,payload TEXT NOT NULL,created_at INTEGER NOT NULL);
+CREATE TABLE meme_transaction_packet_heads(attempt_id TEXT PRIMARY KEY REFERENCES meme_transaction_attempts(id),packet_id TEXT NOT NULL REFERENCES meme_transaction_packets(id));
+CREATE TRIGGER meme_packet_fixed BEFORE UPDATE ON meme_transaction_packets BEGIN SELECT RAISE(ABORT,'Transaction packet is immutable'); END;
+CREATE TRIGGER meme_packet_kept BEFORE DELETE ON meme_transaction_packets BEGIN SELECT RAISE(ABORT,'Transaction packet is immutable'); END;
+CREATE TRIGGER meme_packet_head_no_handoff BEFORE UPDATE ON meme_transaction_packet_heads WHEN EXISTS(SELECT 1 FROM meme_transaction_approvals WHERE attempt_id=NEW.attempt_id) BEGIN SELECT RAISE(ABORT,'Handed-off packet cannot change'); END;
+CREATE TRIGGER meme_packet_head_keep BEFORE DELETE ON meme_transaction_packet_heads BEGIN SELECT RAISE(ABORT,'Packet head cannot be deleted'); END;
+CREATE TRIGGER meme_packet_head_valid_insert BEFORE INSERT ON meme_transaction_packet_heads WHEN EXISTS(SELECT 1 FROM meme_transaction_approvals WHERE attempt_id=NEW.attempt_id) OR NOT EXISTS(SELECT 1 FROM meme_transaction_packets WHERE id=NEW.packet_id AND attempt_id=NEW.attempt_id) BEGIN SELECT RAISE(ABORT,'Invalid packet binding'); END;
+CREATE TRIGGER meme_packet_head_valid_update BEFORE UPDATE ON meme_transaction_packet_heads WHEN NEW.attempt_id!=OLD.attempt_id OR NOT EXISTS(SELECT 1 FROM meme_transaction_packets WHERE id=NEW.packet_id AND attempt_id=NEW.attempt_id) BEGIN SELECT RAISE(ABORT,'Invalid packet binding'); END;

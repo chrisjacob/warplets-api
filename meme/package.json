@@ -1,0 +1,50 @@
+{
+  "name": "@10x/meme",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1 --port 5194 --strictPort",
+    "dev:worker": "wrangler dev --local --ip 127.0.0.1 --port 8797 --persist-to .wrangler/state",
+    "review:dev": "vite --host 127.0.0.1 --port 5198 --strictPort",
+    "review:worker": "wrangler dev --local --ip 127.0.0.1 --port 8800 --persist-to .wrangler/review-state",
+    "review:migrate": "wrangler d1 migrations apply meme-local --local --persist-to .wrangler/review-state",
+    "qa:build": "node scripts/check-qa-env.mjs && vite build --outDir .tmp/restricted-qa-web",
+    "qa:migrate": "wrangler d1 migrations apply meme-local --local --persist-to .wrangler/restricted-qa-state",
+    "db:migrate": "wrangler d1 migrations apply meme-local --local --persist-to .wrangler/state",
+    "types": "wrangler types worker-configuration.d.ts --include-runtime false",
+    "typecheck": "tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.worker.json",
+    "build": "vite build && node scripts/check-performance.mjs",
+    "build:worker": "wrangler deploy --dry-run --outdir .tmp/worker",
+    "test": "tsx --test src/worker/*.test.ts src/shared/*.test.ts src/app/*.test.ts && node --test scripts/*.test.mjs",
+    "check": "pnpm boundary && pnpm typecheck && pnpm test && pnpm build && pnpm build:worker",
+    "boundary": "node scripts/check-boundaries.mjs",
+    "operator": "node scripts/operator.mjs"
+  },
+  "dependencies": {
+    "@10x/connect": "workspace:*",
+    "@farcaster/auth-client": "0.7.1",
+    "@farcaster/miniapp-node": "0.2.0",
+    "@farcaster/miniapp-sdk": "0.3.0",
+    "@farcaster/quick-auth": "0.0.6",
+    "@wallet-standard/app": "1.1.0",
+    "canvas-confetti": "1.9.4",
+    "react": "19.2.5",
+    "react-dom": "19.2.5",
+    "viem": "^2.55.19"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "5.20261028.1",
+    "@types/canvas-confetti": "1.9.0",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@vitejs/plugin-react": "^4",
+    "tsx": "4.21.0",
+    "typescript": "5.9.3",
+    "vite": "6.4.5",
+    "wrangler": "4.154.0"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
