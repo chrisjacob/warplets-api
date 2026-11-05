@@ -1,11 +1,13 @@
 import { createClient, PlatformApiError } from '../../contracts/client.mjs';
 import { z } from 'zod';
+import { capabilityTransport } from './capability-transport.mjs';
 import {
   assetModel, awardModel, ballotModel, boardModel, farmModel, inventoryModel, pageOf, policyModel,
   positionModel, quoteModel, receiptModel, submissionModel,
 } from './models';
 
-export const client=createClient();
+export const runtimeTransport=capabilityTransport();
+export const client=createClient({fetchImpl:runtimeTransport.fetch});
 export { PlatformApiError };
 const queryCursor=(cursor?:string)=>cursor?{cursor}:{};
 const rows=<T extends z.ZodType>(type:T,payload:unknown)=>pageOf(type).parse(payload);

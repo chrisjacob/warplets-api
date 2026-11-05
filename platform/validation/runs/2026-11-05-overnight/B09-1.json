@@ -1,0 +1,33 @@
+{
+  "taskId": "B09",
+  "substep": "B09.1 runtime-guarded client",
+  "status": "substep-verified-task-in-progress",
+  "baseCommit": "1690969",
+  "checks": [
+    {
+      "command": "pnpm --dir platform/site build",
+      "exitCode": 0
+    },
+    {
+      "command": "pnpm --dir platform/site test",
+      "exitCode": 0,
+      "tests": 10
+    }
+  ],
+  "assertions": [
+    "Worker unsupported reads/writes make no dependent HTTP request",
+    "Node supported routes retained",
+    "Concurrent discovery deduplicated",
+    "Failed or invalid inventory holds dependent traffic",
+    "Financially enabled inventory rejected",
+    "Exact method and single path-segment matching",
+    "One caller abort cannot cancel shared discovery"
+  ],
+  "limitations": [
+    "No new browser walkthrough yet",
+    "Controls still render before unavailable response; React capability boundaries remain",
+    "Account switch and session lifecycle work remains"
+  ],
+  "spend": 0,
+  "deployment": false
+}

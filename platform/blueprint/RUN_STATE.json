@@ -5,7 +5,7 @@
   "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
   "currentTask": "B01",
-  "lastUpdatedAt": "2026-11-05T12:20:55.190Z",
+  "lastUpdatedAt": "2026-11-05T12:22:07.510Z",
   "migrationAllocation": {
     "next": 22,
     "reserved": [],
@@ -25,15 +25,15 @@
   },
   "tasks": {
     "B00": {
-      "status": "in_progress",
+      "status": "verified",
       "owner": "coordinator",
       "baseCommit": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
-      "implementationCommit": null,
-      "pushed": false,
+      "implementationCommit": "1690969",
+      "pushed": true,
       "evidence": [
         "platform/validation/runs/2026-11-05-overnight/B00.json"
       ],
-      "nextAction": "Pin golden archive fixture and commit baseline.",
+      "nextAction": null,
       "blocker": null
     },
     "B01": {
@@ -122,8 +122,10 @@
       "baseCommit": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
       "implementationCommit": null,
       "pushed": false,
-      "evidence": [],
-      "nextAction": "B09.1 guard implemented; complete capability-aware rendering and wallet/session lifecycle.",
+      "evidence": [
+        "platform/validation/runs/2026-11-05-overnight/B09-1.json"
+      ],
+      "nextAction": "Mount capability-aware React boundaries; suppress unsupported queries/actions visually, then wallet events/private cache and four-width browser acceptance. Transport guard alone does not complete B09.",
       "blocker": null
     },
     "B10": {
