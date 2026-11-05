@@ -3,6 +3,36 @@ import assert from 'node:assert/strict';
 import { startDemo, DEMO_NOTICE, parseDemoOptions } from './demo.mjs';
 import { DEFAULT_DEMO_OWNER } from './demo-data.mjs';
 import { encode58 } from '../server/base58.mjs';
+import {generateKeyPairSync,sign} from 'node:crypto';
+
+test('demo member signs in and recovers the same local mint reservation',async()=>{
+  const keys=generateKeyPairSync('ed25519');
+  const wallet=encode58(keys.publicKey.export({format:'der',type:'spki'}).subarray(-32));
+  const demo=await startDemo({port:0,wallet});let cookie='';
+  const req=async(path,body,key)=>{
+    const response=await fetch(demo.origin+'/api/v1'+path,{method:body?'POST':'GET',
+      headers:{origin:demo.origin,'content-type':'application/json',...(cookie?{cookie}:{}),...(key?{'idempotency-key':key}:{})},
+      body:body?JSON.stringify(body):undefined});
+    if(response.headers.has('set-cookie'))cookie=response.headers.get('set-cookie').split(';')[0];
+    return response;
+  };
+  try{
+    const challenge=await (await req('/auth/challenges',{wallet})).json();
+    const verified=await req('/auth/verify',{nonce:challenge.nonce,signature:encode58(sign(null,Buffer.from(challenge.message),keys.privateKey))});
+    assert.equal(verified.status,200);
+    const owned=await (await req('/vault')).json();
+    assert.deepEqual(owned.items.map(a=>a.id),['demo-genesis-1','demo-season-1','demo-season-2']);
+    const path='/collect/inventories/demo-genesis/stages/demo-priority/reservations';
+    const reserved=await req(path,{},'member-demo');assert.equal(reserved.status,201);
+    const first=await reserved.json();
+    const replay=await req(path,{},'member-demo');assert.equal(replay.status,200);
+    assert.equal((await replay.json()).operation.id,first.operation.id);
+    assert.equal(first.operation.status,'awaiting-evidence');
+    assert.equal((await req(path,{},'second-mint')).status,409);
+    assert.equal((await req('/auth/logout',{})).status,200);
+    assert.equal((await req('/vault')).status,401);
+  }finally{await demo.close();}
+});
 
 test('in-memory demo serves synthetic public fixtures without creating wallet sessions', async () => {
   const demo = await startDemo({ port: 0 });

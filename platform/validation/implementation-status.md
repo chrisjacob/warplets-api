@@ -40,6 +40,8 @@ Planning targets remain below US$10 for the first paid test, a founder-approved 
 
 ## Validation evidence and reproduction
 
+The coordinating review passed **126 Node reference tests** after adding the populated demo and its real loopback HTTP sign-in/reservation journey. The local Worker integration and two signed-beacon tests also passed. The React build passed, the operator journey passed staffing/review/reload/logout at four viewport widths, and the populated demo was visually inspected at 390 and 1440 pixels with no horizontal overflow. Browser tests use disposable keys and databases. [The full Linux checkpoint at a878968](https://github.com/chrisjacob/warplets-api/actions/runs/42015181617) passed before the final demo style and member-test additions; the checkpoint file triggers another clean build for those changes.
+
 The Earn/contracts slice was rerun on **5 November 2026** with Node **22.22.3**: **62 tests passed, zero failed**, and generated-contract drift check passed. That scoped count includes economics used by Earn, board/recovery, pricing, onboarding issuers, notifications, operating costs, API/client integration, quotes and the 14-scenario cost planner. It is not the repository-wide test total. Quote tests include 80 SDK cases within one test; do not count those as 80 additional test-runner tests.
 
 From the repository root:

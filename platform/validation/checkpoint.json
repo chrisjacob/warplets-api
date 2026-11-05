@@ -1,5 +1,5 @@
 {
   "policy": "prd-1.2",
   "scope": "local",
-  "checkpoint": "full-contracts-quotes-demo-and-operator-browser"
+  "checkpoint": "signed-demo-reservation-and-final-preview"
 }

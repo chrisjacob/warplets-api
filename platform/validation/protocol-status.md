@@ -73,3 +73,5 @@ An additional temporary, independent arithmetic check compared **600 seeded farm
 The reference model remains a specification tool. Passing its arithmetic tests does not establish chain ownership, provider-specific fixed-point rounding, distributed concurrency or claim durability.
 
 The coordinating review subsequently added the output-range guard and regression for the year-9999 expiry boundary. The final supported-year result succeeds and an overflow into year 10000 is rejected.
+
+The subsequent captured-program checkpoint at `4a424af` also [passed in run 42014527352](https://github.com/chrisjacob/warplets-api/actions/runs/42014527352). Its success preserves the compatibility limitations described above.
