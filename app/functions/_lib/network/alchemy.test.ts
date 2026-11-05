@@ -10,6 +10,24 @@ function fixture(){const db=new DatabaseSync(':memory:');instances.push(db);for(
 const rpc=(result:unknown)=>Response.json({jsonrpc:'2.0',id:1,result});
 afterEach(()=>{vi.unstubAllGlobals();for(const db of instances.splice(0))db.close();});
 describe('Alchemy free-tier guardrails',()=>{
+ it('allows six operator readers within the connection ceiling and shared CU reservations',async()=>{
+  const {db,env}=fixture();
+  for(let fid=1;fid<=6;fid++){
+   if(fid>2)db.prepare("INSERT INTO network_profiles(fid,location_status,token_status,opt_in_status,observed_at) VALUES(?,'unknown','none','opted_in',1)").run(fid);
+   db.prepare('INSERT INTO network_confirmed(fid,observed_at) VALUES(?,1)').run(fid);
+   db.prepare('INSERT INTO network_wallet_links VALUES(?,?,1)').run(fid,'0x'+String(fid).repeat(40));
+  }
+  db.prepare('INSERT INTO network_asset_prices VALUES(?,?,?)').run(NATIVE_ASSET,JSON.stringify({price:2000,confidence:1,timestamp:Math.floor(Date.now()/1000)}),Date.now());
+  vi.useFakeTimers();let active=0,peak=0;
+  try{
+   vi.stubGlobal('fetch',vi.fn(async(_url:string,init:RequestInit)=>{const r=JSON.parse(String(init.body));active++;peak=Math.max(peak,active);await new Promise(resolve=>setTimeout(resolve,800));active--;return rpc(r.method==='eth_getBalance'?'0x0':{address:r.params[0],tokenBalances:[]});}));
+   const pending=importWalletBatch(env,25,6);await vi.runAllTimersAsync();const result=await pending;
+   expect(result.status).toBe('advanced');expect(peak).toBe(6);expect(active).toBe(0);
+   expect(db.prepare('SELECT COUNT(*) n FROM network_wallet_values').get()?.n).toBe(6);
+   expect(db.prepare('SELECT SUM(reserved) n FROM network_alchemy_budgets').get()?.n).toBe(240);
+   expect(db.prepare('SELECT COUNT(*) n FROM network_leases').get()?.n).toBe(0);
+  }finally{vi.useRealTimers();}
+ });
  it('paces sustained parallel readers fairly within a bounded number of database requests',async()=>{
   const {db,env}=fixture();vi.useFakeTimers();
   try{

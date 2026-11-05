@@ -41,9 +41,20 @@ export async function neynarRead(env: WalletEnv, path: string, maximumCredits: n
   // Reserve a turn once, rather than repeatedly racing the other readers.
   // The old polling gate could starve a reader and exhaust invocation queries.
   const now=Date.now();
-  const slot=await env.WARPLETS.prepare(`INSERT INTO network_sync(key,value,updated_at) VALUES('neynar_rate',?,?)
-    ON CONFLICT(key) DO UPDATE SET value=CAST(MAX(CAST(network_sync.value AS INTEGER),?)+250 AS TEXT),updated_at=excluded.updated_at RETURNING value`).bind(String(now+250),now,now).first<{value:string}>();
-  const wait=slot?Number(slot.value)-250-Date.now():Infinity;
+  const endpoint=`neynar_rate:${target}:${new URL(path,'https://api.neynar.com').pathname.replace(/\/$/,'')}`;
+  // 400 RPM globally and 240 RPM per endpoint stay below even legacy Starter
+  // limits (500/300). Reserve both clocks atomically; query/FID changes never
+  // create a new endpoint bucket.
+  const slots=await env.WARPLETS.batch<{value:string}>([
+    env.WARPLETS.prepare(`INSERT INTO network_sync(key,value,updated_at)
+      SELECT 'neynar_rate',CAST(MAX(COALESCE((SELECT CAST(value AS INTEGER) FROM network_sync WHERE key='neynar_rate'),0),COALESCE((SELECT CAST(value AS INTEGER) FROM network_sync WHERE key=?),0),?)+150 AS TEXT),?
+      ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at RETURNING value`).bind(endpoint,now,now),
+    env.WARPLETS.prepare(`INSERT INTO network_sync(key,value,updated_at)
+      SELECT ?,CAST(CAST(value AS INTEGER)+100 AS TEXT),? FROM network_sync WHERE key='neynar_rate'
+      ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at`).bind(endpoint,now),
+  ]);
+  const slot=slots[0].results[0];
+  const wait=slot?Number(slot.value)-150-Date.now():Infinity;
   if(!Number.isFinite(wait)||wait>4000){
     // No provider attempt occurred, so this reservation is safe to release.
     await env.WARPLETS.prepare('UPDATE network_credit_budgets SET reserved=reserved-? WHERE month=?').bind(maximumCredits,month).run();
@@ -173,7 +184,7 @@ export async function importWalletValue(env:WalletEnv){return withWalletValueLea
 // Candidates are deduplicated once; all in-flight readers settle before releasing
 // the lease, including after a budget or provider failure.
 export async function importWalletBatch(env:WalletEnv,limit=25,concurrency=4){
-  if(!Number.isSafeInteger(limit)||limit<1||limit>25||!Number.isSafeInteger(concurrency)||concurrency<1||concurrency>4)throw Error('Invalid wallet batch');
+  if(!Number.isSafeInteger(limit)||limit<1||limit>25||!Number.isSafeInteger(concurrency)||concurrency<1||concurrency>6)throw Error('Invalid wallet batch');
   return withWalletValueLease(env,async()=>{
     if(await syncGet(env.WARPLETS,'wallet_cooldown',0)>Date.now())return {status:'cooldown',results:[]};
     const rows=await walletCandidates(env,limit);

@@ -74,7 +74,7 @@ if(!Number.isSafeInteger(steps)||steps<1||steps>1000)throw Error('steps must be 
 if(task==='profiles'&&process.argv.includes('--retry-failures'))await db.prepare('UPDATE network_profile_failures SET retry_after=0').run();
 if(task==='status'){
  const queries={
- sync:"SELECT key,value FROM network_sync WHERE key NOT LIKE 'bootstrap:%' AND key<>'neynar_pricing'",
+ sync:"SELECT key,value FROM network_sync WHERE key NOT LIKE 'bootstrap:%' AND key NOT LIKE 'operator:parameters:%' AND key<>'neynar_pricing'",
  pricing:"SELECT json_extract(value,'$.at') verifiedAt FROM network_sync WHERE key='neynar_pricing'",
  profiles:`SELECT COUNT(*) total,MIN(p.observed_at) oldest,SUM(p.observed_at<?) stale FROM network_profiles p WHERE p.fid IN (${NETWORK_CURRENT_COHORT})`,
  associations:`SELECT COUNT(*) total,SUM(a.fid IS NULL) missing,SUM(a.observed_at<?) stale FROM (${NETWORK_CURRENT_COHORT}) c LEFT JOIN network_wallet_associations a ON a.fid=c.fid`,

@@ -85,11 +85,19 @@ describe('durable storage and bounded ingestion', () => {
     expect(requested).toEqual([2,3,1]);
   });
   it('caps the combined daily allowance without weakening the monthly budget',async()=>{
-    const {env,db}=database();env.NETWORK_REQUESTS_PER_DAY='9999999';
-    db.prepare('INSERT INTO network_budgets VALUES(?,?,?)').run(new Date().toISOString().slice(0,10),'official-client',499999);
+    const {env,db}=database();env.NETWORK_REQUESTS_PER_DAY='9999999';env.NETWORK_REQUESTS_PER_MONTH='3000000';
+    db.prepare('INSERT INTO network_budgets VALUES(?,?,?)').run(new Date().toISOString().slice(0,10),'official-client',999999);
     await reserveRequest(env,'alchemy-base');
     await expect(reserveRequest(env,'official-client')).rejects.toThrow('budget');
-    expect(db.prepare('SELECT SUM(attempts) n FROM network_budgets').get()?.n).toBe(500000);
+    expect(db.prepare('SELECT SUM(attempts) n FROM network_budgets').get()?.n).toBe(1000000);
+  });
+  it('keeps the monthly hard ceiling when a daily burst is enabled',async()=>{
+    const {env,db}=database();env.NETWORK_REQUESTS_PER_DAY='1000000';env.NETWORK_REQUESTS_PER_MONTH='99999999';
+    const now=new Date(),otherDay=new Date(Date.UTC(now.getUTCFullYear(),now.getUTCMonth(),now.getUTCDate()===1?2:1)).toISOString().slice(0,10);
+    db.prepare('INSERT INTO network_budgets VALUES(?,?,?)').run(otherDay,'base',2999999);
+    await reserveRequest(env,'alchemy-base');
+    await expect(reserveRequest(env,'official-client')).rejects.toThrow('budget');
+    expect(db.prepare('SELECT SUM(attempts) n FROM network_budgets').get()?.n).toBe(3000000);
   });
   it('does not publish duplicate snapshots while location backfill has no work',async()=>{
     const {env,db}=database();
