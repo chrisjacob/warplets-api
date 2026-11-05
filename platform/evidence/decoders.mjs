@@ -76,6 +76,17 @@ export function decodeRecorded(source,record,envelope){
  if(envelope.blockTimeMs>effectiveCutoff)return decision('pending','future-cutoff-observation','decoder-only');
  if(effectiveCutoff-envelope.blockTimeMs>source.maxAgeMs)return decision('pending','stale-cutoff-observation','decoder-only');
  try{
+  if(source.decoderVersion==='synthetic-quote-capture-v1'){
+   if(source.mode!=='synthetic-fixture'||payload?.mode!=='synthetic-fixture')return decision('incompatible','synthetic-quote-mode-required','decoder-only');
+   if(source.subject.kind!=='quote-market'||source.subject.id!==payload.marketId||source.policy.marketId!==payload.marketId||envelope.requestedCutoffMs!==null)
+    return decision('incompatible','quote-subject','decoder-only');
+   if(payload.version!==1||payload.contextSlot!==envelope.contextSlot||payload.blockTimeMs!==envelope.blockTimeMs||payload.retrievedAtMs!==envelope.retrievedAtMs||payload.finality!==envelope.finality)
+    return decision('invalid','quote-recording-context','decoder-only');
+   // This decoder retains the composite observation, not a derived executable
+   // quote. The quote service verifies registered market/supply and every raw
+   // account, oracle clock and source policy before a quote can be materialized.
+   return decision('verified','synthetic-quote-envelope-validated','decoder-only',null,['quote-market-supply-verification-required','captured-program-parity-missing']);
+  }
   if(['synthetic-position-history-v1','synthetic-position-history-v2'].includes(source.decoderVersion))return history(source,payload,envelope);
   if(source.decoderVersion==='synthetic-cutoff-facts-v1')return decodeCutoffFacts(source,payload,envelope);
   if(source.decoderVersion==='synthetic-pricing-v1'){

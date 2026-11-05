@@ -89,7 +89,9 @@ export async function checkHostedRuntime({browser,runtime,fixture}){
    assert.ok(!calls.some(path=>path.startsWith('/api/v1/collect/')),calls.join(','));
    await page.goto(origin+'/markets/'+encodeURIComponent(fixture.browserTokenId));await page.locator('#view[aria-busy=false]').waitFor();
    assert.equal(await page.getByRole('button',{name:'Preview swap quote'}).count(),0);
-   assert.ok(!calls.some(path=>/quote-status|\/quotes$|\/notifications\/|\/transactions\//.test(path)),calls.join(','));
+   await page.getByRole('button',{name:'Check quote availability'}).waitFor();
+   assert.ok(calls.some(path=>path.endsWith('/quote-status')),'Advertised quote read must mount and return unavailable without source evidence.');
+   assert.ok(!calls.some(path=>/\/quotes$|\/notifications\/|\/transactions\//.test(path)),calls.join(','));
    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'Market overflow '+width);
    await page.goto(origin+'/earn');await page.getByText(contentUrl,{exact:true}).waitFor();
    await page.locator('#wallet-button').click();await page.getByRole('button',{name:'Sign out',exact:true}).click();

@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
-import { seedQuoteFixture } from '../../quotes/fixtures.mjs';
+import { seedBoundQuote } from '../../application/fixtures/seed-bound-quote.mjs';
 
-export async function checkQuoteView({browser,db,origin}){
-  seedQuoteFixture(db,Date.now(),'quote-demo');
+export async function checkQuoteView({browser,db,origin,artifactStore}){
+  await seedBoundQuote(db,artifactStore);
   const page=await browser.newPage({viewport:{width:390,height:844}});
   const calls=[];
   page.on('request',request=>{if(new URL(request.url()).pathname==='/api/v1/quotes')calls.push(JSON.parse(request.postData()??'{}'));});

@@ -5,9 +5,9 @@
   "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
   "currentTask": "B14",
-  "lastUpdatedAt": "2026-11-05T23:02:50.304012+00:00",
+  "lastUpdatedAt": "2026-11-05T23:25:03.320986+00:00",
   "migrationAllocation": {
-    "next": 33,
+    "next": 34,
     "reserved": [
       {
         "version": 31,
@@ -18,6 +18,11 @@
         "version": 32,
         "task": "B08",
         "purpose": "isolated public/private recovery state and mutation guards"
+      },
+      {
+        "version": 33,
+        "task": "B14",
+        "purpose": "immutable quote source bindings, derived decisions and finalized-account slot conflict receipts"
       }
     ],
     "historicalGap": 19
@@ -172,7 +177,7 @@
         "platform/validation/runs/2026-11-06-overnight/B10-1.json",
         "platform/validation/runs/2026-11-06-overnight/B10-2.json"
       ],
-      "nextAction": "Continue collection eligibility/progression browser acceptance from B10_HANDOFF.md; member Earn/Vault matrix passed.",
+      "nextAction": "UncommittedB10.3/4 passed20site+browser/build/types; frontendagent continues B10.5 readonlyoperator eligibility preview/currentreservation explanations before combinedcheckpoint.",
       "blocker": null
     },
     "B11": {
@@ -212,9 +217,10 @@
       "implementationCommit": null,
       "pushed": false,
       "evidence": [
-        "platform/validation/runs/2026-11-06-overnight/B14-1-comparison.json"
+        "platform/validation/runs/2026-11-06-overnight/B14-1-comparison.json",
+        "platform/validation/runs/2026-11-06-overnight/B14-2.json"
       ],
-      "nextAction": "Implement portable B04-bound quote DTO verification and provenance repository; comparison harness passed80 synthetic cases with8 captured cases explicitly missing.",
+      "nextAction": "B14.2 portable B04-bound quote HTTP verified:331reference/54edge+browser. Next B14.3 shared Vault/farm reads and source-bound stable cursors; coordinator owns034 source-revision triggers and routes; Vault agent owns boundedrepository/projection. CI pending newcheckpoint.",
       "blocker": null
     },
     "B15": {

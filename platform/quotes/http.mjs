@@ -41,6 +41,11 @@ const quoteFields={
     properties:{asset:text,side:{enum:['input','output']},networkLamports:{type:'null'},accountRentLamports:{type:'null'}}},
   source:{const:'local-fixture'},route:{const:'meteora-damm-v2'},executable:{const:false},
 };
+const quoteEvidence={type:'object',required:['mode','scope','receiptDigest','sourceId','sourceRevision','sourceConfigDigest','policyDigest','manifestDigest','captureByteDigest','accountByteDigests','blockTimeMs','retrievedAtMs','ingestedAtMs','oraclePublicationMs','oraclePublicationSlot','oracleRetrievedAtMs','evaluatedAtMs','programBinaryDigest','capturedProgramParity'],properties:{
+ mode:{const:'synthetic-fixture'},scope:{const:'synthetic-transcript'},receiptDigest:text,sourceId:text,sourceRevision:text,sourceConfigDigest:text,policyDigest:text,manifestDigest:text,captureByteDigest:text,
+ accountByteDigests:{type:'object',required:['pool','attMint','ogMint','attVault','ogVault'],properties:Object.fromEntries(['pool','attMint','ogMint','attVault','ogVault'].map(k=>[k,text]))},
+ blockTimeMs:integer,retrievedAtMs:integer,ingestedAtMs:integer,oraclePublicationMs:integer,oraclePublicationSlot:decimal,oracleRetrievedAtMs:integer,evaluatedAtMs:integer,programBinaryDigest:{type:'null'},capturedProgramParity:{const:'missing'},
+}};
 const schemaResponse=(description,properties,required=Object.keys(properties))=>({
   description,content:{'application/json':{schema:{type:'object',properties,required}}},
 });
@@ -52,6 +57,6 @@ export const quotePaths={
   '/quotes':{post:{operationId:'previewSwapQuote',requestBody:{required:true,content:{'application/json':{schema:{
     type:'object',additionalProperties:false,required:['marketId','direction','inputUnits','slippageBps'],
     properties:{marketId:{type:'string'},direction:{enum:['buy-att','sell-att']},inputUnits:decimal,slippageBps:{type:'integer',minimum:0,maximum:500}}}}}},
-    responses:{200:schemaResponse('Exact-in local price, included trading fee, impact, min output and evidence-bound expiry.',quoteFields),
+    responses:{200:schemaResponse('Exact-in local price, included trading fee, impact, min output and retained B04 evidence-bound expiry.',{...quoteFields,evidence:quoteEvidence},Object.keys(quoteFields)),
       422:{description:'Pool range, dust or risk limit prevents a quote.'},503:{description:'Source missing, held or expired.'}}}},
 };

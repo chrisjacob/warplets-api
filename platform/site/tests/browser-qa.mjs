@@ -12,10 +12,11 @@ import { checkMemberPages } from '../../web/member-smoke.mjs';
 import { checkStandardWallet } from './standard-wallet.mjs';
 import { checkRuntimeProfiles } from './runtime-qa.mjs';
 import { checkQuoteView } from './quote-qa.mjs';
+import {memoryArtifacts} from '../../application/fixtures/memory-artifacts.mjs';
 
 if(!process.env.PLAYWRIGHT_MODULE || !process.env.BROWSER_EXE) throw Error('Set PLAYWRIGHT_MODULE and BROWSER_EXE to local installations.');
 await stat(new URL('../dist/index.html',import.meta.url));
-const db=openDatabase(':memory:'),api=createApp(db);
+const artifactStore=memoryArtifacts(),db=openDatabase(':memory:'),api=createApp(db,{artifactStore});
 const server=createLocalServer(async(request,peer)=>await serveSite(request,undefined,path=>
   api(new Request(new URL(path,request.url)),peer))??api(request,peer));
 await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
@@ -89,7 +90,7 @@ try {
   await checkStandardWallet({browser,db,origin});
   await checkRuntimeProfiles({browser,origin});
   }
-  await checkQuoteView({browser,db,origin});
+  await checkQuoteView({browser,db,origin,artifactStore});
 } finally {
   await browser?.close();server.closeAllConnections();await new Promise(resolve=>server.close(resolve));db.close();
 }

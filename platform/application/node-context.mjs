@@ -8,6 +8,12 @@ import {createAtomicEarnRepository} from '../storage/atomic-earn.mjs';
 import {createAtomicActionRepository} from '../storage/atomic-actions.mjs';
 import {createEarnReadRepository} from '../storage/earn-reads.mjs';
 import {createGuardedEarnService} from '../earn/guarded-service.mjs';
+import {createQuoteRepository} from '../quotes/repository.mjs';
+import {createQuoteService} from '../quotes/service.mjs';
+export function createNodeQuoteService(db,{clock={nowMs:Date.now},store={async getVerified(identity){return {status:'missing',identity};}},ids={next:randomUUID}}={}){
+ const crypto=createNodeCrypto(),repository=createQuoteRepository(createNodeAtomicDriver(db),{crypto,ids});
+ return createQuoteService({repository,store,crypto,clock});
+}
 export function createNodeGuardedEarnService(db,{nowMs,ids={next:randomUUID}}){
  const driver=createNodeAtomicDriver(db),ports={crypto:createNodeCrypto(),clock:{nowMs:()=>nowMs},ids};
  return createGuardedEarnService({guarded:createAtomicEarnRepository(driver,ports),reads:createEarnReadRepository(driver),actions:createAtomicActionRepository(driver,ports),...ports});

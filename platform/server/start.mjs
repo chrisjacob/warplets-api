@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { failure } from './api.mjs';
 import { openDatabase } from '../storage/database.mjs';
 import { createApp } from './application.mjs';
+import {nodeArtifactStore} from '../artifacts/node.mjs';
 
 export function createLocalServer(handler) {
   const ownedDb=handler?null:openDatabase();
@@ -43,7 +44,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   const dir=new URL('../.local/',import.meta.url);
   mkdirSync(dir,{recursive:true});
   const db=openDatabase(fileURLToPath(new URL('preview.sqlite',dir)));
-  const server=createLocalServer(createApp(db));
+  const server=createLocalServer(createApp(db,{artifactStore:nodeArtifactStore(fileURLToPath(new URL('artifacts/',dir)))}));
   server.once('close',()=>db.close());
   server.listen(port,'127.0.0.1',()=>console.log('10X validation API at http://127.0.0.1:'+port+'/api/v1/policy'));
 }

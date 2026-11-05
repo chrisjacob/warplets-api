@@ -6262,7 +6262,7 @@
         },
         "responses": {
           "200": {
-            "description": "Exact-in local price, included trading fee, impact, min output and evidence-bound expiry.",
+            "description": "Exact-in local price, included trading fee, impact, min output and retained B04 evidence-bound expiry.",
             "content": {
               "application/json": {
                 "schema": {
@@ -6405,6 +6405,120 @@
                     },
                     "executable": {
                       "const": false
+                    },
+                    "evidence": {
+                      "type": "object",
+                      "required": [
+                        "mode",
+                        "scope",
+                        "receiptDigest",
+                        "sourceId",
+                        "sourceRevision",
+                        "sourceConfigDigest",
+                        "policyDigest",
+                        "manifestDigest",
+                        "captureByteDigest",
+                        "accountByteDigests",
+                        "blockTimeMs",
+                        "retrievedAtMs",
+                        "ingestedAtMs",
+                        "oraclePublicationMs",
+                        "oraclePublicationSlot",
+                        "oracleRetrievedAtMs",
+                        "evaluatedAtMs",
+                        "programBinaryDigest",
+                        "capturedProgramParity"
+                      ],
+                      "properties": {
+                        "mode": {
+                          "const": "synthetic-fixture"
+                        },
+                        "scope": {
+                          "const": "synthetic-transcript"
+                        },
+                        "receiptDigest": {
+                          "type": "string"
+                        },
+                        "sourceId": {
+                          "type": "string"
+                        },
+                        "sourceRevision": {
+                          "type": "string"
+                        },
+                        "sourceConfigDigest": {
+                          "type": "string"
+                        },
+                        "policyDigest": {
+                          "type": "string"
+                        },
+                        "manifestDigest": {
+                          "type": "string"
+                        },
+                        "captureByteDigest": {
+                          "type": "string"
+                        },
+                        "accountByteDigests": {
+                          "type": "object",
+                          "required": [
+                            "pool",
+                            "attMint",
+                            "ogMint",
+                            "attVault",
+                            "ogVault"
+                          ],
+                          "properties": {
+                            "pool": {
+                              "type": "string"
+                            },
+                            "attMint": {
+                              "type": "string"
+                            },
+                            "ogMint": {
+                              "type": "string"
+                            },
+                            "attVault": {
+                              "type": "string"
+                            },
+                            "ogVault": {
+                              "type": "string"
+                            }
+                          }
+                        },
+                        "blockTimeMs": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "retrievedAtMs": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "ingestedAtMs": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "oraclePublicationMs": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "oraclePublicationSlot": {
+                          "type": "string",
+                          "pattern": "^(0|[1-9][0-9]*)$"
+                        },
+                        "oracleRetrievedAtMs": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "evaluatedAtMs": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "programBinaryDigest": {
+                          "type": "null"
+                        },
+                        "capturedProgramParity": {
+                          "const": "missing"
+                        }
+                      }
                     }
                   },
                   "required": [
@@ -6584,6 +6698,120 @@
                         },
                         "executable": {
                           "const": false
+                        },
+                        "evidence": {
+                          "type": "object",
+                          "required": [
+                            "mode",
+                            "scope",
+                            "receiptDigest",
+                            "sourceId",
+                            "sourceRevision",
+                            "sourceConfigDigest",
+                            "policyDigest",
+                            "manifestDigest",
+                            "captureByteDigest",
+                            "accountByteDigests",
+                            "blockTimeMs",
+                            "retrievedAtMs",
+                            "ingestedAtMs",
+                            "oraclePublicationMs",
+                            "oraclePublicationSlot",
+                            "oracleRetrievedAtMs",
+                            "evaluatedAtMs",
+                            "programBinaryDigest",
+                            "capturedProgramParity"
+                          ],
+                          "properties": {
+                            "mode": {
+                              "const": "synthetic-fixture"
+                            },
+                            "scope": {
+                              "const": "synthetic-transcript"
+                            },
+                            "receiptDigest": {
+                              "type": "string"
+                            },
+                            "sourceId": {
+                              "type": "string"
+                            },
+                            "sourceRevision": {
+                              "type": "string"
+                            },
+                            "sourceConfigDigest": {
+                              "type": "string"
+                            },
+                            "policyDigest": {
+                              "type": "string"
+                            },
+                            "manifestDigest": {
+                              "type": "string"
+                            },
+                            "captureByteDigest": {
+                              "type": "string"
+                            },
+                            "accountByteDigests": {
+                              "type": "object",
+                              "required": [
+                                "pool",
+                                "attMint",
+                                "ogMint",
+                                "attVault",
+                                "ogVault"
+                              ],
+                              "properties": {
+                                "pool": {
+                                  "type": "string"
+                                },
+                                "attMint": {
+                                  "type": "string"
+                                },
+                                "ogMint": {
+                                  "type": "string"
+                                },
+                                "attVault": {
+                                  "type": "string"
+                                },
+                                "ogVault": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            "blockTimeMs": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "retrievedAtMs": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "ingestedAtMs": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "oraclePublicationMs": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "oraclePublicationSlot": {
+                              "type": "string",
+                              "pattern": "^(0|[1-9][0-9]*)$"
+                            },
+                            "oracleRetrievedAtMs": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "evaluatedAtMs": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "programBinaryDigest": {
+                              "type": "null"
+                            },
+                            "capturedProgramParity": {
+                              "const": "missing"
+                            }
+                          }
                         }
                       },
                       "required": [

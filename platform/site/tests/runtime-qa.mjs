@@ -13,7 +13,12 @@ export async function checkRuntimeProfiles({browser,origin}){
       const url=new URL(route.request().url());
       if(url.origin!==origin)return route.abort();
       if(url.pathname.startsWith('/api/'))calls.push(url.pathname);
-      if(url.pathname==='/api/v1/capabilities')return route.fulfill({json:{data:makeCapabilities('workerd-local')}});
+      if(url.pathname==='/api/v1/capabilities'){
+        // Explicit restricted-profile fixture keeps unavailable-query coverage
+        // when the current Worker gains another local read-only capability.
+        const cap=makeCapabilities('workerd-local');cap.features=cap.features.filter(f=>f.id!=='quote-preview');
+        return route.fulfill({json:{data:cap}});
+      }
       if(url.pathname==='/api/v1/me')return route.fulfill({json:{data:{wallet:'fixture-worker-wallet',chain:'solana'}}});
       return route.continue();
     });

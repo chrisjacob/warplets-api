@@ -9,7 +9,8 @@ export async function represent(request,response,now) {
  const wrap=pathname!=='/api/v1/openapi.json'&&request.headers.get('accept')?.split(',').some(x=>x.split(';')[0].trim()===mediaType);
  const original=await response.json();
  const stable=stableCache.has(pathname)&&response.status===200;
- const meta={requestId,policyVersion:policy.version,asOf:original.asOf??new Date(now).toISOString(),sourceSlot:null};
+ const quoted=pathname==='/api/v1/quotes'&&response.status===200&&original.evidence?.receiptDigest&&Number.isSafeInteger(original.contextSlot)&&original.contextSlot>0;
+ const meta={requestId,policyVersion:policy.version,asOf:original.asOf??(quoted?original.quotedAt:new Date(now).toISOString()),sourceSlot:quoted?original.contextSlot:null};
  let result=original;
  if(original.error){
   const retryAfter=headers.get('retry-after');

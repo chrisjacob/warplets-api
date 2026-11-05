@@ -1,0 +1,238 @@
+{
+  "taskId": "B14",
+  "substep": "B14.2",
+  "status": "partial",
+  "classification": "strict synthetic receipt-bound quote verification and portable quote HTTP; financial reads remain pending",
+  "lastTestedBaseCommit": "d7d50c065c540e331c9fc5d53e6002a3ca74deee",
+  "implementationCommit": null,
+  "commands": [
+    {
+      "command": "node --test platform/quotes/quotes.test.mjs platform/quotes/verification.test.mjs platform/evidence/quote-comparison.test.mjs platform/pricing/pricing.test.mjs",
+      "tests": 23,
+      "failed": 0,
+      "skipped": 0,
+      "exitCode": 0,
+      "durationMs": 1113.8209
+    },
+    {
+      "command": "node --test platform/edge/test/quote-provenance.test.mjs",
+      "tests": 1,
+      "failed": 0,
+      "skipped": 0,
+      "exitCode": 0,
+      "durationMs": 15772.2388,
+      "log": "work/b14-quote-parity-final.log"
+    },
+    {
+      "command": "node platform/edge/node_modules/typescript/bin/tsc --noEmit -p platform/edge/tsconfig.json",
+      "exitCode": 0
+    },
+    {
+      "command": "git diff --check",
+      "exitCode": 0
+    }
+  ],
+  "sourceHashes": {
+    "files": {
+      "platform/quotes/accounts.mjs": "eb7a55d59a2d7fff8074915c9869fda9604d739a513472a4848f09443d9f68cb",
+      "platform/quotes/verification.mjs": "3fd9cf2dc28b1e9e4a38666aa24688bc4811e82455edb8223b799ed720f408bb",
+      "platform/quotes/evidence.mjs": "9dffe4850413c366150b0967fd0ae7946cc1d827f4e254a61195fcd2d3654f36",
+      "platform/quotes/service.mjs": "3a0729216433cefade4f13bd0a45b7683cd88e221340f0cc301d936bcae6bbaa",
+      "platform/quotes/repository.mjs": "1b6e8dd55dbe57f30eb8e0dc9b509c32658fda582ec939d77ed52e8ee17cf2fe",
+      "platform/storage/033-quote-provenance.sql": "dc2b2fd4520ab475291711020dae39f4a148886ce6ddc51f421aaa445b6b7156",
+      "platform/edge/test/quote-provenance.test.mjs": "19279581d00378fd5ae4d92c228c2a337ac563b9006d4d48012d82980b6970bf"
+    },
+    "selectedSyntheticSource": {
+      "sourceId": "quotes:synthetic-quote-report",
+      "sourceRevision": "fixture-v1",
+      "decoderVersion": "synthetic-quote-capture-v1",
+      "sourceConfigDigest": "6602c4c0c4e43c8d1f21bc0fc4c8fde29e24e20d44e4c2bfd01ba2a937031134",
+      "recordingDigest": "f97b95a57d254f8727a218720b67188faae3e43f78e63c5bbd927f1330eaa6ce",
+      "bindingDigest": "05708c4fe608d4d21ce9840bb27ca28508384b027353998b3cde84afb881240b",
+      "inputDigest": "70f26bbace8816f07004c403626d69ab8bb0fb04c2800c4bc89757dc8ade31c9",
+      "receiptDigest": "d62c659f32eb2858aa9ef6fa1a87683ffc8b599d5cbc5178f6d5e9241a86e5f0",
+      "captureByteDigest": "aef6851c8f925dc39cf24532f35a397160da1ca314bbd5d8ae8bc4490e87f05f",
+      "accountByteDigests": {
+        "attMint": "9571320620bfb14aaca15a27bb239ad92a871275f3b33f2013cd18220c890a57",
+        "attVault": "3a348344d4f2bcd13ac7a561b130e8250717af2bfa77a0c67cbf1d03c9d4fe3c",
+        "ogMint": "995719a83b5188884e3c1619280b6926dd2e572a51420acf17ea04cf9b53a340",
+        "ogVault": "85cb4ba82bd7503d35e70ecb881d363c47dfb111b3342575ce53d0dcd78094aa",
+        "pool": "b0d345fc1471b0c6d7874c811d41c8aca1c37a55613d117ec15ffa42c2ae6fe5"
+      },
+      "manifestDigest": "98e26f027fb2a49961c9a0b1a6432bb5f52b7db0e917504e74f7eff8e429b469",
+      "policyDigest": "2dd6ed15b3f525feb541a6f4f2043c634484f7100c98fea19bdf966496849940"
+    }
+  },
+  "responseExample": {
+    "method": "POST",
+    "path": "/api/v1/quotes",
+    "request": {
+      "marketId": "synthetic-quote-report",
+      "direction": "buy-att",
+      "inputUnits": "1000000",
+      "slippageBps": 50
+    },
+    "status": 200,
+    "cacheControl": "no-store",
+    "body": {
+      "data": {
+        "id": "2381f59975488fde1dfe7e145587fe92d57d43fdc8b210e11393c2db6d2493f7",
+        "version": 1,
+        "marketId": "synthetic-quote-report",
+        "direction": "buy-att",
+        "inputMint": "CktRuQ2mttgRGkXJtyksdKHjUdc2C4TgDzyB98oEzy8",
+        "outputMint": "8qbHbw2BbbTHBW1sbeqakYXVKRQM8Ne7pLK7m6CVfeR",
+        "inputDecimals": 6,
+        "outputDecimals": 9,
+        "inputUnits": "1000000",
+        "expectedOutputUnits": "24747489191700",
+        "minimumOutputUnits": "24623751745742",
+        "grossOutputUnits": "24747489191700",
+        "inputFeeUnits": "10000",
+        "outputFeeUnits": "0",
+        "feeBps": 100,
+        "priceImpactBps": "2",
+        "nextSqrtPriceX64": "3689723125345523",
+        "slippageBps": 50,
+        "quotedAt": "2026-11-05T12:00:00.000Z",
+        "expiresAt": "2026-11-05T12:00:15.000Z",
+        "contextSlot": 12345,
+        "observedAt": "2026-11-05T12:00:00.000Z",
+        "sourceHash": "91997cc8ac369af72e7ab207d09f9679fc22dea184ea642c54d0c51031bee87b",
+        "spotFdvUsdMicros": "79999999999",
+        "effectiveBuyFdvUsdMicros": "80816279362",
+        "fees": {
+          "asset": "CktRuQ2mttgRGkXJtyksdKHjUdc2C4TgDzyB98oEzy8",
+          "side": "input",
+          "networkLamports": null,
+          "accountRentLamports": null
+        },
+        "source": "local-fixture",
+        "route": "meteora-damm-v2",
+        "executable": false,
+        "evidence": {
+          "mode": "synthetic-fixture",
+          "scope": "synthetic-transcript",
+          "receiptDigest": "d62c659f32eb2858aa9ef6fa1a87683ffc8b599d5cbc5178f6d5e9241a86e5f0",
+          "sourceId": "quotes:synthetic-quote-report",
+          "sourceRevision": "fixture-v1",
+          "sourceConfigDigest": "6602c4c0c4e43c8d1f21bc0fc4c8fde29e24e20d44e4c2bfd01ba2a937031134",
+          "policyDigest": "2dd6ed15b3f525feb541a6f4f2043c634484f7100c98fea19bdf966496849940",
+          "manifestDigest": "98e26f027fb2a49961c9a0b1a6432bb5f52b7db0e917504e74f7eff8e429b469",
+          "captureByteDigest": "aef6851c8f925dc39cf24532f35a397160da1ca314bbd5d8ae8bc4490e87f05f",
+          "accountByteDigests": {
+            "attMint": "9571320620bfb14aaca15a27bb239ad92a871275f3b33f2013cd18220c890a57",
+            "attVault": "3a348344d4f2bcd13ac7a561b130e8250717af2bfa77a0c67cbf1d03c9d4fe3c",
+            "ogMint": "995719a83b5188884e3c1619280b6926dd2e572a51420acf17ea04cf9b53a340",
+            "ogVault": "85cb4ba82bd7503d35e70ecb881d363c47dfb111b3342575ce53d0dcd78094aa",
+            "pool": "b0d345fc1471b0c6d7874c811d41c8aca1c37a55613d117ec15ffa42c2ae6fe5"
+          },
+          "blockTimeMs": 1793880000000,
+          "retrievedAtMs": 1793880000000,
+          "ingestedAtMs": 1793880000000,
+          "oraclePublicationMs": 1793880000000,
+          "oraclePublicationSlot": "12345",
+          "oracleRetrievedAtMs": 1793880000000,
+          "evaluatedAtMs": 1793880000000,
+          "programBinaryDigest": null,
+          "capturedProgramParity": "missing"
+        }
+      },
+      "meta": {
+        "policyVersion": "prd-1.2",
+        "asOf": "2026-11-05T12:00:00.000Z",
+        "sourceSlot": 12345
+      }
+    }
+  },
+  "acceptance": {
+    "realB04Receipts": 11,
+    "nodeD1QuoteCalls": 12,
+    "publicNodeWorkerQuotesIdentical": true,
+    "knownSlotAndQuotedTimeMetadata": true,
+    "exactReplays": true,
+    "newerUnmaterializedOrInvalidMasksOlder": true,
+    "sameFinalizedSlotConflictsSticky": true,
+    "regressedSlotHeld": true,
+    "higherValidSlotRecovers": true,
+    "staleOracleAndMissingFxHeld": true,
+    "rawPrivateMissingOrCorruptHeld": true,
+    "forgedDerivedCommandRejected": true,
+    "omittedChildRollsBackReceiptAndInput": true,
+    "lostCommitResponseRecovers": true,
+    "headChangeDuringFinalHashRejectsStaleQuote": true,
+    "expiryDuringFinalHashRejectsQuote": true,
+    "immutableAccountSlotDigests": true,
+    "heldRecoveryGuardsAllFourNewTables": true,
+    "txIntents": 0,
+    "txAttempts": 0
+  },
+  "metering": {
+    "maxSqlStatementsPerServiceInvocation": 22,
+    "maxCombinedSqlAndArtifactPortOperations": 24,
+    "providerAttempts": 0
+  },
+  "privateRecovery": {
+    "businessTables": 90,
+    "pinnedObjects": 25,
+    "nonemptyTablesRestoredExactly": {
+      "app_quote_bindings": 1,
+      "app_quote_heads": 1,
+      "app_quote_inputs": 11,
+      "app_quote_account_slots": 35
+    },
+    "restoredQuoteRetainsInsufficientVaultDecision": true
+  },
+  "limits": {
+    "scope": "synthetic-fixture only",
+    "capturedProgramParity": "missing",
+    "programBinaryDigest": null,
+    "networkLamports": null,
+    "accountRentLamports": null,
+    "financialExecution": false,
+    "liveProviderReads": 0,
+    "fullRegression": "coordinator-pending",
+    "financialReadPort": "pending"
+  },
+  "implementationSourceHashesReflectUncommittedCheckpoint": true,
+  "coordinatorChecks": {
+    "reference": {
+      "passed": 331,
+      "exitCode": 0,
+      "durationMs": 19114.2669,
+      "log": "work/b14-reference.log"
+    },
+    "fullEdge": {
+      "passed": 54,
+      "exitCode": 0,
+      "durationMs": 413722.8913,
+      "log": "work/b14-edge-full.log"
+    },
+    "quoteBrowser": {
+      "exitCode": 0,
+      "log": "work/b14-browser-quotes.log"
+    },
+    "realWorkerBrowser": {
+      "widths": [
+        360,
+        390,
+        768,
+        1440
+      ],
+      "signatures": 4,
+      "exitCode": 0,
+      "log": "work/b14-hosted-browser.log"
+    },
+    "types": "passed",
+    "contracts": "passed",
+    "blueprint": "passed",
+    "priorCheckpointCi": {
+      "commit": "d7d50c065c540e331c9fc5d53e6002a3ca74deee",
+      "runId": 42126596308,
+      "status": "success"
+    },
+    "currentCi": "pending-push"
+  },
+  "migration": 33,
+  "recoveryInventoryTables": 90
+}

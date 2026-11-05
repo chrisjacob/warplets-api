@@ -13,8 +13,11 @@ import { represent } from '../contracts/transport.mjs';
 import { handleCollect } from '../collect/http.mjs';
 import { handleOperations } from '../operations/http.mjs';
 import { handleNotifications } from '../notifications/http.mjs';
-import { handleQuotes } from '../quotes/http.mjs';
-export function createApp(db,{clock=Date.now}={}) {
+import { handleInteractiveQuotes } from '../quotes/interactive-http.mjs';
+import { createNodeQuoteService } from '../application/node-context.mjs';
+import { consumeQuota } from './auth.mjs';
+export function createApp(db,{clock=Date.now,artifactStore}={}) {
+  const quotes=createNodeQuoteService(db,{clock:{nowMs:clock},store:artifactStore});
   let nextCleanup=0;
   return async function dispatch(request,peer='loopback'){
     const now=clock();
@@ -24,8 +27,8 @@ export function createApp(db,{clock=Date.now}={}) {
       db.prepare('DELETE FROM auth_challenges WHERE nonce IN (SELECT nonce FROM auth_challenges WHERE expires_at<=? ORDER BY expires_at LIMIT 100)').run(now);
       nextCleanup=now+60000;
     }
-    const response=await handleAuth(db,request,peer,now)??handleOperations(db,request,now)??await handleQuotes(db,request,peer,now)??handleMarkets(db,request,now)??handleVault(db,request,now)?? 
-      handleStake(db,request,now)??handleTransactions(db,request,now)??await handleNotifications(db,request,peer,now)??await handleBallots(db,request,peer,now)?? 
+    const response=await handleAuth(db,request,peer,now)??handleOperations(db,request,now)??await handleInteractiveQuotes(request,{service:quotes,peer,consumeQuota:async(bucket,limit)=>consumeQuota(db,bucket,now,limit)})??handleMarkets(db,request,now)??handleVault(db,request,now)??
+      handleStake(db,request,now)??handleTransactions(db,request,now)??await handleNotifications(db,request,peer,now)??await handleBallots(db,request,peer,now)??
       await handleEarn(db,request,peer,now)??
       await handleCollect(db,request,peer,now)??
       await handleLaunchPlans(request,{nowSeconds:Math.floor(now/1000)})??
