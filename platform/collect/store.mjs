@@ -53,6 +53,11 @@ export function createCollection(db,fixture) {
       need(prior.origin_digest===digest,'collection_conflict','Collection identity is immutable.',409);
       return {id:collectionId,replayed:true};
     }
+    if(kind==='season') {
+      const frozen=db.prepare('SELECT 1 FROM local_campaign_registry r JOIN vault_manifests v ON v.id=r.market_id WHERE v.activated_ms>=? AND v.activated_ms<? LIMIT 1')
+        .get(start,seasonExpiry(start,10));
+      need(!frozen,'historical_snapshot_conflict','A registered launch already froze its Season weights in this period.',409);
+    }
     if(kind==='season') need(!db.prepare('SELECT 1 FROM collect_inventories WHERE season_month=?').get(month),
       'duplicate_month','A Season already exists for this UTC month.',409);
     if(kind==='genesis') need(!db.prepare('SELECT 1 FROM collect_inventories WHERE tranche=?').get(fixture.tranche),
@@ -264,6 +269,8 @@ export function fulfillMint(db,fixture,now=Date.now()) {
     saveInventory(db,row,next);
     db.prepare('INSERT INTO collect_assets VALUES(?,?,?,?,?,NULL,?,?)').run(assetId,row.id,op.owner,at,at,encode(slot),encode(nft));
     observeAsset(db,{eventId:'collect:'+op.id,assetId,kind:'bind',at:iso(at),owner:op.owner,slot},now);
+    if(row.kind==='season')db.prepare('INSERT INTO collect_level_history(asset_id,effective_ms,level,source_ref) VALUES(?,?,?,?)')
+      .run(assetId,at,level,op.id);
     const receipt={operationId,assetId,at};
     saveReceipt(db,op,fixture,digest,receipt);
     return {...receipt,replayed:false};
@@ -340,6 +347,13 @@ export function fulfillProgression(db,fixture,now=Date.now()) {
     state.operations=[operation];
     const next=applyVerifiedProgressionDraw(state,{operationId:op.id,commitment:op.commitment,
       proofId:fixture.proofId,at:fixture.at,ticket:fixture.ticket,traits:op.kind==='visual'?output:undefined});
+    if(op.kind==='upgrade'){
+      const frozen=db.prepare('SELECT 1 FROM local_campaign_registry r JOIN vault_manifests v ON v.id=r.market_id WHERE v.activated_ms>=? LIMIT 1')
+        .get(fixture.at);
+      need(!frozen,'historical_snapshot_conflict','Reconcile late Level evidence against the sealed launch before accepting it.',409);
+      const insert=db.prepare('INSERT INTO collect_level_history(asset_id,effective_ms,level,source_ref) VALUES(?,?,?,?)');
+      for(const asset of next.assets)insert.run(asset.id,fixture.at,asset.level,op.id);
+    }
     writeProgression(db,next,fixture.at);
     const receipt={operationId:op.id,assetId:operation.targetId,materialId:operation.materialId,at:fixture.at};
     saveReceipt(db,op,fixture,digest,receipt);
