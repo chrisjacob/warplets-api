@@ -21,7 +21,9 @@ node platform/earn/operator.mjs ./earn-pilot.sqlite allocate day.json
 | observation | `wallet`, `tokenId`, `asOfMs`, pool and OG quote, wallet farm units, historical reference, executable depth probe |
 | review | `submissionId`, `score` (0–10), `reason`, `moderator`, `sourceRef`, `reviewedMs` |
 | action | `actionId`, `label`, `verifier`, `enabled`, `effectiveEpoch`, `atMs` |
-| completion | `wallet`, `actionId`, `verifier`, `verifiedMs`, `sourceRef` |
+| issuer | `issuerId`, `actionId`, `verifier`, `pubkey`, prospective `fromEpoch` and exclusive `untilEpoch`, `atMs`, `actor`, `evidenceRef` |
+| revokeIssuer | `issuerId`, `expectedRevision`, `atMs`, `actor`, `evidenceRef` |
+| completion | `wallet`, `actionId`, `proof`, `signature`, `now`; same scoped signature checks as the HTTP API |
 | collection | `collectionId`, `kind` (genesis/season), `seasonStartMs` for a Season |
 | owner | `wallet`, `epoch`, `asOfMs` (closing millisecond), `assets` (complete wallet snapshot), `sourceRef` |
 | enroll | `wallet`, `tokenId`, `enrolledMs` |
@@ -56,3 +58,11 @@ Store the export digest independently of the file. Verification checks the pinne
 Wallet owners can retrieve `/api/v1/earn/claims/proof?tokenId=ATT&day=2` and verify it against the allocation’s root in the pinned `/api/v1/earn/epochs/YYYY-MM-DD/manifest`. The local proof binds wallet, token base units, campaign day, board commitment and vesting window. Leaves sort by wallet, each pair keeps left/right order, and an unpaired node advances unchanged. All hashes use SHA-256 over UTF-8 canonical JSON arrays with explicit format and purpose labels. This is an offline integrity scheme. The eventual distributor must validate its own program-specific proof format.
 
 Run `node platform/earn/recovery-drill.mjs` to rehearse a missing cutoff observation, independent private backup, recovered settlement and public claim export. The command uses disposable synthetic wallets and fresh local databases, and emits only aggregate status.
+
+## Onboarding proof issuer
+
+A named action verifier needs a registered Ed25519 public key, scoped to one action and a prospective epoch interval. The issuer attests a source-evidence hash for the signed-in wallet, with a nonce and an expiry of at most ten minutes. `POST /api/v1/earn/actions/{actionId}/completions` accepts only this proof and signature. It checks the current grant, domain, action, wallet, lifetime, configured verifier and active action state. The acceptance timestamp controls the prospective completion credit.
+
+`signedCompletionBytes` defines the exact ordered field encoding. Issuers must sign those bytes and encode the signature in base58. The protocol rejects weak and noncanonical Ed25519 point/signature encodings before runtime verification. Grant rotation and revocation are append-only. Replaying the same previously accepted proof returns its receipt and creates no second credit. An opt-out/disabled action stops contributing at its configured future board. Existing finalized boards remain frozen.
+
+This framework does not verify a Farcaster follow or other outside action by itself. A selected provider adapter must obtain evidence and sign only a valid action. Private signing keys are outside the app, fixtures and repository. Tests generate throwaway keys locally.

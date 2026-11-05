@@ -1,6 +1,11 @@
 const response = description => ({description,content:{'application/json':{schema:{type:'object'}}}});
 const cursor = {in:'query',name:'cursor',schema:{type:'integer',minimum:0},description:'Continue from nextCursor.'};
 export const earnPaths = {
+  '/earn/actions/{actionId}/completions':{post:{operationId:'submitSignedActionCompletion',summary:'Submit a short-lived attestation from the registered issuer for this wallet and action.',
+    parameters:[{in:'path',name:'actionId',required:true,schema:{type:'string'}}],
+    requestBody:{required:true,content:{'application/json':{schema:{type:'object',additionalProperties:false,
+      required:['proof','signature'],properties:{proof:{type:'object'},signature:{type:'string'}}}}}},
+    responses:{200:response('Verified action receipt or nonce replay'),401:response('Wallet session required'),409:response('Conflicting receipt')}}},
   '/earn/capacity':{get:{operationId:'getEarnAdmissionCapacity',summary:'Read available review slots for the current UTC board.',
     responses:{200:response('Daily limit, admitted count and remaining slots')}}},
   '/earn/epochs/{epoch}/manifest':{get:{operationId:'exportEarnManifest',summary:'Export public board and recorded allocations for independent reconciliation.',

@@ -2,11 +2,13 @@ import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { openDatabase } from '../storage/database.mjs';
 import { changeScope, controlledScopes, costPressure, actionDecision, recordUsage, reserveOptionalCost, settleOptionalCost } from './controls.mjs';
+import { configCheckpoint, verifyConfigChain } from './audit.mjs';
 
 export function runControls(argv) {
   const [file,verb,fixture]=argv;
   const verbs={change:changeScope,meter:recordUsage,reserve:reserveOptionalCost,settle:settleOptionalCost,
-    status:(db,{now})=>({pressure:costPressure(db,now),decisions:controlledScopes.map(scope=>actionDecision(db,scope,now))})};
+    status:(db,{now})=>({pressure:costPressure(db,now),decisions:controlledScopes.map(scope=>actionDecision(db,scope,now))}),
+    audit:(db,{pinnedHead})=>verifyConfigChain(db,pinnedHead),checkpoint:(db,{pinnedDigest})=>configCheckpoint(db,pinnedDigest)};
   if(argv.length!==3||!Object.hasOwn(verbs,verb))throw Error('Use DB change|meter|reserve|settle|status INPUT.json');
   const input=JSON.parse(readFileSync(fixture,'utf8'));
   const db=openDatabase(file);

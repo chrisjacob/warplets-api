@@ -3,13 +3,14 @@ import { pathToFileURL } from 'node:url';
 import { openDatabase } from '../storage/database.mjs';
 import { addCampaign, finalizeBoard, recordAllocation, recordReview } from './workflow.mjs';
 import { registerPriceSource, importPriceObservation } from '../pricing/evidence.mjs';
-import { configureAction, registerCollection, recordOwnership, recordActionCompletion } from './components.mjs';
+import { configureAction, registerCollection, recordOwnership } from './components.mjs';
+import { acceptSignedCompletion, grantIssuer, revokeIssuer } from './verifiers.mjs';
 import { registerPosition, recordPositionEvent, reconcilePosition } from './positions.mjs';
 import { recoveryMode } from './archive.mjs';
 import { configureWorkload, moderatorQueue, workloadMetrics } from './operations.mjs';
 
 const commands = {campaign:addCampaign,source:registerPriceSource,observation:importPriceObservation,review:recordReview,
-  finalize:finalizeBoard,allocate:recordAllocation,action:configureAction,completion:recordActionCompletion,
+  finalize:finalizeBoard,allocate:recordAllocation,action:configureAction,completion:acceptSignedCompletion,issuer:grantIssuer,revokeIssuer,
   collection:registerCollection,owner:recordOwnership,enroll:registerPosition,event:recordPositionEvent,position:reconcilePosition,
   workload:configureWorkload,queue:moderatorQueue,metrics:workloadMetrics};
 export function runOperator(argv) {

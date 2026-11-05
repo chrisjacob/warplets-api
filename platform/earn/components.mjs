@@ -3,12 +3,13 @@ import { seasonActiveWeight } from '../domain/collections/policy.mjs';
 import { transaction } from '../storage/database.mjs';
 import { conflict, digest, name, nat, requireValue } from './checks.mjs';
 import { observationAt } from '../pricing/evidence.mjs';
+import { appendAudit } from '../operations/audit.mjs';
 
 function preventClosed(db, epoch) {
   if (db.prepare('SELECT 1 FROM earn_boards WHERE epoch=?').get(epoch)) conflict('board_closed','Published evidence is immutable.');
 }
 
-export function configureAction(db,{actionId,label,verifier,effectiveEpoch,enabled,atMs}) {
+export function configureAction(db,{actionId,label,verifier,effectiveEpoch,enabled,atMs,actor='local-operator',evidenceRef='local-action-policy'}) {
   name(actionId,'action ID');name(label,'action label');name(verifier,'action verifier');
   nat(effectiveEpoch,'effective board');
   requireValue(effectiveEpoch>epochAt(atMs),'Schedule catalog changes for a future UTC board.');
@@ -24,6 +25,8 @@ export function configureAction(db,{actionId,label,verifier,effectiveEpoch,enabl
     if (db.prepare('SELECT 1 FROM earn_boards WHERE epoch>=? LIMIT 1').get(effectiveEpoch)) conflict('board_closed','Policy would change a finalized board.');
     if (!action) db.prepare('INSERT INTO earn_action_catalog VALUES(?,?,?)').run(actionId,label,verifier);
     db.prepare('INSERT INTO earn_action_changes VALUES(?,?,?,?)').run(actionId,effectiveEpoch,Number(enabled),atMs);
+    appendAudit(db,{category:'action-policy',entity:actionId,changeKey:String(effectiveEpoch),atMs,actor,evidenceRef,
+      payload:{label,verifier,enabled,effectiveEpoch}});
     return {actionId,effectiveEpoch,enabled};
   });
 }

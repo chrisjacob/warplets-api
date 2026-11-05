@@ -1,6 +1,7 @@
 import { transaction } from '../storage/database.mjs';
 import { assessRecurring } from '../costs/budget.mjs';
 import { conflict, decimal, digest, name, nat, requireValue } from '../earn/checks.mjs';
+import { appendAudit } from './audit.mjs';
 
 export const controlledScopes=Object.freeze(['launch-preparation','earn-admission','collection-mint','collection-progression',
   'optional-refresh','optional-images','optional-notifications']);
@@ -26,6 +27,7 @@ export function changeScope(db,{scope,paused,previousRevision=null,atMs,actor,re
     const latest=db.prepare('SELECT revision,at_ms FROM ops_scope_log WHERE scope=? ORDER BY at_ms DESC LIMIT 1').get(scope);
     if ((latest?.revision??null)!==previousRevision || (latest && atMs<=latest.at_ms)) conflict('stale_scope','Refresh scope revision before changing policy.');
     db.prepare('INSERT INTO ops_scope_log VALUES(?,?,?,?,?,?,?,?,?)').run(revision,scope,Number(paused),previousRevision,atMs,actor,reason,evidenceRef,requestKey);
+    appendAudit(db,{category:'scope-change',entity:scope,changeKey:requestKey,atMs,actor,evidenceRef,payload:{paused,reason,revision,previousRevision}});
     return {scope,paused,revision};
   });
 }

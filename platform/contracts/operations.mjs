@@ -81,6 +81,11 @@ export const operations = [
     "method": "POST"
   },
   {
+    "id": "submitSignedActionCompletion",
+    "path": "/earn/actions/{actionId}/completions",
+    "method": "POST"
+  },
+  {
     "id": "getEarnAdmissionCapacity",
     "path": "/earn/capacity",
     "method": "GET"

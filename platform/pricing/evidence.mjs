@@ -3,6 +3,7 @@ import { transaction } from '../storage/database.mjs';
 import { conflict, name, nat, requireValue } from '../earn/checks.mjs';
 import { assessObservation, normalizePolicy } from './policy.mjs';
 import { epochAt } from '../domain/earn/index.mjs';
+import { appendAudit } from '../operations/audit.mjs';
 
 function canonical(value) {
   if (Array.isArray(value)) return value.map(canonical);
@@ -19,7 +20,11 @@ export function registerPriceSource(db,input) {
     const old=db.prepare('SELECT * FROM price_sources WHERE token_id=?').get(policy.tokenId);
     if (old && old.policy_hash!==policyHash) conflict('source_pinned','This campaign has a different pinned pool or price policy.');
     requireValue(db.prepare('SELECT 1 FROM earn_fixture_campaigns WHERE token_id=?').get(policy.tokenId),'Register the local campaign first.');
-    if (!old) db.prepare('INSERT INTO price_sources VALUES(?,?,?)').run(policy.tokenId,payload,policyHash);
+    if (!old) {
+      db.prepare('INSERT INTO price_sources VALUES(?,?,?)').run(policy.tokenId,payload,policyHash);
+      appendAudit(db,{category:'price-source',entity:policy.tokenId,changeKey:policyHash,atMs:input.registeredAtMs??Date.now(),
+        actor:input.actor??'local-operator',evidenceRef:input.evidenceRef??'local-price-source',payload:{policyHash}});
+    }
     return {tokenId:policy.tokenId,policyHash};
   });
 }

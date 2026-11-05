@@ -1,6 +1,7 @@
 import { DAY_MS, epochAt } from '../domain/earn/index.mjs';
 import { transaction } from '../storage/database.mjs';
 import { conflict, digest, name, nat, requireValue } from './checks.mjs';
+import { appendAudit } from '../operations/audit.mjs';
 
 export const PILOT_BOARD_CAPACITY=100;
 export function configureWorkload(db,{effectiveEpoch,atMs,staffedMinutes,secondsPerReview,admissionLimit,operator,reason}) {
@@ -17,6 +18,8 @@ export function configureWorkload(db,{effectiveEpoch,atMs,staffedMinutes,seconds
       if (db.prepare('SELECT 1 FROM earn_boards WHERE epoch>=? LIMIT 1').get(effectiveEpoch)) conflict('board_closed','A capacity change cannot rewrite a finalized board.');
       db.prepare('INSERT INTO earn_workload_policies VALUES(?,?,?,?,?,?,?,?)')
         .run(revision,effectiveEpoch,atMs,staffedMinutes,secondsPerReview,admissionLimit,operator,reason);
+      appendAudit(db,{category:'staffing',entity:'Earn',changeKey:revision,atMs,actor:operator,evidenceRef:reason,
+        payload:{effectiveEpoch,staffedMinutes,secondsPerReview,admissionLimit,revision}});
     }
     return {revision,effectiveEpoch,limit:Math.min(admissionLimit,Math.floor(staffedMinutes*60/secondsPerReview))};
   });

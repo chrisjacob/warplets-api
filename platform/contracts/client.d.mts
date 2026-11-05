@@ -28,6 +28,7 @@ export interface PlatformClient {
   listGenesisBallots(options?: { headers?: HeadersInit; signal?: AbortSignal; idempotencyKey?: string }): Promise<Record<string, unknown>>;
   getGenesisBallot(options: { headers?: HeadersInit; signal?: AbortSignal; idempotencyKey?: string; path: { "id": string } }): Promise<{ "data": { "id": string; "status": string; "eligibleWallets": number; "votesCast": number }; "meta": Meta }>;
   castGenesisVote(options: { headers?: HeadersInit; signal?: AbortSignal; idempotencyKey?: string; path: { "id": string }; body: { "choice": "ASAP" | "7" | "14" | "30" } }): Promise<{ "data": { "choice": "ASAP" | "7" | "14" | "30"; "replayed": boolean }; "meta": Meta }>;
+  submitSignedActionCompletion(options: { headers?: HeadersInit; signal?: AbortSignal; idempotencyKey?: string; path: { "actionId": string }; body: { "proof": Record<string, unknown>; "signature": string } }): Promise<Record<string, unknown>>;
   getEarnAdmissionCapacity(options?: { headers?: HeadersInit; signal?: AbortSignal; idempotencyKey?: string }): Promise<Record<string, unknown>>;
   exportEarnManifest(options: { headers?: HeadersInit; signal?: AbortSignal; idempotencyKey?: string; path: { "epoch": string } }): Promise<Record<string, unknown>>;
   getMyEarnProof(options?: { headers?: HeadersInit; signal?: AbortSignal; idempotencyKey?: string; query?: { "tokenId"?: string; "day"?: number } }): Promise<Record<string, unknown>>;

@@ -6,6 +6,7 @@ import { exportBoard, proofForWallet, recoveryMode } from './archive.mjs';
 import { capacityAt } from './operations.mjs';
 import { actionDecision } from '../operations/controls.mjs';
 import { boundedJson, BodyInputError } from '../server/body.mjs';
+import { acceptSignedCompletion } from './verifiers.mjs';
 import { EarnError, readLeaderboard, readWalletClaims, readWalletSubmissions, submitContent } from './workflow.mjs';
 
 const base='/api/v1/earn';
@@ -26,8 +27,9 @@ export async function handleEarn(db,request,peer,now) {
   const proof=url.pathname===base+'/claims/proof';
   const actions=url.pathname===base+'/actions';
   const capacity=url.pathname===base+'/capacity';
-  if (!board && !post && !me && !claims && !actions && !proof && !capacity) return null;
-  const expected=post?'POST':'GET';
+  const actionProof=url.pathname.match(/^\/api\/v1\/earn\/actions\/([A-Za-z0-9._:-]{1,128})\/completions$/);
+  if (!board && !post && !me && !claims && !actions && !proof && !capacity && !actionProof) return null;
+  const expected=post||actionProof?'POST':'GET';
   if (request.method!==expected) return failure(405,'method_not_allowed','Unsupported method.',{allow:expected});
   try {
     if (board || actions || capacity) {
@@ -44,11 +46,18 @@ export async function handleEarn(db,request,peer,now) {
       }
       return json({epoch,mode:'local-fixture',items:listActiveActions(db,epoch)});
     }
-    if (post && request.headers.get('origin')!==url.origin) return failure(403,'invalid_origin','Use the configured local origin.');
+    if ((post||actionProof) && request.headers.get('origin')!==url.origin) return failure(403,'invalid_origin','Use the configured local origin.');
     const session=currentSession(db,request,now);
     if (!session) return failure(401,'authentication_required','Connect your wallet.');
-    const quota=consumeQuota(db,(post?'earn-submit:':'earn-wallet-read:')+session.wallet,now,post?10:60);
+    const quota=consumeQuota(db,(post||actionProof?'earn-submit:':'earn-wallet-read:')+session.wallet,now,post||actionProof?10:60);
     if (quota) return quota;
+    if(actionProof) {
+      if(recoveryMode(db))return failure(409,'read_only_archive','Public archive serves existing awards.');
+      if(request.headers.get('content-type')?.split(';')[0]!=='application/json')return failure(415,'unsupported_media_type','Use application/json.');
+      const b=await boundedJson(request);
+      if(!b||typeof b!=='object'||Object.keys(b).length!==2||!Object.hasOwn(b,'proof')||!Object.hasOwn(b,'signature'))return failure(400,'invalid_input','Supply proof and signature only.');
+      return json(acceptSignedCompletion(db,{wallet:session.wallet,actionId:actionProof[1],proof:b.proof,signature:b.signature,now}));
+    }
     if (proof) {
       const day=url.searchParams.get('day'),tokenId=url.searchParams.get('tokenId');
       if (!/^(?:[1-9]|10)$/.test(day??'') || !tokenId || tokenId.length>256) return failure(400,'invalid_input','Supply a tokenId and campaign day 1–10.');
