@@ -44,8 +44,11 @@ within its published 30M free allowance; the ten-RPC/s gate is unchanged.
 No provider plan or billing setting is changed.
 Profile/chain collection, wallet refresh and activity now have independent cron
 leases; a slow portfolio or credit pause cannot hold up daily profile freshness.
-Neynar requests share a four-request/s gate, below the observed 300-request/min
-key limit; that rate limit is distinct from the monthly credit allocation.
+Neynar requests reserve both a 400-RPM global gate and a 240-RPM per-endpoint
+gate. These remain below even the legacy Starter limits of 500 global and 300
+per endpoint (the current Free tier allows 1,000/600). Query/FID parameters and
+trailing slashes share the same endpoint bucket. Rate limits remain distinct
+from the monthly credit allocation.
 Both provider gates now atomically reserve future request times in one database
 call per turn. Sustained parallel readers cannot starve one another by winning
 repeated polling races; the rate and credit limits are unchanged. The original
@@ -81,6 +84,7 @@ transaction rollback was verified with an isolated temporary marker.
 Official references checked 5 November 2026:
 - https://docs.neynar.com/reference/compute-units
 - https://dev.neynar.com/api/pricing
+- https://docs.neynar.com/reference/what-are-the-rate-limits-on-neynar-apis
 - https://github.com/neynarxyz/OAS/blob/main/src/api/spec.yaml
 - https://github.com/neynarxyz/OAS/blob/main/src/hub-api/spec.yaml
 - https://www.alchemy.com/pricing

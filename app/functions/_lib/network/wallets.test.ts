@@ -30,6 +30,19 @@ function fixture(){
   return {db,env:{WARPLETS:sqliteD1(db),NEYNAR_API_KEY:'test',NETWORK_WALLET_CREDITS:'10000'} as WalletEnv};
 }
 describe('wallet valuation and top holdings',()=>{
+  it('uses distinct endpoint capacity while enforcing both global and per-endpoint pacing',async()=>{
+    const {env}=fixture();vi.useFakeTimers();
+    try{
+      const calls:{path:string;at:number}[]=[];
+      vi.stubGlobal('fetch',vi.fn(async(url:string)=>{calls.push({path:new URL(url).pathname,at:Date.now()});return Response.json({});}));
+      const pending=Promise.all(Array.from({length:4},async(_,reader)=>{for(let i=0;i<8;i++)await neynarRead(env,`/v2/test-${reader%2}?fid=${i}`,2);}));
+      await vi.runAllTimersAsync();await pending;
+      expect(calls).toHaveLength(32);
+      expect(calls.slice(1).every((call,i)=>call.at-calls[i].at>=150)).toBe(true);
+      for(const path of ['/v2/test-0','/v2/test-1']){const times=calls.filter(c=>c.path===path).map(c=>c.at);expect(times.slice(1).every((at,i)=>at-times[i]>=250)).toBe(true);}
+      expect(calls.at(-1)!.at-calls[0].at).toBeLessThan(6000);
+    }finally{vi.useRealTimers();}
+  });
   it('preserves the projected association allowance when activity reaches its allocation',async()=>{
     const {db,env}=fixture(),month=new Date().toISOString().slice(0,7);
     db.prepare('INSERT INTO network_credit_budgets(month,reserved) VALUES(?,998)').run(month);
