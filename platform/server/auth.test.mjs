@@ -53,3 +53,15 @@ test('challenge quota caps requests and recovers at the next interval',async t=>
   assert.ok(Number(limited.headers.get('retry-after'))>0);
   f.advance(61000);assert.equal((await f.request('/auth/challenges',{wallet:f.wallet})).status,201);
 });
+test('identity-point wallet cannot authenticate with a universal forged proof',async t=>{
+  const f=fixture(t);
+  const identity=Buffer.alloc(32);identity[0]=1;
+  const wallet=encode58(identity);
+  assert.equal((await f.request('/auth/challenges',{wallet})).status,400);
+  // Even a challenge persisted before strict checking cannot issue a session.
+  const nonce='n'.repeat(43);
+  f.db.prepare('INSERT INTO auth_challenges VALUES(?,?,?,?,?,NULL)').run(nonce,wallet,'http://127.0.0.1:4173','legacy',1_800_000_300_000);
+  const signature=encode58(Buffer.concat([identity,Buffer.alloc(32)]));
+  assert.equal((await f.request('/auth/verify',{nonce,signature})).status,400);
+  assert.equal(f.db.prepare('SELECT count(*) AS n FROM sessions').get().n,0);
+});

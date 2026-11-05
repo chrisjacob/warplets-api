@@ -38,6 +38,8 @@ test('real workerd verifies a D1 wallet proof once and protects R2 public artifa
  const pair=generateKeyPairSync('ed25519'),wallet=encode58(pair.publicKey.export({format:'der',type:'spki'}).subarray(-32));
  assert.equal((await post('/auth/challenges',{wallet},{origin:'http://outside.test'})).status,403);
  const challengeRes=await post('/auth/challenges',{wallet});assert.equal(challengeRes.status,201);
+ const identity=Buffer.alloc(32);identity[0]=1;
+ assert.equal((await post('/auth/challenges',{wallet:encode58(identity)})).status,400);
  const challenge=await challengeRes.json();
  const proof={nonce:challenge.nonce,signature:encode58(sign(null,Buffer.from(challenge.message),pair.privateKey))};
  const replies=await Promise.all([post('/auth/verify',proof),post('/auth/verify',proof)]);

@@ -1,5 +1,5 @@
 import { randomBytes, createHash, createPublicKey, verify } from 'node:crypto';
-import { decode58 } from './base58.mjs';
+import { signerKey,signatureBytes } from '../security/ed25519.mjs';
 import { transaction } from '../storage/database.mjs';
 import { json, failure } from './api.mjs';
 
@@ -54,7 +54,7 @@ export async function handleAuth(db,request,peer,now) {
   try {body=await request.json();}catch {return invalid('Invalid JSON.');}
   if(!body||typeof body!=='object'||Array.isArray(body)) return invalid('Expected an object.');
   if(endpoint==='/auth/challenges') {
-    try {decode58(body.wallet,32);} catch {return invalid('Expected a Solana wallet address.');}
+    try {signerKey(body.wallet);} catch {return invalid('Expected a Solana wallet address.');}
     const nonce=token(),expiresAt=now+300000;
     const message=[origin+' requests a 10X.MEME wallet signature.','Action: Sign in to the local preview',
       'Chain: solana','Wallet: '+body.wallet,'Nonce: '+nonce,'Issued: '+new Date(now).toISOString(),
@@ -65,8 +65,8 @@ export async function handleAuth(db,request,peer,now) {
   if(typeof body.nonce!=='string'||body.nonce.length!==43) return invalid('Invalid nonce.');
   const row=db.prepare('SELECT * FROM auth_challenges WHERE nonce=? AND consumed_at IS NULL AND origin=? AND expires_at>?').get(body.nonce,origin,now);
   if(!row) return failure(401,'invalid_challenge','Challenge expired or unavailable.');
-  let sig;try{sig=decode58(body.signature,64);}catch{return invalid('Expected a base58 Ed25519 signature.');}
-  const key=createPublicKey({key:Buffer.concat([header,decode58(row.wallet,32)]),format:'der',type:'spki'});
+  let sig;try{sig=signatureBytes(body.signature);}catch{return invalid('Expected a base58 Ed25519 signature.');}
+  const key=createPublicKey({key:Buffer.concat([header,signerKey(row.wallet)]),format:'der',type:'spki'});
   if(!verify(null,Buffer.from(row.message),key,sig)) return failure(401,'invalid_signature','Wallet signature mismatch.');
   const sessionToken=token();
   const issued=transaction(db,()=>{

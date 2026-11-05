@@ -155,7 +155,7 @@ export async function validatePacket(plan, attemptId, planHash, packet, now = Da
     const bytes = messageBytes(packet.messageBase64);
     if (await bytesHash(bytes) !== packet.messageHash) throw Error("Message hash mismatch");
     const decoded = decodeMessage(bytes, packet.lookupTables);
-    if (decoded.blockhash !== life.blockhash || decoded.signers.length !== plan.signers.length || decoded.signers[0] !== plan.signers[0] || decoded.signers.some((s)=>!plan.signers.includes(s)) || decoded.instructions.length !== plan.instructions.length) throw Error("Message lifetime, signers or instructions differ");
+    if (decoded.blockhash !== life.blockhash || decoded.signers.length !== plan.signers.length || decoded.signers[0] !== plan.signers[0] || decoded.signers.some((s,i)=>s!==plan.signers[i]) || decoded.instructions.length !== plan.instructions.length) throw Error("Message lifetime, signers or instructions differ");
     const privileges = new Map([
         [
             plan.signers[0],

@@ -1,5 +1,6 @@
 import {createHash,createPublicKey,randomUUID,verify as verifySignature} from 'node:crypto';
 import {decode58,encode58} from '../server/base58.mjs';
+import {signerKey,signatureBytes} from '../security/ed25519.mjs';
 import {canonical} from './canonical.mjs';
 import {validatePacket,messageBytes,SOLANA_MAINNET_GENESIS} from './packets.mjs';
 import {transaction} from '../storage/database.mjs';
@@ -23,7 +24,7 @@ export function createIntent(db,{owner,requestKey,plan},now=Date.now()){
  if(!Number.isSafeInteger(plan.expiresMs)||plan.expiresMs<1)throw Error('Invalid plan expiry.');
  if(!Array.isArray(plan.signers)||plan.signers[0]!==owner||plan.signers.length>4||new Set(plan.signers).size!==plan.signers.length)
   throw Error('Invalid approved signers.');
- plan.signers.forEach(key=>decode58(key,32));
+ plan.signers.forEach(signerKey);
  if(!Array.isArray(plan.instructions)||!plan.instructions.length||plan.instructions.length>16)throw Error('Expected bounded approved instructions.');
  for(const ix of plan.instructions){
   decode58(ix.program,32);
@@ -85,8 +86,8 @@ export function observeSignedAttempt(db,{attemptId,signatures,currentBlockHeight
   if(!Array.isArray(signatures)||signatures.length!==plan.signers.length)throw Error('Missing signatures.');
   const message=messageBytes(packet.messageBase64);
   for(const [i,signer] of plan.signers.entries()){
-   const der=Buffer.concat([Buffer.from('302a300506032b6570032100','hex'),decode58(signer,32)]);
-   if(!verifySignature(null,message,createPublicKey({key:der,type:'spki',format:'der'}),decode58(signatures[i],64)))throw Error('Invalid packet signature.');
+   const der=Buffer.concat([Buffer.from('302a300506032b6570032100','hex'),signerKey(signer)]);
+   if(!verifySignature(null,message,createPublicKey({key:der,type:'spki',format:'der'}),signatureBytes(signatures[i])))throw Error('Invalid packet signature.');
   }
   if(a.signature===signatures[0])return {signature:a.signature,replayed:true};
   if(row.state!=='awaiting_signature'||a.state!==row.state||plan.expiresMs<=now||!Number.isSafeInteger(currentBlockHeight)||

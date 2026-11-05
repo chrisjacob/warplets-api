@@ -1,7 +1,7 @@
 import {Hono} from 'hono';
 import {getCookie,setCookie} from 'hono/cookie';
 import {z} from 'zod';
-import {decode58} from '../../server/base58.mjs';
+import {signerKey,signatureBytes} from '../../security/ed25519.mjs';
 export const sessionCookie='tenx_edge_local_session';
 const cookie=sessionCookie;
 export const edgeAuth=new Hono<{Bindings:Env}>();
@@ -37,7 +37,7 @@ edgeAuth.use('/auth/*',async(c,next)=>{
 edgeAuth.post('/auth/challenges',async c=>{
  const body=z.object({wallet:z.string().min(32).max(44)}).strict().safeParse(await boundedInput(c.req.raw));
  if(!body.success)return c.json({error:{code:'invalid_input',message:'A wallet is required.'}},400);
- try{decode58(body.data.wallet,32);}catch{return c.json({error:{code:'invalid_input',message:'Invalid wallet address.'}},400);}
+ try{signerKey(body.data.wallet);}catch{return c.json({error:{code:'invalid_input',message:'Invalid wallet address.'}},400);}
  const now=Date.now(),nonce=token(),origin=new URL(c.req.url).origin,expiresAt=new Date(now+300000).toISOString();
  const message=[origin+' requests a 10X.MEME wallet signature.','Action: Sign in to the local preview','Chain: solana',
   'Wallet: '+body.data.wallet,'Nonce: '+nonce,'Issued: '+new Date(now).toISOString(),'Expires: '+expiresAt].join('\n');
@@ -55,9 +55,9 @@ edgeAuth.post('/auth/verify',async c=>{
  if(!challenge)return c.json({error:{code:'invalid_challenge',message:'Challenge unavailable.'}},401);
  let valid=false;
  try{
-  const raw=new Uint8Array(decode58(challenge.wallet,32));
+  const raw=new Uint8Array(signerKey(challenge.wallet));
   const key=await crypto.subtle.importKey('raw',raw,'Ed25519',false,['verify']);
-  valid=await crypto.subtle.verify('Ed25519',key,new Uint8Array(decode58(signature,64)),new TextEncoder().encode(challenge.message));
+  valid=await crypto.subtle.verify('Ed25519',key,new Uint8Array(signatureBytes(signature)),new TextEncoder().encode(challenge.message));
  }catch{valid=false;}
  if(!valid)return c.json({error:{code:'invalid_signature',message:'Wallet proof failed.'}},401);
  const session=token(),digest=await hash(session),issued=Date.now();
