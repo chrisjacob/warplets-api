@@ -2,16 +2,18 @@ import { Link } from '@tanstack/react-router';
 import { useQuery } from '@tanstack/react-query';
 import { rootRoute } from './routes';
 import { sdk } from './sdk';
-import { compact, Empty, Facts, Hero, Loaded, Metrics, Panel, percent, pretty, usePageMeta, utc } from './common';
+import { compact, Empty, Facts, Hero, Loaded, Metrics, MobileRecords, Panel, percent, pretty, usePageMeta, utc } from './common';
 import { useSession } from './session';
 
 function VaultRows({id,cursor}:{id:string;cursor?:string}){
   const detail=useQuery({queryKey:['nft-vault',id,cursor],queryFn:({signal})=>sdk.nftVault(id,cursor,signal)});
   return <Panel title={'Allocations for '+id}><Loaded query={detail}>{page=><>
-    {page.items.length?<div className="scroller"><table><caption>Token base units · {utc(page.asOf)}</caption>
+    {page.items.length?<><MobileRecords entries={page.items.map(i=>({id:i.marketId,summary:i.marketId+' · '+i.claimable+' base units available',
+      facts:[['Allocation',i.allocated],['Vested',i.vested],['Claimed',i.claimed],['Available',i.claimable]]}))}/>
+    <div className="scroller wide-table"><table><caption>Token base units · {utc(page.asOf)}</caption>
       <thead><tr>{['Campaign','Allocation','Vested','Claimed','Available'].map(s=><th key={s}>{s}</th>)}</tr></thead><tbody>
         {page.items.map(item=><tr key={item.marketId}><td>{item.marketId}</td><td>{item.allocated}</td>
-          <td>{item.vested}</td><td>{item.claimed}</td><td>{item.claimable}</td></tr>)}</tbody></table></div>
+          <td>{item.vested}</td><td>{item.claimed}</td><td>{item.claimable}</td></tr>)}</tbody></table></div></>
       :<Empty title="No allocation rows">New launch allocations appear under the corresponding ATT.</Empty>}
     {page.nextCursor && <Link to="/vault" search={{asset:id,cursor:page.nextCursor}}>Next allocations →</Link>}
   </>}</Loaded></Panel>;
@@ -68,10 +70,12 @@ export function Stake(){
         ['Funded units',f.fundedUnits],['Total staked units',f.totalStakedUnits??'Pending'],['Harvest treasury fee',percent(f.treasuryFeeBps)],['Emissions end',utc(f.emissionEnd)],
       ]}/></>}</Loaded>}</Panel>
     <Panel title="Your positions">{wallet?<Loaded query={positions}>{page=><>
-      {page.items.length?<div className="scroller"><table><caption>Local positions · amounts in token base units</caption>
+      {page.items.length?<><MobileRecords entries={page.items.map(p=>({id:p.marketId,summary:p.marketId+' · '+p.principalUnits+' base units staked',
+        facts:[['Principal',p.principalUnits],['Earned gross',p.earnedGrossUnits],['Available gross',p.claimableGrossUnits],['Harvested gross',p.harvestedGrossUnits]]}))}/>
+      <div className="scroller wide-table"><table><caption>Local positions · amounts in token base units</caption>
         <thead><tr>{['Campaign','Principal','Earned gross','Available gross','Harvested gross'].map(s=><th key={s}>{s}</th>)}</tr></thead>
         <tbody>{page.items.map(p=><tr key={p.marketId}><td><Link to="/stake" search={{farm:p.marketId}}>{p.marketId}</Link></td><td>{p.principalUnits}</td>
-          <td>{p.earnedGrossUnits}</td><td>{p.claimableGrossUnits}</td><td>{p.harvestedGrossUnits}</td></tr>)}</tbody></table></div>:<Empty title="No recorded positions"/>}
+          <td>{p.earnedGrossUnits}</td><td>{p.claimableGrossUnits}</td><td>{p.harvestedGrossUnits}</td></tr>)}</tbody></table></div></>:<Empty title="No recorded positions"/>}
       {page.nextCursor!==null && <Link to="/stake" search={{cursor:String(page.nextCursor)}}>Next positions →</Link>}
     </>}</Loaded>:<><p>Connect a wallet to view recorded stake and harvests.</p><button onClick={open}>Connect wallet</button></>}</Panel>
   </>;

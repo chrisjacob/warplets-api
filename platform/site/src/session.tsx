@@ -5,6 +5,7 @@ import { client, sdk } from './sdk';
 import { compact, friendlyError, Modal, Signal } from './common';
 import { checkChallenge, discoverWallets, onWalletsChanged, signature58, type Adapter } from './wallet-adapters';
 import { Recovery } from './recovery';
+import { Notifications } from './notifications';
 
 const SessionContext=createContext<{wallet:string|null;open:()=>void}>({wallet:null,open:()=>{}});
 export const useSession=()=>useContext(SessionContext);
@@ -64,7 +65,8 @@ export function SessionProvider({children}:{children:ReactNode}){
   return <SessionContext.Provider value={{wallet,open}}>
     {children}
     {visible && <Modal title={wallet?'Wallet account':'Connect a wallet'} id="wallet-dialog" onClose={close}>
-      {wallet?<><p className="wrap-anywhere">Verified Solana wallet: {wallet}</p><button onClick={logout} disabled={busy}>Sign out</button><Recovery key={wallet} wallet={wallet}/></>
+      {wallet?<><p className="wrap-anywhere">Verified Solana wallet: {wallet}</p><button onClick={logout} disabled={busy}>Sign out</button>
+        <Notifications key={'notices:'+wallet} wallet={wallet}/><Recovery key={wallet} wallet={wallet}/></>
         :review?<><p>Review this sign-in message for {compact(review.connection.address)}.</p><pre>{review.challenge.message}</pre>
         <button onClick={verify} disabled={busy}>Sign in with this message</button></>
         :adapters.length?<><p>Choose a wallet to review its sign-in message.</p>

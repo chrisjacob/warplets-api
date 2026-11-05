@@ -93,7 +93,12 @@ export async function checkMemberPages({ browser, db, origin }) {
     assert.ok((await page.locator('table').textContent()).includes('1000'));
     await page.goto(origin+'/stake?farm=browser-att');
     await page.getByRole('heading',{name:'Your positions'}).waitFor();
-    await page.getByRole('cell',{name:'1234',exact:true}).waitFor();
+    const mobilePosition=page.getByText('browser-att · 1234 base units staked',{exact:true});
+    await mobilePosition.or(page.getByRole('cell',{name:'1234',exact:true})).first().waitFor();
+    if(await mobilePosition.isVisible()) {
+      await mobilePosition.click();
+      await page.locator('.mobile-records dd').filter({hasText:/^1234$/}).first().waitFor();
+    } else await page.getByRole('cell',{name:'1234',exact:true}).waitFor();
     await page.locator('#wallet-button').click();
     await page.getByRole('button',{name:'Sign out',exact:true}).click();
     await page.locator('#wallet-dialog').waitFor({state:'hidden'});

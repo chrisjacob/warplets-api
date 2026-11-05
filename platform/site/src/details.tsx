@@ -2,8 +2,9 @@ import { Link, useParams } from '@tanstack/react-router';
 import { useQuery } from '@tanstack/react-query';
 import { z } from 'zod';
 import { sdk } from './sdk';
-import { Empty, Facts, Hero, Loaded, Panel, percent, pretty, usePageMeta, utc } from './common';
+import { Empty, Facts, Hero, Loaded, Panel, percent, pretty, ShareLink, usePageMeta, utc } from './common';
 import { Earn } from './earn';
+import { QuotePanel,quoteServices } from './quote-panel';
 
 export function CanonicalMarket(){
   const {marketId}=useParams({from:'/markets/$marketId'});
@@ -14,7 +15,8 @@ export function CanonicalMarket(){
     <Loaded query={market}>{m=><Panel title="Market details"><Facts items={[['Source','Local fixture'],['Campaign status',m.status],
       ['Activated',utc(m.activatedAt)],['Current fee',percent(m.feeBps)],['ATT mint',m.attMint],['OG mint',m.ogMint],['Pool',m.poolAddress]]}/>
       <p><Link to="/stake" search={{farm:m.id}}>Inspect farm ↗</Link></p></Panel>}</Loaded>
-    <Link to="/markets">All markets →</Link></>;
+    {market.data&&<QuotePanel marketId={marketId} symbol={market.data.symbol} ogSymbol={market.data.ogSymbol} services={quoteServices}/>}
+    <ShareLink path={'/markets/'+encodeURIComponent(marketId)} title={title}/><Link to="/markets">All markets →</Link></>;
 }
 
 export function CanonicalGenesis(){
@@ -25,7 +27,8 @@ export function CanonicalGenesis(){
       ['Tranche size',pretty(p.genesis.trancheSize)],['First whitelist stage',p.genesis.firstWhitelistPriceSol+' SOL'],
       ['Stage notice',p.genesis.noticeHours+' hours'],['Mint limit',p.genesis.mintsPerEligibleWalletPerStage+' per eligible wallet per stage']]}/>}</Loaded></Panel>
     <Panel title="Tranche voting"><p>Genesis holders and whitelisted wallets vote on the next tranche’s timing.
-      The founder publishes the decision and rationale.</p><Link to="/collect">View published stages and ballots ↗</Link></Panel></>;
+      The founder publishes the decision and rationale.</p><Link to="/collect">View published stages and ballots ↗</Link></Panel>
+    <ShareLink path="/collections/genesis" title="Genesis"/></>;
 }
 
 export function CanonicalSeason(){
@@ -40,7 +43,7 @@ export function CanonicalSeason(){
       <Panel title="Published stages">{inv.stages.length?<ul className="records">{inv.stages.map(s=>
         <li key={s.id}><strong>{s.id}</strong><span>{s.status} · {s.available} slots available</span></li>)}</ul>:<Empty title="No published stages"/>}
         <Link to="/collect">Open collection studio ↗</Link></Panel>
-    </>:<Empty title="Season not found"/>}</Loaded></>;
+    </>:<Empty title="Season not found"/>}</Loaded><ShareLink path={'/seasons/'+encodeURIComponent(seasonId)} title={'Season · '+seasonId}/></>;
 }
 
 export function CanonicalAsset(){
@@ -52,7 +55,7 @@ export function CanonicalAsset(){
       <Facts items={[['Collection',a.inventoryId],['Owner',a.owner],['Status',a.revealStatus],
         ...(a.revealStatus==='revealed'?[['Level',a.level],['Model',a.traits?.model],['Backdrop',a.traits?.backdrop],['Symbol',a.traits?.symbol]] as [string,React.ReactNode][]:[])]}/>
       {a.revealStatus==='revealed'&&<p><Link to="/vault" search={{asset:a.id}}>View Vault allocations ↗</Link></p>}
-    </Panel>}</Loaded></>;
+    </Panel>}</Loaded><ShareLink path={'/nfts/'+encodeURIComponent(assetId)} title={'NFT · '+assetId}/></>;
 }
 export function CanonicalBoard(){
   const {epochId}=useParams({from:'/earn/$epochId'});

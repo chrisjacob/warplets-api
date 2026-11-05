@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { UseQueryResult } from '@tanstack/react-query';
 import { PlatformApiError } from './sdk';
 
@@ -57,6 +57,23 @@ export function Metrics({items}:{items:Array<[string,string,string]>}){
 }
 export function Facts({items}:{items:Array<[string,ReactNode]>}){
   return <dl className="facts">{items.map(([label,value])=><div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>;
+}
+export function MobileRecords({entries}:{entries:{id:string;summary:ReactNode;facts:Array<[string,ReactNode]>}[]}){
+  return <div className="mobile-records">{entries.map(entry=><details key={entry.id}><summary>{entry.summary}</summary>
+    <Facts items={entry.facts}/></details>)}</div>;
+}
+export function ShareLink({path,title}:{path:string;title:string}){
+  const [fallback,setFallback]=useState(false),[message,setMessage]=useState('');
+  const url=new URL(path,location.origin).href;
+  const share=async()=>{
+    try {
+      if(typeof navigator.share==='function'){await navigator.share({title,url});return;}
+      if(navigator.clipboard?.writeText){await navigator.clipboard.writeText(url);setMessage('Link copied.');return;}
+    }catch(error){if(error instanceof Error && error.name==='AbortError')return;}
+    setFallback(true);
+  };
+  return <div className="share"><button onClick={()=>void share()}>Share link</button><output aria-live="polite">{message}</output>
+    {fallback&&<label>Public link<input readOnly value={url} onFocus={e=>e.target.select()}/></label>}</div>;
 }
 export function Modal({title,children,onClose,id}:{title:string;children:ReactNode;onClose:()=>void;id?:string}){
   const ref=useRef<HTMLDialogElement>(null);

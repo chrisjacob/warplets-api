@@ -8,6 +8,7 @@ import { createLocalServer } from '../../server/start.mjs';
 import { openDatabase } from '../../storage/database.mjs';
 import { checkMemberPages } from '../../web/member-smoke.mjs';
 import { checkStandardWallet } from './standard-wallet.mjs';
+import { checkQuoteView } from './quote-qa.mjs';
 
 if(!process.env.PLAYWRIGHT_MODULE || !process.env.BROWSER_EXE) throw Error('Set PLAYWRIGHT_MODULE and BROWSER_EXE to local installations.');
 await stat(new URL('../dist/index.html',import.meta.url));
@@ -20,7 +21,8 @@ const {chromium}=createRequire(import.meta.url)(process.env.PLAYWRIGHT_MODULE);
 let browser;
 try {
   browser=await chromium.launch({executablePath:process.env.BROWSER_EXE,headless:true});
-  for(const width of [360,390,768,1440]){
+  const onlyQuotes=process.argv.includes('--only-quotes');
+  for(const width of onlyQuotes?[]:[360,390,768,1440]){
     const page=await browser.newPage({viewport:{width,height:900}});
     const errors=[];
     page.on('pageerror',e=>errors.push(e.message));
@@ -53,6 +55,7 @@ try {
     await page.getByRole('heading',{level:1,name:'Collect'}).waitFor();
     assert.deepEqual(errors,[]);await page.close();
   }
+  if(!onlyQuotes){
   await checkMemberPages({browser,db,origin});
   const details=await browser.newPage();
   for(const [path,heading,publicText] of [
@@ -79,6 +82,8 @@ try {
   await details.close();
   console.log('Canonical routes, public initial HTML, privacy tags, social image and real 404s passed.');
   await checkStandardWallet({browser,db,origin});
+  }
+  await checkQuoteView({browser,db,origin});
 } finally {
   await browser?.close();server.closeAllConnections();await new Promise(resolve=>server.close(resolve));db.close();
 }

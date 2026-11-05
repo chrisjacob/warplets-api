@@ -47,6 +47,13 @@ export async function checkStandardWallet({browser,origin,db}){
     await page.locator('#wallet-dialog').waitFor({state:'hidden'});
     assert.equal(signatures,2);
     await page.locator('#wallet-button').click();
+    await page.getByText('Local inbox settings',{exact:true}).click();
+    await page.getByLabel('Market launches',{exact:true}).check();
+    await page.getByRole('button',{name:'Enable local inbox'}).click();
+    await page.getByText('No local notices',{exact:true}).waitFor();
+    await page.getByRole('button',{name:'Turn off and clear inbox'}).click();
+    await page.getByRole('button',{name:'Enable local inbox'}).waitFor();
+    assert.equal(db.prepare('SELECT enabled FROM notice_preferences WHERE wallet=?').get(address).enabled,0);
     await page.getByText('Find a transaction receipt').click();
     await page.getByLabel('Transaction ID').fill(intent.id);
     await page.getByRole('button',{name:'Find receipt',exact:true}).click();

@@ -6,6 +6,7 @@ import { sdk } from './sdk';
 import { Empty, Facts, Hero, Loaded, Panel, percent, usePageMeta, utc } from './common';
 import { rootRoute } from './routes';
 import type { Policy } from './models';
+import { QuotePanel,quoteServices } from './quote-panel';
 
 export function FeeChart({points}:{points:FeePoint[]}){
   const [index,setIndex]=useState(0);
@@ -50,12 +51,12 @@ function Allocation({policy}:{policy:Policy}){
 }
 export function MarketDetail({id}:{id:string}){
   const market=useQuery({queryKey:['market',id],queryFn:({signal})=>sdk.market(id,signal)});
-  return <Panel title="Market details"><Loaded query={market}>{m=><>
+  return <><Panel title="Market details"><Loaded query={market}>{m=><>
     <div className="entry-head"><h3>{m.symbol} / {m.ogSymbol}</h3><span>Local fixture</span></div>
     <Facts items={[['Status',m.status],['Activated',utc(m.activatedAt)],['Current fee',percent(m.feeBps)],
       ['ATT mint',m.attMint],['Original token mint',m.ogMint],['Pool',m.poolAddress]]}/>
     <Link to="/stake" search={{farm:m.id}}>Inspect farm ↗</Link>
-  </>}</Loaded></Panel>;
+  </>}</Loaded></Panel>{market.data&&<QuotePanel marketId={id} symbol={market.data.symbol} ogSymbol={market.data.ogSymbol} services={quoteServices}/>}</>;
 }
 export function Markets(){
   const {market,cursor}=rootRoute.useSearch();

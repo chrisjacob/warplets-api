@@ -71,4 +71,11 @@ test('React chart and summary components render API-supplied values and accessib
   assert.match(empty,/unavailable/);assert.doesNotMatch(empty,/type="range"/);
   const {sol}=await vite.ssrLoadModule('/src/common.tsx');
   assert.equal(sol('18446744073709551615'),'18446744073.709551615 SOL');
+  const {baseUnits,tokenUnits,dollarsMicros}=await vite.ssrLoadModule('/src/amounts.ts');
+  assert.equal(baseUnits('123.000000001',9),'123000000001');
+  assert.equal(tokenUnits('18446744073709551615',9),'18446744073.709551615');
+  assert.equal(dollarsMicros('123456789012345678901'),'US$123,456,789,012,345.67');
+  assert.throws(()=>baseUnits('1.0000001',6));
+  assert.throws(()=>baseUnits('1e6',9));
+  assert.throws(()=>baseUnits('18446744073709551616',0));
 });
