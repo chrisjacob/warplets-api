@@ -68,16 +68,19 @@ export async function loadCutoffInventory(driver,crypto,options){
  app('issuer-policy',boardSubject,{grants:issuers,revocations});app('price-policy',boardSubject,{campaigns,policies});
  const policyFor=tokenId=>{const row=policies.find(p=>p.token_id===tokenId);return row?JSON.parse(row.policy):null;};
  evidence('campaign-registry',{kind:'campaign-registry',id:'earn'}, {campaigns:campaigns.map(({tokenId,activationMs})=>({tokenId,activationMs}))},cutoff,historyStartMs);
- const priceQuery=(wallet,tokenId,at)=>sql(`SELECT o.*,r.wallet AS read_wallet,r.token_id AS read_token,r.micro_usd AS read_micro_usd,r.observed_ms AS read_observed_ms,r.expires_ms AS read_expires_ms,r.source_ref AS read_source_ref
-  FROM price_observations o LEFT JOIN earn_stake_reads r ON r.id=o.read_id WHERE o.wallet=? AND o.token_id=? AND o.as_of_ms=? ORDER BY o.revision DESC LIMIT 1`,wallet,tokenId,at);
+ const priceQuery=points=>sql(`SELECT q.key AS request_index,o.*,r.wallet AS read_wallet,r.token_id AS read_token,r.micro_usd AS read_micro_usd,
+  r.observed_ms AS read_observed_ms,r.expires_ms AS read_expires_ms,r.source_ref AS read_source_ref FROM json_each(?) q
+  JOIN price_observations o ON o.wallet=json_extract(q.value,'$[0]') AND o.token_id=json_extract(q.value,'$[1]') AND o.as_of_ms=json_extract(q.value,'$[2]')
+  LEFT JOIN earn_stake_reads r ON r.id=o.read_id WHERE NOT EXISTS(SELECT 1 FROM price_observations n WHERE n.wallet=o.wallet AND n.token_id=o.token_id
+   AND n.as_of_ms=o.as_of_ms AND n.revision>o.revision) ORDER BY q.key`,JSON.stringify(points));
  const priceAvailable=(row,wallet,tokenId,at)=>row&&JSON.parse(row.decision).status==='verified'&&row.read_wallet===wallet&&row.read_token===tokenId&&row.read_observed_ms===at
   &&row.read_micro_usd===JSON.parse(row.decision).microUsd&&JSON.parse(row.decision).expiresMs>=at&&row.read_expires_ms===JSON.parse(row.decision).expiresMs
   &&row.read_id===row.receipt&&row.read_source_ref==='price:'+row.receipt&&row.policy_hash===policies.find(p=>p.token_id===tokenId)?.policy_hash;
  const qualified=new Set();let asOfMs=cutoff+1;
  for(let offset=0;offset<posts.length;offset+=10){
-  const group=posts.slice(offset,offset+10),rows=await read(group.flatMap(p=>[priceQuery(p.wallet,p.token_id,p.observed_ms),priceQuery(p.wallet,p.token_id,cutoff)]));
+  const group=posts.slice(offset,offset+10),[rows]=await read([priceQuery(group.flatMap(p=>[[p.wallet,p.token_id,p.observed_ms],[p.wallet,p.token_id,cutoff]]))]);
   for(let index=0;index<group.length;index++){
-   const p=group[index],[entry,closing]=[rows[index*2][0],rows[index*2+1][0]],subject={kind:'wallet-token',id:canonicalJson([p.wallet,p.token_id])};
+   const p=group[index],[entry,closing]=[rows.find(r=>r.request_index===index*2),rows.find(r=>r.request_index===index*2+1)],subject={kind:'wallet-token',id:canonicalJson([p.wallet,p.token_id])};
    app('final-review',{kind:'submission',id:p.id},{submissionId:p.id,contentScore:p.content_score,moderator:p.moderator,reason:p.reason,reviewedMs:p.reviewed_ms,sourceRef:p.review_ref},p.content_score!==null&&p.reviewed_ms<=nowMs,'moderation');
    if(p.reviewed_ms!==null&&p.reviewed_ms<=nowMs)asOfMs=Math.max(asOfMs,p.reviewed_ms);
    app('entry-stake',{kind:'submission',id:p.id},{id:p.entry_read_id,wallet:p.entry_wallet,tokenId:p.entry_token,observedMs:p.observed_ms,expiresMs:p.expires_ms,microUsd:p.micro_usd,sourceRef:p.entry_source},
@@ -105,17 +108,47 @@ export async function loadCutoffInventory(driver,crypto,options){
   for(const wallet of group)app('previous-board',{kind:'wallet',id:wallet},{epoch:epoch-1,streak:rows.find(row=>row.wallet===wallet)??null});
  }
  // Wallet components and all chronological purchase inputs are gathered below.
- const walletDetails=[];
- for(const wallet of [...qualified].sort()){
-  if(boundExceeded)return pending('cutoff-inventory-byte-bound');
-  const [owners,completions,signed,positions,streaks]=await read([
-   sql('SELECT CASE WHEN length(assets)<=262144 THEN assets ELSE NULL END AS assets,source_ref FROM earn_owner_snapshots WHERE epoch=? AND wallet=?',epoch,wallet),
-   sql('SELECT action_id AS actionId,verified_ms AS verifiedAtMs,verifier,source_ref AS sourceRef FROM earn_action_completions WHERE wallet=? AND verified_ms<=? ORDER BY action_id LIMIT 101',wallet,cutoff),
-   sql('SELECT * FROM earn_signed_completions WHERE wallet=? AND accepted_ms<=? ORDER BY action_id LIMIT 101',wallet,cutoff),
-   sql(`SELECT e.token_id AS tokenId,e.enrolled_ms AS enrolledMs,c.activation_ms AS activationMs FROM earn_position_enrollments e JOIN earn_fixture_campaigns c ON c.token_id=e.token_id
-    WHERE e.wallet=? AND e.enrolled_ms<=? AND c.activation_ms<=? AND c.activation_ms>? ORDER BY e.token_id LIMIT 11`,wallet,cutoff,cutoff,cutoff-10*DAY_MS),
-   sql('SELECT * FROM earn_streaks WHERE epoch=? AND wallet=?',epoch-1,wallet),
+ const walletDetails=[],wallets=[...qualified].sort();
+ for(let offset=0;offset<wallets.length;offset+=10){
+  const group=wallets.slice(offset,offset+10),members=JSON.stringify(group),batch=await read([
+   sql('SELECT wallet,CASE WHEN length(assets)<=262144 THEN assets ELSE NULL END AS assets,source_ref FROM earn_owner_snapshots WHERE epoch=? AND wallet IN (SELECT value FROM json_each(?))',epoch,members),
+   sql(`SELECT * FROM (SELECT wallet,action_id AS actionId,verified_ms AS verifiedAtMs,verifier,source_ref AS sourceRef,
+    ROW_NUMBER() OVER(PARTITION BY wallet ORDER BY action_id) AS ordinal FROM earn_action_completions WHERE wallet IN (SELECT value FROM json_each(?)) AND verified_ms<=?)
+    WHERE ordinal<=101 ORDER BY wallet,actionId`,members,cutoff),
+   sql(`SELECT * FROM (SELECT s.*,ROW_NUMBER() OVER(PARTITION BY wallet ORDER BY action_id) AS ordinal FROM earn_signed_completions s
+    WHERE wallet IN (SELECT value FROM json_each(?)) AND accepted_ms<=?) WHERE ordinal<=101 ORDER BY wallet,action_id`,members,cutoff),
+   sql(`SELECT * FROM (SELECT e.wallet,e.token_id AS tokenId,e.enrolled_ms AS enrolledMs,c.activation_ms AS activationMs,
+    ROW_NUMBER() OVER(PARTITION BY e.wallet ORDER BY e.token_id) AS ordinal FROM earn_position_enrollments e JOIN earn_fixture_campaigns c ON c.token_id=e.token_id
+    WHERE e.wallet IN (SELECT value FROM json_each(?)) AND e.enrolled_ms<=? AND c.activation_ms<=? AND c.activation_ms>?)
+    WHERE ordinal<=11 ORDER BY wallet,tokenId`,members,cutoff,cutoff,cutoff-10*DAY_MS),
+   sql('SELECT * FROM earn_streaks WHERE epoch=? AND wallet IN (SELECT value FROM json_each(?))',epoch-1,members),
   ]);
+  // Bulk position reads still cap each independent wallet/token chain. The
+  // original row shapes and ordering are retained in the frozen fact vector.
+  const positionRows=new Map();
+  for(let positionOffset=0;positionOffset<batch[3].length;positionOffset+=10){
+   const positions=batch[3].slice(positionOffset,positionOffset+10),keys=JSON.stringify(positions.map(p=>[p.wallet,p.tokenId,Math.floor(p.enrolledMs/DAY_MS)]));
+   const [checkpointRows,eventRows,dailyRows]=await read([
+    sql(`SELECT * FROM (SELECT c.*,ROW_NUMBER() OVER(PARTITION BY c.wallet,c.token_id ORDER BY c.epoch) AS ordinal FROM earn_position_cutoffs c JOIN json_each(?) q
+     ON c.wallet=json_extract(q.value,'$[0]') AND c.token_id=json_extract(q.value,'$[1]') WHERE c.epoch>=json_extract(q.value,'$[2]') AND c.epoch<=?)
+     WHERE ordinal<=12 ORDER BY wallet,token_id,epoch`,keys,epoch),
+    sql(`SELECT * FROM (SELECT e.wallet,e.token_id,CASE WHEN length(e.evidence)<=8192 THEN e.evidence ELSE NULL END AS evidence,
+     ROW_NUMBER() OVER(PARTITION BY e.wallet,e.token_id ORDER BY e.seq) AS ordinal FROM earn_position_events e JOIN json_each(?) q
+     ON e.wallet=json_extract(q.value,'$[0]') AND e.token_id=json_extract(q.value,'$[1]') WHERE e.at_ms<=?) WHERE ordinal<=1001 ORDER BY wallet,token_id,ordinal`,keys,cutoff),
+    sql(`SELECT * FROM (SELECT o.*,r.wallet AS read_wallet,r.token_id AS read_token,r.micro_usd AS read_micro_usd,r.observed_ms AS read_observed_ms,
+     r.expires_ms AS read_expires_ms,r.source_ref AS read_source_ref,ROW_NUMBER() OVER(PARTITION BY o.wallet,o.token_id ORDER BY o.as_of_ms) AS ordinal
+     FROM price_observations o JOIN json_each(?) q ON o.wallet=json_extract(q.value,'$[0]') AND o.token_id=json_extract(q.value,'$[1]') LEFT JOIN earn_stake_reads r ON r.id=o.read_id
+     WHERE o.as_of_ms>=(json_extract(q.value,'$[2]')+1)*86400000-1 AND o.as_of_ms<=? AND o.as_of_ms%86400000=86399999
+      AND NOT EXISTS(SELECT 1 FROM price_observations n WHERE n.wallet=o.wallet AND n.token_id=o.token_id AND n.as_of_ms=o.as_of_ms AND n.revision>o.revision))
+     WHERE ordinal<=12 ORDER BY wallet,token_id,as_of_ms`,keys,cutoff),
+   ]);
+   for(const p of positions)positionRows.set(canonicalJson([p.wallet,p.tokenId]),[checkpointRows,eventRows,dailyRows].map(rows=>rows.filter(r=>r.wallet===p.wallet&&r.token_id===p.tokenId)));
+  }
+  for(const wallet of group){
+  if(boundExceeded)return pending('cutoff-inventory-byte-bound');
+  const [owners,completions,signed,positions,streaks]=batch.map((rows,index)=>rows.filter(r=>r.wallet===wallet).map(({ordinal,...row})=>{
+   if([0,1,3].includes(index)){const {wallet:_,...value}=row;return value;}return row;
+  }));
   if(completions.length>100||signed.length>100||positions.length>10)return pending('wallet-component-bound',[wallet]);
   if(owners[0]?.assets===null)return pending('ownership-byte-bound',[wallet]);
   let assets=null;try{assets=owners[0]?JSON.parse(owners[0].assets):null;}catch{}
@@ -133,13 +166,7 @@ export async function loadCutoffInventory(driver,crypto,options){
   const chains=[];
   for(const position of positions){
    if(boundExceeded)return pending('cutoff-inventory-byte-bound');
-   const firstEpoch=Math.floor(position.enrolledMs/DAY_MS),[checkpointRows,eventRows,dailyRows]=await read([
-    sql('SELECT * FROM earn_position_cutoffs WHERE wallet=? AND token_id=? AND epoch>=? AND epoch<=? ORDER BY epoch LIMIT 12',wallet,position.tokenId,firstEpoch,epoch),
-    sql('SELECT CASE WHEN length(evidence)<=8192 THEN evidence ELSE NULL END AS evidence FROM earn_position_events WHERE wallet=? AND token_id=? AND at_ms<=? ORDER BY seq LIMIT 1001',wallet,position.tokenId,cutoff),
-    sql(`SELECT o.*,r.wallet AS read_wallet,r.token_id AS read_token,r.micro_usd AS read_micro_usd,r.observed_ms AS read_observed_ms,r.expires_ms AS read_expires_ms,r.source_ref AS read_source_ref FROM price_observations o LEFT JOIN earn_stake_reads r ON r.id=o.read_id
-      WHERE o.wallet=? AND o.token_id=? AND o.as_of_ms>=? AND o.as_of_ms<=? AND o.as_of_ms%86400000=86399999
-       AND NOT EXISTS(SELECT 1 FROM price_observations n WHERE n.wallet=o.wallet AND n.token_id=o.token_id AND n.as_of_ms=o.as_of_ms AND n.revision>o.revision) ORDER BY o.as_of_ms LIMIT 12`,wallet,position.tokenId,(firstEpoch+1)*DAY_MS-1,cutoff),
-   ]);
+   const firstEpoch=Math.floor(position.enrolledMs/DAY_MS),[checkpointRows,eventRows,dailyRows]=positionRows.get(canonicalJson([wallet,position.tokenId]));
    if(checkpointRows.length>11||eventRows.length>1000||dailyRows.length>11||eventRows.some(r=>r.evidence===null))return pending('position-history-bound',[wallet,position.tokenId]);
    const events=eventRows.map(economicEvent),checkpoints=checkpointRows.map(r=>({epoch:r.epoch,sequence:r.sequence,credited:r.credited,stake:r.stake,numerator:r.numerator,denominator:r.denominator,flags:JSON.parse(r.flags),tokenDays:r.token_days,sourceRef:r.source_ref}));
    const valuations=dailyRows.map(r=>({epoch:Math.floor(r.as_of_ms/DAY_MS),asOfMs:r.as_of_ms,...JSON.parse(r.decision),receipt:r.receipt,readId:r.read_id}));
@@ -157,13 +184,15 @@ export async function loadCutoffInventory(driver,crypto,options){
    }
   }
   walletDetails.push({wallet,chains});
+  }
  }
  if(boundExceeded)return pending('cutoff-inventory-byte-bound');
  const sourceIds=[...new Map(inputs.filter(i=>i.authority==='evidence'&&i.sourceId!=='unconfigured').map(i=>[canonicalJson([i.sourceId,i.sourceRevision]),i])).values()];
  const sourceConfigs=new Map();
  for(let offset=0;offset<sourceIds.length;offset+=50){
-  const group=sourceIds.slice(offset,offset+50),rows=await read(group.map(i=>sql('SELECT config_json FROM app_evidence_sources WHERE source_id=? AND source_revision=?',i.sourceId,i.sourceRevision)));
-  group.forEach((i,n)=>sourceConfigs.set(canonicalJson([i.sourceId,i.sourceRevision]),rows[n][0]?JSON.parse(rows[n][0].config_json):null));
+  const group=sourceIds.slice(offset,offset+50),[rows]=await read([sql(`SELECT s.source_id,s.source_revision,s.config_json FROM app_evidence_sources s JOIN json_each(?) q
+   ON s.source_id=json_extract(q.value,'$[0]') AND s.source_revision=json_extract(q.value,'$[1]')`,JSON.stringify(group.map(i=>[i.sourceId,i.sourceRevision])))]);
+  for(const row of rows)sourceConfigs.set(canonicalJson([row.source_id,row.source_revision]),JSON.parse(row.config_json));
  }
  for(const i of inputs.filter(i=>i.authority==='evidence'&&i.sourceId!=='unconfigured')){
   const source=sourceConfigs.get(canonicalJson([i.sourceId,i.sourceRevision]));let valid=!!source&&source.mode==='synthetic-fixture'&&source.decoderVersion===i.decoderVersion&&canonicalJson(source.subject)===canonicalJson(i.subject);

@@ -11,9 +11,33 @@ import { createNodeCrypto } from '../security/node-crypto.mjs';
 import { canonicalJson,utf8 } from '../security/canonical.mjs';
 import { computeBoard,computeAllocation } from '../earn/settlement.mjs';
 import { buildGoldenScenario } from '../application/fixtures/earn-scenario.mjs';
+import {U64_MAX} from '../domain/economics/index.mjs';
 const crypto=createNodeCrypto(),principal={kind:'operator',id:'synthetic'};
 const hash=value=>crypto.sha256(utf8(canonicalJson(value)));
 const fixture=JSON.parse(readFileSync(new URL('../application/fixtures/earn-golden.json',import.meta.url),'utf8'));
+test('guarded allocation rejects invalid supply policy and preserves accepted replay after later supply correction',async t=>{
+ const db=openDatabase();t.after(()=>db.close());const activationMs=20*86400000,nowMs=activationMs+86400000;
+ db.function('fixture_supply_clock',()=>nowMs);db.prepare('INSERT INTO app_operator_scopes VALUES(?,?,0,1)').run(principal.id,'earn-settlement');
+ db.prepare('INSERT INTO earn_fixture_campaigns VALUES(?,?,?)').run('A',activationMs,'1000000');
+ const driver={...createNodeAtomicDriver(db),leaseNowSql:'fixture_supply_clock()'},repository=createAtomicSettlementRepository(driver,{crypto,ids:{next:randomUUID},clock:{nowMs:()=>nowMs}});
+ for(const originalUnits of ['0','100',String(U64_MAX+1n),String(U64_MAX-U64_MAX%200n+200n),'1e6','-200','0200',' 200','0xc8','NaN']){
+  db.prepare('UPDATE earn_fixture_campaigns SET original_units=? WHERE token_id=?').run(originalUnits,'A');
+  const command=await createSettlementCommand(COMMIT_ALLOCATION,{principal,requestKey:'invalid-supply',nowMs,input:{tokenId:'A',day:2,boardDigest:'a'.repeat(64),planDigest:'b'.repeat(64)}},crypto);
+  assert.deepEqual(await repository.commitAllocation(command,{}),{kind:'pending',reason:'campaign-supply-policy',dependencyIds:[]},originalUnits);
+ }
+ assert.equal(db.prepare('SELECT COUNT(*) n FROM earn_allocations').get().n,0);assert.equal(db.prepare('SELECT COUNT(*) n FROM app_command_receipts').get().n,0);
+ const originalSupplyUnits=String(U64_MAX-U64_MAX%200n);db.prepare('UPDATE earn_fixture_campaigns SET original_units=? WHERE token_id=?').run(originalSupplyUnits,'A');
+ db.prepare('INSERT INTO earn_boards VALUES(?,?,?,?,?)').run(20,'[]',nowMs,'a'.repeat(64),'synthetic-positive-empty');
+ const plan=computeAllocation({tokenId:'A',day:2,activationMs,originalSupplyUnits,nowMs,board:{epoch:20,status:'final',winners:[]}});
+ const command=await createSettlementCommand(COMMIT_ALLOCATION,{principal,requestKey:'maximum-valid-supply',nowMs,input:{tokenId:'A',day:2,boardDigest:'a'.repeat(64),planDigest:await hash(plan)}},crypto);
+ const lease={businessKey:settlementFenceKey(COMMIT_ALLOCATION,command.input),token:'supply-policy-lease',revision:'1',payloadDigest:command.requestDigest};
+ db.prepare('INSERT INTO app_execution_fences(business_key,holder_token,revision,payload_digest,expires_ms) VALUES(?,?,?,?,?)').run(lease.businessKey,lease.token,1,lease.payloadDigest,nowMs+1000);
+ const accepted=await repository.commitAllocation(command,lease);assert.equal(accepted.kind,'committed');assert.equal(accepted.value.allocation.budget,plan.budgetUnits);
+ db.prepare('UPDATE earn_fixture_campaigns SET original_units=? WHERE token_id=?').run('0','A');
+ db.prepare('UPDATE app_operator_scopes SET enabled=0').run();
+ const replay=await repository.commitAllocation({...command,nowMs:nowMs+2000},lease);assert.equal(replay.kind,'replayed');assert.deepEqual(replay.value,accepted.value);
+ assert.equal(db.prepare('SELECT COUNT(*) n FROM earn_allocations').get().n,1);
+});
 for(const count of [3,100])test('guarded sealed-input board and allocation preserve reference commitments for '+count+' wallets',async t=>{
   const db=openDatabase();t.after(()=>db.close());let nowMs=0,delayCommit=false;
   db.function('fixture_now_ms',()=>nowMs);const baseDriver=createNodeAtomicDriver(db),driver={...baseDriver,leaseNowSql:'fixture_now_ms()',async batch(statements){

@@ -1,0 +1,20 @@
+import type {AtomicDriver} from '../storage/atomic-earn.mjs';
+import type {ArtifactStore} from '../artifacts/store';
+import type {CanonicalCrypto,OperatorPrincipal} from './ports';
+import type {createEarnSettlementService} from '../earn/settlement-service.mjs';
+import type {createAtomicSettlementRepository} from '../storage/atomic-settlement.mjs';
+import type {createJobRepository} from '../jobs/repository.mjs';
+import type {createSettlementScheduler} from '../jobs/settlement-scheduler.mjs';
+import type {runTick} from '../jobs/runner.mjs';
+import type {createSettlementReconciler} from '../earn/settlement-reconciliation.mjs';
+import type {CutoffInventoryQuery} from '../storage/cutoff-inventory.mjs';
+import type {JobResult} from '../jobs/repository.mjs';
+import type {RepositoryOutcome} from './ports';
+export function createLocalSettlementContext(ports:{driver:AtomicDriver;artifacts:ArtifactStore;crypto:CanonicalCrypto;
+ ids:{next():string};clock:{nowMs():number};principal:OperatorPrincipal}):{
+ service:ReturnType<typeof createEarnSettlementService>;repository:ReturnType<typeof createAtomicSettlementRepository>;
+ jobs:ReturnType<typeof createJobRepository>;scheduler:ReturnType<typeof createSettlementScheduler>;
+ reconciler:ReturnType<typeof createSettlementReconciler>;
+ scheduleCutoff(query:Omit<CutoffInventoryQuery,'nowMs'>):Promise<JobResult|RepositoryOutcome<unknown>>;
+ tick(options?:{deadlineMs?:number}):ReturnType<typeof runTick>;
+};

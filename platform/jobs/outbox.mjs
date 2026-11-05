@@ -11,7 +11,9 @@ export async function sourceJobOutboxStatement(commandValue,{crypto,gate,values}
 }
 export async function reconcileJobOutbox(driver,repository,{limit=20}={}){
  if(!Number.isInteger(limit)||limit<1||limit>20)throw new TypeError('Outbox limit must be1–20.');
- const [selected]=await driver.batch([sql('SELECT * FROM app_job_outbox WHERE job_id IS NULL ORDER BY source_key LIMIT ?',limit)]),items=[];
+ if(repository.principal?.kind!=='operator')throw new TypeError('Outbox runner principal required.');
+ const [selected]=await driver.batch([sql(`SELECT * FROM app_job_outbox WHERE job_id IS NULL
+  AND json_extract(command_json,'$.principal.kind')='operator' AND json_extract(command_json,'$.principal.id')=? ORDER BY source_key LIMIT ?`,repository.principal.id,limit)]),items=[];
  for(const row of selected.rows){
   const command=JSON.parse(row.command_json),result=await repository.enqueue(command);items.push(result);
   if(!['committed','replayed'].includes(result.kind))continue;

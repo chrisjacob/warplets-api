@@ -9,6 +9,8 @@ import {loadCutoffInventory} from './cutoff-inventory.mjs';
 import {buildRequirementSpecs,selectRequirementReceipts} from '../evidence/requirements.mjs';
 import {DAY_MS} from '../domain/earn/index.mjs';
 import {recordSamplePrice} from '../pricing/fixtures.mjs';
+import {cutoffScenario} from '../application/fixtures/cutoff-scenario.mjs';
+import {registerPosition,reconcilePosition} from '../earn/positions.mjs';
 const crypto=createNodeCrypto(),principal={kind:'operator',id:'cutoff-fixture'},epoch=20,start=epoch*DAY_MS,cutoff=start+DAY_MS-1;
 async function setup(t,{post=true,score=7}={}){
  const db=openDatabase();t.after(()=>db.close());db.function('fixture_now',()=>cutoff+1);
@@ -72,4 +74,36 @@ test('read correction rejects mixed inventory and admission freeze is mandatory'
   if(!changed&&statements.some(s=>s.sql.includes('FROM price_observations'))){changed=true;db.prepare("UPDATE earn_reviews SET reason='corrected' WHERE submission_id='post'").run();}return r;}};
  assert.equal((await loadCutoffInventory(racing,crypto,query)).code,'revision_conflict');
  assert.equal((await loadCutoffInventory(driver,crypto,{...query,epoch:epoch+1,nowMs:cutoff+DAY_MS+1})).reason,'admission-freeze-required');
+});
+
+test('bulk wallet and position queries preserve per-wallet overflow detection across group boundaries',async t=>{
+ const env=await cutoffScenario({post:false,complete:false,beforeFreeze({db,epoch,start,cutoff}){
+  for(let token=1;token<10;token++)db.prepare('INSERT INTO earn_fixture_campaigns VALUES(?,?,?)').run('token-'+token,start,'1000000');
+  db.prepare('INSERT INTO earn_action_catalog VALUES(?,?,?)').run('synthetic-action','Synthetic action','synthetic-verifier');
+  db.prepare('INSERT INTO earn_action_changes VALUES(?,?,?,?)').run('synthetic-action',epoch,1,start-1);
+  for(let index=0;index<11;index++){
+   const wallet='wallet-'+String(index).padStart(2,'0'),entry=recordSamplePrice(db,{wallet,tokenId:'A',asOfMs:start,stakedUnits:'10000000',validUntilMs:start+100});
+   db.prepare('INSERT INTO earn_submissions VALUES(?,?,?,?,?,?,?,?)').run('post-'+index,wallet,'A',epoch,'https://example.test/'+index,start+1,entry.receipt,'key-'+index);
+   db.prepare('INSERT INTO earn_reviews VALUES(?,?,?,?,?,?)').run('post-'+index,7,'fixture','Synthetic grouped read',start+2,'synthetic-review');
+   db.prepare('INSERT INTO earn_owner_snapshots VALUES(?,?,?,?)').run(epoch,wallet,'[]','synthetic-owner');
+   db.prepare('INSERT INTO earn_action_completions VALUES(?,?,?,?,?)').run(wallet,'synthetic-action',start+3,'synthetic-verifier','synthetic-external-attestation');
+   for(let token=0;token<10;token++){
+    const tokenId=token?'token-'+token:'A';recordSamplePrice(db,{wallet,tokenId,asOfMs:cutoff,stakedUnits:'10000000'});
+    registerPosition(db,{wallet,tokenId,enrolledMs:start});reconcilePosition(db,{wallet,tokenId,epoch,asOfMs:cutoff,reconciledSequence:0,sourceRef:'synthetic-empty-history'});
+   }
+  }
+ }});t.after(()=>env.db.close());
+ let statements=0;const measured={...env.driver,async batch(items){statements+=items.length;return env.driver.batch(items);}};
+ const result=await loadCutoffInventory(measured,crypto,{...env.query,nowMs:env.clock.nowMs()});
+ assert.equal(result.kind,'loaded');assert.equal(result.walletDetails.length,11);assert.ok(result.walletDetails.every(w=>w.chains.length===10&&w.chains.every(c=>c.chain.status==='ready')));
+ assert.equal(statements,58,'eleven wallets and110 positions use bounded bulk reads');
+ assert.equal(result.inputs.filter(i=>i.kind==='position-history').length,110);
+ for(const wallet of ['wallet-00','wallet-10']){
+  const completion=result.inputs.find(i=>i.kind==='action-completions'&&i.authority==='application'&&i.subject.id===wallet);
+  assert.deepEqual(completion.value.completions,[{actionId:'synthetic-action',verifiedAtMs:env.start+3,verifier:'synthetic-verifier',sourceRef:'synthetic-external-attestation'}]);
+ }
+ env.db.prepare('INSERT INTO earn_fixture_campaigns VALUES(?,?,?)').run('overflow',env.start,'1000000');
+ env.db.prepare('INSERT INTO earn_position_enrollments VALUES(?,?,?)').run('wallet-10','overflow',env.start);
+ const overflow=await loadCutoffInventory(env.driver,crypto,{...env.query,nowMs:env.clock.nowMs()});
+ assert.deepEqual(overflow,{kind:'pending',reason:'wallet-component-bound',dependencyIds:['wallet-10']});
 });

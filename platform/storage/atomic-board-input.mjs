@@ -49,26 +49,33 @@ export async function loadAtomicBoardInput(driver,crypto,{epoch,nowMs,sourceRef}
   const late=lateRows.map(({cursor_row,...row})=>row);
   const wallets=[...new Set(posts.map(p=>p.wallet))],currentWallets=new Set(wallets),lateOnly=[...new Set(late.map(p=>p.wallet))].filter(wallet=>!currentWallets.has(wallet));
   const closingStake=Object.create(null),facts=Object.create(null),previousStreaks=Object.create(null);
-  const walletStatements=wallet=>[
-      sql(`SELECT CASE WHEN length(assets)<=262144 THEN assets ELSE NULL END AS assets,source_ref
-        FROM earn_owner_snapshots WHERE epoch=? AND wallet=?`,epoch,wallet),
-      sql('SELECT action_id AS actionId,verified_ms AS verifiedAtMs,source_ref AS sourceRef FROM earn_action_completions WHERE wallet=? AND verified_ms<=? ORDER BY action_id LIMIT 101',wallet,cutoff),
-      sql(`SELECT e.token_id,c.token_days,c.source_ref,c.credited,c.flags FROM earn_position_enrollments e
+  // Five bounded queries per ten wallets, rather than five per wallet. Window
+  // limits preserve the same per-wallet overflow refusal before any aggregation.
+  const walletStatements=group=>{const members=JSON.stringify(group);return [
+      sql(`SELECT wallet,CASE WHEN length(assets)<=262144 THEN assets ELSE NULL END AS assets,source_ref
+        FROM earn_owner_snapshots WHERE epoch=? AND wallet IN (SELECT value FROM json_each(?))`,epoch,members),
+      sql(`SELECT * FROM (SELECT wallet,action_id AS actionId,verified_ms AS verifiedAtMs,source_ref AS sourceRef,
+        ROW_NUMBER() OVER(PARTITION BY wallet ORDER BY action_id) AS ordinal FROM earn_action_completions
+        WHERE wallet IN (SELECT value FROM json_each(?)) AND verified_ms<=?) WHERE ordinal<=101 ORDER BY wallet,actionId`,members,cutoff),
+      sql(`SELECT * FROM (SELECT e.wallet,e.token_id,c.token_days,c.source_ref,c.credited,c.flags,
+        ROW_NUMBER() OVER(PARTITION BY e.wallet ORDER BY e.token_id) AS ordinal FROM earn_position_enrollments e
         JOIN earn_fixture_campaigns m ON m.token_id=e.token_id LEFT JOIN earn_position_cutoffs c
-        ON c.wallet=e.wallet AND c.token_id=e.token_id AND c.epoch=? WHERE e.wallet=? AND e.enrolled_ms<=?
-        AND m.activation_ms<=? AND m.activation_ms>? ORDER BY e.token_id LIMIT 101`,epoch,wallet,cutoff,cutoff,cutoff-10*DAY_MS),
-      sql(`SELECT o.token_id,o.receipt,o.as_of_ms,o.decision,r.id,r.micro_usd FROM price_observations o
+        ON c.wallet=e.wallet AND c.token_id=e.token_id AND c.epoch=? WHERE e.wallet IN (SELECT value FROM json_each(?)) AND e.enrolled_ms<=?
+        AND m.activation_ms<=? AND m.activation_ms>?) WHERE ordinal<=101 ORDER BY wallet,token_id`,epoch,members,cutoff,cutoff,cutoff-10*DAY_MS),
+      sql(`SELECT * FROM (SELECT o.wallet,o.token_id,o.receipt,o.as_of_ms,o.decision,r.id,r.micro_usd,
+        ROW_NUMBER() OVER(PARTITION BY o.wallet ORDER BY o.token_id) AS ordinal FROM price_observations o
         JOIN earn_fixture_campaigns c ON c.token_id=o.token_id LEFT JOIN earn_stake_reads r ON r.id=o.read_id
-        WHERE o.wallet=? AND o.as_of_ms<=? AND ((c.activation_ms<=? AND c.activation_ms>?)
+        WHERE o.wallet IN (SELECT value FROM json_each(?)) AND o.as_of_ms<=? AND ((c.activation_ms<=? AND c.activation_ms>?)
           OR EXISTS(SELECT 1 FROM earn_submissions s WHERE s.wallet=o.wallet AND s.token_id=o.token_id AND s.epoch=?))
         AND NOT EXISTS(SELECT 1 FROM price_observations n WHERE n.wallet=o.wallet AND n.token_id=o.token_id AND n.as_of_ms<=?
-          AND (n.as_of_ms>o.as_of_ms OR (n.as_of_ms=o.as_of_ms AND n.revision>o.revision))) ORDER BY o.token_id LIMIT 101`,wallet,cutoff,cutoff,cutoff-10*DAY_MS,epoch,cutoff),
-      sql('SELECT epoch,days,last_approval_ms AS lastApprovalMs FROM earn_streaks WHERE epoch=? AND wallet=?',epoch-1,wallet),
-    ];
+          AND (n.as_of_ms>o.as_of_ms OR (n.as_of_ms=o.as_of_ms AND n.revision>o.revision))))
+        WHERE ordinal<=101 ORDER BY wallet,token_id`,members,cutoff,cutoff,cutoff-10*DAY_MS,epoch,cutoff),
+      sql('SELECT wallet,epoch,days,last_approval_ms AS lastApprovalMs FROM earn_streaks WHERE epoch=? AND wallet IN (SELECT value FROM json_each(?))',epoch-1,members),
+    ];};
   for(let offset=0;offset<wallets.length;offset+=10) {
-    const group=wallets.slice(offset,offset+10),batch=await read(group.flatMap(walletStatements));
-    for(let index=0;index<group.length;index++) {
-    const wallet=group[index],[owners,completions,positions,observations,streaks]=batch.slice(index*5,index*5+5);
+    const group=wallets.slice(offset,offset+10),batch=await read(walletStatements(group));
+    for(const wallet of group) {
+    const [owners,completions,positions,observations,streaks]=batch.map(rows=>rows.filter(r=>r.wallet===wallet).map(({wallet:_,ordinal,...row})=>row));
     if(![completions,positions,observations].every(bounded)||owners[0]?.assets===null)return pending('board-input-bound');
     previousStreaks[wallet]=streaks[0]??null;
     const values=Object.fromEntries(observations.map(o=>[o.token_id,valuation(o,cutoff)]));

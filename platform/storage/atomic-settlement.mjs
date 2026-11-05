@@ -4,7 +4,9 @@ import { sql,revisions,matchesExpectedRevisions } from './atomic-driver.mjs';
 import { canonicalJson,utf8 } from '../security/canonical.mjs';
 import { computeBoard,computeAllocation } from '../earn/settlement.mjs';
 import { allocationWindow } from '../domain/earn/index.mjs';
+import { launchAllocations } from '../domain/economics/index.mjs';
 import { name,nat,requireValue } from '../earn/validation.mjs';
+import {settlementOutbox,settlementWakeStatements} from '../jobs/settlement-outbox.mjs';
 export const SEAL_INPUT='earn.seal-input.v1',COMMIT_BOARD='earn.commit-board.v1',COMMIT_ALLOCATION='earn.commit-allocation.v1';
 const conflict=code=>({kind:'conflict',code}),pending=reason=>({kind:'pending',reason,dependencyIds:[]});
 const clone=value=>JSON.parse(canonicalJson(value));
@@ -52,10 +54,13 @@ export function createAtomicSettlementRepository(driver,{crypto,ids,clock,teleme
       if(!objects[0]||objects[0].byte_digest!==i.byteDigest||objects[0].semantic_digest!==i.manifestDigest)return pending('verified-input-object-required');
       if((pointers[0]?.manifest_digest??null)!==i.previousManifestDigest)return conflict('input_pointer_changed');
       const pointerSql=i.previousManifestDigest===null?'NOT EXISTS(SELECT 1 FROM app_epoch_inputs WHERE epoch=?)':'EXISTS(SELECT 1 FROM app_epoch_inputs WHERE epoch=? AND manifest_digest=?)';
-      return execute(command,{businessKey:command.businessIdentity,input:i,result:{epoch:i.epoch,manifestDigest:i.manifestDigest,inputDigest:i.inputDigest},resultRef:i.manifestDigest,version:loaded.versions,
+      const outbox=await settlementOutbox({principal:command.principal,businessKey:settlementFenceKey(COMMIT_BOARD,i),type:'finalize-board',payload:{epoch:i.epoch},readyMs:command.nowMs},crypto);
+      return execute(command,{businessKey:command.businessIdentity,input:{...i,outboxKey:outbox.sourceKey},result:{epoch:i.epoch,manifestDigest:i.manifestDigest,inputDigest:i.inputDigest},resultRef:i.manifestDigest,version:loaded.versions,
         authoritySql:`EXISTS(SELECT 1 FROM app_operator_scopes WHERE operator=? AND scope='earn-snapshot' AND enabled=1) AND ${pointerSql}`,
         authorityValues:[command.principal.id,i.epoch,...(i.previousManifestDigest===null?[]:[i.previousManifestDigest])],
         child:(gate,v)=>[
+          outbox.statement(gate,v),
+          ...settlementWakeStatements({dependency:'cutoff-evidence:'+i.epoch,digest:i.manifestDigest,nowMs:command.nowMs},gate,v),
           sql(`INSERT INTO app_complete_inputs SELECT ?,?,?,?,?,?,?,?,operation_id FROM app_command_receipts WHERE operation_id=? AND claim_nonce=? AND state='staging' AND ${gate}`,
             i.manifestDigest,i.epoch,i.inputDigest,i.objectKey,i.byteDigest,i.asOfMs,i.sourceRef,canonicalJson(loaded.versions),...v,...v),
           sql(`INSERT INTO app_epoch_inputs SELECT ?,? WHERE ${gate} ON CONFLICT(epoch) DO UPDATE SET manifest_digest=excluded.manifest_digest`,i.epoch,i.manifestDigest,...v),
@@ -74,12 +79,15 @@ export function createAtomicSettlementRepository(driver,{crypto,ids,clock,teleme
       const plan=computeBoard(loaded.input);if(plan.status!=='ready')return pending(plan.reason);
       if(await hash(plan)!==i.planDigest)return conflict('plan_digest_mismatch');
       const snapshotId=await crypto.sha256(utf8(JSON.stringify(plan.commitmentInput))),winners=JSON.stringify(plan.winners);
-      const input={epoch:i.epoch,manifestDigest:i.manifestDigest,sourceRef:plan.sourceRef,winners,decisions:plan.decisions,facts:plan.factSources,streaks:plan.streaks};
+      const outbox=await settlementOutbox({principal:command.principal,businessKey:'publish-board:'+snapshotId,type:'publish-archive',payload:{epoch:i.epoch,snapshotId},readyMs:command.nowMs},crypto);
+      const input={epoch:i.epoch,manifestDigest:i.manifestDigest,sourceRef:plan.sourceRef,winners,decisions:plan.decisions,facts:plan.factSources,streaks:plan.streaks,outboxKey:outbox.sourceKey};
       const guard=fence(command,lease);guard.authoritySql+=' AND EXISTS(SELECT 1 FROM app_epoch_inputs WHERE epoch=? AND manifest_digest=?)';const values=guard.authorityValues;guard.authorityValues=()=>[...values(),i.epoch,i.manifestDigest];
       return execute(command,{businessKey:command.businessIdentity,input,
         result:{mode:'local-fixture',epoch:i.epoch,date:new Date(i.epoch*86400000).toISOString().slice(0,10),status:'final',items:plan.winners,allocations:[],snapshotId,finalizedAtMs:command.nowMs},
         resultRef:snapshotId,version:loaded.versions,...guard,
         child:(gate,v)=>[
+          outbox.statement(gate,v),
+          ...settlementWakeStatements({dependency:'board:'+i.epoch,digest:snapshotId,nowMs:command.nowMs},gate,v),
           sql(`INSERT INTO earn_boards SELECT ?,?,?,?,? WHERE ${gate}`,i.epoch,winners,command.nowMs,snapshotId,plan.sourceRef,...v),
           ...plan.factSources.map(([wallet,ref,payload])=>sql(`INSERT INTO earn_member_facts SELECT ?,?,?,? WHERE ${gate}`,i.epoch,wallet,payload,ref,...v)),
           ...plan.decisions.map(d=>sql(`INSERT INTO earn_decisions SELECT ?,?,?,? WHERE ${gate}`,d.submissionId,i.epoch,Number(d.qualified),d.cutoffEvidence,...v)),
@@ -93,7 +101,12 @@ export function createAtomicSettlementRepository(driver,{crypto,ids,clock,teleme
         sql('SELECT activation_ms,original_units FROM earn_fixture_campaigns WHERE token_id=?',i.tokenId),sql('SELECT 1 FROM earn_allocations WHERE token_id=? AND day=?',i.tokenId,i.day)]);
       if(stored.length)return conflict('allocation_recorded');if(!campaigns[0])return conflict('unknown_campaign');
       const version=revisions(versionRows),denied=await authority(command,'earn-settlement',version);if(denied)return denied;
-      const campaign=campaigns[0],window=allocationWindow(campaign.activation_ms,i.day);
+      const campaign=campaigns[0];
+      try{
+        if(typeof campaign.original_units!=='string'||!/^(0|[1-9][0-9]{0,19})$/.test(campaign.original_units))throw new TypeError('Canonical supply required.');
+        launchAllocations({supply:BigInt(campaign.original_units),activeSeasonWeight:0n});
+      }catch{return pending('campaign-supply-policy');}
+      const window=allocationWindow(campaign.activation_ms,i.day);
       const [boards]=await read([sql('SELECT epoch,winners,snapshot_hash FROM earn_boards WHERE epoch=?',window.boardEpoch)]);
       if(!boards[0])return pending('board-required');if(boards[0].snapshot_hash!==i.boardDigest)return conflict('board_digest_mismatch');
       const plan=computeAllocation({tokenId:i.tokenId,day:i.day,nowMs:command.nowMs,originalSupplyUnits:campaign.original_units,
@@ -103,8 +116,11 @@ export function createAtomicSettlementRepository(driver,{crypto,ids,clock,teleme
       const allocation={token_id:i.tokenId,day:i.day,epoch:plan.boardEpoch,starts_ms:plan.startsAtMs,vests_from_ms:plan.vestsFromMs,
         vests_through_ms:plan.vestsThroughMs,budget:plan.budgetUnits,burn:plan.burnUnits};
       const guard=fence(command,lease);guard.authoritySql+=' AND EXISTS(SELECT 1 FROM earn_boards WHERE epoch=? AND snapshot_hash=?)';const values=guard.authorityValues;guard.authorityValues=()=>[...values(),window.boardEpoch,i.boardDigest];
-      return execute(command,{businessKey:command.businessIdentity,input:plan,result:{mode:'local-fixture',status:'recorded',allocation},resultRef:canonicalJson([i.tokenId,i.day]),version,...guard,
+      const publicationKey='publish-allocation:'+await hash([i.tokenId,i.day,i.boardDigest]);
+      const outbox=await settlementOutbox({principal:command.principal,businessKey:publicationKey,type:'publish-archive',payload:{epoch:plan.boardEpoch,snapshotId:i.boardDigest,tokenId:i.tokenId,day:i.day},readyMs:command.nowMs},crypto);
+      return execute(command,{businessKey:command.businessIdentity,input:{...plan,boardDigest:i.boardDigest,outboxKey:outbox.sourceKey},result:{mode:'local-fixture',status:'recorded',allocation},resultRef:canonicalJson([i.tokenId,i.day]),version,...guard,
         child:(gate,v)=>[
+          outbox.statement(gate,v),
           sql(`INSERT INTO earn_allocations SELECT ?,?,?,?,?,?,?,? WHERE ${gate}`,i.tokenId,i.day,plan.boardEpoch,plan.startsAtMs,plan.vestsFromMs,plan.vestsThroughMs,plan.budgetUnits,plan.burnUnits,...v),
           ...plan.awards.map(a=>sql(`INSERT INTO earn_awards SELECT ?,?,?,? WHERE ${gate}`,i.tokenId,i.day,a.wallet,a.amountUnits,...v)),
         ]});

@@ -1,0 +1,76 @@
+{
+  "taskId": "B07",
+  "status": "verified",
+  "implementationCommit": null,
+  "baseCommit": "22f09d3ddf077340f9f2d59d4004402f7e742515",
+  "classification": "complete synthetic local Node/workerd/D1/R2 settlement; no live-chain or financial execution claim",
+  "migrations": [
+    "030-settlement-orchestration.sql"
+  ],
+  "commands": [
+    {
+      "command": "node platform/scripts/test-reference.mjs",
+      "tests": 288,
+      "exitCode": 0
+    },
+    {
+      "command": "node --test platform/edge/test/*.test.mjs",
+      "tests": 40,
+      "exitCode": 0,
+      "elapsedMs": 336961.6206
+    },
+    {
+      "command": "focused actual D1 malformed-supply and reconciliation/wake acceptance after final edits",
+      "tests": 1,
+      "exitCode": 0
+    },
+    {
+      "command": "node platform/earn/settlement-cli.mjs --fixture-rehearsal",
+      "exitCode": 0
+    },
+    {
+      "command": "edge TypeScript; contracts generate --check; recovery-drill; blueprint --next --self-check; git diff --check",
+      "exitCode": 0
+    }
+  ],
+  "assertions": [
+    "Only exact ready B05 attempt, verified canonical root/pages, current heads, live input digest and revisions prepare settlement",
+    "Historical JSON commitment byte ordering preserved, Node/workerd manifests/rankings/award/proof bytes agree",
+    "Zero/five/ten/100winners, multiple contributions perwallet,10campaigns,35minute activation offsets, day10 and delayed completion",
+    "Positive empty bootstrap is distinct from missing cutoff evidence; late approval retains originalboard and25hourgap resets streak",
+    "Exact positive u64 multiple200 campaign supply guard; invalid supply pending; acceptedreceipt replay survives laterinvalid supply/authority/lease changes",
+    "Mandatory decisions/facts/streaks/awards/outbox/dependency children; omissions and wrong publicationboard roll back source receipt",
+    "Current lease/revisions guard atomic commit; lost commit and finish responses reconcile durable identities",
+    "Compact immutable job intent prepares fresh commands; original activation-based10day schedule and immutable token/day budgets",
+    "Durable dependency event sequence prevents board-ready or cutoff-ready lost wake while a consumer is stillrunning; consumed events cannotspin",
+    "Operator-scoped jobs/outboxes prevent another operator from consuming work or starving bounded dispatch",
+    "Later negative/missing current evidence records immutable incident; finalized rankings/awards remain unchanged",
+    "Publication obligations are durable but catalog is empty untilB08; burnUnits remain a declared local allocation"
+  ],
+  "measurements": {
+    "profile": "synthetic100wallets,onecampaign,completecutoff,noenrolledpositions",
+    "cutoffAssemblyStatements": 301,
+    "outboxStatements": 6,
+    "boardJobStatements": 452,
+    "boardJobBatches": 49,
+    "boardJobSelects": 141,
+    "boardJobWrites": 311,
+    "maxParameters": 29,
+    "maxSqlBytes": 1039,
+    "maxAtomicBatchBytes": 228175,
+    "allocationJobStatements": 123,
+    "nodeD1StatementCountsEqual": true
+  },
+  "limits": [
+    "One job per localWorker invocation; no livecron,queue or publicadminroute",
+    "Measured profile is local validation, not billedproductioncost or capacity guarantee",
+    "Existing cutoff bounds retained:100admissions,1000late approvals,10positions/wallet,1000events/position,11daily checkpoints,256KiBprivateobject and8MiBinventory",
+    "Preparation reads at most512privatepages/24MiB and16384items; incident changed-ID payload bounded128KiB",
+    "Public R2 publication/recovery remains B08; full D1browser acceptance B20-core",
+    "Current versioned UTC allocation mapping requires release ratification; financial flags false"
+  ],
+  "providerAttempts": 0,
+  "remoteCloudflareWrites": false,
+  "financialExecution": false,
+  "ci": null
+}

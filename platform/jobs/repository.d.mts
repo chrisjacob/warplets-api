@@ -9,6 +9,7 @@ export type Job={id:string;businessKey:string;type:JobType;payload:JsonValue;pay
 export type JobOutcome={state:'completed';result:JsonValue}|{state:'held'|'retry';reason:string;dependency:string|null;readyMs:number|null;result?:JsonValue}|{state:'failed';certainty:'no-effect';reason:string;result?:JsonValue};
 export type JobResult={kind:'committed'|'replayed'|'acquired'|'checkpointed'|'finished'|'woken'|'unchanged';job:Job}|{kind:'conflict';code:string}|{kind:'pending';reason:string}|{kind:'idle'};
 export interface JobRepository {
+ readonly principal:OperatorPrincipal;
  readJob(id:string):Promise<Job|null>;
  enqueue(command:JobCommand):Promise<JobResult>;
  acquireJob(options?:{leaseMs?:number}):Promise<JobResult>;

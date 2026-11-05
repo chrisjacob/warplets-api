@@ -22,7 +22,7 @@ function setup(t,path=':memory:'){
  const base=createNodeAtomicDriver(db),driver={...base,leaseNowSql:'fixture_job_clock()',async batch(statements){
   measurements.push(measureBatch(statements));
   if(delay&&statements.some(s=>s.sql.includes('SET checkpoint_json'))){delay=false;now+=50000;}
-  const result=await base.batch(statements);if(loseResponse&&statements.some(s=>s.sql.startsWith('UPDATE app_jobs SET state='))){loseResponse=false;throw Error('lost response');}return result;
+  const result=await base.batch(statements);if(loseResponse&&statements.some(s=>s.sql.includes('UPDATE app_jobs SET state='))){loseResponse=false;throw Error('lost response');}return result;
  }},clock={nowMs:()=>now},repository=createJobRepository(driver,{crypto,ids:{next:randomUUID},clock,principal});
  const command=(key,extra={})=>createJobCommand({principal,requestKey:key,nowMs:now,input:{type:'complete-cutoff',businessKey:key,sourceKey:key,payload:{epoch:1},readyMs:now,maxAttempts:3,...extra}},crypto);
  return {db,repository,clock,command,measurements,advance:ms=>now+=ms,lose:()=>loseResponse=true,delay:()=>delay=true};
@@ -41,6 +41,27 @@ test('job identity, simultaneous acquisition and expired replacement fence exact
  assert.equal(f.db.prepare('SELECT COUNT(*) n FROM app_job_attempts').get().n,2);
  assert.equal(f.db.prepare('SELECT expires_ms FROM app_execution_fences').get().expires_ms,0);
  console.log('Job SQL maxima',JSON.stringify(Object.fromEntries(['statements','maxParameters','maxSqlBytes','batchBytes'].map(key=>[key,Math.max(...f.measurements.map(m=>m[key]))]))));
+});
+
+test('each operator acquires, exhausts, checkpoints and wakes only its own durable jobs',async t=>{
+ const f=setup(t),otherPrincipal={kind:'operator',id:'other-synthetic-jobs'};
+ f.db.prepare('INSERT INTO app_operator_scopes VALUES(?,?,0,1)').run(otherPrincipal.id,'jobs-runner');
+ const other=createJobRepository({...createNodeAtomicDriver(f.db),leaseNowSql:'fixture_job_clock()'},{crypto,ids:{next:randomUUID},clock:f.clock,principal:otherPrincipal});
+ assert.deepEqual(other.principal,otherPrincipal);assert.equal(Object.isFrozen(other.principal),true);
+ const foreign=await createJobCommand({principal:otherPrincipal,requestKey:'foreign',nowMs:f.clock.nowMs(),input:{type:'complete-cutoff',businessKey:'foreign',sourceKey:'foreign',payload:{epoch:1},readyMs:0,maxAttempts:1}},crypto);
+ const foreignJob=(await other.enqueue(foreign)).job;await f.repository.enqueue(await f.command('own'));
+ const own=(await f.repository.acquireJob()).job;assert.equal(own.businessKey,'own');
+ const heldByOther=(await other.acquireJob()).job;assert.equal(heldByOther.id,foreignJob.id);
+ assert.equal(await f.repository.readJob(foreignJob.id),null);
+ assert.equal((await f.repository.checkpoint(heldByOther.lease,{sequence:0,value:{invalid:true}})).kind,'conflict');
+ assert.equal((await f.repository.finish(heldByOther.lease,{state:'completed',result:{invalid:true}})).kind,'conflict');
+ await other.finish(heldByOther.lease,{state:'held',reason:'source-gap',dependency:'foreign-source',readyMs:null});
+ assert.equal((await f.repository.wake({jobId:foreignJob.id,dependency:'foreign-source',evidenceDigest:'a'.repeat(64)})).kind,'unchanged');
+ assert.equal((await other.readJob(foreignJob.id)).state,'held');
+ await other.wake({jobId:foreignJob.id,dependency:'foreign-source',evidenceDigest:'a'.repeat(64)});
+ await f.repository.finish(own.lease,{state:'completed',result:{ok:true}});
+ assert.equal((await f.repository.acquireJob()).kind,'idle');assert.equal((await other.readJob(foreignJob.id)).state,'queued','other operator does not exhaust the foreign job');
+ assert.equal((await other.acquireJob()).kind,'idle');assert.equal((await other.readJob(foreignJob.id)).reason,'attempt-ceiling');
 });
 test('checkpoint execution-time fence, lost finish response, and held dependency wake are durable',async t=>{
  const f=setup(t);await f.repository.enqueue(await f.command('held'));let job=(await f.repository.acquireJob()).job;

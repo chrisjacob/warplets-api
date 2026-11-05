@@ -23,9 +23,11 @@ export function createCutoffSnapshotRepository(driver,ports){
   async selectHeads(specs){
    const selected=new Map(),external=specs.filter(s=>s.authority==='evidence');
    for(let offset=0;offset<external.length;offset+=50){
-    const group=external.slice(offset,offset+50),rows=await read(group.map(s=>sql(`SELECT r.receipt_digest,r.envelope_json,r.decision_json FROM app_evidence_heads h
-      JOIN app_evidence_receipts r ON r.receipt_digest=h.receipt_digest WHERE h.stream_key=?`,streamKey({sourceId:s.sourceId,subject:s.subject,requestedCutoffMs:s.cutoffMs}))));
-    group.forEach((s,n)=>{const r=rows[n][0];selected.set(s.id,r?{receiptDigest:r.receipt_digest,envelope:JSON.parse(r.envelope_json),decision:JSON.parse(r.decision_json)}:null);});
+    const group=external.slice(offset,offset+50),keys=group.map(s=>streamKey({sourceId:s.sourceId,subject:s.subject,requestedCutoffMs:s.cutoffMs}));
+    const [rows]=await read([sql(`SELECT h.stream_key,r.receipt_digest,r.envelope_json,r.decision_json FROM app_evidence_heads h
+      JOIN app_evidence_receipts r ON r.receipt_digest=h.receipt_digest WHERE h.stream_key IN (SELECT value FROM json_each(?))`,JSON.stringify(keys))]);
+    const found=new Map(rows.map(r=>[r.stream_key,r]));
+    group.forEach((s,n)=>{const r=found.get(keys[n]);selected.set(s.id,r?{receiptDigest:r.receipt_digest,envelope:JSON.parse(r.envelope_json),decision:JSON.parse(r.decision_json)}:null);});
    }return selected;
   },
   async readVersions(){return revisions((await read([sql('SELECT * FROM app_revisions ORDER BY name')]))[0]);},
