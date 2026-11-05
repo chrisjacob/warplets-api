@@ -5,9 +5,9 @@
   "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
   "currentTask": "B02",
-  "lastUpdatedAt": "2026-11-05T14:01:30.028697+00:00",
+  "lastUpdatedAt": "2026-11-05T19:57:47.599390+00:00",
   "migrationAllocation": {
-    "next": 24,
+    "next": 25,
     "reserved": [],
     "historicalGap": 19
   },
@@ -54,12 +54,12 @@
       "owner": "coordinator",
       "baseCommit": "ce59deed69820a4535d3985eb0812e6dc197cea8",
       "implementationCommit": "f3e424fa0f98162163c2ed158754489f81cc4846",
-      "pushed": false,
+      "pushed": true,
       "evidence": [
         "platform/validation/runs/2026-11-06-overnight/B02-1.json",
         "platform/validation/runs/2026-11-06-overnight/B02-2.json"
       ],
-      "nextAction": "B02.3: implement fenced commitBoard/commitAllocation and complete-input pointer guards using atomic-board-input.mjs + unchanged computeBoard/computeAllocation. Reserve migration024 centrally for execution-fence/complete-input metadata. B02 is still incomplete.",
+      "nextAction": "B02.3 tested: commit and push fenced settlement/upgrade evidence; verify test-only CI before marking B02 verified.",
       "blocker": null
     },
     "B03": {
@@ -136,13 +136,13 @@
       "blocker": null
     },
     "B10": {
-      "status": "not_started",
-      "owner": null,
-      "baseCommit": null,
+      "status": "in_progress",
+      "owner": "frontend_b09",
+      "baseCommit": "a3f2f9c",
       "implementationCommit": null,
       "pushed": false,
       "evidence": [],
-      "nextAction": null,
+      "nextAction": "B10 collection/Earn disclosures and additive Node read projections; coordinate shared schema changes.",
       "blocker": null
     },
     "B11": {

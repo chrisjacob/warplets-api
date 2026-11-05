@@ -79,12 +79,16 @@ export interface CanonicalCrypto {
   sha256(bytes:Uint8Array):Promise<string>;
   verifyEd25519(input:{publicKey:string;signature:string;message:Uint8Array}):Promise<boolean>;
 }
-// These ports are deliberately unavailable in this extraction checkpoint.
-// B02 supplies the concrete evidence/artifact/job contracts before consumers.
+// Evidence and jobs remain unavailable until B04/B03 supply their services.
+// Concrete B02 repositories and private artifacts are injected where supported.
 export type DeferredPort=Readonly<{availability:'not-implemented'}>;
 export type ApplicationContext=Readonly<{
   clock:Readonly<{nowMs():number}>;ids:Readonly<{next():string}>;crypto:CanonicalCrypto;
-  repositories:Readonly<{earn:EarnRepository}>;evidence:DeferredPort;artifacts:DeferredPort;jobs:DeferredPort;
+  repositories:Readonly<{earn:EarnRepository;guardedEarn?:GuardedAdmissionRepository;
+    settlement?:import('../storage/atomic-settlement.mjs').AtomicSettlementRepository;
+    operations?:import('../storage/atomic-operations.mjs').AtomicOperationsRepository;
+    artifactReferences?:import('../storage/atomic-artifacts.mjs').ArtifactReferenceRepository}>;
+  evidence:DeferredPort;artifacts:DeferredPort|import('../artifacts/store').ArtifactStore;jobs:DeferredPort;
   telemetry:Readonly<{record(event:string,fields:Readonly<Record<string,string|number|boolean>>):void}>;
   executionPolicy:Readonly<{mode:'local-validation';financialExecution:false}>;
 }>;

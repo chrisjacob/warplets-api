@@ -1,0 +1,82 @@
+{
+  "taskId": "B02",
+  "substep": "B02.3",
+  "status": "tested",
+  "implementationCommit": null,
+  "migration": "024-settlement-fences.sql",
+  "classification": "synthetic-fixture; Node/SQLite and actual local workerd/D1",
+  "commands": [
+    {
+      "command": "node platform/scripts/test-reference.mjs",
+      "tests": 172,
+      "exitCode": 0,
+      "scope": "combined working tree includes uncommitted B10 read projections"
+    },
+    {
+      "command": "node --test platform/edge/test/*.test.mjs",
+      "tests": 18,
+      "exitCode": 0
+    },
+    {
+      "command": "node platform/edge/node_modules/typescript/bin/tsc --noEmit -p platform/edge/tsconfig.json",
+      "exitCode": 0
+    },
+    {
+      "command": "node platform/contracts/generate.mjs --check",
+      "exitCode": 0
+    },
+    {
+      "command": "node platform/earn/recovery-drill.mjs",
+      "exitCode": 0
+    },
+    {
+      "command": "node --test platform/storage/atomic-settlement.test.mjs",
+      "tests": 2,
+      "exitCode": 0,
+      "scope": "after SQL clock fix"
+    },
+    {
+      "command": "node --test platform/edge/test/settlement-repository.test.mjs",
+      "tests": 2,
+      "exitCode": 0,
+      "scope": "SQL-clock transport delay at3 and100wallets"
+    },
+    {
+      "command": "node --test --test-name-pattern='3 wallets' platform/edge/test/settlement-repository.test.mjs",
+      "tests": 1,
+      "exitCode": 0,
+      "scope": "actual database-clock positive and negative cases"
+    }
+  ],
+  "assertions": [
+    "Three-wallet golden commitments unchanged on Node and D1",
+    "100-wallet Node/D1 board and allocation match reference",
+    "Expired lease and expiry during hashing prevent commit",
+    "Missing mandatory board/award child rolls back all effects",
+    "Accepted receipts replay after lease expiry",
+    "Populated migrations001-021 upgrade preserves published commitments and awards"
+  ],
+  "measurements": {
+    "wallets": 100,
+    "boardBatchStatements": 303,
+    "maximumParameters": 29,
+    "maximumStatementSqlBytes": 1037,
+    "batchBytes": 208778,
+    "maximumInputReadBatches": 12,
+    "clockNote": "100-wallet fixture-clock batch; actual-clock three-wallet batch8939 bytes"
+  },
+  "review": {
+    "method": "independent agent read-only review, coordinator reproduction and regression tests",
+    "fixed": [
+      "Sampled lease time allowed a commit after transport-delay expiry; added database-time predicate"
+    ]
+  },
+  "remaining": [
+    "B03 durable job acquisition and runner",
+    "B05 independent coverage; synthetic manifests test only the storage seam",
+    "B05/B07 bounded pages for current-plus-late wallet union over100",
+    "B07/B08 publication and recovery"
+  ],
+  "costUsd": 0,
+  "remoteCloudflareWrites": false
+}

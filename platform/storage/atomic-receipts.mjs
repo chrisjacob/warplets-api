@@ -20,8 +20,10 @@ export function createAtomicReceipts(driver,{crypto,ids,telemetry={record(){}}})
   async function replay(command) {return recovered((await read([selectedReceipt(command)]))[0][0],command);}
   async function execute(command,{businessKey,input,result,resultRef,version,child,authoritySql='1',authorityValues=[]}) {
     command=JSON.parse(canonicalJson(command));input=JSON.parse(canonicalJson(input));
-    result=JSON.parse(canonicalJson(result));version=JSON.parse(canonicalJson(version));authorityValues=[...authorityValues];
+    result=JSON.parse(canonicalJson(result));version=JSON.parse(canonicalJson(version));
+    const authoritySnapshot=typeof authorityValues==='function'?authorityValues:[...authorityValues];
     const operationId=ids.next(),nonce=ids.next(),outputDigest=await hash(result);
+    authorityValues=typeof authoritySnapshot==='function'?authoritySnapshot():authoritySnapshot;
     const identity=[operationId,principalKey(command.principal),command.operationKind,businessKey,command.requestKey,command.requestDigest,
       canonicalJson(version),nonce,canonicalJson(input),canonicalJson(result),outputDigest,resultRef,command.nowMs];
     const claim=sql(`INSERT INTO app_command_receipts

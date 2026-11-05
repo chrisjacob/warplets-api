@@ -16,7 +16,8 @@ function valuation(row,cutoff) {
 export async function loadAtomicBoardInput(driver,crypto,{epoch,nowMs,sourceRef}) {
   nat(epoch,'epoch');nat(nowMs,'now');name(sourceRef,'source reference');const cutoff=(epoch+1)*DAY_MS-1;
   if(nowMs<=cutoff)return pending('board-open');
-  const read=async statements=>(await driver.batch(statements)).map(r=>r.rows);
+  let readBatches=0;
+  const read=async statements=>{readBatches++;return (await driver.batch(statements)).map(r=>r.rows);};
   const [versionRows,closed,previousOpen,posts,late,campaigns,collections,intervals]=await read([
     sql('SELECT * FROM app_revisions ORDER BY name'),sql('SELECT snapshot_hash,winners FROM earn_boards WHERE epoch=?',epoch),
     sql('SELECT 1 FROM earn_submissions s WHERE s.epoch=? AND NOT EXISTS(SELECT 1 FROM earn_boards b WHERE b.epoch=s.epoch) LIMIT 1',epoch-1),
@@ -38,8 +39,7 @@ export async function loadAtomicBoardInput(driver,crypto,{epoch,nowMs,sourceRef}
   const wallets=[...new Set([...posts.map(p=>p.wallet),...late.map(p=>p.wallet)])];
   if(wallets.length>100)return pending('board-input-bound');
   const closingStake=Object.create(null),facts=Object.create(null),previousStreaks=Object.create(null);
-  for(const wallet of wallets) {
-    const [owners,completions,positions,observations,streaks]=await read([
+  const walletStatements=wallet=>[
       sql(`SELECT CASE WHEN length(assets)<=262144 THEN assets ELSE NULL END AS assets,source_ref
         FROM earn_owner_snapshots WHERE epoch=? AND wallet=?`,epoch,wallet),
       sql('SELECT action_id AS actionId,verified_ms AS verifiedAtMs,source_ref AS sourceRef FROM earn_action_completions WHERE wallet=? AND verified_ms<=? ORDER BY action_id LIMIT 101',wallet,cutoff),
@@ -54,7 +54,11 @@ export async function loadAtomicBoardInput(driver,crypto,{epoch,nowMs,sourceRef}
         AND NOT EXISTS(SELECT 1 FROM price_observations n WHERE n.wallet=o.wallet AND n.token_id=o.token_id AND n.as_of_ms<=?
           AND (n.as_of_ms>o.as_of_ms OR (n.as_of_ms=o.as_of_ms AND n.revision>o.revision))) ORDER BY o.token_id LIMIT 101`,wallet,cutoff,cutoff,cutoff-10*DAY_MS,epoch,cutoff),
       sql('SELECT epoch,days,last_approval_ms AS lastApprovalMs FROM earn_streaks WHERE epoch=? AND wallet=?',epoch-1,wallet),
-    ]);
+    ];
+  for(let offset=0;offset<wallets.length;offset+=10) {
+    const group=wallets.slice(offset,offset+10),batch=await read(group.flatMap(walletStatements));
+    for(let index=0;index<group.length;index++) {
+    const wallet=group[index],[owners,completions,positions,observations,streaks]=batch.slice(index*5,index*5+5);
     if(![completions,positions,observations].every(bounded)||owners[0]?.assets===null)return pending('board-input-bound');
     previousStreaks[wallet]=streaks[0]??null;
     const values=Object.fromEntries(observations.map(o=>[o.token_id,valuation(o,cutoff)]));
@@ -72,9 +76,10 @@ export async function loadAtomicBoardInput(driver,crypto,{epoch,nowMs,sourceRef}
       }else facts[wallet]=plan;
     }
   }
+  }
   const input={epoch,cutoff,nowMs,sourceRef,posts,closingStake,facts,late,previousStreaks,campaigns};
   const bytes=utf8(canonicalJson(input));if(bytes.byteLength>256*1024)return pending('board-input-bound');
   const current=revisions((await read([sql('SELECT * FROM app_revisions ORDER BY name')]))[0]),captured=revisions(versionRows);
   if(canonicalJson(current)!==canonicalJson(captured))return {kind:'conflict',code:'revision_conflict'};
-  return {kind:'loaded',input,versions:captured,inputDigest:await crypto.sha256(bytes),measurements:{inputBytes:bytes.byteLength,participants:wallets.length,posts:posts.length}};
+  return {kind:'loaded',input,versions:captured,inputDigest:await crypto.sha256(bytes),measurements:{inputBytes:bytes.byteLength,participants:wallets.length,posts:posts.length,readBatches}};
 }

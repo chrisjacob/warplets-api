@@ -9,11 +9,11 @@ import { appendAudit, configCheckpoint } from '../../operations/audit.mjs';
 import { createNodeEarnService } from '../node-context.mjs';
 import { samplePolicy } from '../../pricing/fixtures.mjs';
 import { registerPriceSource } from '../../pricing/evidence.mjs';
-export async function buildGoldenScenario(db,{beforeFinalize}={}) {
+export async function buildGoldenScenario(db,{beforeFinalize,wallets=['w3','w1','w2']}={}) {
   const epoch=20001,start=epoch*DAY_MS,cutoff=start+DAY_MS-1;
   addCampaign(db,{tokenId:'A',activationMs:start,originalUnits:'1000000'});
   registerPriceSource(db,{...samplePolicy('A'),registeredAtMs:start});
-  for(const wallet of ['w3','w1','w2']) {
+  for(const wallet of wallets) {
     const read={wallet,tokenId:'A',microUsd:'10000000',sourceRef:'synthetic-position-'+wallet};
     recordStakeRead(db,{...read,observedMs:start,expiresMs:start});
     const service=createNodeEarnService(db,{nowMs:start,ids:{next:()=> 'submission-'+wallet}});
