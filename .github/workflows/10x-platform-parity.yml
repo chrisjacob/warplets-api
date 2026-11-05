@@ -33,3 +33,7 @@ jobs:
         run: node platform/lab/fetch-kamino-replay-elf.mjs "$RUNNER_TEMP/kamino-program.so"
       - name: Replay farm lifecycle in offline Surfpool
         run: node platform/lab/replay-kamino.mjs october-reference "$RUNNER_TEMP/kamino-program.so"
+      - name: Pin the public Rewards program deployment
+        run: node platform/lab/fetch-rewards-replay-elf.mjs "$RUNNER_TEMP/rewards-program.so"
+      - name: Verify Earn vesting and test NFT ownership transfer against the captured distributor
+        run: node platform/lab/replay-rewards.mjs october-reference "$RUNNER_TEMP/rewards-program.so"

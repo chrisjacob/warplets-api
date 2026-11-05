@@ -60,9 +60,9 @@ export function readFarmConfig(account) {
 // Preserve public configuration accounts but do not redistribute the third-
 // party executable. Its hash includes all allocated program bytes after the
 // loader's fixed 45-byte metadata, including any allocation padding.
-export function deploymentObservation(raw) {
+export function inspectUpgradeableDeployment(raw, programAddress, dataAddress) {
   const [program, data] = raw.accounts;
-  assert.deepEqual(raw.addresses.slice(0, 2), [FARM_PROGRAM, PROGRAM_DATA]);
+  assert.deepEqual(raw.addresses.slice(0, 2), [programAddress, dataAddress]);
   assert.equal(raw.commitment, 'finalized');
   assert.equal(program.owner, LOADER);
   assert.equal(program.executable, true);
@@ -72,15 +72,16 @@ export function deploymentObservation(raw) {
   const d = Buffer.from(data.data[0], 'base64');
   assert.equal(p.length, 36);
   assert.equal(p.readUInt32LE(0), 2);
-  assert.equal(publicKey(p, 4), PROGRAM_DATA);
+  assert.equal(publicKey(p, 4), dataAddress);
   assert.equal(d.length, data.space);
   assert.equal(d.readUInt32LE(0), 3);
   assert(d[12] === 0 || d[12] === 1);
   assert.equal(d.subarray(45, 49).toString('hex'), '7f454c46');
-  return { program: FARM_PROGRAM, programData: PROGRAM_DATA, contextSlot: raw.context.slot,
+  return { program: programAddress, programData: dataAddress, contextSlot: raw.context.slot,
     programDataLength: d.length, deployedSlot: u64(d, 4), upgradeAuthority: d[12] ? publicKey(d, 13) : null,
     allocatedElfSha256: hash(d.subarray(45)), observedAt: raw.retrievedAt };
 }
+export const deploymentObservation = raw => inspectUpgradeableDeployment(raw, FARM_PROGRAM, PROGRAM_DATA);
 
 export function inspectKamino(observation) {
   const raw = observation.farmSnapshot;

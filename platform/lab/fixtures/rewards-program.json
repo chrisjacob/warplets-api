@@ -1,0 +1,14 @@
+{
+  "program": "REWArDioXgQJ2fZKkfu9LCLjQfRwYWVVfsvcsR5hoXi",
+  "programData": "BKRW5hPM4cMjNNr2EKdpScMS5kmK5bTxdELTH4LurZnu",
+  "loader": "BPFLoaderUpgradeab1e11111111111111111111111",
+  "contextSlot": 465655227,
+  "observedAt": "2026-11-05T09:30:02.6297592Z",
+  "programDataLength": 179861,
+  "deployedSlot": "422571636",
+  "upgradeAuthority": "DXtFpbPjcn2hxPnw79x1Pfoj35vXh5AsWBkS37YnXMVv",
+  "allocatedElfSha256": "cd1c6572a0eb8681460e0eb6748d5b82ec1173326f79d412bb608b808b44ef71",
+  "auditThrough": "aa1cfd9276375e44e57d1917d110ff095fb6d475",
+  "sourceInspected": "79d5a3be1fed12021feb8d4ecd909b0fbc15c425",
+  "sourceMatchVerified": false
+}
