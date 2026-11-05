@@ -1,5 +1,6 @@
+import { Capability, useRuntimeQuery } from './capabilities';
 import { useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
 import { client } from './sdk';
 import { Empty, friendlyError, intentKey, Loaded, utc } from './common';
@@ -25,7 +26,7 @@ function InboxSettings({pref,topics,wallet}:{pref:z.infer<typeof preference>;top
     const key=intentKey(wallet,'local-notice-consent',body);
     await client.setMyNoticePreferences({idempotencyKey:key.key,body});
     key.done();
-  },onSuccess:()=>cache.invalidateQueries({queryKey:['private',wallet,'notifications']})});
+  },onSuccess:()=>cache.invalidateQueries({queryKey:['private',wallet,'solana','notifications']})});
   return <form className="member-form" onSubmit={e=>{e.preventDefault();change.mutate(true);}}>
     <fieldset disabled={change.isPending}><legend>Topics</legend>
       {topics.map(t=><label className="check" key={t}><input type="checkbox" checked={selected.includes(t)}
@@ -37,16 +38,16 @@ function InboxSettings({pref,topics,wallet}:{pref:z.infer<typeof preference>;top
 }
 export function Notifications({wallet}:{wallet:string}){
   const [opened,setOpened]=useState(false),[cursor,setCursor]=useState<string>();
-  const caps=useQuery({queryKey:['notice-capabilities'],enabled:opened,queryFn:async({signal})=>
+  const caps=useRuntimeQuery('/api/v1/notifications/capabilities',{queryKey:['notice-capabilities'],enabled:opened,queryFn:async({signal})=>
     capabilities.parse(await client.getNoticeCapabilities({signal})).data});
-  const prefs=useQuery({queryKey:['private',wallet,'notifications','preferences'],enabled:opened,queryFn:async({signal})=>
+  const prefs=useRuntimeQuery('/api/v1/notifications/subscriptions',{queryKey:['private',wallet,'solana','notifications','preferences'],enabled:opened,queryFn:async({signal})=>
     z.object({data:preference}).parse(await client.getMyNoticePreferences({signal})).data});
-  const notices=useQuery({queryKey:['private',wallet,'notifications','inbox',cursor],enabled:opened && !!prefs.data?.enabled,
+  const notices=useRuntimeQuery('/api/v1/notifications/inbox',{queryKey:['private',wallet,'solana','notifications','inbox',cursor],enabled:opened && !!prefs.data?.enabled,
     queryFn:async({signal})=>inbox.parse(await client.getMyLocalNotices({query:{cursor},signal}))});
   return <details onToggle={e=>setOpened(e.currentTarget.open)}><summary>Local inbox settings</summary>
     {opened && <Loaded query={caps}>{c=><Loaded query={prefs}>{pref=><>
       <p>{pref.enabled?'Local inbox enabled.':'Local inbox off.'} Notices appear inside this preview. Daily maximum: {c.dailyLimit}.</p>
-      <InboxSettings key={pref.revision} pref={pref} topics={c.topics} wallet={wallet}/>
+      <Capability method="POST" path="/api/v1/notifications/subscriptions"><InboxSettings key={pref.revision} pref={pref} topics={c.topics} wallet={wallet}/></Capability>
       {pref.enabled && <Loaded query={notices}>{page=><>
         {page.items.length?<ul className="records">{page.items.map(n=><li key={n.id}><strong>{n.title}</strong><small>{utc(new Date(n.deliveredMs).toISOString())}</small>
           <p>{n.message}</p>{safeTarget(n.target) && <a href={safeTarget(n.target)!}>Open notice ↗</a>}</li>)}</ul>:<Empty title="No local notices"/>}

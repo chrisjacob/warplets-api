@@ -1,5 +1,5 @@
+import { useRuntimeQuery } from './capabilities';
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import { z } from 'zod';
 import { client } from './sdk';
 import { Facts, Loaded } from './common';
@@ -20,7 +20,7 @@ const guidance:Record<string,string>={
 
 export function Recovery({wallet}:{wallet:string}){
   const [draft,setDraft]=useState(''),[identifier,setIdentifier]=useState('');
-  const receipt=useQuery({queryKey:['private',wallet,'transaction',identifier],enabled:!!identifier,
+  const receipt=useRuntimeQuery('/api/v1/transactions/{id}',{queryKey:['private',wallet,'solana','transaction',identifier],enabled:!!identifier,
     queryFn:async({signal})=>result.parse(await client.getTransaction({path:{id:identifier},signal})).data});
   return <details className="recovery"><summary>Find a transaction receipt</summary>
     <form className="member-form" onSubmit={event=>{event.preventDefault();setIdentifier(draft.trim());}}>

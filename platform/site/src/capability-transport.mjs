@@ -13,10 +13,14 @@ const inventory = z.object({
   walletAuthentication:z.literal('message-only'),externalNotifications:z.literal(false),
 });
 const unavailable = message => new PlatformApiError(503,{code:'runtime_unavailable',message,retryable:false});
-function matches(template,path) {
+export function matches(template,path) {
   const expected=template.split('/'),actual=path.split('/');
   return expected.length===actual.length && expected.every((part,index)=>
     /^\{[a-zA-Z][a-zA-Z0-9]*\}$/.test(part)?actual[index].length>0:part===actual[index]);
+}
+
+export function supportsRoute(capabilities, method, path) {
+  return !!capabilities?.features.some(feature=>feature.routes.some(route=>route.method===method && matches(route.path,path)));
 }
 
 // Per-client cache: neither personalized state nor inventories cross API origins.
@@ -40,7 +44,7 @@ export function capabilityTransport({fetchImpl=globalThis.fetch,baseUrl='/api/v1
     if(!publicDiscovery) {
       const capabilities=await discover();
       init?.signal?.throwIfAborted();
-      if(!capabilities.features.some(feature=>feature.routes.some(route=>route.method===method && matches(route.path,url.pathname))))
+      if(!supportsRoute(capabilities,method,url.pathname))
         throw unavailable('This feature is unavailable in the connected runtime.');
     }
     return fetchImpl(input,init);

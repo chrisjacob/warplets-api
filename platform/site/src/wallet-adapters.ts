@@ -3,11 +3,13 @@ import type { Challenge } from '../../contracts/client.mjs';
 
 type StandardWallet=ReturnType<ReturnType<typeof getWallets>['get']>[number];
 type Account=StandardWallet['accounts'][number];
-type Connection={address:string;sign:(message:Uint8Array)=>Promise<Uint8Array>};
+type Connection={address:string;sign:(message:Uint8Array)=>Promise<Uint8Array>;watch:(changed:(address:string|null)=>void)=>()=>void};
 export type Adapter={name:string;connect:()=>Promise<Connection>};
 type Injected={
   connect():Promise<{publicKey:{toString():string}}>;
   publicKey?:{toString():string};
+  on?:(event:string,handler:(account?:{toString():string}|null)=>void)=>void;
+  removeListener?:(event:string,handler:(account?:{toString():string}|null)=>void)=>void;
   signMessage(bytes:Uint8Array,enc:'utf8'):Promise<{signature:Uint8Array}>;
 };
 function standardAdapter(wallet:StandardWallet):Adapter|null{
@@ -18,7 +20,14 @@ function standardAdapter(wallet:StandardWallet):Adapter|null{
     const {accounts}=await connect.connect!();
     const account=accounts.find(a=>a.features.includes('solana:signMessage')&&a.chains.some(c=>c.startsWith('solana:')));
     if(!account)throw Error('Choose a Solana account that supports sign-in messages.');
-    return {address:account.address,async sign(message){
+    return {address:account.address,watch(changed){
+      const events=wallet.features['standard:events'] as {on?:(event:'change',listener:(props:{accounts?:readonly Account[]})=>void)=>()=>void}|undefined;
+      const off=events?.on?.('change',props=>{
+        if(props.accounts)changed(props.accounts[0]?.address??null);
+      });
+      const unregister=getWallets().on('unregister',(...removed)=>{if(removed.includes(wallet))changed(null);});
+      return ()=>{off?.();unregister();};
+    },async sign(message){
       if(!wallet.accounts.some(a=>a.address===account.address))throw Error('The wallet account changed. Reconnect.');
       const [result]=await sign.signMessage!({account,message});
       if(!result || result.signedMessage.length!==message.length || !result.signedMessage.every((b,i)=>b===message[i]))
@@ -36,7 +45,12 @@ export function discoverWallets():Adapter[]{
     standard.push({name:'Solana wallet',async connect(){
       const connected=await injected.connect();
       const address=connected.publicKey.toString();
-      return {address,async sign(bytes){
+      return {address,watch(changed){
+        const account=(value?:{toString():string}|null)=>changed(value?.toString()??null);
+        const disconnect=()=>changed(null);
+        injected.on?.('accountChanged',account);injected.on?.('disconnect',disconnect);
+        return ()=>{injected.removeListener?.('accountChanged',account);injected.removeListener?.('disconnect',disconnect);};
+      },async sign(bytes){
         if(injected.publicKey?.toString()!==address)throw Error('The wallet account changed. Reconnect.');
         return (await injected.signMessage(bytes,'utf8')).signature;
       }};

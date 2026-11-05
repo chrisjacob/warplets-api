@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import type { UseQueryResult } from '@tanstack/react-query';
 import { PlatformApiError } from './sdk';
 
 export const compact=(address:string)=>address.length>16?address.slice(0,6)+'…'+address.slice(-6):address;
@@ -46,7 +45,9 @@ export function Empty({title,children}:{title:string;children?:ReactNode}){
   return <div className="empty"><h3>{title}</h3>{children && <p>{children}</p>}</div>;
 }
 export function Signal({children}:{children:ReactNode}) {return <p className="notice" role="status">{children}</p>;}
-export function Loaded<T>({query,children}:{query:UseQueryResult<T,Error>;children:(data:T)=>ReactNode}){
+export function Loaded<T>({query,children}:{query:{data:T|undefined;isError:boolean;error:Error|null;refetch:()=>unknown;availability?:{allowed:boolean;pending:boolean;reason:string;refresh:()=>void}};children:(data:T)=>ReactNode}){
+  if(query.availability && !query.availability.allowed)return <div role="status"><p>{query.availability.pending?'Checking runtime support...':query.availability.reason}</p>
+    {!query.availability.pending&&<button onClick={query.availability.refresh}>Refresh runtime support</button>}</div>;
   if(query.isError)return <div><Signal>{friendlyError(query.error)}</Signal><button onClick={()=>void query.refetch()}>Retry</button></div>;
   if(query.data===undefined)return <p className="loading" role="status">Loading…</p>;
   return <>{children(query.data)}</>;

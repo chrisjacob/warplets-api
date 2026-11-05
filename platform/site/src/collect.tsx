@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { Capability, useRuntimeQuery, principalKey } from './capabilities';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { rootRoute } from './routes';
@@ -17,13 +18,13 @@ function BallotCard({ballot,wallet}:{ballot:Ballot;wallet:string|null}){
   onSuccess:()=>cache.invalidateQueries({queryKey:['ballots']})});
   return <article className="record"><div className="entry-head"><h3>{ballot.id}</h3><span>{ballot.status}</span></div>
     <p>{ballot.votesCast} votes from {ballot.eligibleWallets} eligible wallets. {ballot.status==='scheduled'?'Opens '+utc(ballot.opensAt):'Closes '+utc(ballot.closesAt)}.</p>
-    {ballot.status==='open' && (wallet?<form onSubmit={event=>{
+    {ballot.status==='open' && <Capability method="POST" path="/api/v1/genesis/ballots/{id}/votes">{(wallet?<form onSubmit={event=>{
       event.preventDefault();const value=String(new FormData(event.currentTarget).get('choice'));
       if(['ASAP','7','14','30'].includes(value))vote.mutate(value as VoteChoice);
     }}><fieldset disabled={vote.isPending||vote.isSuccess}><legend>When should the next tranche open?</legend>
       {ballot.choices.map(choice=><label className="radio" key={choice}><input type="radio" name="choice" value={choice} required/>{choiceLabel(choice)}</label>)}
       <button>Submit advisory vote</button></fieldset><output aria-live="polite">{vote.data?'Recorded your vote: '+choiceLabel(vote.data.choice)+'.':vote.error?friendlyError(vote.error):''}</output>
-    </form>:<button onClick={open}>Connect wallet</button>)}
+    </form>:<button onClick={open}>Connect wallet</button>)}</Capability>}
     {ballot.counts && <Facts items={ballot.choices.map(c=>[choiceLabel(c),ballot.counts![c]])}/>}
     {ballot.decision && <p><strong>Founder decision · {choiceLabel(ballot.decision.choice)}</strong><br/>{ballot.decision.rationale}<br/>
       Earliest opening: {utc(ballot.decision.earliestOpening)}.</p>}
@@ -32,7 +33,7 @@ function BallotCard({ballot,wallet}:{ballot:Ballot;wallet:string|null}){
 type Review={kind:'mint';inventory:Inventory;stage:Stage} | {kind:'progress';asset:Asset;materialId?:string};
 function ReviewOperation({review,wallet,onClose}:{review:Review;wallet:string;onClose:()=>void}){
   const navigate=useNavigate(),cache=useQueryClient();
-  const quote=useQuery({queryKey:['private',wallet,'quote',review],enabled:review.kind==='progress',staleTime:0,
+  const quote=useRuntimeQuery('/api/v1/collect/assets/{id}',{queryKey:['private',wallet,'solana','quote',review],enabled:review.kind==='progress',staleTime:0,
     queryFn:async()=>{
       if(review.kind!=='progress')throw Error('Select an asset.');
       const req:ProgressionRequest={kind:review.materialId?'upgrade':'visual',targetId:review.asset.id,
@@ -57,7 +58,7 @@ function ReviewOperation({review,wallet,onClose}:{review:Review;wallet:string;on
     const receipt=await sdk.progress(review.asset.inventoryId,quote.data.req,intent.key);
     intent.done();return receipt;
   },onSuccess:async op=>{
-    await Promise.all([cache.invalidateQueries({queryKey:['private',wallet]}),cache.invalidateQueries({queryKey:['inventories']})]);
+    await Promise.all([cache.invalidateQueries({queryKey:['private',wallet]}),cache.invalidateQueries({predicate:q=>q.queryKey.includes('inventories')})]);
     onClose();await navigate({to:'/collect',search:{receipt:op.id}});
   }});
   return <Modal id="collection-dialog" title={review.kind==='mint'?'Review mint reservation':review.materialId?'Review Level upgrade':'Review visual reroll'} onClose={onClose}>
@@ -103,16 +104,16 @@ function PublishedStage({inventory,stage,review}:{inventory:Inventory;stage:Stag
   return <article className="stage"><div className="entry-head"><h4>{stage.id}</h4><span>{stage.status}</span></div>
     <Facts items={[['Mint price',sol(stage.priceLamports)],['Creation and network quote',sol(stage.costLamports)],
       ['Slots available',stage.available],['Limit per wallet',stage.walletLimit],['Opens',utc(stage.opensAt)],['Closes',utc(stage.closesAt)]]}/>
-    {canReserve && (wallet?(stage.eligible?(stage.walletReservations??0)<stage.walletLimit?
+    {canReserve && <Capability method="POST" path="/api/v1/collect/inventories/{id}/stages/{stage}/reservations">{(wallet?(stage.eligible?(stage.walletReservations??0)<stage.walletLimit?
       <button onClick={()=>review({kind:'mint',inventory,stage})}>Review reservation</button>:<p>The wallet limit for this stage has been reached.</p>
-      :<p>This wallet is outside the stage eligibility list.</p>):<button onClick={open}>Connect wallet</button>)}
+      :<p>This wallet is outside the stage eligibility list.</p>):<button onClick={open}>Connect wallet</button>)}</Capability>}
     {stage.openingHold&&<p>{stage.openingHold}</p>}</article>;
 }
 function MemberAssets({wallet,review}:{wallet:string;review:(review:Review)=>void}){
   const search=rootRoute.useSearch();
-  const assets=useQuery({queryKey:['private',wallet,'collection-assets',search.owned],queryFn:({signal})=>sdk.assets(search.owned,signal)});
-  const operations=useQuery({queryKey:['private',wallet,'collection-operations',search.operations],queryFn:({signal})=>sdk.receipts(search.operations,signal)});
-  const receipt=useQuery({queryKey:['private',wallet,'collection-receipt',search.receipt],enabled:!!search.receipt,
+  const assets=useRuntimeQuery('/api/v1/collect/me/assets',{queryKey:['private',wallet,'solana','collection-assets',search.owned],queryFn:({signal})=>sdk.assets(search.owned,signal)});
+  const operations=useRuntimeQuery('/api/v1/collect/me/operations',{queryKey:['private',wallet,'solana','collection-operations',search.operations],queryFn:({signal})=>sdk.receipts(search.operations,signal)});
+  const receipt=useRuntimeQuery('/api/v1/collect/me/operations/{id}',{queryKey:['private',wallet,'solana','collection-receipt',search.receipt],enabled:!!search.receipt,
     queryFn:({signal})=>sdk.receipt(search.receipt!,signal)});
   return <>
     <Panel title="Your collection"><Loaded query={assets}>{page=><>
@@ -121,10 +122,10 @@ function MemberAssets({wallet,review}:{wallet:string;review:(review:Review)=>voi
         {asset.revealStatus==='revealed' && <><Facts items={[['Level',asset.level],['Model',asset.traits?.model],['Backdrop',asset.traits?.backdrop],
           ['Symbol',asset.traits?.symbol],['Benefit expiry',asset.expiresAt?utc(asset.expiresAt):'Permanent']]}/>
           {asset.operationPending?<p>Awaiting committed draw evidence.</p>:asset.expiresAt&&<>
-            <button onClick={()=>review({kind:'progress',asset})}>Preview visual reroll</button>
+            <Capability method="POST" path="/api/v1/collect/inventories/{id}/progression"><Capability method="POST" path="/api/v1/collect/inventories/{id}/progression/quote"><button onClick={()=>review({kind:'progress',asset})}>Preview visual reroll</button>
             {asset.level!<10&&<form className="member-form" data-upgrade={asset.id} onSubmit={event=>{
               event.preventDefault();review({kind:'progress',asset,materialId:String(new FormData(event.currentTarget).get('material'))});
-            }}><label>Same-Level material NFT ID<input name="material" list="known-materials" required maxLength={128}/></label><button>Preview upgrade</button></form>}</>}
+            }}><label>Same-Level material NFT ID<input name="material" list="known-materials" required maxLength={128}/></label><button>Preview upgrade</button></form>}</Capability></Capability></>}
           <Link to="/vault" search={{asset:asset.id}}>Vault allocations ↗</Link></>}
       </article>)}
       <datalist id="known-materials">{page.items.filter(a=>a.expiresAt && !a.operationPending).map(a=><option key={a.id} value={a.id}/>)}</datalist>
@@ -142,8 +143,9 @@ export function Collect(){
   usePageMeta('Collect','Explore permanent Genesis membership and monthly Season collections.','/collect');
   const {wallet}=useSession(),search=rootRoute.useSearch();
   const [review,setReview]=useState<Review|null>(null);
-  const inventories=useQuery({queryKey:['inventories',wallet,search.inventories],queryFn:({signal})=>sdk.inventories(search.inventories,signal)});
-  const ballots=useQuery({queryKey:['ballots'],queryFn:({signal})=>sdk.ballots(signal)});
+  useEffect(()=>setReview(null),[wallet]);
+  const inventories=useRuntimeQuery('/api/v1/collect/inventories',{queryKey:principalKey(wallet,'inventories',search.inventories),queryFn:({signal})=>sdk.inventories(search.inventories,signal)});
+  const ballots=useRuntimeQuery('/api/v1/genesis/ballots',{queryKey:['ballots'],queryFn:({signal})=>sdk.ballots(signal)});
   return <>
     <Hero title="Collect">Explore permanent Genesis membership and monthly Season collections.</Hero>
     <CollectionTerms/>
@@ -157,6 +159,7 @@ export function Collect(){
     {wallet&&<MemberAssets key={wallet} wallet={wallet} review={setReview}/>}
     <Panel title="Genesis ballots"><Loaded query={ballots}>{page=>page.items.length?page.items.map(b=>
       <BallotCard key={b.id+(wallet??'')} wallet={wallet} ballot={b}/>):<Empty title="No published ballots"/>}</Loaded></Panel>
-    {wallet&&review&&<ReviewOperation wallet={wallet} review={review} onClose={()=>setReview(null)}/>}
+    {wallet&&review&&<Capability method="POST" path={review.kind==='mint'?'/api/v1/collect/inventories/{id}/stages/{stage}/reservations':'/api/v1/collect/inventories/{id}/progression/quote'}>
+      <ReviewOperation key={wallet} wallet={wallet} review={review} onClose={()=>setReview(null)}/></Capability>}
   </>;
 }

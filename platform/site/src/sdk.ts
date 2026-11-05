@@ -7,7 +7,13 @@ import {
 } from './models';
 
 export const runtimeTransport=capabilityTransport();
-export const client=createClient({fetchImpl:runtimeTransport.fetch});
+export const client=createClient({fetchImpl:async(input,init)=>{
+  const response=await runtimeTransport.fetch(input,init);
+  const path=new URL(typeof input==='string'?input:input instanceof URL?input.href:input.url,'http://local.invalid').pathname;
+  if(response.status===401 && path!=='/api/v1/me' && !path.startsWith('/api/v1/auth/') && typeof window!=='undefined')
+    window.dispatchEvent(new Event('10x:session-expired'));
+  return response;
+}});
 export { PlatformApiError };
 const queryCursor=(cursor?:string)=>cursor?{cursor}:{};
 const rows=<T extends z.ZodType>(type:T,payload:unknown)=>pageOf(type).parse(payload);

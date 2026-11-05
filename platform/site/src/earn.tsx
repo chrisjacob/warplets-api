@@ -1,3 +1,4 @@
+import { Capability, useRuntimeQuery } from './capabilities';
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -9,15 +10,15 @@ import { useSession } from './session';
 
 function Contribution({wallet}:{wallet:string}){
   const cache=useQueryClient(),{submissions,awards}=rootRoute.useSearch();
-  const catalog=useQuery({queryKey:['markets',undefined],queryFn:({signal})=>sdk.markets(undefined,signal)});
-  const history=useQuery({queryKey:['private',wallet,'submissions',submissions],queryFn:({signal})=>sdk.submissions(submissions,signal)});
-  const claims=useQuery({queryKey:['private',wallet,'awards',awards],queryFn:({signal})=>sdk.awards(awards,signal)});
+  const catalog=useRuntimeQuery('/api/v1/markets',{queryKey:['markets',undefined],queryFn:({signal})=>sdk.markets(undefined,signal)});
+  const history=useRuntimeQuery('/api/v1/earn/me',{queryKey:['private',wallet,'solana','submissions',submissions],queryFn:({signal})=>sdk.submissions(submissions,signal)});
+  const claims=useRuntimeQuery('/api/v1/earn/claims',{queryKey:['private',wallet,'solana','awards',awards],queryFn:({signal})=>sdk.awards(awards,signal)});
   const submit=useMutation({mutationFn:async(body:{tokenId:string;url:string})=>{
     const pending=intentKey(wallet,'submission',body);
     await client.submitEarnContent({body,idempotencyKey:pending.key});pending.done();
-  },onSuccess:()=>cache.invalidateQueries({queryKey:['private',wallet,'submissions']})});
+  },onSuccess:()=>cache.invalidateQueries({queryKey:['private',wallet,'solana','submissions']})});
   return <>
-    <Panel title="Submit content"><Loaded query={catalog}>{page=>{
+    <Panel title="Submit content"><Capability method="POST" path="/api/v1/earn/submissions"><Loaded query={catalog}>{page=>{
       const active=page.items.filter(m=>m.status==='active');
       if(!active.length)return <Empty title="No active campaign"/>;
       return <form id="submission-form" className="member-form" onSubmit={event=>{
@@ -30,7 +31,7 @@ function Contribution({wallet}:{wallet:string}){
         <button disabled={submit.isPending}>Submit contribution</button>
         <output aria-live="polite">{submit.isSuccess?'Contribution recorded for moderation.':submit.isError?friendlyError(submit.error):''}</output>
       </form>;
-    }}</Loaded></Panel>
+    }}</Loaded></Capability></Panel>
     <div className="two-up"><Panel title="Your submissions"><Loaded query={history}>{page=><>
       {page.items.length?<ul className="records">{page.items.map(i=><li key={i.id}><strong>{i.tokenId}</strong><span>{i.status}{i.score==null?'':' · score '+i.score}</span>
         <small>{i.url}</small>{i.reason && <p>{i.reason}</p>}</li>)}</ul>:<p>No submissions from this wallet.</p>}
@@ -53,7 +54,7 @@ export function Earn({epochId}:{epochId?:string}={}){
   useEffect(()=>setEditing(boardDate),[boardDate]);
   const navigate=useNavigate();
   const policy=useQuery({queryKey:['policy'],queryFn:({signal})=>sdk.policy(signal)});
-  const board=useQuery({queryKey:['leaderboard',boardDate],queryFn:({signal})=>sdk.board(boardDate,signal)});
+  const board=useRuntimeQuery('/api/v1/earn/epochs/{epoch}/leaderboard',{queryKey:['leaderboard',boardDate],queryFn:({signal})=>sdk.board(boardDate,signal)});
   return <>
     <Hero title="Earn">Compete on one global daily board with your highest-scoring eligible contribution.</Hero>
     <Loaded query={policy}>{p=><Metrics items={[

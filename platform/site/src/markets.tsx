@@ -1,3 +1,4 @@
+import { useRuntimeQuery } from './capabilities';
 import { useState } from 'react';
 import { Link } from '@tanstack/react-router';
 import { useQuery } from '@tanstack/react-query';
@@ -50,7 +51,7 @@ function Allocation({policy}:{policy:Policy}){
   </Panel>;
 }
 export function MarketDetail({id}:{id:string}){
-  const market=useQuery({queryKey:['market',id],queryFn:({signal})=>sdk.market(id,signal)});
+  const market=useRuntimeQuery('/api/v1/markets/{id}',{queryKey:['market',id],queryFn:({signal})=>sdk.market(id,signal)});
   return <><Panel title="Market details"><Loaded query={market}>{m=><>
     <div className="entry-head"><h3>{m.symbol} / {m.ogSymbol}</h3><span>Local fixture</span></div>
     <Facts items={[['Status',m.status],['Activated',utc(m.activatedAt)],['Current fee',percent(m.feeBps)],
@@ -61,8 +62,8 @@ export function MarketDetail({id}:{id:string}){
 export function Markets(){
   const {market,cursor}=rootRoute.useSearch();
   const policy=useQuery({queryKey:['policy'],queryFn:({signal})=>sdk.policy(signal),staleTime:120_000});
-  const schedule=useQuery({queryKey:['fee-schedule'],queryFn:({signal})=>sdk.curve(signal),staleTime:120_000});
-  const markets=useQuery({queryKey:['markets',cursor],queryFn:({signal})=>sdk.markets(cursor,signal)});
+  const schedule=useRuntimeQuery('/api/v1/launch/fee-schedule',{queryKey:['fee-schedule'],queryFn:({signal})=>sdk.curve(signal),staleTime:120_000});
+  const markets=useRuntimeQuery('/api/v1/markets',{queryKey:['markets',cursor],queryFn:({signal})=>sdk.markets(cursor,signal)});
   usePageMeta('Markets','Explore curated Solana attention tokens and their original-token pairs.',market?'/markets/'+encodeURIComponent(market):'/markets',true);
   return <>
     <Hero title="Markets">Explore curated Solana attention tokens and the original tokens they pair with.</Hero>

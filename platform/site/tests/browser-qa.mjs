@@ -8,6 +8,7 @@ import { createLocalServer } from '../../server/start.mjs';
 import { openDatabase } from '../../storage/database.mjs';
 import { checkMemberPages } from '../../web/member-smoke.mjs';
 import { checkStandardWallet } from './standard-wallet.mjs';
+import { checkRuntimeProfiles } from './runtime-qa.mjs';
 import { checkQuoteView } from './quote-qa.mjs';
 
 if(!process.env.PLAYWRIGHT_MODULE || !process.env.BROWSER_EXE) throw Error('Set PLAYWRIGHT_MODULE and BROWSER_EXE to local installations.');
@@ -42,7 +43,7 @@ try {
         await page.keyboard.press('Escape');await page.locator('#wallet-dialog').waitFor({state:'hidden'});
         assert.equal(await page.evaluate(()=>document.activeElement.id),'wallet-button');
       }
-      if(process.env.SCREENSHOT_DIR && [390,1440].includes(width)){
+      if(process.env.SCREENSHOT_DIR){
         await mkdir(process.env.SCREENSHOT_DIR,{recursive:true});
         await page.screenshot({path:join(process.env.SCREENSHOT_DIR,section.toLowerCase()+'-'+width+'.png')});
       }
@@ -82,6 +83,7 @@ try {
   await details.close();
   console.log('Canonical routes, public initial HTML, privacy tags, social image and real 404s passed.');
   await checkStandardWallet({browser,db,origin});
+  await checkRuntimeProfiles({browser,origin});
   }
   await checkQuoteView({browser,db,origin});
 } finally {

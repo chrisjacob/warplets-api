@@ -1,5 +1,6 @@
+import { Capability, useRuntimeQuery } from './capabilities';
 import { useEffect,useState } from 'react';
-import { useMutation,useQuery } from '@tanstack/react-query';
+import { useMutation,} from '@tanstack/react-query';
 import { z } from 'zod';
 import { baseUnits,dollarsMicros,tokenUnits } from './amounts';
 import { Facts,friendlyError,Loaded,Panel,percent,Signal } from './common';
@@ -81,10 +82,14 @@ function SwapForm({marketId,symbol,ogSymbol,available,services}:{marketId:string
     </section>}
   </>;
 }
-export function QuotePanel({marketId,symbol,ogSymbol,services}:{marketId:string;symbol:string;ogSymbol:string;services:QuoteServices}){
-  const available=useQuery({queryKey:['quote-status',marketId],staleTime:0,queryFn:({signal})=>services.availability(marketId,signal)});
+function SupportedQuotePanel({marketId,symbol,ogSymbol,services}:{marketId:string;symbol:string;ogSymbol:string;services:QuoteServices}){
+  const available=useRuntimeQuery('/api/v1/markets/{id}/quote-status',{queryKey:['quote-status',marketId],staleTime:0,queryFn:({signal})=>services.availability(marketId,signal)});
   return <Panel title="Swap quote preview"><Loaded query={available}>{a=>a.available?
     <SwapForm marketId={marketId} symbol={symbol} ogSymbol={ogSymbol} available={a} services={services}/>
     :<><p>A current pool and original-token price observation is required to quote this market.</p>
       <button onClick={()=>void available.refetch()} disabled={available.isFetching}>Check quote availability</button></>}</Loaded></Panel>;
+}
+
+export function QuotePanel(props:Parameters<typeof SupportedQuotePanel>[0]){
+  return <Capability path="/api/v1/markets/{id}/quote-status"><Capability method="POST" path="/api/v1/quotes"><SupportedQuotePanel {...props}/></Capability></Capability>;
 }

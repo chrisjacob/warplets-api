@@ -1,6 +1,8 @@
+import { useRuntimeQuery, principalKey } from './capabilities';
 import { Link, useParams } from '@tanstack/react-router';
 import { useQuery } from '@tanstack/react-query';
 import { z } from 'zod';
+import { useSession } from './session';
 import { sdk } from './sdk';
 import { Empty, Facts, Hero, Loaded, Panel, percent, pretty, ShareLink, usePageMeta, utc } from './common';
 import { Earn } from './earn';
@@ -8,7 +10,7 @@ import { QuotePanel,quoteServices } from './quote-panel';
 
 export function CanonicalMarket(){
   const {marketId}=useParams({from:'/markets/$marketId'});
-  const market=useQuery({queryKey:['market',marketId],queryFn:({signal})=>sdk.market(marketId,signal)});
+  const market=useRuntimeQuery('/api/v1/markets/{id}',{queryKey:['market',marketId],queryFn:({signal})=>sdk.market(marketId,signal)});
   const title=market.data?market.data.symbol+' / '+market.data.ogSymbol:'ATT market';
   usePageMeta(title,'Campaign timing, fee and the paired original token.','/markets/'+encodeURIComponent(marketId),true);
   return <><Hero title={title}>Campaign timing, launch fee and verified market identifiers.</Hero>
@@ -34,7 +36,8 @@ export function CanonicalGenesis(){
 export function CanonicalSeason(){
   const {seasonId}=useParams({from:'/seasons/$seasonId'});
   usePageMeta('Season · '+seasonId,'Monthly Season inventory and stage terms.','/seasons/'+encodeURIComponent(seasonId),true);
-  const inventory=useQuery({queryKey:['public-season',seasonId],queryFn:({signal})=>sdk.inventory(seasonId,signal)});
+  const {wallet}=useSession();
+  const inventory=useRuntimeQuery('/api/v1/collect/inventories/{id}',{queryKey:principalKey(wallet,'season',seasonId),queryFn:({signal})=>sdk.inventory(seasonId,signal)});
   return <><Hero title={'Season · '+seasonId}>Monthly collection inventory and benefit periods.</Hero>
     <Loaded query={inventory}>{inv=>inv.kind==='season'?<>
       <Panel title="Season inventory"><Facts items={[['Season start',inv.seasonStart?utc(inv.seasonStart):'Unavailable'],
@@ -49,7 +52,7 @@ export function CanonicalSeason(){
 export function CanonicalAsset(){
   const {assetId}=useParams({from:'/nfts/$assetId'});
   usePageMeta('NFT · '+assetId,'Publicly revealed NFT metadata and ownership.','/nfts/'+encodeURIComponent(assetId),true);
-  const asset=useQuery({queryKey:['public-asset',assetId],queryFn:({signal})=>sdk.asset(assetId,signal)});
+  const asset=useRuntimeQuery('/api/v1/collect/assets/{id}',{queryKey:['public-asset',assetId],queryFn:({signal})=>sdk.asset(assetId,signal)});
   return <><Hero title={assetId}>Collection metadata and current ownership.</Hero><Loaded query={asset}>{a=>
     <Panel title={a.revealStatus==='revealed'?'Revealed metadata':'Awaiting reveal'}>
       <Facts items={[['Collection',a.inventoryId],['Owner',a.owner],['Status',a.revealStatus],

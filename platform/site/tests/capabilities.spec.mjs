@@ -60,3 +60,31 @@ test('aborted dependent request does not cancel shared discovery or issue its fe
  await transport.fetch('/api/v1/markets');
  assert.equal(calls.length,2);
 });
+
+
+test('React boundaries omit unsupported child components and preserve supported content',async t=>{
+ const {createServer}=await import('vite');
+ const {createServer:createHttpServer}=await import('node:http');
+ const hmrServer=createHttpServer();
+ const {fileURLToPath}=await import('node:url');
+ const {createElement}=await import('react');
+ const {renderToStaticMarkup}=await import('react-dom/server');
+ const vite=await createServer({root:fileURLToPath(new URL('..',import.meta.url)),server:{middlewareMode:true,hmr:{server:hmrServer}},appType:'custom',logLevel:'error'});
+ t.after(()=>vite.close());
+ const {QueryClient,QueryClientProvider}=await import('@tanstack/react-query');
+ const {Capability,principalKey}=await vite.ssrLoadModule('/src/capabilities.tsx');
+ let mounts=0;
+ function Child(){mounts++;return createElement('span',null,'Supported empty result');}
+ for(const [runtime,expected] of [['workerd-local',false],['node-reference',true]]){
+  const cache=new QueryClient();
+  cache.setQueryData(['runtime-capabilities','/api/v1',1],makeCapabilities(runtime));
+  const html=renderToStaticMarkup(createElement(QueryClientProvider,{client:cache},
+   createElement(Capability,{path:'/api/v1/collect/inventories'},createElement(Child))));
+  assert.equal(html.includes('Supported empty result'),expected);
+  assert.equal(html.includes('unavailable in the connected runtime'),!expected);
+  cache.clear();
+ }
+ assert.equal(mounts,1,'unsupported components must not mount their hooks');
+ assert.deepEqual(principalKey('wallet-a','inventories'),['private','wallet-a','solana','inventories']);
+ assert.deepEqual(principalKey(null,'inventories'),['public','solana','inventories']);
+});

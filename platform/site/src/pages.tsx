@@ -1,3 +1,4 @@
+import { useRuntimeQuery } from './capabilities';
 import { Link } from '@tanstack/react-router';
 import { useQuery } from '@tanstack/react-query';
 import { rootRoute } from './routes';
@@ -6,7 +7,7 @@ import { compact, Empty, Facts, Hero, Loaded, Metrics, MobileRecords, Panel, per
 import { useSession } from './session';
 
 function VaultRows({id,cursor}:{id:string;cursor?:string}){
-  const detail=useQuery({queryKey:['nft-vault',id,cursor],queryFn:({signal})=>sdk.nftVault(id,cursor,signal)});
+  const detail=useRuntimeQuery('/api/v1/nfts/{id}/vault',{queryKey:['nft-vault',id,cursor],queryFn:({signal})=>sdk.nftVault(id,cursor,signal)});
   return <Panel title={'Allocations for '+id}><Loaded query={detail}>{page=><>
     {page.items.length?<><MobileRecords entries={page.items.map(i=>({id:i.marketId,summary:i.marketId+' · '+i.claimable+' base units available',
       facts:[['Allocation',i.allocated],['Vested',i.vested],['Claimed',i.claimed],['Available',i.claimable]]}))}/>
@@ -23,7 +24,7 @@ export function Vault(){
   const {asset,cursor}=rootRoute.useSearch();
   const {wallet,open}=useSession();
   const policy=useQuery({queryKey:['policy'],queryFn:({signal})=>sdk.policy(signal)});
-  const holdings=useQuery({queryKey:['private',wallet,'vault',asset?'':cursor],enabled:!!wallet,
+  const holdings=useRuntimeQuery('/api/v1/vault',{queryKey:['private',wallet,'solana','vault',asset?'':cursor],enabled:!!wallet,
     queryFn:({signal})=>sdk.myVault(asset?undefined:cursor,signal)});
   return <>
     <Hero title="Vault">Genesis and active Season NFTs accrue a share of each ATT launch.</Hero>
@@ -52,9 +53,9 @@ export function Stake(){
   usePageMeta('Stake','Continuous same-token campaign rewards and recorded staking positions.','/stake');
   const {farm,cursor}=rootRoute.useSearch(),{wallet,open}=useSession();
   const policy=useQuery({queryKey:['policy'],queryFn:({signal})=>sdk.policy(signal)});
-  const catalog=useQuery({queryKey:['markets',undefined],queryFn:({signal})=>sdk.markets(undefined,signal)});
-  const detail=useQuery({queryKey:['farm',farm],enabled:!!farm,queryFn:({signal})=>sdk.farm(farm!,signal)});
-  const positions=useQuery({queryKey:['private',wallet,'stake',cursor],enabled:!!wallet,
+  const catalog=useRuntimeQuery('/api/v1/markets',{queryKey:['markets',undefined],queryFn:({signal})=>sdk.markets(undefined,signal)});
+  const detail=useRuntimeQuery('/api/v1/farms/{id}',{queryKey:['farm',farm],enabled:!!farm,queryFn:({signal})=>sdk.farm(farm!,signal)});
+  const positions=useRuntimeQuery('/api/v1/stake/positions',{queryKey:['private',wallet,'solana','stake',cursor],enabled:!!wallet,
     queryFn:({signal})=>sdk.positions(cursor,signal)});
   return <>
     <Hero title="Stake">Stake an ATT during its campaign to earn rewards in that same token.</Hero>

@@ -1,5 +1,6 @@
+import { Capability, useRuntimeQuery } from './capabilities';
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import type { Challenge } from '../../contracts/client.mjs';
 import { client, sdk } from './sdk';
 import { compact, friendlyError, Modal, Signal } from './common';
@@ -13,16 +14,29 @@ type Review={challenge:Challenge;connection:Awaited<ReturnType<Adapter['connect'
 
 export function SessionProvider({children}:{children:ReactNode}){
   const cache=useQueryClient();
-  const profile=useQuery({queryKey:['profile'],queryFn:({signal})=>sdk.profile(signal),staleTime:30_000});
-  const wallet=profile.data?.wallet??null;
+  const profile=useRuntimeQuery('/api/v1/me',{queryKey:['profile'],queryFn:({signal})=>sdk.profile(signal),staleTime:30_000,refetchOnWindowFocus:true});
+  const wallet=profile.availability.allowed && !profile.isError?profile.data?.wallet??null:null;
   const previousWallet=useRef<string|null>(null);
   useEffect(()=>{
-    if(previousWallet.current && previousWallet.current!==wallet)cache.removeQueries({queryKey:['private',previousWallet.current]});
+    if(previousWallet.current && previousWallet.current!==wallet){
+      void cache.cancelQueries({queryKey:['private',previousWallet.current]});
+      cache.removeQueries({queryKey:['private',previousWallet.current]});
+    }
     previousWallet.current=wallet;
   },[cache,wallet]);
   const [visible,setVisible]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState('');
   const [review,setReview]=useState<Review|null>(null),[adapters,setAdapters]=useState<Adapter[]>([]);
-  const attempt=useRef(0);
+  const attempt=useRef(0),unwatch=useRef<(()=>void)|undefined>(undefined);
+  const [selectedAccount,setSelectedAccount]=useState<string|null>(null),[accountChanged,setAccountChanged]=useState(false);
+  useEffect(()=>()=>unwatch.current?.(),[]);
+  useEffect(()=>{
+    const refresh=()=>{void cache.invalidateQueries({queryKey:['profile']});void cache.invalidateQueries({queryKey:['private']});};
+    const expired=()=>{attempt.current++;setReview(null);setBusy(false);void cache.cancelQueries({queryKey:['private']});
+      cache.removeQueries({queryKey:['private']});void cache.cancelQueries({queryKey:['profile']});cache.setQueryData(['profile'],null);};
+    window.addEventListener('focus',refresh);window.addEventListener('pageshow',refresh);
+    window.addEventListener('10x:session-expired',expired);
+    return ()=>{window.removeEventListener('focus',refresh);window.removeEventListener('pageshow',refresh);window.removeEventListener('10x:session-expired',expired);};
+  },[cache]);
   useEffect(()=>{
     if(!visible)return;
     const refresh=()=>setAdapters(discoverWallets());
@@ -31,10 +45,16 @@ export function SessionProvider({children}:{children:ReactNode}){
   const close=()=>{attempt.current++;setVisible(false);setReview(null);setBusy(false);setError('');};
   const open=()=>{setError('');setVisible(true);};
   async function connect(adapter:Adapter){
-    const generation=attempt.current;setBusy(true);setError('');
+    const generation=++attempt.current;setBusy(true);setError('');
     try {
       const connection=await adapter.connect();
       if(generation!==attempt.current)return;
+      unwatch.current?.();setSelectedAccount(connection.address);setAccountChanged(false);
+      unwatch.current=connection.watch(address=>{
+        if(address===connection.address)return;
+        attempt.current++;setReview(null);setBusy(false);setSelectedAccount(address);setAccountChanged(true);
+        setError('The selected wallet account changed or disconnected. Reconnect to review a new sign-in message.');
+      });
       const {data:challenge}=await client.createWalletChallenge({body:{wallet:connection.address}});
       checkChallenge(challenge,connection.address,location.origin);
       if(generation===attempt.current)setReview({challenge,connection});
@@ -49,6 +69,8 @@ export function SessionProvider({children}:{children:ReactNode}){
       const bytes=await review.connection.sign(new TextEncoder().encode(review.challenge.message));
       if(generation!==attempt.current)return;
       const {data}=await client.verifyWalletSignature({body:{nonce:review.challenge.nonce,signature:signature58(bytes)}});
+      if(generation!==attempt.current){await client.revokeSession();await cache.invalidateQueries({queryKey:['profile']});return;}
+      await cache.cancelQueries({queryKey:['profile']});
       cache.setQueryData(['profile'],{wallet:data.wallet,chain:'solana'});
       close();
     }catch(e){if(generation===attempt.current)setError(friendlyError(e));}
@@ -58,7 +80,9 @@ export function SessionProvider({children}:{children:ReactNode}){
     setBusy(true);setError('');
     try{
       await client.revokeSession();
-      if(wallet)cache.removeQueries({queryKey:['private',wallet]});
+      if(wallet){await cache.cancelQueries({queryKey:['private',wallet]});cache.removeQueries({queryKey:['private',wallet]});}
+      unwatch.current?.();unwatch.current=undefined;setSelectedAccount(null);setAccountChanged(false);
+      await cache.cancelQueries({queryKey:['profile']});
       cache.setQueryData(['profile'],null);close();
     }catch(e){setError(friendlyError(e));setBusy(false);}
   }
@@ -66,11 +90,13 @@ export function SessionProvider({children}:{children:ReactNode}){
     {children}
     {visible && <Modal title={wallet?'Wallet account':'Connect a wallet'} id="wallet-dialog" onClose={close}>
       {wallet?<><p className="wrap-anywhere">Verified Solana wallet: {wallet}</p><button onClick={logout} disabled={busy}>Sign out</button>
-        <Notifications key={'notices:'+wallet} wallet={wallet}/><Recovery key={wallet} wallet={wallet}/></>
+        {accountChanged&&<Signal>The browser wallet {selectedAccount?'now selects '+compact(selectedAccount):'is disconnected'}. This session remains authenticated as {compact(wallet)} until you sign out.</Signal>}
+        <Capability path="/api/v1/notifications/capabilities"><Notifications key={'notices:'+wallet} wallet={wallet}/></Capability>
+        <Capability path="/api/v1/transactions/{id}"><Recovery key={wallet} wallet={wallet}/></Capability></>
         :review?<><p>Review this sign-in message for {compact(review.connection.address)}.</p><pre>{review.challenge.message}</pre>
-        <button onClick={verify} disabled={busy}>Sign in with this message</button></>
-        :adapters.length?<><p>Choose a wallet to review its sign-in message.</p>
-          {adapters.map((a,i)=><button key={i} onClick={()=>void connect(a)} disabled={busy}>Connect {a.name}</button>)}</>
+        <Capability method="POST" path="/api/v1/auth/verify"><button onClick={verify} disabled={busy}>Sign in with this message</button></Capability></>
+        :adapters.length?<Capability method="POST" path="/api/v1/auth/challenges"><><p>Choose a wallet to review its sign-in message.</p>
+          {adapters.map((a,i)=><button key={i} onClick={()=>void connect(a)} disabled={busy}>Connect {a.name}</button>)}</></Capability>
         :<p>Open the preview in a browser with a Solana wallet that supports message signing.</p>}
       {error && <Signal>{error}</Signal>}
     </Modal>}
