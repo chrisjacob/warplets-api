@@ -5,16 +5,10 @@
   "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
   "currentTask": "B02",
-  "lastUpdatedAt": "2026-11-05T13:30:38.398214+00:00",
+  "lastUpdatedAt": "2026-11-05T13:39:37.212963+00:00",
   "migrationAllocation": {
     "next": 23,
-    "reserved": [
-      {
-        "version": 22,
-        "task": "B02",
-        "purpose": "guarded command receipts, dependency revisions, operator scopes"
-      }
-    ],
+    "reserved": [],
     "historicalGap": 19
   },
   "acceptanceProfiles": {
@@ -59,10 +53,12 @@
       "status": "in_progress",
       "owner": "coordinator",
       "baseCommit": "ce59deed69820a4535d3985eb0812e6dc197cea8",
-      "implementationCommit": null,
+      "implementationCommit": "6e36ec1e02bdc02add0591836436ce5abc4d9500",
       "pushed": false,
-      "evidence": [],
-      "nextAction": "Implement guarded D1/Node command receipts and minimum controls; reserve additive migration 022 centrally.",
+      "evidence": [
+        "platform/validation/runs/2026-11-06-overnight/B02-1.json"
+      ],
+      "nextAction": "B02.2: finish portable operating commands/audit/cost controls and private verified reference commits, then guarded settlement primitives. B02.1 admission/review receipts and private artifact stores are tested; B02 remains incomplete.",
       "blocker": null
     },
     "B03": {
@@ -130,7 +126,7 @@
       "owner": "frontend_b09",
       "baseCommit": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
       "implementationCommit": "6134ee56714a393394738fde9818a0ce22bcbd79",
-      "pushed": false,
+      "pushed": true,
       "evidence": [
         "platform/validation/runs/2026-11-05-overnight/B09-1.json",
         "platform/validation/runs/2026-11-06-overnight/B09.json"

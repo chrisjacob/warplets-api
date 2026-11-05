@@ -134,5 +134,10 @@
     "Physical wallets untested",
     "No financial execution or remote mutation"
   ],
-  "costUsd": 0
+  "costUsd": 0,
+  "ci": {
+    "url": "https://github.com/chrisjacob/warplets-api/actions/runs/42036397864",
+    "head": "6cb2c26157e02c884366af150c7cab7889ebb44a",
+    "status": "success"
+  }
 }

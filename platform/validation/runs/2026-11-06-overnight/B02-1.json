@@ -1,0 +1,59 @@
+{
+  "taskId": "B02",
+  "substep": "B02.1",
+  "status": "in_progress",
+  "implementationCommit": "6e36ec1e02bdc02add0591836436ce5abc4d9500",
+  "classification": "synthetic-fixture; Node SQLite and actual local workerd/D1/R2",
+  "migration": "022-atomic-commands.sql",
+  "commands": [
+    {
+      "command": "node platform/scripts/test-reference.mjs",
+      "exitCode": 0,
+      "tests": 148,
+      "note": "Before adding final reopen test; that test passed in focused 4-test storage suite afterward."
+    },
+    {
+      "command": "node --test platform/storage/atomic-earn.test.mjs",
+      "exitCode": 0,
+      "tests": 4
+    },
+    {
+      "command": "node --test platform/edge/test/earn-repository.test.mjs platform/edge/test/runtime.test.mjs platform/edge/test/portable-service.test.mjs",
+      "exitCode": 0,
+      "tests": 6
+    },
+    {
+      "command": "node --test platform/artifacts/node.test.mjs platform/edge/test/private-artifacts.test.mjs",
+      "exitCode": 0,
+      "tests": 7,
+      "note": "Implementation agent executed; Node tests also in reference suite."
+    },
+    {
+      "command": "node platform/edge/node_modules/typescript/bin/tsc --noEmit -p platform/edge/tsconfig.json",
+      "exitCode": 0
+    }
+  ],
+  "assertions": [
+    "D1 and SQLite last-slot race has one accepted admission",
+    "Identical committed request replays after pause; payload change conflicts",
+    "Final SQL assertion rolls back receipt if mandatory child missing",
+    "Scope/authority revisions changing after prepare reject all effects",
+    "Lost D1 commit response reconciles same receipt",
+    "Reference receipt survives database close/reopen",
+    "Private artifacts verified by byte digest and size; immutable conditional create; unknown writes reconcile; no public exposure"
+  ],
+  "measurements": {
+    "admissionStatements": 3,
+    "maxParameters": 21,
+    "maxSqlBytes": 654,
+    "batchBytes": 2057
+  },
+  "remaining": [
+    "Minimum operating commands and provider metering",
+    "Verified private artifact reference persistence",
+    "Guarded board/allocation repository primitives and lease fences",
+    "B05 cutoff completeness and B06 public route wiring are later dependencies"
+  ],
+  "remoteWrites": false,
+  "costUsd": 0
+}

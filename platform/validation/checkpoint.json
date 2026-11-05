@@ -1,5 +1,5 @@
 {
   "policy": "prd-1.2",
   "scope": "local",
-  "checkpoint": "blueprint-b09-runtime-ui-session-lifecycle-6134ee5"
+  "checkpoint": "blueprint-b02-1-atomic-admission-private-artifacts-6e36ec1"
 }
