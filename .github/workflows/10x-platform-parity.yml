@@ -11,16 +11,21 @@ permissions:
 jobs:
   replay:
     runs-on: ubuntu-24.04
-    timeout-minutes: 7
+    timeout-minutes: 12
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           persist-credentials: false
       - name: Check capture hashes and scheduler wire
         run: node --test platform/lab/protocol.test.mjs
-      - name: Install pinned Linux simulator into isolated environment
-        run: |
-          python3 -m venv "$RUNNER_TEMP/tenx-parity"
-          "$RUNNER_TEMP/tenx-parity/bin/pip" install --only-binary=:all: --require-hashes -r platform/lab/linux-requirements.txt
-      - name: Replay captured program without RPC
-        run: '"$RUNNER_TEMP/tenx-parity/bin/python" platform/lab/replay_capture.py'
+      - name: Check out pinned simulator dependency manifest
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: 6dc1b72b41fd1fb7f35f9db26ffef8285199c5ef
+          path: october-reference
+          persist-credentials: false
+      - name: Install frozen test dependencies with lifecycle scripts disabled
+        working-directory: october-reference
+        run: npx --yes pnpm@10.26.0 --filter @10x/meme-qa --filter @10x/meme-protocol-lab install --frozen-lockfile --ignore-scripts
+      - name: Replay captured program in offline Surfpool
+        run: node platform/lab/replay-capture.mjs october-reference
