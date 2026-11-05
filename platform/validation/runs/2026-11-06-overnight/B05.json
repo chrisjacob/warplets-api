@@ -1,7 +1,7 @@
 {
   "taskId": "B05",
   "status": "verified",
-  "implementationCommit": null,
+  "implementationCommit": "aa317bcb5c21f0384c508d8fe81a64c036c1fe44",
   "baseCommit": "703baaf89e7d3861ee613f8f6ca5eba70293a90e",
   "classification": "complete synthetic local transcripts; no live-chain completeness claim",
   "migrations": [
@@ -60,6 +60,8 @@
   "remoteCloudflareWrites": false,
   "financialExecution": false,
   "ci": {
-    "status": "awaiting checkpoint push"
+    "runId": 42110044406,
+    "conclusion": "success",
+    "url": "https://github.com/chrisjacob/warplets-api/actions/runs/42110044406"
   }
 }

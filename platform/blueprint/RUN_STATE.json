@@ -4,11 +4,17 @@
   "phase": "executing",
   "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
-  "currentTask": "B05",
-  "lastUpdatedAt": "2026-11-05T21:08:36.004860+00:00",
+  "currentTask": "B06",
+  "lastUpdatedAt": "2026-11-05T21:11:43.207288+00:00",
   "migrationAllocation": {
-    "next": 29,
-    "reserved": [],
+    "next": 30,
+    "reserved": [
+      {
+        "version": 29,
+        "task": "B06",
+        "purpose": "atomic signed action completion and direct recovered archive read revisions"
+      }
+    ],
     "historicalGap": 19
   },
   "acceptanceProfiles": {
@@ -91,23 +97,23 @@
       "status": "verified",
       "owner": "coordinator + frontend_b09",
       "baseCommit": "bd479d5ba6dbb025a702642ba969b25476505c41",
-      "implementationCommit": "703baaf89e7d3861ee613f8f6ca5eba70293a90e",
+      "implementationCommit": "aa317bcb5c21f0384c508d8fe81a64c036c1fe44",
       "pushed": true,
       "evidence": [
         "platform/validation/runs/2026-11-06-overnight/B05-1.json",
         "platform/validation/runs/2026-11-06-overnight/B05.json"
       ],
-      "nextAction": "Commit/push completed B05 and follow test-only CI; then B06 shared Node/workerd Earn HTTP and strict signed actions.",
+      "nextAction": null,
       "blocker": null
     },
     "B06": {
-      "status": "not_started",
-      "owner": null,
-      "baseCommit": null,
+      "status": "in_progress",
+      "owner": "coordinator + frontend_b09 + snapshot_acceptance",
+      "baseCommit": "aa317bcb5c21f0384c508d8fe81a64c036c1fe44",
       "implementationCommit": null,
       "pushed": false,
       "evidence": [],
-      "nextAction": null,
+      "nextAction": "Portable reads and pure signed-action proof agents active; coordinator owns guarded service/HTTP wiring, atomic signed completion migration029 and shared contracts. Preserve Node reference fixture API, wire common service for live local HTTP.",
       "blocker": null
     },
     "B07": {
