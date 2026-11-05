@@ -9,9 +9,12 @@ function rent(amount,bytes) {
     accountLayoutRef:`${bytes}-byte example account; creation/existence must be checked`,refundable:'unverified'};
 }
 export function referenceScenarioInput(asOfMs=Date.now()) {
-  return {asOfMs,parameters:{freshAtasPerUser:1,newStakers:1,dailyClaimants:100,seasonPaid:900,seasonFree:100,seasonFounder:0,
+  return {asOfMs,parameters:{freshAtasPerUser:1,vaultClaimsPerUser:1,newStakers:1,dailyClaimants:100,seasonPaid:900,seasonFree:100,seasonFounder:0,
     upgradeCount:1,upgradeLevel:1,rerollCount:1,priorRerolls:0,unsoldFounderMints:0},
     quotes:{farmStateRent:rent(42_997_120,8336),farmUserRent:rent(5_323_840,920),classicAtaRent:rent(1_488_440,165),
+      temporaryVaultTokenAccount:{...rent(1_488_440,165),refundable:'temporary account closes in verified fixture'},
+      coreVaultExec:{unit:'lamport',amount:'146160',kind:'reference',observedMs:Date.UTC(2026,10,5),
+        sourceRef:'https://github.com/chrisjacob/warplets-api/actions/runs/42004780191',refundable:false},
       coreProtocol:{unit:'lamport',amount:'1500000',kind:'reference',observedMs:coreObserved,
         sourceRef:'https://www.metaplex.com/docs/smart-contracts/core/faq',refundable:false}}};
 }

@@ -31,7 +31,8 @@ test('complete fourteen-scenario catalog preserves open terms and separate payer
   assert.equal(packet.firstAtt.pilotBudget,null);
   for(const [id,total] of [[6,'148844000'],[7,'1488440000'],[8,'14884400000']]) {
     const s=packet.scenarios.find(s=>s.id===id);
-    assert.equal(s.byPayer.claimant.pricedByUnit.lamport,total);
+    assert.equal(s.lines.find(l=>l.id==='classicAtaRent').total,total);
+    assert.equal(s.byPayer.claimant.pricedByUnit.lamport,String(BigInt(total)*2n+BigInt(s.lines.find(l=>l.id==='coreVaultExec').total)));
     assert.equal(s.byPayer.claimant.complete,false);
   }
   const tranche=packet.scenarios[9];

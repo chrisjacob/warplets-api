@@ -16,6 +16,8 @@ node --test platform/costs/costs.test.mjs platform/launch/launch.test.mjs
 
 **Quote input.** Use a JSON object with these fields:
 
+For a Vault NFT/ATT claim, the captured local program replay measured three Core Executes at **146,160 lamports per bundle**. The reference comparison now separately shows that protocol charge, temporary 165-byte rent, potential recipient ATA rent, claim-state rent, lookup-table setup and network/priority costs. Temporary account rent is gross funding recycled on closure. It is distinct from a consumed fee, and sequential operations may reuse the same cash. Supply the number of Vault claims per user and lookup setups; these terms have zero count for the Earn-only board scenario. [Pinned replay run](https://github.com/chrisjacob/warplets-api/actions/runs/42004780191)
+
 | Field | Meaning |
 | --- | --- |
 | `context` | Network, decimal-string source slot, instruction-set hash, program/configuration hash, funding snapshot hash, blockhash, OG mint, simulation reference and `validUntilMs`. The CLI computes a context ID from these fields. |

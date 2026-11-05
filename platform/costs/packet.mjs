@@ -14,6 +14,7 @@ const at=(value,label)=>{
 const ceil=(n,d)=>(n+d-1n)/d;
 const optionRanges={
   freshAtasPerUser:[0,10],newStakers:[0,10000],dailyClaimants:[0,1000],
+  vaultClaimsPerUser:[0,10],vaultLookupSetups:[0,10000],
   seasonPaid:[0,1000],seasonFree:[0,1000],seasonFounder:[0,1000],unsoldFounderMints:[0,1000],
   upgradeLevel:[1,9],upgradeCount:[0,1000],priorRerolls:[0,40],rerollCount:[0,1000],netCompanyFeeBps:[0,10000],
 };

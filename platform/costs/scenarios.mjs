@@ -19,13 +19,18 @@ function coreMints(count,payer) {
     line('mintRetry','Mint retry and failed fulfillment allowance',count,'lamport',payer),
   ];
 }
-function claims(count,p) {
+function claims(count,p,includeVault=true) {
+  const vaultCount=includeVault?multiply(count,p.vaultClaimsPerUser):0;
   return [
     rent('classicAtaRent','New token accounts',multiply(count,p.freshAtasPerUser),'claimant'),
     line('claimNetwork','Aggregate network/priority fees per claimant batch',count,'lamport','claimant'),
     rent('claimStateRent','Cumulative claim state per claimant batch',count,'claimant'),
     line('claimRetry','Claim retries per claimant batch',count,'lamport','claimant'),
     usd('proofDelivery','Incremental proof hosting and receipts per claimant',count),
+    line('coreVaultExec','Three Core Execute calls in one NFT/ATT Vault claim bundle',vaultCount,'lamport','claimant'),
+    rent('temporaryVaultTokenAccount','Temporary SPL account funded and closed in one Vault bundle',vaultCount,'claimant'),
+    rent('claimLookupSetup','Verified lookup-table setup/extension allocation for Vault claims',
+      includeVault?p.vaultLookupSetups:0),
   ];
 }
 export function scenarioCatalog(p) {
@@ -68,7 +73,7 @@ export function scenarioCatalog(p) {
     S(3,'Ten active campaigns','One incremental new market and farm plus one day of upkeep for ten active campaigns.',
       [...manual,...farm,...opsDaily]),
     S(4,'One Earn board across ten tokens','Ten compact roots; up to 100 winners × ten token awards. Claim costs arise when participants claim.',
-      [...scale(earn,10),...claims(p.dailyClaimants,p)]),
+      [...scale(earn,10),...claims(p.dailyClaimants,p,false)]),
     S(5,'Vault per launch','One pooled reserve/checkpoint. The entitlement design must include all unminted slots.',vault),
     ...[100,1000,10000].map((n,i)=>S(6+i,`Claims for ${n.toLocaleString('en-US')} users`,'Claimant-funded accounts and batch costs; separate proof hosting.',claims(n,p))),
     S(9,'Lazy Genesis mint','Reserve setup plus one buyer mint in the first Genesis whitelist phase. Inventory stays lazy.',
