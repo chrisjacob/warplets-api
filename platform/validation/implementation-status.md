@@ -2,7 +2,7 @@
 
 Reviewed **5 November 2026**. This branch implements a local, API-first rehearsal of the approved November PRD v1.2. It has no production deployment, funded pilot, live signer or enabled financial execution. Synthetic records and imported observations are labeled in the API and interface. Passing local tests does not establish custody safety or approve a candidate protocol.
 
-The editable PRD v1.2 remains the product source of truth; this file records implementation evidence and unfinished engineering. The governing document is supplied alongside the checkout as `outputs/10X_MEME_PRD_v1_2.docx`, with extracted text in `work/prd_content_v1_2.txt`. Those workspace artifacts are not repository files. Retain the approved document with the release review. The existing Warplets Base community product and Stonklets maintenance scope remain separate from the new Solana economic product.
+The editable [PRD v1.2](../spec/10X_MEME_PRD_v1_2.docx) remains the product source of truth; this file records implementation evidence and unfinished engineering. Its [structured text source](../spec/prd-v1.2-source.txt) is also retained for AI-assisted review. These are byte-identical copies of the completed workspace artifacts. Repository observations in the PRD retain their original inspection date; this implementation starts from released main `ec052a0` as recorded in the platform README. The existing Warplets Base community product and Stonklets maintenance scope remain separate from the new Solana economic product.
 
 ## Implemented slices and release gates
 
@@ -29,6 +29,8 @@ The **Node reference service** in `server/` is the complete local workflow host.
 
 The **Worker adapter** in `edge/` is a narrower local D1/R2 implementation, explicitly restricted to loopback hostnames. Its filtered OpenAPI exposes policy/health, planned collections, fee schedule, markets and digest-verified manifests, wallet authentication, Vault/Farm projections, Earn board/claim reads and Genesis ballot reads/voting. It does **not** yet host the full Node Earn write pipeline, collection operations, quote adapter, notification workflow, operator console or configuration controls. Moving code to a Worker requires adapter-specific transactional/concurrency and migration validation; Node test success does not imply D1 parity. Existing production Workers and bindings are outside this local adapter.
 
+Both runtimes expose `/api/v1/capabilities`, with generated `getCapabilities()` support. Their exact advertised method/path inventories are checked against the respective OpenAPI contracts. The endpoint explicitly disables financial execution, signing, deposits, broadcasts and claim execution. It also distinguishes local inbox support from external delivery.
+
 ## Founder choices intentionally left open
 
 - **Sydney launch window:** choose the staffed window before publishing it. Around 6 am and around 9 pm Australia/Sydney remain alternatives; neither is selected. Actual activation starts each token's clock. The approximate 60-minute operating window and ability to skip a missed day do not require a fixed daily activation timestamp.
@@ -40,7 +42,7 @@ Planning targets remain below US$10 for the first paid test, a founder-approved 
 
 ## Validation evidence and reproduction
 
-The coordinating review passed **126 Node reference tests** after adding the populated demo and its real loopback HTTP sign-in/reservation journey. The local Worker integration and two signed-beacon tests also passed. The React build passed, the operator journey passed staffing/review/reload/logout at four viewport widths, and the populated demo was visually inspected at 390 and 1440 pixels with no horizontal overflow. Browser tests use disposable keys and databases. [The full Linux checkpoint at a878968](https://github.com/chrisjacob/warplets-api/actions/runs/42015181617) passed before the final demo style and member-test additions; the checkpoint file triggers another clean build for those changes.
+The final [Linux checkpoint at cb37697](https://github.com/chrisjacob/warplets-api/actions/runs/42016677922) passed **128 Node reference tests, four frontend tests, one local Worker integration test and two signed-beacon tests**, with zero failures. It also compiled the React app and Worker types, verified generated-contract freshness and completed the recovery drill. The operator browser journey passed staffing/review/reload/logout at four viewport widths, and the populated demo was visually inspected at 390 and 1440 pixels with no horizontal overflow. Browser tests use disposable keys and databases. The later PRD-copy and handoff commit changes documentation only.
 
 The Earn/contracts slice was rerun on **5 November 2026** with Node **22.22.3**: **62 tests passed, zero failed**, and generated-contract drift check passed. That scoped count includes economics used by Earn, board/recovery, pricing, onboarding issuers, notifications, operating costs, API/client integration, quotes and the 14-scenario cost planner. It is not the repository-wide test total. Quote tests include 80 SDK cases within one test; do not count those as 80 additional test-runner tests.
 
