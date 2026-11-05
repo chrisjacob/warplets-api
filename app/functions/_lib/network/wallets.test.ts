@@ -30,6 +30,16 @@ function fixture(){
   return {db,env:{WARPLETS:sqliteD1(db),NEYNAR_API_KEY:'test',NETWORK_WALLET_CREDITS:'10000'} as WalletEnv};
 }
 describe('wallet valuation and top holdings',()=>{
+  it('seeks snapshot wallet links by captured cohort FIDs instead of regrouping the full cohort',async()=>{
+    const {db,env}=fixture(),statements:string[]=[];
+    const measured={...env.WARPLETS,prepare(sql:string){statements.push(sql);return env.WARPLETS.prepare(sql);}} as D1Database;
+    const snapshot=await publishSnapshot(measured,true);
+    expect(snapshot?.wallet).toMatchObject({associationsObserved:5,expectedWallets:4,measuredWallets:3});
+    const sql=statements.find(s=>s.includes('CROSS JOIN network_wallet_links l'))!;
+    const plan=db.prepare('EXPLAIN QUERY PLAN '+sql).all(JSON.stringify([1,2,3,4,5])) as {detail:string}[];
+    expect(plan.some(row=>/SEARCH l .*\(fid=\?\)/.test(row.detail))).toBe(true);
+    expect(plan.some(row=>/SCAN l\b/.test(row.detail))).toBe(false);
+  });
   it('uses distinct endpoint capacity while enforcing both global and per-endpoint pacing',async()=>{
     const {env}=fixture();vi.useFakeTimers();
     try{
