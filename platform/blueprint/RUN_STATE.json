@@ -5,7 +5,7 @@
   "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
   "currentTask": "B08",
-  "lastUpdatedAt": "2026-11-05T21:55:46.097841+00:00",
+  "lastUpdatedAt": "2026-11-05T22:25:45.196009+00:00",
   "migrationAllocation": {
     "next": 33,
     "reserved": [
@@ -141,8 +141,10 @@
       "baseCommit": "30b9630823cdc2cff2c18e604696470337143257",
       "implementationCommit": null,
       "pushed": false,
-      "evidence": [],
-      "nextAction": "B07 CI42116935604 passed. Build031publication and032isolated recovery guards; agents implementing asyncmanifestcodec/sharedstores and pinned recovery. Publication records exact identity beforepublicput withprivatechunk staging.",
+      "evidence": [
+        "platform/validation/runs/2026-11-06-overnight/B08.json"
+      ],
+      "nextAction": "All local B08 acceptance passed:318 reference,52 edge, final9Node/2D1recovery,13publication,types/contracts/drills/CLIs. Commit/push tested milestone, follow test-only CI and immediately start B20-core.",
       "blocker": null
     },
     "B09": {

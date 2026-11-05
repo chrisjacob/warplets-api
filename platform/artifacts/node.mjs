@@ -1,25 +1,26 @@
 import { mkdir,open,link,unlink,realpath,lstat } from 'node:fs/promises';
 import { resolve,join,dirname } from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { ArtifactConflictError,privateIdentity,preparePrivateArtifact,verifiedBytes } from './identity.mjs';
+import { ArtifactConflictError,artifactIdentity,prepareArtifact,verifiedBytes } from './identity.mjs';
 
-/** Private local storage only. Staging uses wx; hard-link publication is atomic
+/** Local immutable storage. Staging uses wx; hard-link publication is atomic
  * and fails if the immutable target already exists. A crash may retain a .pending
  * file or an unlisted final object; neither is publicly served or overwritten. */
 export function nodeArtifactStore(root){
-  const directory=join(resolve(root),'private');
+  const base=resolve(root);
   async function location(identity){
+    const directory=join(base,identity.visibility);
     await mkdir(directory,{recursive:true,mode:0o700});
     const actual=await realpath(directory),parent=await realpath(dirname(directory));
-    if(actual!==join(parent,'private'))throw new Error('Private artifact directory cannot be a symbolic link.');
-    return join(directory,identity.key.slice('private/'.length));
+    if(actual!==join(parent,identity.visibility))throw new Error('Artifact directory cannot be a symbolic link.');
+    return join(directory,identity.key.slice(identity.visibility.length+1));
   }
   async function getVerified(input){
-    const identity=privateIdentity(input),path=await location(identity);
+    const identity=artifactIdentity(input),path=await location(identity);
     let file;
     try{
       const info=await lstat(path);
-      if(!info.isFile() || info.isSymbolicLink())return {status:'conflict',identity,reason:'not a regular private file'};
+      if(!info.isFile() || info.isSymbolicLink())return {status:'conflict',identity,reason:'not a regular artifact file'};
       if(info.size!==identity.size)return {status:'conflict',identity,reason:'size mismatch'};
       file=await open(path,'r');
       const bytes=new Uint8Array(identity.size+1);
@@ -34,7 +35,7 @@ export function nodeArtifactStore(root){
     finally{await file?.close();}
   }
   async function putIfAbsent(input,value){
-    const {identity,bytes}=await preparePrivateArtifact(input,value);
+    const {identity,bytes}=await prepareArtifact(input,value);
     const path=await location(identity),temporary=path+'.pending-'+randomUUID();
     let stage;
     try{

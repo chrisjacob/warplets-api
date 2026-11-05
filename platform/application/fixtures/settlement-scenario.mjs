@@ -41,5 +41,5 @@ export async function copySettlementSeed(node,db,r2){
  // Restore this synthetic clone's captured versions after insertion triggers.
  // Both runtimes now start from exactly the same state, before B05 assembly.
  for(const {name,revision} of node.db.prepare('SELECT * FROM app_revisions').all())await db.prepare('UPDATE app_revisions SET revision=? WHERE name=?').bind(revision,name).run();
- const objects=[...node.objects];for(let offset=0;offset<objects.length;offset+=16)await Promise.all(objects.slice(offset,offset+16).map(([key,bytes])=>r2.put(key,bytes)));
+ const objects=[...node.objects];for(let offset=0;offset<objects.length;offset+=16)await Promise.all(objects.slice(offset,offset+16).map(([key,bytes])=>r2.put(key,bytes,{httpMetadata:{contentType:key.endsWith('.json')?'application/json':'application/octet-stream'}})));
 }

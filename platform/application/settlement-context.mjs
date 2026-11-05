@@ -17,6 +17,10 @@ import {createJobCommand} from '../jobs/model.mjs';
 import {canonicalJson,utf8} from '../security/canonical.mjs';
 import {nat} from '../earn/validation.mjs';
 import {createSettlementReconciler} from '../earn/settlement-reconciliation.mjs';
+import {createPublicationRepository} from '../storage/publication.mjs';
+import {createPublicationService} from '../artifacts/publication.mjs';
+import {createManifestCodec} from '../artifacts/manifest-codec.mjs';
+import {createPublicationHandler} from '../jobs/publication-handler.mjs';
 // Explicit local composition. No fetch/cron registration or external reader.
 export function createLocalSettlementContext({driver,artifacts,crypto,ids,clock,principal}){
  principal=JSON.parse(canonicalJson(principal));
@@ -26,7 +30,8 @@ export function createLocalSettlementContext({driver,artifacts,crypto,ids,clock,
  const privateReferences=createPrivateReferenceService({...ports,store:artifacts,repository:createArtifactReferenceRepository(driver,ports)});
  const snapshotService=createCutoffSnapshotService({...ports,repository:createCutoffSnapshotRepository(driver,ports),settlementRepository:repository,privateReferences});
  const snapshotHandler=createSnapshotHandler({...ports,service:snapshotService,freezeRepository:createCutoffFreezeRepository(driver,ports),store:artifacts});
- const handlers=createHandlerRegistry({'complete-cutoff':snapshotHandler,'finalize-board':handler,'allocate-token-day':handler});
+ const publicationService=createPublicationService({...ports,repository:createPublicationRepository(driver,ports),store:artifacts,privateReferences,codec:createManifestCodec({crypto})});
+ const handlers=createHandlerRegistry({'complete-cutoff':snapshotHandler,'finalize-board':handler,'allocate-token-day':handler,'publish-archive':createPublicationHandler(publicationService)});
  return Object.freeze({service,repository,jobs,scheduler:createSettlementScheduler(driver,ports),
   reconciler:createSettlementReconciler({...ports,driver,artifacts}),
   async scheduleCutoff(query){

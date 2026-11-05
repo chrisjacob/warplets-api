@@ -4,7 +4,7 @@ import { mkdtemp,readFile,writeFile,rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { nodeArtifactStore } from './node.mjs';
-import { sha256,MAX_PRIVATE_ARTIFACT_BYTES } from './identity.mjs';
+import { sha256,MAX_PRIVATE_ARTIFACT_BYTES,MAX_PUBLIC_ARTIFACT_BYTES,privateIdentity,preparePrivateArtifact } from './identity.mjs';
 
 async function fixture(t,text='{"fixture":"private-evidence"}'){
  const root=await mkdtemp(join(tmpdir(),'10x-private-artifact-'));
@@ -32,7 +32,7 @@ test('Node concurrent same-key creation is one created object and verified ident
 });
 test('Node refuses malformed identity, oversized input and mismatched bytes before publication',async t=>{
  const {bytes,identity,store}=await fixture(t);
- for(const bad of [{...identity,key:'../escape'},{...identity,key:'public/'+identity.byteDigest+'.json',visibility:'public'},
+ for(const bad of [{...identity,key:'../escape'},{...identity,key:'public/'+identity.byteDigest+'.json'},
    {...identity,size:identity.size+1},{...identity,size:MAX_PRIVATE_ARTIFACT_BYTES+1},{...identity,semanticDigest:'not-a-digest'},
    {...identity,byteDigest:'a'.repeat(64)}])await assert.rejects(store.putIfAbsent(bad,bytes),TypeError);
  const changed=new Uint8Array(bytes);changed[0]^=1;
@@ -69,4 +69,21 @@ test('Node supports empty and maximum-sized bounded binary artifacts',async t=>{
   assert.equal((await store.putIfAbsent(identity,bytes)).status,'created');
   assert.deepEqual((await store.getVerified(identity)).bytes,bytes);
  }
+});
+
+test('Node immutable public JSON supports2MiB, separate namespaces and exact replay while private validation remains strict',async t=>{
+ const {store,root,identity:privateId,bytes:small}=await fixture(t,'{"fixture":"synthetic public/private namespace"}');
+ const publicId={...privateId,key:'public/'+privateId.byteDigest+'.json',visibility:'public'};
+ assert.equal((await store.putIfAbsent(privateId,small)).status,'created');assert.equal((await store.putIfAbsent(publicId,small)).status,'created');
+ assert.deepEqual(new Uint8Array(await readFile(join(root,privateId.key))),small);assert.deepEqual(new Uint8Array(await readFile(join(root,publicId.key))),small);
+ assert.throws(()=>privateIdentity(publicId),/private artifact/);await assert.rejects(preparePrivateArtifact(publicId,small),/private artifact/);
+ const bytes=new TextEncoder().encode(JSON.stringify('x'.repeat(MAX_PUBLIC_ARTIFACT_BYTES-2))),byteDigest=await sha256(bytes);
+ const identity={key:'public/'+byteDigest+'.json',byteDigest,size:bytes.length,semanticDigest:'a'.repeat(64),visibility:'public',contentType:'application/json'};
+ const results=await Promise.all([store.putIfAbsent(identity,bytes),store.putIfAbsent(identity,bytes)]);
+ assert.deepEqual(results.map(r=>r.status).sort(),['created','exists']);assert.deepEqual((await store.getVerified(identity)).bytes,bytes);
+ await assert.rejects(store.putIfAbsent({...identity,size:MAX_PUBLIC_ARTIFACT_BYTES+1},bytes),TypeError);
+ await assert.rejects(store.putIfAbsent({...identity,key:'private/'+byteDigest+'.json',visibility:'private'},bytes),TypeError);
+ await assert.rejects(store.putIfAbsent({...identity,key:'public/'+byteDigest+'.bin',contentType:'application/octet-stream'},bytes),TypeError);
+ const corrupt=new Uint8Array(bytes);corrupt[1]^=1;await writeFile(join(root,identity.key),corrupt);
+ assert.equal((await store.getVerified(identity)).status,'conflict');await assert.rejects(store.putIfAbsent(identity,bytes),{code:'artifact_conflict'});
 });

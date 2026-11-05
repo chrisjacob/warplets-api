@@ -19,7 +19,7 @@ test('D1/R2 snapshot service seals complete private inputs, recovers omitted/los
   });
   for(let offset=0;offset<statements.length;offset+=100)await db.batch(statements.slice(offset,offset+100));
  }
- for(const [key,bytes] of node.objects)await r2.put(key,bytes);
+ for(const [key,bytes] of node.objects)await r2.put(key,bytes,{httpMetadata:{contentType:key.endsWith('.json')?'application/json':'application/octet-stream'}});
  const call=async(fault,nowMs=node.clock.nowMs(),principal=node.principal)=>{
   const response=await mf.dispatchFetch('http://localhost/snapshot',{method:'POST',body:JSON.stringify({principal,query:node.query,nowMs,fault})});
   return {status:response.status,result:await response.json()};

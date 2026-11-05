@@ -1,0 +1,87 @@
+{
+  "taskId": "B08",
+  "status": "locally-verified-awaiting-commit",
+  "implementationCommit": null,
+  "baseCommit": "7827a15",
+  "classification": "synthetic local Node/workerd/D1/R2 publication and isolated recovery; no live-chain or financial execution claim",
+  "migrations": [
+    "031-publication.sql",
+    "032-recovery-isolation.sql"
+  ],
+  "commands": [
+    {
+      "command": "node platform/scripts/test-reference.mjs",
+      "tests": 318,
+      "exitCode": 0,
+      "elapsedMs": 14461.7443
+    },
+    {
+      "command": "node --test platform/edge/test/*.test.mjs",
+      "tests": 52,
+      "exitCode": 0,
+      "elapsedMs": 393330.2375
+    },
+    {
+      "command": "final focused recovery Node and actual D1/R2 after concurrency and capture-bound hardening",
+      "nodeTests": 9,
+      "edgeTests": 2,
+      "exitCode": 0,
+      "edgeElapsedMs": 25960
+    },
+    {
+      "command": "node --test platform/artifacts/publication.test.mjs",
+      "tests": 13,
+      "exitCode": 0
+    },
+    {
+      "command": "node platform/recovery/cli.mjs --fixture-rehearsal",
+      "exitCode": 0,
+      "elapsedMs": 1267
+    },
+    {
+      "command": "node platform/earn/settlement-cli.mjs --fixture-rehearsal",
+      "exitCode": 0
+    },
+    {
+      "command": "edge TypeScript; contracts generate --check; legacy recovery drill; blueprint --next --self-check; git diff --check",
+      "exitCode": 0
+    }
+  ],
+  "assertions": [
+    "Shared runtime-neutral codec preserves historical semantic manifest, allocation and wallet-proof commitments; exact canonical bundle bytes have independent byte digest",
+    "Only allowlisted economic fields enter public bytes; private URLs, review notes, sessions and raw source evidence excluded",
+    "Exact private staging vector and durable publication identity under source revisions, operator authority and current job lease; resume rechecks source/job identity",
+    "Conditional create-once public writes, independent readback, atomic catalog/plan receipt; unknown writes retry identical bytes; wrong child omissions roll back; expired lease cannot commit",
+    "Held publication job wakes with new reconciliation evidence and a replacement lease; accepted publication receipts replay",
+    "Older bundles remain retained when allocation expands export; public GET accepts byte address and returns unavailable for missing/corrupt referenced bytes",
+    "Public recovery requires independently pinned inventory and remains mutation-disabled without private backup; additive import cannot remove old/new allocations or wallet proofs",
+    "Private export captures all 86 allowlisted business tables in one transactional snapshot; schema migration digests, audit chain, receipts, evidence references, pending jobs and dependency checkpoints retained",
+    "Private restore revokes sessions, fences running jobs and stale leases, preserves intended pending work, reconciles row/object/catalog/award conservation before writes become enabled",
+    "Recovery nonce acquisition and terminal assertions prevent stale restore work from changing an activated target; caller mutation cannot change independently verified pin",
+    "Missing/corrupt/unknown objects and omitted rows leave isolated recovery held; operations/bytes are preflight bounded without truncating data",
+    "Fixture CLI loses source database after separately retaining pins, restores distinct databases/artifact directories and preserves fully vested years-later claims"
+  ],
+  "measurements": {
+    "privateExportSqlStatements": 347,
+    "privateCaptureAtomicStatements": 174,
+    "actualD1RestoreUnits": 44,
+    "maximumRestoreStepSqlStatements": 17,
+    "privateTables": 86,
+    "recoveryCliPublicObjects": 1,
+    "recoveryCliPrivateObjects": 18
+  },
+  "limits": [
+    "Public manifest <=2MiB; exact staging chunks <=128KiB; private objects <=256KiB",
+    "Recovery inventories <=256KiB; referenced objects <=24MiB; table pages <=100rows/128KiB; each table <=8192rows",
+    "Capture and final reconciliation refuse conservative estimates >900 combined SQL/object operations; larger backups need future incremental design",
+    "Measurements are disposable local synthetic evidence, not provider cost, geographic latency, full maximum-combination throughput or production recovery guarantees",
+    "Public recovery is permanently read-only; private recovered local writes do not enable financial capabilities",
+    "B20-core actual same-origin browser integration remains next; R-stage work unauthorized"
+  ],
+  "providerAttempts": 0,
+  "remoteCloudflareWrites": false,
+  "financialExecution": false,
+  "ci": {
+    "conclusion": "pending-push"
+  }
+}

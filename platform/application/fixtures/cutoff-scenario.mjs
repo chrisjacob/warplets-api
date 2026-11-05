@@ -11,7 +11,7 @@ import {createCutoffSnapshotRepository} from '../../storage/cutoff-snapshot.mjs'
 import {createAtomicSettlementRepository} from '../../storage/atomic-settlement.mjs';
 import {createArtifactReferenceRepository} from '../../storage/atomic-artifacts.mjs';
 import {createPrivateReferenceService} from '../../artifacts/reference-service.mjs';
-import {preparePrivateArtifact,verifiedBytes} from '../../artifacts/identity.mjs';
+import {prepareArtifact,verifiedBytes} from '../../artifacts/identity.mjs';
 import {createEvidenceRepository} from '../../evidence/repository.mjs';
 import {createEvidenceService} from '../../evidence/service.mjs';
 import {evidenceFixture} from '../../evidence/fixtures.mjs';
@@ -38,7 +38,7 @@ export async function cutoffScenario({complete=true,post=true,position=false,sto
   }
  }
  if(beforeFreeze)await beforeFreeze({db,epoch,start,cutoff,advance:ms=>now+=ms});
- const objects=new Map(),store=providedStore??{async putIfAbsent(i,b){const {identity,bytes}=await preparePrivateArtifact(i,b),exists=objects.has(i.key);if(!exists)objects.set(i.key,bytes);
+ const objects=new Map(),store=providedStore??{async putIfAbsent(i,b){const {identity,bytes}=await prepareArtifact(i,b),exists=objects.has(i.key);if(!exists)objects.set(i.key,bytes);
   const check=await verifiedBytes(identity,objects.get(i.key));if(check.status!=='verified')throw Error('Fixture object conflict');return {status:exists?'exists':'created'};},
   async getVerified(i){return objects.has(i.key)?verifiedBytes(i,objects.get(i.key)):{status:'missing',identity:i};}};
  const artifactRepository=createArtifactReferenceRepository(driver,ports),privateReferences=createPrivateReferenceService({store,repository:artifactRepository,...ports});

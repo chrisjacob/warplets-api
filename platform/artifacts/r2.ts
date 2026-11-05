@@ -1,12 +1,12 @@
 import type { ArtifactIdentity } from '../application/ports';
 import type { ArtifactStore,ArtifactPutResult,ArtifactReadResult } from './store';
-import { ArtifactConflictError,privateIdentity,preparePrivateArtifact,verifiedBytes } from './identity.mjs';
+import { ArtifactConflictError,artifactIdentity,prepareArtifact,verifiedBytes } from './identity.mjs';
 
 /** Inject a local R2 binding; this adapter has no REST, listing or public catalog
  * operation. Conditional PUT is the create-once authority, not a prior HEAD. */
 export function r2ArtifactStore(bucket:Pick<R2Bucket,'get'|'put'>):ArtifactStore {
   async function getVerified(input:ArtifactIdentity):Promise<ArtifactReadResult>{
-    const identity=privateIdentity(input),object=await bucket.get(identity.key);
+    const identity=artifactIdentity(input),object=await bucket.get(identity.key);
     if(!object)return {status:'missing',identity};
     if(object.size!==identity.size || object.httpMetadata?.contentType!==identity.contentType){
       await object.body.cancel();
@@ -27,7 +27,7 @@ export function r2ArtifactStore(bucket:Pick<R2Bucket,'get'|'put'>):ArtifactStore
     return verifiedBytes(identity,bytes.slice(0,length));
   }
   async function putIfAbsent(input:ArtifactIdentity,value:Uint8Array):Promise<ArtifactPutResult>{
-    const {identity,bytes}=await preparePrivateArtifact(input,value);
+    const {identity,bytes}=await prepareArtifact(input,value);
     try{
       const created=await bucket.put(identity.key,bytes,{onlyIf:new Headers({'If-None-Match':'*'}),
         sha256:identity.byteDigest,httpMetadata:{contentType:identity.contentType}});

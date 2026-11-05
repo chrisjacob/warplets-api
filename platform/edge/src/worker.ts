@@ -8,6 +8,7 @@ import baseContract from '../../contracts/openapi.json';
 import {pillars} from './pillars';
 import { edgeAuth } from './wallet';
 import {earn} from './earn';
+import {r2ArtifactStore} from '../../artifacts/r2';
 
 const app = new Hono<{ Bindings: Env; Variables: { requestId: string } }>();
 const supportedPaths = new Set(['/health','/policy','/capabilities','/collections','/launch/fee-schedule','/markets','/markets/{id}',
@@ -82,11 +83,10 @@ app.get(base+'/manifests/:digest',async c=>{
  const row=await c.env.DB.prepare('SELECT object_key,size_bytes FROM manifest_catalog WHERE byte_digest=?').bind(key).first<{object_key:string;size_bytes:number}>();
  if(!row)return c.json({error:{code:'not_found',message:'Unknown public manifest.'}},404);
  if(row.size_bytes>2*1024*1024||row.size_bytes<1||row.object_key!=='public/'+key+'.json')return c.json({error:{code:'invalid_manifest',message:'Manifest metadata mismatch.'}},503);
- const object=await c.env.MANIFESTS.get(row.object_key);
- if(!object||object.size!==row.size_bytes)return c.json({error:{code:'missing_manifest',message:'Manifest unavailable.'}},503);
- const bytes=await object.arrayBuffer();
- if(await digest(bytes)!==key)return c.json({error:{code:'invalid_manifest',message:'Manifest integrity check failed.'}},503);
- return new Response(bytes,{headers:{'content-type':'application/json','etag':'"'+key+'"','cache-control':'public,max-age=86400,immutable','x-content-type-options':'nosniff'}});
+ const stored=await r2ArtifactStore(c.env.MANIFESTS).getVerified({key:row.object_key,byteDigest:key,size:row.size_bytes,semanticDigest:null,visibility:'public',contentType:'application/json'}).catch(()=>null);
+ if(!stored||stored.status==='missing')return c.json({error:{code:'missing_manifest',message:'Manifest unavailable.'}},503);
+ if(stored.status!=='verified')return c.json({error:{code:'invalid_manifest',message:'Manifest integrity check failed.'}},503);
+ return new Response(new Uint8Array(stored.bytes).buffer,{headers:{'content-type':'application/json','etag':'"'+key+'"','cache-control':'public,max-age=86400,immutable','x-content-type-options':'nosniff'}});
 });
 app.route(base,edgeAuth);
 app.route(base,earn);

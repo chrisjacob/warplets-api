@@ -89,11 +89,11 @@ test('real workerd verifies a D1 wallet proof once and protects R2 public artifa
  assert.equal((await (await get('/stake/positions',{cookie})).json()).items[0].principalUnits,'100');
  await post('/auth/logout',{}, {cookie});assert.equal((await get('/me',{cookie})).status,401);
  const document='{"policy":"prd-1.2","audience":"public"}',key=createHash('sha256').update(document).digest('hex'),objectKey='public/'+key+'.json';
- await bucket.put(objectKey,document);
+ await bucket.put(objectKey,document,{httpMetadata:{contentType:'application/json'}});
  assert.equal((await get('/manifests/'+key)).status,404);
  await db.prepare('INSERT INTO manifest_catalog VALUES(?,?,?,?,?)').bind(key,objectKey,Buffer.byteLength(document),'public-test',Date.now()).run();
  const out=await get('/manifests/'+key);assert.equal(out.status,200);assert.equal(await out.text(),document);
- await bucket.put(objectKey,document.replace('public','SECRET'));
+ await bucket.put(objectKey,document.replace('public','SECRET'),{httpMetadata:{contentType:'application/json'}});
  const broken=await get('/manifests/'+key);assert.equal(broken.status,503);assert.ok(!(await broken.text()).includes('SECRET'));
  assert.equal((await mf.dispatchFetch('https://public.example/api/v1/policy')).status,403);
 });
