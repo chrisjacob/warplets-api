@@ -9,7 +9,7 @@
     "dev": "vite --host 127.0.0.1",
     "typecheck": "tsc --noEmit",
     "build": "pnpm run typecheck && vite build",
-    "test": "node --test tests/*.test.mjs"
+    "test": "node --test tests/*.spec.mjs"
   },
   "dependencies": {
     "@wallet-standard/app": "1.1.1",

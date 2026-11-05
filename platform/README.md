@@ -9,6 +9,8 @@ Open http://127.0.0.1:4173/api/v1/openapi.json for the available HTTP resources.
 
 Open http://127.0.0.1:4173 for the five product views. Local operator commands under markets, governance, earn, stake, vault and collect accept fixture files. The collection and Earn directories describe the required evidence for admission, fulfillment and reconciliation. The contracts directory contains the generated typed client and OpenAPI document. The separately tested local Cloudflare adapter lives in edge/.
 
+For the full React viewer, run `pnpm install --frozen-lockfile --ignore-scripts` and `pnpm build` inside `site/` before starting the local server. It serves the compiled viewer first, and the install-free reference viewer when a build is absent.
+
 The loopback server keeps an isolated SQLite file in `.local/preview.sqlite`. Its wallet challenge flow verifies Ed25519 message signatures without sending transactions. Challenges bind the wallet, action, origin, chain, nonce and expiry. Sessions use revocable, hashed tokens with strict HttpOnly cookies. Local HTTP is supported only on loopback. Deployment would require HTTPS, Secure cookies, trusted origin configuration and a separately validated storage adapter.
 
 ## Boundary with the existing repository

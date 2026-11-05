@@ -5,6 +5,7 @@ import { handleLaunchPlans } from '../launch/router.mjs';
 import { handleBallots } from '../governance/ballots.mjs';
 import { handleEarn } from '../earn/http.mjs';
 import { handleWeb } from '../web/handler.mjs';
+import { serveSite } from '../site/serve.mjs';
 import { handleVault } from '../vault/http.mjs';
 import { handleStake } from '../stake/farms.mjs';
 import { handleTransactions } from '../transactions/http.mjs';
@@ -25,7 +26,7 @@ export function createApp(db,{clock=Date.now}={}) {
       await handleEarn(db,request,peer,now)??
       await handleCollect(db,request,peer,now)??
       await handleLaunchPlans(request,{nowSeconds:Math.floor(now/1000)})??
-      await handleWeb(request)??readApi(request);
+      await serveSite(request)??await handleWeb(request)??readApi(request);
     return represent(request,response,now);
   };
 }
