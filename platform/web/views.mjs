@@ -85,17 +85,15 @@ export function vaultView({policy,me}) {
     +'<div class="two-up">'+card('How claims vest','<ol class="timeline"><li><strong>Launch</strong><p>Allocations follow each NFT’s Level, including reserved unminted slots.</p></li>'
       +'<li><strong>After '+number(vault.cliffHours)+' hours</strong><p>The allocation begins to vest continuously.</p></li>'
       +'<li><strong>After '+number(vault.cliffHours+vault.vestHours)+' hours</strong><p>The full allocation is vested. A buyer inherits the remaining claim.</p></li></ol>')
-    +card('Your Vault','<p>'+e(me?'Signed in as '+compactAddress(me.wallet)+'.':'Connect a wallet to identify your account.')+'</p>'
-      +'<p>On-chain NFT claims will appear when the Vault integration is available.</p><a class="text-link" href="/collect">Explore collections ↗</a>')+'</div>';
+    +card('Permanent claims','<p>The original vesting clock follows the allocation. Selling an NFT transfers its remaining Vault entitlement.</p>'
+      +'<a class="text-link" href="/collect">Explore collections ↗</a>')+'</div>';
 }
 
 export function stakeView({policy,markets}) {
   return intro('Stake','Stake an ATT during its campaign to earn rewards in that same token.')
     +statGrid(metric('Farm funding',percent(policy.launch.allocationBps.stake),'of original ATT supply')
       +metric('Campaign length',number(policy.launch.campaignDays)+' days','from actual activation')
-      +metric('Accrual','Continuous','while the position is staked'))
-    +card('Available farms',markets?'<div class="empty"><h3>No deposit-enabled farms</h3><p>The preview has no funded staking positions.</p></div>':unavailable('Farm availability could not be loaded.'))
-    +'<a class="text-link" href="/earn">See Earn eligibility ↗</a>';
+      +metric('Accrual','Continuous','while the position is staked'));
 }
 
 export function earnView({policy,board,date}) {

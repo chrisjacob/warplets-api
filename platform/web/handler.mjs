@@ -5,6 +5,7 @@ const files = new Map([
   ['/assets/10x.css', ['10x.css', 'text/css']],
   ['/assets/client.mjs', ['client.mjs', 'text/javascript']],
   ['/assets/views.mjs', ['views.mjs', 'text/javascript']],
+  ['/assets/activity.mjs', ['activity.mjs', 'text/javascript']],
   ['/assets/wallet.mjs', ['wallet.mjs', 'text/javascript']],
   ['/favicon.svg', ['mark.svg', 'image/svg+xml']],
 ]);
