@@ -1,7 +1,7 @@
 {
   "taskId": "B04",
-  "status": "tested",
-  "implementationCommit": null,
+  "status": "tested-cursor-fix-awaiting-ci",
+  "implementationCommit": "751ccd636cd4882ad4153d5568cb65f98f96cc5e",
   "migration": "026-evidence-provenance.sql",
   "classification": "synthetic transcripts and separately labeled pinned genuine public decoder vector; local Node and workerd/D1/R2 only",
   "commands": [
@@ -28,6 +28,12 @@
     {
       "command": "edge TypeScript and contract drift",
       "exitCode": 0
+    },
+    {
+      "command": "node --test platform/evidence/*.test.mjs platform/pricing/*.test.mjs platform/earn/components.test.mjs platform/quotes/*.test.mjs",
+      "tests": 29,
+      "exitCode": 0,
+      "scope": "after cursor-cycle regression fix"
     }
   ],
   "assertions": [
@@ -43,7 +49,8 @@
   "review": {
     "method": "coordinator trust/identity/replay inspection plus regression tests",
     "fixed": [
-      "Accepted ingest replay previously required recording adapter availability"
+      "Accepted ingest replay previously required recording adapter availability",
+      "Cyclic/repeated empty history page cursors could falsely claim complete coverage"
     ]
   },
   "genuineVector": {
@@ -64,5 +71,10 @@
   "remaining": [
     "B05 exact requirement coverage and sealed input manifests",
     "No runtime/live historical source claim; missing coverage stays pending"
-  ]
+  ],
+  "ci": {
+    "runId": 42103643420,
+    "status": "success",
+    "url": "https://github.com/chrisjacob/warplets-api/actions/runs/42103643420"
+  }
 }

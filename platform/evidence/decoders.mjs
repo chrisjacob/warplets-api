@@ -13,11 +13,14 @@ function history(source,payload,envelope){
  if(!Array.isArray(payload.pages)||payload.pages.length>20)return decision('invalid','history-page-bound','synthetic-transcript');
  if(!payload.pages.length)return decision('pending','history-coverage-missing','synthetic-transcript');
  let cursor=null,position=enrollPosition(p.wallet,p.tokenId),previousTime=payload.enrolledAtMs,count=0;
- const signatures=new Set(),purchases=new Set();let pageIndex=0;
+ const signatures=new Set(),purchases=new Set(),cursors=new Set();let pageIndex=0;
  for(const page of payload.pages){
   if(pageIndex++>0&&cursor===null)return decision('invalid','history-after-terminal-page','synthetic-transcript');
   if(page.nextCursor!==null&&!text(page.nextCursor))return decision('invalid','history-cursor','synthetic-transcript');
   if(page.cursor!==cursor||!Array.isArray(page.events)||page.events.length>100)return decision('pending','history-page-gap','synthetic-transcript');
+  if(cursors.has(page.cursor))return decision('invalid','history-cursor-cycle','synthetic-transcript');
+  cursors.add(page.cursor);
+  if(page.nextCursor!==null&&cursors.has(page.nextCursor))return decision('invalid','history-cursor-cycle','synthetic-transcript');
   for(const event of page.events){
    count++;if(count>1000)return decision('invalid','history-event-bound','synthetic-transcript');
    if(!time(event.atMs))return decision('pending','missing-event-time','synthetic-transcript');

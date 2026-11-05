@@ -42,6 +42,20 @@ test('gap-free synthetic external activity preserves linked purchases and withdr
  assert.equal(decode(source,{...payload,pages:[]}).status,'pending');
  assert.equal(decode(source,{...payload,pages:[{cursor:null,nextCursor:null,events:[{...buy,deposit:{...buy.deposit,depositedUnits:'99'}}]}]}).status,'incompatible');
 });
+test('repeated empty history page cursors cannot assert complete coverage',()=>{
+ const policy={wallet:'alice',tokenId:'ATT',farmProgram:'fixture-farm',swapProgram:'fixture-swap',enrolledAtMs:now-1000};
+ const source={mode:'synthetic-fixture',decoderVersion:'synthetic-position-history-v1',policy,maxBytes:262144,maxAgeMs:300000};
+ const page=(cursor,nextCursor)=>({cursor,nextCursor,events:[]});
+ const payload={network:'solana-local',wallet:'alice',tokenId:'ATT',enrolledAtMs:policy.enrolledAtMs,throughMs:now,complete:true};
+ for(const pages of [[page(null,'x'),page('x','x'),page('x',null)],
+  [page(null,'x'),page('x','y'),page('y','x'),page('x',null)]]){
+  const result=decode(source,{...payload,pages});
+  assert.equal(result.status,'invalid');assert.equal(result.reason,'history-cursor-cycle');assert.equal(result.coverage.complete,false);
+ }
+ const complete=decode(source,{...payload,pages:[page(null,'x'),page('x','y'),page('y',null)]});
+ assert.equal(complete.status,'verified');assert.equal(complete.coverage.complete,true);
+ assert.equal(decode(source,{...payload,pages:[page(null,'x')]}).status,'pending');
+});
 test('genuine pinned public account capture remains a decoder-only vector with absent genesis/block time',async()=>{
  const archive=readFileSync(new URL('../lab/fixtures/programs-mainnet.json.gz',import.meta.url)),pin=JSON.parse(readFileSync(new URL('../lab/fixtures/programs.json',import.meta.url)));
  const inspected=inspectCapture(archive,pin);assert.equal(inspected.length,2);assert.equal(await crypto.sha256(archive),captureSha256);

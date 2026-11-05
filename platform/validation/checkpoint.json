@@ -1,5 +1,5 @@
 {
   "policy": "prd-1.2",
   "scope": "local",
-  "checkpoint": "blueprint-b04-recorded-evidence"
+  "checkpoint": "blueprint-b04-history-cursor-coverage"
 }
