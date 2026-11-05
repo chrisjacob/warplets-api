@@ -36,21 +36,12 @@ try {
   const payer = keypair(4);
   assert.equal(payer.publicKey.toBase58(), v.payer);
   net.fundSol(v.payer, 20_000_000_000);
-  const makeMint = seed => spl.createMint(rpc, payer, payer.publicKey, null, 9, keypair(seed));
-  const mint = await makeMint(2), og = await makeMint(3);
-  const ata = async (token, wallet = payer.publicKey) => (await spl.getOrCreateAssociatedTokenAccount(rpc, payer, token, wallet)).address;
-  const attAta = await ata(mint), ogAta = await ata(og);
-  const balance = async address => (await spl.getAccount(rpc, pk(address))).amount;
-  const pool = async () => {
-    const account = await rpc.getAccountInfo(pk(v.pool));
-    assert.equal(account.owner.toBase58(), v.program);
-    return cpAmmCoder.accounts.decode('Pool', account.data);
-  };
-  const send = async (rows, extra = []) => {
-    assert.equal(rpc.rpcEndpoint, net.rpcUrl);
+  assert((await rpc.getBalance(payer.publicKey)) >= 10_000_000_000, 'simulator payer funding failed');
+  net.timeTravelToTimestamp((v.activation - 60) * 1000);
+  const sendFixture = async (instructions, extra = []) => {
     const block = await rpc.getLatestBlockhash('confirmed');
     const tx = new Transaction({ feePayer: payer.publicKey, ...block }).add(
-      ComputeBudgetProgram.setComputeUnitLimit({ units: 1_400_000 }), ...ix(rows));
+      ComputeBudgetProgram.setComputeUnitLimit({ units: 1_400_000 }), ...instructions);
     tx.sign(payer, ...extra);
     const sig = await rpc.sendRawTransaction(tx.serialize(), { skipPreflight: false, maxRetries: 0 });
     const deadline = performance.now() + 10_000;
@@ -62,20 +53,45 @@ try {
     }
     throw Error('Local transaction outcome unknown.');
   };
-  net.timeTravelToTimestamp((v.activation - 60) * 1000);
-  await spl.mintTo(rpc, payer, mint, attAta, payer, BigInt(v.allocation.liquidity));
+  const makeMint = async seed => {
+    const account = keypair(seed);
+    await sendFixture([
+      lab('@solana/web3.js').SystemProgram.createAccount({ fromPubkey: payer.publicKey, newAccountPubkey: account.publicKey,
+        lamports: await rpc.getMinimumBalanceForRentExemption(spl.MINT_SIZE), space: spl.MINT_SIZE, programId: spl.TOKEN_PROGRAM_ID }),
+      spl.createInitializeMint2Instruction(account.publicKey, 9, payer.publicKey, null),
+    ], [account]);
+    return account.publicKey;
+  };
+  const mint = await makeMint(2), og = await makeMint(3);
+  const ata = async (token, wallet = payer.publicKey) => {
+    const address = spl.getAssociatedTokenAddressSync(token, wallet);
+    await sendFixture([spl.createAssociatedTokenAccountIdempotentInstruction(payer.publicKey, address, wallet, token)]);
+    return address;
+  };
+  const attAta = await ata(mint), ogAta = await ata(og);
+  const balance = async address => (await spl.getAccount(rpc, pk(address))).amount;
+  const pool = async () => {
+    const account = await rpc.getAccountInfo(pk(v.pool));
+    assert.equal(account.owner.toBase58(), v.program);
+    return cpAmmCoder.accounts.decode('Pool', account.data);
+  };
+  const send = (rows, extra = []) => sendFixture(ix(rows), extra);
+  const mintFixture = (token, to, amount) => sendFixture([spl.createMintToInstruction(token, to, payer.publicKey, amount)]);
+  await mintFixture(mint, attAta, BigInt(v.allocation.liquidity));
   const reserves = [];
   for (const [i, name] of ['earn', 'stake', 'genesisVault', 'seasonVault'].entries()) {
     const destination = await ata(mint, keypair(20 + i).publicKey);
     const amount = BigInt(v.allocation[name]);
-    await spl.mintTo(rpc, payer, mint, destination, payer, amount);
+    await mintFixture(mint, destination, amount);
     reserves.push({ destination, amount });
   }
   const nft = keypair(5);
+  console.log('Fixture mint accounts and five allocation buckets created.');
   await assert.rejects(send(v.initAndLock, [nft]), /insufficient funds/i);
   assert.equal(await rpc.getAccountInfo(pk(v.pool)), null);
-  await spl.mintTo(rpc, payer, og, ogAta, payer, 1n);
+  await mintFixture(og, ogAta, 1n);
   await send(v.initAndLock, [nft]);
+  console.log('Executed one-raw-unit OG pool initialization and permanent lock.');
   assert.equal(await balance(v.tokenAVault), BigInt(v.allocation.liquidity));
   assert.equal(await balance(attAta), 0n);
   assert.equal(await balance(v.tokenBVault), 1n);
@@ -93,7 +109,7 @@ try {
   assert.equal(fee.readUInt16LE(14), 89);
   assert.equal(fee.readBigUInt64LE(16), 1n);
   assert.equal(fee.readBigUInt64LE(24), 10000000n);
-  await spl.mintTo(rpc, payer, og, ogAta, payer, 1000000000n);
+  await mintFixture(og, ogAta, 1000000000n);
   await assert.rejects(send(v.buy));
   const samples = [];
   for (const elapsed of [0, 1, 30, 60, 88, 89, 90]) {
