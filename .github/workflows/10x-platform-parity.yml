@@ -1,0 +1,26 @@
+name: 10X captured program parity
+on:
+  push:
+    branches: [work/10x-prd-foundation]
+    paths:
+      - 'platform/lab/**'
+      - 'platform/domain/economics/**'
+      - '.github/workflows/10x-platform-parity.yml'
+permissions:
+  contents: read
+jobs:
+  replay:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Check capture hashes and scheduler wire
+        run: node --test platform/lab/protocol.test.mjs
+      - name: Install pinned Linux simulator into isolated environment
+        run: |
+          python3 -m venv "$RUNNER_TEMP/tenx-parity"
+          "$RUNNER_TEMP/tenx-parity/bin/pip" install --only-binary=:all: --require-hashes -r platform/lab/linux-requirements.txt
+      - name: Replay captured program without RPC
+        run: '"$RUNNER_TEMP/tenx-parity/bin/python" platform/lab/replay_capture.py'
