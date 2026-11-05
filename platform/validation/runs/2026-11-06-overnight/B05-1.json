@@ -2,7 +2,7 @@
   "taskId": "B05",
   "substep": "B05.1",
   "status": "in_progress",
-  "implementationCommit": null,
+  "implementationCommit": "703baaf89e7d3861ee613f8f6ca5eba70293a90e",
   "migration": "027-cutoff-manifests.sql (admission freeze foundations)",
   "classification": "synthetic local Node and workerd/D1/R2",
   "commands": [
@@ -62,5 +62,10 @@
     "Complete snapshot acceptance cases before B05verification"
   ],
   "providerAttempts": 0,
-  "remoteCloudflareWrites": false
+  "remoteCloudflareWrites": false,
+  "ci": {
+    "runId": 42106604947,
+    "conclusion": "success",
+    "url": "https://github.com/chrisjacob/warplets-api/actions/runs/42106604947"
+  }
 }

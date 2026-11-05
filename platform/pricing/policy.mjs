@@ -1,4 +1,4 @@
-import { decimal, name, nat, requireValue } from '../earn/checks.mjs';
+import { decimal, name, nat, requireValue } from '../earn/validation.mjs';
 
 export const DAMM_V2_PROGRAM='cpamdpZCGKUy5JxQXB4dcpGPiikHawvSWAd6mEn1sGG';
 const Q128=1n<<128n;

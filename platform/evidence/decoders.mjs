@@ -8,6 +8,9 @@ const decision=(status,reason,scope,decoded=null,gaps=[])=>({status,reason,scope
 const legacy=n=>n==='local-solana'||n==='solana-local';
 function history(source,payload,envelope){
  const p=source.policy;
+ if(source.decoderVersion==='synthetic-position-history-v2'&&source.subject?.kind==='wallet-token'&&
+  (source.subject.id!==canonicalJson([p.wallet,p.tokenId])||envelope.subject&&canonicalJson(envelope.subject)!==canonicalJson(source.subject)))
+  return decision('incompatible','position-subject','synthetic-transcript');
  if(source.mode!=='synthetic-fixture'||!legacy(payload.network))return decision('incompatible','history-adapter-unavailable','decoder-only');
  if(payload.wallet!==p.wallet||payload.tokenId!==p.tokenId)return decision('incompatible','position-identity','synthetic-transcript');
  if(!time(payload.enrolledAtMs)||payload.enrolledAtMs!==p.enrolledAtMs||!time(payload.throughMs)||payload.throughMs<payload.enrolledAtMs)return decision('invalid','history-time','synthetic-transcript');
@@ -78,7 +81,9 @@ export function decodeRecorded(source,record,envelope){
   if(source.decoderVersion==='synthetic-pricing-v1'){
    if(source.mode!=='synthetic-fixture'||payload.pool?.network!=='local-solana')return decision('incompatible','legacy-fixture-mode-required','decoder-only');
    const policy=normalizePolicy(source.policy);
-   if(payload.wallet!==source.subject.id||payload.tokenId!==policy.tokenId)return decision('incompatible','valuation-subject','synthetic-transcript');
+   const subjectMatches=source.subject.kind==='wallet-token'?source.subject.id===canonicalJson([payload.wallet,policy.tokenId])&&
+    (!envelope.subject||canonicalJson(envelope.subject)===canonicalJson(source.subject)):payload.wallet===source.subject.id;
+   if(!subjectMatches||payload.tokenId!==policy.tokenId)return decision('incompatible','valuation-subject','synthetic-transcript');
    if(payload.asOfMs!==envelope.requestedCutoffMs)return decision('pending','valuation-cutoff-mismatch','synthetic-transcript');
    if(String(payload.pool.slot)!==envelope.contextSlot||payload.pool.observedMs!==envelope.blockTimeMs)return decision('incompatible','valuation-recording-context','synthetic-transcript');
    const result=assessObservation(policy,payload);

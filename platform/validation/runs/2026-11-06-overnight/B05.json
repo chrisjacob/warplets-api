@@ -1,0 +1,65 @@
+{
+  "taskId": "B05",
+  "status": "verified",
+  "implementationCommit": null,
+  "baseCommit": "703baaf89e7d3861ee613f8f6ca5eba70293a90e",
+  "classification": "complete synthetic local transcripts; no live-chain completeness claim",
+  "migrations": [
+    "027-cutoff-manifests.sql",
+    "028-cutoff-snapshots.sql"
+  ],
+  "commands": [
+    {
+      "command": "node platform/scripts/test-reference.mjs",
+      "tests": 239,
+      "exitCode": 0
+    },
+    {
+      "command": "node --test platform/edge/test/*.test.mjs",
+      "tests": 25,
+      "exitCode": 0
+    },
+    {
+      "command": "edge TypeScript + direct snapshot-handler declaration TypeScript",
+      "exitCode": 0
+    },
+    {
+      "command": "contracts generate --check; recovery-drill; git diff --check",
+      "exitCode": 0
+    }
+  ],
+  "assertions": [
+    "Frozen admissions and exact historical read identities; reused fresh entry observation retains actual observed time",
+    "Full synthetic campaign/ownership/position/action coverage; absent facts stay named pending",
+    "Three-day full withdrawal and repurchase replay resets flags; each daily checkpoint and price required",
+    "Multiple wallets, late-only approvals, tied pagination, prior streaks and exact UTC midnight",
+    "Positive empty bootstrap succeeds; unresolved prior board holds",
+    "Current negative correction masks prior verified receipt and cannot replace complete pointer",
+    "Source policy matches registered pool/farm; pricing and journal values bind exact receipts",
+    "Source/control/earn changes during reading or after private writes reject mixed snapshots",
+    "Immutable private pages/root/input with atomic attempt metadata; omitted child rollback and lost acknowledgement recovery",
+    "Node/workerd requirements/evidence/input digest parity and cross-operator immutable artifact reuse",
+    "Durable complete-cutoff handler binds private configuration digest, operator and job identity; holds pending manifest without complete input",
+    "Populated021 upgrade preserves existing commitments and awards"
+  ],
+  "measurements": {
+    "d1InventoryReadBatches": 9,
+    "d1InventoryRequirements": 121,
+    "d1InventoryBytes": 65787,
+    "lateWallets": 101,
+    "privateObjectMaxBytes": 262144,
+    "inventoryMaxBytes": 8388608
+  },
+  "limits": [
+    "Synthetic local evidence only; no real-chain historical coverage asserted",
+    "Explicit pending beyond100 admissions,1000late approvals,10activepositions/wallet,1000events/position,11dailycheckpoints,256KiBitem/input or8MiBaggregateinventory",
+    "Worker runner retains1job/invocation; B07 must measure complete orchestration query budget and stage larger plans if needed",
+    "No browser fullD1 acceptance untilB20-core"
+  ],
+  "providerAttempts": 0,
+  "remoteCloudflareWrites": false,
+  "financialExecution": false,
+  "ci": {
+    "status": "awaiting checkpoint push"
+  }
+}

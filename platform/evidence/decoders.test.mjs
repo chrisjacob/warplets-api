@@ -21,6 +21,11 @@ test('synthetic pricing reuses pinned integer policy and retains legacy network 
  assert.equal(decode(source,payload,{requestedCutoffMs:now+300001}).reason,'stale-cutoff-observation');
  assert.equal(decode(source,{...payload,farm:null}).status,'pending');
  assert.equal(decode({...source,mode:'recorded-public'},payload,{chainGenesis:'synthetic-test-chain'}).status,'incompatible');
+ const subject={kind:'wallet-token',id:canonicalJson(['alice','ATT'])},composite={...source,subject};
+ assert.equal(decode(composite,payload,{subject}).status,'verified');
+ assert.equal(decode({...composite,subject:{kind:'wallet-token',id:canonicalJson(['bob','ATT'])}},payload).reason,'valuation-subject');
+ assert.equal(decode({...composite,subject:{kind:'wallet-token',id:canonicalJson(['alice','OTHER'])}},payload).reason,'valuation-subject');
+ assert.equal(decode(composite,payload,{subject:{kind:'wallet-token',id:canonicalJson(['alice','OTHER'])}}).reason,'valuation-subject');
 });
 test('gap-free synthetic external activity preserves linked purchases and withdrawals; incomplete/confirmed/missing times hold',()=>{
  const policy={wallet:'alice',tokenId:'ATT',farmProgram:'fixture-farm',swapProgram:'fixture-swap',enrolledAtMs:now-1000};
@@ -82,6 +87,10 @@ test('history v2 preserves the economic journal so an exit and repurchase cannot
  assert.equal(Object.hasOwn(withdrawn.decoded.events[0],'program'),false);
  const v1=decode({...source,decoderVersion:'synthetic-position-history-v1'},payload([buy(1)]));
  assert.equal(Object.hasOwn(v1.decoded,'events'),false,'v1 output shape stays unchanged');
+ const subject={kind:'wallet-token',id:canonicalJson(['alice','ATT'])},composite={...source,subject};
+ assert.equal(decode(composite,payload([buy(1)]),{subject}).status,'verified');
+ assert.equal(decode({...composite,subject:{kind:'wallet-token',id:canonicalJson(['alice','OTHER'])}},payload([buy(1)])).reason,'position-subject');
+ assert.equal(decode(composite,payload([buy(1)]),{subject:{kind:'wallet-token',id:canonicalJson(['bob','ATT'])}}).reason,'position-subject');
  assert.equal(decode(source,{...payload([]),throughMs:policy.enrolledAtMs-1}).reason,'history-time');
 });
 test('genuine pinned public account capture remains a decoder-only vector with absent genesis/block time',async()=>{
