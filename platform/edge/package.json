@@ -1,0 +1,22 @@
+{
+  "name": "@10x/local-worker",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --local --ip 127.0.0.1 --config wrangler.jsonc",
+    "test": "node --test test/*.test.mjs",
+    "typecheck": "wrangler types --config wrangler.jsonc && tsc --noEmit",
+    "types": "wrangler types --config wrangler.jsonc"
+  },
+  "dependencies": {
+    "hono": "4.13.14",
+    "zod": "4.6.6"
+  },
+  "devDependencies": {
+    "@types/node": "22.15.0",
+    "esbuild": "0.28.1",
+    "miniflare": "5.20260825.0-alpha",
+    "typescript": "5.9.3",
+    "wrangler": "4.126.0"
+  }
+}

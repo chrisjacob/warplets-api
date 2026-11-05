@@ -2,10 +2,12 @@
 
 Isolated API-first implementation of the November PRD. Run from this directory with Node 22.16 or later. No installation, wallet, RPC key or provider account is needed.
 
-    node --test
+    node scripts/test-reference.mjs
     node server/start.mjs
 
 Open http://127.0.0.1:4173/api/v1/openapi.json for the available HTTP resources. The local API advertises policy and planned inventory. Live assets require verified evidence and financial actions require the PRD release gates.
+
+Open http://127.0.0.1:4173 for the five product views. Local operator commands under markets, governance, earn, stake, vault and collect accept fixture files. The collection and Earn directories describe the required evidence for admission, fulfillment and reconciliation. The contracts directory contains the generated typed client and OpenAPI document. The separately tested local Cloudflare adapter lives in edge/.
 
 The loopback server keeps an isolated SQLite file in `.local/preview.sqlite`. Its wallet challenge flow verifies Ed25519 message signatures without sending transactions. Challenges bind the wallet, action, origin, chain, nonce and expiry. Sessions use revocable, hashed tokens with strict HttpOnly cookies. Local HTTP is supported only on loopback. Deployment would require HTTPS, Secure cookies, trusted origin configuration and a separately validated storage adapter.
 

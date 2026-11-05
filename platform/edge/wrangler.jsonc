@@ -1,0 +1,25 @@
+{
+  "name": "tenx-local-validation",
+  "main": "src/worker.ts",
+  "compatibility_date": "2026-11-05",
+  "workers_dev": false,
+  "preview_urls": false,
+  "keep_vars": true,
+  "observability": {
+    "enabled": false
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "tenx-local-preview",
+      "database_id": "00000000-0000-4000-8000-000000000001",
+      "migrations_dir": "../storage"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "MANIFESTS",
+      "bucket_name": "tenx-local-manifests"
+    }
+  ]
+}
