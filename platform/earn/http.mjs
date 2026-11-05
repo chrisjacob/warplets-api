@@ -5,6 +5,7 @@ import { listActiveActions } from './components.mjs';
 import { exportBoard, proofForWallet, recoveryMode } from './archive.mjs';
 import { capacityAt } from './operations.mjs';
 import { actionDecision } from '../operations/controls.mjs';
+import { boundedJson, BodyInputError } from '../server/body.mjs';
 import { EarnError, readLeaderboard, readWalletClaims, readWalletSubmissions, submitContent } from './workflow.mjs';
 
 const base='/api/v1/earn';
@@ -16,30 +17,6 @@ function dateEpoch(value) {
   }
   return ms/DAY_MS;
 }
-async function boundedJson(request) {
-  const limit=4096;
-  const length=request.headers.get('content-length');
-  if (length && Number(length)>limit) throw new EarnError(413,'body_too_large','Content submission exceeds 4 KiB.');
-  const reader=request.body?.getReader();
-  if (!reader) throw new EarnError(400,'invalid_input','Expected a submission object.');
-  let total=0;
-  const chunks=[];
-  try {
-    for (;;) {
-      const {done,value}=await reader.read();
-      if (done) break;
-      total+=value.byteLength;
-      if (total>limit) {
-        await reader.cancel();
-        throw new EarnError(413,'body_too_large','Content submission exceeds 4 KiB.');
-      }
-      chunks.push(value);
-    }
-  } finally { reader.releaseLock(); }
-  try { return JSON.parse(Buffer.concat(chunks).toString()); }
-  catch { throw new EarnError(400,'invalid_input','Invalid submission JSON.'); }
-}
-
 export async function handleEarn(db,request,peer,now) {
   const url=new URL(request.url);
   const board=url.pathname.match(/^\/api\/v1\/earn\/epochs\/([^/]+)\/(leaderboard|manifest)$/);
@@ -93,7 +70,7 @@ export async function handleEarn(db,request,peer,now) {
     const args={wallet:session.wallet,nowMs:now,after:Number(cursor)};
     return json(claims?readWalletClaims(db,args):readWalletSubmissions(db,args));
   } catch(error) {
-    if (error instanceof EarnError) return failure(error.status,error.code,error.message);
+    if (error instanceof EarnError || error instanceof BodyInputError) return failure(error.status,error.code,error.message);
     throw error;
   }
 }

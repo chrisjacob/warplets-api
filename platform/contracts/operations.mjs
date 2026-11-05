@@ -194,5 +194,25 @@ export const operations = [
     "id": "getLocalOperationStatus",
     "path": "/operations/status",
     "method": "GET"
+  },
+  {
+    "id": "getNoticeCapabilities",
+    "path": "/notifications/capabilities",
+    "method": "GET"
+  },
+  {
+    "id": "getMyNoticePreferences",
+    "path": "/notifications/subscriptions",
+    "method": "GET"
+  },
+  {
+    "id": "setMyNoticePreferences",
+    "path": "/notifications/subscriptions",
+    "method": "POST"
+  },
+  {
+    "id": "getMyLocalNotices",
+    "path": "/notifications/inbox",
+    "method": "GET"
   }
 ];
