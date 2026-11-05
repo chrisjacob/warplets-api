@@ -88,7 +88,7 @@ async function memberWallets(db:D1Database,fids:number[]) {
       for(const p of JSON.parse(row.positions!) as PricedPosition[]){
         const quote=acceptedQuote(quotes.get(p.id),p.id);
         if(quote&&p.decimals===(p.id===NATIVE_ASSET?18:quote.decimals))usd+=BigInt(p.balance)*decimalScale(String(quote.price),24)/10n**BigInt(p.decimals)/10n**16n;
-        else {usd+=BigInt(p.usdUnits);if(p.quotedAt<Date.now()-7_200_000)stale=true;}
+        else {usd+=BigInt(p.usdUnits);if(p.quotedAt<Date.now()-NETWORK_RECORD_REFRESH_MS)stale=true;}
       }
     }
     const status:NetworkMember['wallet']['status']=rows.some(row=>(owners.get(row.linkedAddress)??0)>1)?'shared':!known.has(fid)?'pending':!rows.length?'no-wallet':measured.length===rows.length?'measured':measured.length?'partial':'pending';

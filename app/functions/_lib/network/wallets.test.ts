@@ -30,9 +30,13 @@ function fixture(){
   return {db,env:{WARPLETS:sqliteD1(db),NEYNAR_API_KEY:'test',NETWORK_WALLET_CREDITS:'10000'} as WalletEnv};
 }
 describe('wallet valuation and top holdings',()=>{
-  it('reports the monthly balance cadence and marks balances overdue after 30 days',async()=>{
+  it('uses the monthly observation window for both balances and last-valid valuation quotes',async()=>{
     const {db,env}=fixture();const at=Date.now();
     db.prepare('UPDATE network_wallet_values SET observed_at=?').run(at-29*86400000);
+    for(const row of db.prepare('SELECT address,positions FROM network_wallet_values').all() as {address:string;positions:string}[]){
+      const positions=JSON.parse(row.positions).map((p:object)=>({...p,quotedAt:at-29*86400000}));
+      db.prepare('UPDATE network_wallet_values SET positions=? WHERE address=?').run(JSON.stringify(positions),row.address);
+    }
     const current=await publishSnapshot(env.WARPLETS,true);
     expect(current?.wallet?.balanceRefreshHours).toBe(720);
     expect(buildNetworkDashboard(current,parseNetworkFilters(new URLSearchParams())).economics.stale).toBe(false);
@@ -40,6 +44,14 @@ describe('wallet valuation and top holdings',()=>{
     db.prepare('UPDATE network_wallet_values SET observed_at=?').run(at-31*86400000);
     const overdue=await publishSnapshot(env.WARPLETS,true);
     expect(buildNetworkDashboard(overdue,parseNetworkFilters(new URLSearchParams())).economics.stale).toBe(true);
+    expect((await readNetworkMembers(env.WARPLETS,new URLSearchParams())).members.find(row=>row.fid===1)?.wallet.stale).toBe(true);
+    db.prepare('UPDATE network_wallet_values SET observed_at=?').run(at);
+    for(const row of db.prepare('SELECT address,positions FROM network_wallet_values').all() as {address:string;positions:string}[]){
+      const positions=JSON.parse(row.positions).map((p:object)=>({...p,quotedAt:at-31*86400000}));
+      db.prepare('UPDATE network_wallet_values SET positions=? WHERE address=?').run(JSON.stringify(positions),row.address);
+    }
+    const oldQuote=await publishSnapshot(env.WARPLETS,true);
+    expect(buildNetworkDashboard(oldQuote,parseNetworkFilters(new URLSearchParams())).economics.stale).toBe(true);
     expect((await readNetworkMembers(env.WARPLETS,new URLSearchParams())).members.find(row=>row.fid===1)?.wallet.stale).toBe(true);
   });
   it('refreshes existing associations monthly while filling missing new-member associations immediately',async()=>{

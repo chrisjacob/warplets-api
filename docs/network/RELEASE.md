@@ -7,6 +7,10 @@ Profiles, verified-wallet associations and balance observations rotate every
 30 days. Missing profiles, associations and wallets take priority and remain
 eligible immediately, so daily new-member discovery stays current. Independent
 asset prices still refresh hourly without re-reading token quantities.
+Stored wallet estimates use the 30-day observation window for both balances
+and last-valid accepted quotes. If an hourly quote is unavailable, the previous
+dated estimate remains; its balance and quote dates stay visible. New quotes
+still pass the existing timestamp/confidence checks before replacing it.
 Activity checks cover completed UTC calendar months once after month-end;
 provisional checks made before a month closed are revisited, while accepted
 positive evidence is retained. The ongoing month remains a lower bound.
