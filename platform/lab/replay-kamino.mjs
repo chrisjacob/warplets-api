@@ -167,4 +167,22 @@ try {
   console.log(JSON.stringify({ deployedSlot:evidence.deployment.deployedSlot, programHash:evidence.deployment.allocatedElfSha256,
     grossFarmFunding:String(funding), idleRecovered:String(recovered), userGrossRewards:String(funding - recovered),
     harvestFeeBps:gs.treasuryFeeBps, withdrawnPrincipal:'100', realFundsUsed:false, sourceMatch:'unverified' }));
+
+  // Adversarial configuration in the disposable VM after all normal rewards
+  // have settled. Test direct program authority rather than an app-level ACL.
+  await send([stake(100)], user);
+  const drain = ix('withdraw_from_farm_vault', [s(admin.publicKey), w(farm), w(adminAta), w(fVault), r(fAuth), r(token)], u64(10));
+  await assert.rejects(send([drain]));
+  assert.equal(await amount(fVault), 100n);
+  await send([cfg(admin.publicKey, 2, admin.publicKey.toBuffer())]);
+  assert.equal((await decodedAccount(farm, readFarmConfig)).withdrawAuthority, admin.publicKey.toBase58());
+  const adminBeforeDrain = await amount(adminAta);
+  await send([drain]);
+  assert.equal(await amount(adminAta) - adminBeforeDrain, 10n);
+  assert.equal(await amount(fVault), 90n);
+  const userBeforeExit = await amount(userAta);
+  await send(withdrawPrincipal(), user);
+  assert.equal(await amount(userAta) - userBeforeExit, 90n);
+  console.log(JSON.stringify({ authorityCounterexample: 'confirmed', staked: '100', administratorWithdrew: '10',
+    returnedToStaker: '90', permissionlessProductionStake: 'blocked pending enforceable authority restrictions' }));
 } finally { net.stop(); }

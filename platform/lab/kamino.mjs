@@ -53,7 +53,7 @@ export function readFarmConfig(account) {
   }
   return { farmAdmin: publicKey(b, 8), globalConfig: publicKey(b, 40), mint: publicKey(b, 72),
     tokenProgram: publicKey(b, 112), decimals: u64(b, 104), numUsers: u64(b, 7240), totalStaked: u64(b, 7248),
-    timeUnit: b[7360], frozen: b[7361] !== 0, delegated: b[7362] !== 0, warmup: b.readUInt32LE(7400),
+    timeUnit: b[7360], frozen: b[7361] !== 0, delegated: b[7362] !== 0, withdrawAuthority: publicKey(b, 7368), warmup: b.readUInt32LE(7400),
     cooldown: b.readUInt32LE(7404), lockingMode: u64(b, 7496), rewards };
 }
 
