@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { capabilityTransport } from './capability-transport.mjs';
 import {
   assetModel, awardModel, ballotModel, boardModel, farmModel, inventoryModel, pageOf, policyModel,
-  positionModel, quoteModel, receiptModel, submissionModel,
+  positionModel, quoteModel, receiptModel, vaultHoldingsModel, nftVaultModel, submissionsPageModel,
 } from './models';
 
 export const runtimeTransport=capabilityTransport();
@@ -46,12 +46,12 @@ export const sdk={
   receipt:async(id:string,signal?:AbortSignal)=>one(receiptModel,await client.readMyCollectionOperation({path:{id},signal})),
   ballots:async(signal?:AbortSignal)=>rows(ballotModel,await client.listGenesisBallots({signal})),
   board:async(epoch:string,signal?:AbortSignal)=>boardModel.parse(await client.getEarnLeaderboard({path:{epoch},signal})),
-  submissions:async(cursor?:string,signal?:AbortSignal)=>rows(submissionModel,await client.getMyEarnSubmissions({
+  submissions:async(cursor?:string,signal?:AbortSignal)=>submissionsPageModel.parse(await client.getMyEarnSubmissions({
     query:cursor?{cursor:Number(cursor)}:{},signal})),
   awards:async(cursor?:string,signal?:AbortSignal)=>rows(awardModel,await client.getMyEarnClaims({
     query:cursor?{cursor:Number(cursor)}:{},signal})),
-  myVault:(cursor?:string,signal?:AbortSignal)=>{const options={signal,query:queryCursor(cursor)};return client.getMyVault(options);},
-  nftVault:(id:string,cursor?:string,signal?:AbortSignal)=>{const options={path:{id},query:queryCursor(cursor),signal};return client.getNftVault(options);},
+  myVault:async(cursor?:string,signal?:AbortSignal)=>{const options={signal,query:queryCursor(cursor)};return vaultHoldingsModel.parse(await client.getMyVault(options));},
+  nftVault:async(id:string,cursor?:string,signal?:AbortSignal)=>{const options={path:{id},query:queryCursor(cursor),signal};return nftVaultModel.parse(await client.getNftVault(options));},
   positions:async(cursor?:string,signal?:AbortSignal)=>{const options={signal,query:queryCursor(cursor)};
     return rows(positionModel,await client.getStakePositions(options));},
   farm:async(id:string,signal?:AbortSignal)=>one(farmModel,await client.getFarm({path:{id},signal})),

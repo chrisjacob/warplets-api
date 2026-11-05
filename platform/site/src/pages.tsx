@@ -10,13 +10,16 @@ function VaultRows({id,cursor}:{id:string;cursor?:string}){
   const detail=useRuntimeQuery('/api/v1/nfts/{id}/vault',{queryKey:['nft-vault',id,cursor],queryFn:({signal})=>sdk.nftVault(id,cursor,signal)});
   return <Panel title={'Allocations for '+id}><Loaded query={detail}>{page=><>
     {page.items.length?<><MobileRecords entries={page.items.map(i=>({id:i.marketId,summary:i.marketId+' · '+i.claimable+' base units available',
-      facts:[['Allocation',i.allocated],['Vested',i.vested],['Claimed',i.claimed],['Available',i.claimable]]}))}/>
+      facts:[['Allocation',i.allocated],['Vested',i.vested],['Claimed',i.claimed],['Available',i.claimable],['Manifest digest',i.manifestDigest],['Original activation',i.activatedAt?utc(i.activatedAt):'Unavailable'],['Cliff ends',i.cliffEndsAt?utc(i.cliffEndsAt):'Unavailable'],['Fully vested',i.fullyVestedAt?utc(i.fullyVestedAt):'Unavailable']]}))}/>
     <div className="scroller wide-table"><table><caption>Token base units · {utc(page.asOf)}</caption>
       <thead><tr>{['Campaign','Allocation','Vested','Claimed','Available'].map(s=><th key={s}>{s}</th>)}</tr></thead><tbody>
         {page.items.map(item=><tr key={item.marketId}><td>{item.marketId}</td><td>{item.allocated}</td>
           <td>{item.vested}</td><td>{item.claimed}</td><td>{item.claimable}</td></tr>)}</tbody></table></div></>
       :<Empty title="No allocation rows">New launch allocations appear under the corresponding ATT.</Empty>}
-    {page.nextCursor && <Link to="/vault" search={{asset:id,cursor:page.nextCursor}}>Next allocations →</Link>}
+    {page.items.length>0&&<details><summary>Original allocation vesting clocks</summary><Facts items={page.items.map(i=>[i.marketId,
+      'Activated '+(i.activatedAt?utc(i.activatedAt):'unavailable')+' · cliff ends '+(i.cliffEndsAt?utc(i.cliffEndsAt):'unavailable')+' · fully vested '+(i.fullyVestedAt?utc(i.fullyVestedAt):'unavailable')])}/></details>}
+    <p>Owner evidence observed: {page.ownerObservedAt?utc(page.ownerObservedAt):'Unavailable'}.</p><p>Amounts are token base units, not fiat values. Fiat pricing is unavailable. This paginated view does not establish a complete combined balance.</p>
+    {page.nextCursor && <Link to="/vault" search={{asset:id,cursor:String(page.nextCursor)}}>Next allocations →</Link>}
   </>}</Loaded></Panel>;
 }
 export function Vault(){
@@ -34,10 +37,14 @@ export function Vault(){
       ['Vesting period',pretty(p.vault.vestHours)+'h','after a '+p.vault.cliffHours+'h cliff'],
     ]}/>}</Loaded>
     <Panel title="Your NFTs">{wallet?<Loaded query={holdings}>{page=><>
-      <p className="muted">Local holdings for {compact(wallet)}</p>
+      <p className="muted">Local holdings for {compact(wallet)} · projection as of {utc(page.asOf)}. This is a local fixture ledger, not verified chain coverage.</p>
       {page.items.length?<ul className="rows">{page.items.map(nft=><li key={nft.id}><Link to="/vault" search={{asset:nft.id}}>
-        <strong>{nft.id}</strong><span>View allocations ↗</span></Link></li>)}</ul>:<Empty title="No NFT holdings">This wallet has no assets in the local Vault ledger.</Empty>}
-      {!asset&&page.nextCursor && <Link to="/vault" search={{cursor:page.nextCursor}}>Next holdings →</Link>}
+        <strong>{nft.id}</strong><span>Owner evidence: {nft.ownerObservedAt?utc(nft.ownerObservedAt):'Unavailable'} · View allocations ↗</span></Link></li>)}</ul>:<Empty title="No NFT holdings">This wallet has no assets in the local Vault ledger.</Empty>}
+      <h3>Combined local Vault allocations</h3>
+      {page.summary?.status==='complete'?<><p>Complete local ledger snapshot across {page.summary.assetCount} owned NFTs as of {utc(page.summary.asOf)}. Token base units are separate for each campaign; fiat prices are unavailable.</p>
+        <Facts items={page.summary.items.map(i=>[i.marketId,i.allocated+' allocated · '+i.vested+' vested · '+i.claimed+' claimed · '+i.claimable+' available base units'])}/>
+      </>:<p>Combined amounts unavailable: {page.summary?.reason??'complete snapshot not supplied'}. No visible-page subtotal is presented.</p>}
+      {!asset&&page.nextCursor && <Link to="/vault" search={{cursor:String(page.nextCursor)}}>Next holdings →</Link>}
     </>}</Loaded>:<><p>Connect a wallet to see its Genesis and Season assets.</p><button onClick={open}>Connect wallet</button></>}</Panel>
     {asset && <VaultRows id={asset} cursor={cursor}/>}
     <div className="two-up"><Panel title="How claims vest"><Loaded query={policy}>{p=><ol className="timeline">
@@ -45,7 +52,7 @@ export function Vault(){
       <li><strong>After {p.vault.cliffHours} hours</strong><p>The allocation begins to vest continuously.</p></li>
       <li><strong>After {p.vault.cliffHours+p.vault.vestHours} hours</strong><p>The entire allocation is vested.</p></li>
     </ol>}</Loaded></Panel>
-      <Panel title="Permanent claims"><p>The original vesting clock follows the allocation. Selling an NFT transfers its remaining Vault entitlement.</p>
+      <Panel title="Permanent claims"><p>The original vesting clock follows the allocation. Selling an NFT transfers its remaining Vault entitlement. Season expiry and Level changes preserve historical allocations; they do not restart vesting or restore already claimed amounts.</p>
         <Link to="/collect">Explore collections ↗</Link></Panel></div>
   </>;
 }

@@ -18,7 +18,11 @@ test('Node service and synchronous reference repository reproduce the pre-extrac
   assert.deepEqual((await service.readLeaderboard(fixture.epoch)).items.map(x=>x.submissionId),['submission-w1','submission-w2','submission-w3']);
   const claims=await service.readWalletClaims({kind:'wallet',wallet:'w2'});
   assert.equal(claims.executionEnabled,false);assert.equal(claims.items[0].vestedUnits,'1000');
-  assert.equal((await service.readWalletSubmissions({kind:'wallet',wallet:'w2'})).items.length,1);
+  const member=await service.readWalletSubmissions({kind:'wallet',wallet:'w2'});
+  assert.equal(member.items.length,1);assert.equal(member.memberStatus.asOf,new Date(fixture.start+4*DAY_MS).toISOString());
+  assert.equal(member.memberStatus.latestFinalComponents.snapshotDigest,fixture.bundle.manifest.board.snapshotId);
+  assert.equal(member.memberStatus.currentCutoff.status,'pending');
+  assert.equal((await service.readWalletSubmissions({kind:'wallet',wallet:'unrelated'})).memberStatus.latestFinalComponents,null);
 });
 test('repository failure cannot return success; original request replays at a later clock',async t=>{
   const db=openDatabase();t.after(()=>db.close());const nowMs=fixture.start;

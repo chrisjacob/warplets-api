@@ -1,3 +1,4 @@
+import {AssetEvidence,InventoryEvidence,StageEvidence,eligibleMaterials} from './collection-details';
 import { Capability, useRuntimeQuery, principalKey } from './capabilities';
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from '@tanstack/react-router';
@@ -11,7 +12,7 @@ import { useSession } from './session';
 const choiceLabel=(value:string)=>value==='ASAP'?'As soon as possible':value+' days';
 type VoteChoice='ASAP'|'7'|'14'|'30';
 
-function BallotCard({ballot,wallet}:{ballot:Ballot;wallet:string|null}){
+export function BallotCard({ballot,wallet}:{ballot:Ballot;wallet:string|null}){
   const cache=useQueryClient(),{open}=useSession();
   const vote=useMutation({mutationFn:async(choice:VoteChoice)=>
     (await client.castGenesisVote({path:{id:ballot.id},body:{choice}})).data,
@@ -77,7 +78,7 @@ function QuoteDetails({quote:q}:{quote:ProgressQuote}){
   else facts.push(['Material NFT',q.materialId],['New target Level',q.nextTargetLevel],['Target expiry',q.nextTargetExpiry&&utc(q.nextTargetExpiry)]);
   return <><Facts items={facts}/>
     {q.materialProbabilities&&<details><summary>Material Level probabilities</summary>
-      <Facts items={q.materialProbabilities.map(row=>['Level '+row.level,row.count+' of '+row.total])}/></details>}
+      <p>The material survives and may drop to a lower Level, shortening its future benefit period. Its past allocations remain intact.</p><Facts items={q.materialProbabilities.map(row=>['Level '+row.level,row.count+' of '+row.total+(row.expiresAt?' · expires '+utc(row.expiresAt):'')])}/></details>}
     <p>The selected assets remain reserved locally until the committed result arrives.</p></>;
 }
 
@@ -98,16 +99,38 @@ function CollectionTerms(){
         The other NFT receives a Level draw. Visual rerolls replace Model, Backdrop and Symbol.</p></details></Panel></div>}</Loaded>;
 }
 
-function PublishedStage({inventory,stage,review}:{inventory:Inventory;stage:Stage;review:(review:Review)=>void}){
+export function PublishedStage({inventory,stage,review}:{inventory:Inventory;stage:Stage;review?:(review:Review)=>void}){
   const {wallet,open}=useSession();
+  const eligible=stage.eligibility?stage.eligibility.status==='eligible':stage.eligible===true;
   const canReserve=stage.status==='open' && stage.type!=='founder' && stage.available>0;
   return <article className="stage"><div className="entry-head"><h4>{stage.id}</h4><span>{stage.status}</span></div>
     <Facts items={[['Mint price',sol(stage.priceLamports)],['Creation and network quote',sol(stage.costLamports)],
       ['Slots available',stage.available],['Limit per wallet',stage.walletLimit],['Opens',utc(stage.opensAt)],['Closes',utc(stage.closesAt)]]}/>
-    {canReserve && <Capability method="POST" path="/api/v1/collect/inventories/{id}/stages/{stage}/reservations">{(wallet?(stage.eligible?(stage.walletReservations??0)<stage.walletLimit?
+    <StageEvidence stage={stage}/>{canReserve && review && <Capability method="POST" path="/api/v1/collect/inventories/{id}/stages/{stage}/reservations">{(wallet?(eligible?(stage.walletReservations??0)<stage.walletLimit?
       <button onClick={()=>review({kind:'mint',inventory,stage})}>Review reservation</button>:<p>The wallet limit for this stage has been reached.</p>
-      :<p>This wallet is outside the stage eligibility list.</p>):<button onClick={open}>Connect wallet</button>)}</Capability>}
+      :<p>{stage.eligible===null||stage.eligibility?.status==='unknown'?'Eligibility is unknown until complete evidence is available.':'This wallet is outside the published stage eligibility list.'}</p>):<button onClick={open}>Connect wallet</button>)}</Capability>}
     {stage.openingHold&&<p>{stage.openingHold}</p>}</article>;
+}
+function MaterialPicker({target,wallet,review}:{target:Asset;wallet:string;review:(review:Review)=>void}){
+  const [error,setError]=useState('');
+  const candidates=useRuntimeQuery('/api/v1/collect/me/assets',{queryKey:['private',wallet,'solana','material-candidates'],queryFn:async({signal})=>{
+    const items:Asset[]=[];let cursor:string|undefined;
+    for(let page=0;page<4;page++){
+      const result=await sdk.assets(cursor,signal);items.push(...result.items);
+      if(result.nextCursor===null)return {items,complete:true};cursor=String(result.nextCursor);
+    }
+    return {items,complete:false};
+  }});
+  return <Loaded query={candidates}>{result=>{const choices=eligibleMaterials(result.items,target,wallet);
+    return <form className="member-form" data-upgrade={target.id} onSubmit={event=>{
+      event.preventDefault();const id=String(new FormData(event.currentTarget).get('material'));
+      if(!choices.some(a=>a.id===id)){setError('Choose a listed same-owner, same-Season, same-Level material.');return;}
+      setError('');review({kind:'progress',asset:target,materialId:id});
+    }}><label>Same-Level material NFT ID<input name="material" list={'materials-'+target.id} required maxLength={128}/></label>
+    <datalist id={'materials-'+target.id}>{choices.map(a=><option value={a.id} key={a.id}/>)}</datalist>
+    <p>{choices.length} matching materials in {result.items.length} checked assets. {!result.complete?'Selection is limited to the first 100 owned assets.':'All owned assets checked.'}</p>
+    <button disabled={!choices.length}>Preview upgrade</button>{error&&<Signal>{error}</Signal>}</form>;
+  }}</Loaded>;
 }
 function MemberAssets({wallet,review}:{wallet:string;review:(review:Review)=>void}){
   const search=rootRoute.useSearch();
@@ -123,12 +146,9 @@ function MemberAssets({wallet,review}:{wallet:string;review:(review:Review)=>voi
           ['Symbol',asset.traits?.symbol],['Benefit expiry',asset.expiresAt?utc(asset.expiresAt):'Permanent']]}/>
           {asset.operationPending?<p>Awaiting committed draw evidence.</p>:asset.expiresAt&&<>
             <Capability method="POST" path="/api/v1/collect/inventories/{id}/progression"><Capability method="POST" path="/api/v1/collect/inventories/{id}/progression/quote"><button onClick={()=>review({kind:'progress',asset})}>Preview visual reroll</button>
-            {asset.level!<10&&<form className="member-form" data-upgrade={asset.id} onSubmit={event=>{
-              event.preventDefault();review({kind:'progress',asset,materialId:String(new FormData(event.currentTarget).get('material'))});
-            }}><label>Same-Level material NFT ID<input name="material" list="known-materials" required maxLength={128}/></label><button>Preview upgrade</button></form>}</Capability></Capability></>}
-          <Link to="/vault" search={{asset:asset.id}}>Vault allocations ↗</Link></>}
+            {asset.level!<10&&<MaterialPicker target={asset} wallet={wallet} review={review}/>}</Capability></Capability></>}
+          <AssetEvidence asset={asset}/><Link to="/vault" search={{asset:asset.id}}>Vault allocations ↗</Link></>}
       </article>)}
-      <datalist id="known-materials">{page.items.filter(a=>a.expiresAt && !a.operationPending).map(a=><option key={a.id} value={a.id}/>)}</datalist>
       {page.nextCursor!==null&&<Link to="/collect" search={{owned:String(page.nextCursor)}}>Next assets →</Link>}
     </>}</Loaded></Panel>
     <Panel title="Operation history">{search.receipt && <Loaded query={receipt}>{r=><article className="receipt"><h3>Operation receipt</h3>
@@ -152,7 +172,7 @@ export function Collect(){
     <Panel title="Published stages"><Loaded query={inventories}>{page=><>
       {!page.items.length&&<Empty title="No published stages"/>}
       {page.items.map(inv=><article key={inv.id} className="record"><h3>{inv.kind==='season'?<Link to="/seasons/$seasonId" params={{seasonId:inv.id}}>{inv.id}</Link>:inv.id}</h3>
-        <p>{inv.counts.unsold} slots remain · {inv.counts.pending} awaiting fulfillment · {inv.counts.paid} paid mints</p>
+        <InventoryEvidence inventory={inv}/>
         {inv.stages.map(s=><PublishedStage key={s.id} inventory={inv} stage={s} review={setReview}/>)}</article>)}
       {page.nextCursor!==null&&<Link to="/collect" search={{inventories:String(page.nextCursor)}}>Next collections →</Link>}
     </>}</Loaded></Panel>

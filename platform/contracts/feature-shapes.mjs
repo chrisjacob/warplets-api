@@ -4,12 +4,19 @@ export const o=(properties,required=Object.keys(properties))=>({type:'object',pr
 export const a=items=>({type:'array',items});
 export const n=x=>({anyOf:[x,{type:'null'}]});
 export const r=name=>({$ref:'#/components/schemas/'+name});
+const iso={type:'string',format:'date-time'};
 const local={const:'local-fixture'},ms={type:'integer',minimum:0};
 const commonSubmission={id:s,tokenId:s,epoch:i,url:{type:'string',format:'uri'},submittedAtMs:ms};
 const winner={userId:s,wallet:s,submissionId:s,tokenId:s,submittedAtMs:ms,contentScore:{type:'integer',minimum:1,maximum:10},
   multiplierTenths:{type:'integer',minimum:1,maximum:100},pointsTenths:{type:'integer',minimum:1,maximum:1000}};
 const allocation={tokenId:s,day:{type:'integer',minimum:1,maximum:10},budgetUnits:u,burnUnits:u,vestsFromMs:ms,vestsThroughMs:ms};
 export const featureShapes={
+  EarnMemberStatus:o({mode:local,asOf:iso,epoch:i,
+    admission:o({status:{enum:['complete','unavailable']},reason:n(s),items:a(o({tokenId:s,status:{enum:['accepted','eligible','pending','held']},reason:n(s),stakeMicroUsd:n(u),stakeObservedAt:n(iso),sourceRef:n(s)}))}),
+    actions:o({status:{enum:['complete','unavailable']},reason:n(s),items:a(o({actionId:s,label:s,verifier:s,startEpoch:i,status:{enum:['verified','pending']},verifiedAt:n(iso),sourceRef:n(s)}))}),
+    currentCutoff:o({status:{const:'pending'},reason:{const:'board-not-sealed'},cutoffAt:iso}),
+    latestFinalComponents:n(o({epoch:i,cutoffAt:iso,actionTenths:i,streakDays:i,highestEligibleLevel:i,purchaseTokenDays:i,multiplierTenths:i,sourceRef:s,snapshotDigest:s})),
+    multiplierBounds:o({minimumTenths:{const:1},maximumTenths:{const:100}})}),
   EarnWinner:o({...winner,rank:{type:'integer',minimum:1,maximum:100}}),
   EarnAllocation:o(allocation),
   EarnComponents:o({actionTenths:i,streakDays:i,highestEligibleLevel:i,purchaseTokenDays:i,sourceRef:s}),
@@ -46,7 +53,7 @@ export const rawFeatureSuccess={
     snapshotId:n(s),finalizedAtMs:n(ms),source:{const:'public-archive'}},
     ['mode','epoch','date','status','items','allocations','snapshotId','finalizedAtMs']),
   submitEarnContent:o({mode:local,...commonSubmission}),
-  getMyEarnSubmissions:o({mode:local,items:a(r('EarnOwnSubmission')),nextCursor:n(i)}),
+  getMyEarnSubmissions:o({mode:local,items:a(r('EarnOwnSubmission')),nextCursor:n(i),memberStatus:r('EarnMemberStatus')},['mode','items','nextCursor']),
   getMyEarnClaims:o({mode:local,executionEnabled:{const:false},items:a(r('EarnClaim')),nextCursor:n(i),source:{const:'public-archive'}},
     ['mode','executionEnabled','items','nextCursor']),
   listActiveEarnActions:o({mode:local,epoch:i,items:a(r('EarnAction'))}),

@@ -1,3 +1,4 @@
+import {stageEligibility,expirySchedule,inventoryDisclosure} from './projections.mjs';
 import { createHash, randomUUID } from 'node:crypto';
 import { transaction } from '../storage/database.mjs';
 import { decode58 } from '../server/base58.mjs';
@@ -336,8 +337,8 @@ export function quoteProgression(db,{inventoryId,wallet,request,now=Date.now()})
   return jsonValue({kind,inventoryId,targetId,materialId:materialId??null,feeLamports:next.operations[0].feeLamports,
     ...(kind==='visual'?{level:target.level,cooldownMs:visualRerollQuote(target.rerolls,now).cooldownMs,
       fields:['Model','Backdrop','Symbol']}:{nextTargetLevel:target.level+1,
-      nextTargetExpiry:iso(seasonExpiry(state.start,target.level+1)),materialProbabilities:LEVEL_QUOTAS.map((count,i)=>({level:i+1,count,total:1000}))}),
-    source:'local-fixture',executable:false});
+      nextTargetExpiry:iso(seasonExpiry(state.start,target.level+1)),materialProbabilities:expirySchedule(state.start,now).map((outcome,i)=>({...outcome,count:LEVEL_QUOTAS[i],total:1000}))}),
+    asOf:iso(now),source:'local-fixture',executable:false});
 }
 export function fulfillProgression(db,fixture,now=Date.now()) {
   return transaction(db,()=>{
@@ -420,11 +421,12 @@ function summarize(db,row,state,now,wallet) {
     return jsonValue({id:stage.id,type:stage.type,status,opensAt:iso(stage.opensAt),closesAt:iso(stage.closesAt),
       publishedAt:iso(stage.publishedAt),priceLamports:stage.priceLamports,costLamports:stage.costLamports,
       allocation:stage.allocation,available:Math.min(counts.unsold,stage.allocation-admissions.length),
-      walletLimit:stage.walletLimit,eligible:wallet?stage.type==='public'||Boolean(stage.wallets?.includes(wallet)):null,
+      walletLimit:stage.walletLimit,eligibility:stageEligibility(stage,wallet),
+      eligible:stageEligibility(stage,wallet).status==='unknown'?null:stageEligibility(stage,wallet).status==='eligible',
       walletReservations:mine,termsDigest:stage.termsDigest,openingHold});
   });
   return {id:row.id,kind:row.kind,tranche:row.tranche,seasonStart:row.season_start==null?null:iso(row.season_start),
-    capacity:state.slots,counts,initialLevelQuotas:LEVEL_QUOTAS,stages,source:'local-fixture',executable:false};
+    capacity:state.slots,...inventoryDisclosure(db,row.id,counts,row.season_start,now),initialLevelQuotas:LEVEL_QUOTAS,stages,source:'local-fixture',executable:false};
 }
 export function listInventories(db,{now=Date.now(),after='',wallet=null}) {
   const rows=db.prepare('SELECT * FROM collect_inventories WHERE id>? ORDER BY id LIMIT 26').all(after);
@@ -438,8 +440,9 @@ export function readInventory(db,id,now=Date.now(),wallet=null) {
 export function readCollectionAsset(db,assetId) {
   const row=assetFor(db,assetId);
   const nft=decode(row.asset);
+  const ownerEvidence=db.prepare("SELECT observed_ms FROM vault_observations WHERE asset_id=? AND kind IN ('bind','transfer') ORDER BY observed_ms DESC,rowid DESC LIMIT 1").get(assetId);
   return {id:row.id,inventoryId:row.inventory_id,owner:row.owner,revealStatus:row.reveal_ms===null?'unrevealed':'revealed',
-    revealedAt:row.reveal_ms===null?null:iso(row.reveal_ms),
+    revealedAt:row.reveal_ms===null?null:iso(row.reveal_ms),ownerObservedAt:ownerEvidence?iso(ownerEvidence.observed_ms):null,evidenceStatus:'local-fixture',
     ...(row.reveal_ms===null?{}:{level:nft.level,traits:nft.traits,version:nft.version,
       rerolls:nft.rerolls,nextRerollAt:nft.eligibleAt?iso(nft.eligibleAt):null,
       expiresAt:nft.expiresAt?iso(nft.expiresAt):null,operationPending:nft.pending!==null}),

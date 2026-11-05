@@ -65,6 +65,8 @@ test('generated client authenticates and exercises exact feature schemas through
   const challenge=await invoke('createWalletChallenge',{body:{wallet}});
   await invoke('verifyWalletSignature',{body:{nonce:challenge.data.nonce,signature:encode58(sign(null,Buffer.from(challenge.data.message),keys.privateKey))}});
   for(const id of ['getProfile','getWallets','getMyVault','getMyEarnSubmissions','getMyEarnClaims','getStakePositions','getMyNoticePreferences','getMyLocalNotices'])await invoke(id);
+  const member=await invoke('getMyEarnSubmissions');assert.equal(member.memberStatus.asOf,new Date(now).toISOString());assert.equal(member.memberStatus.currentCutoff.status,'pending');
+  const vault=await invoke('getMyVault');assert.equal(vault.summary.status,'complete');assert.equal(vault.summary.assetCount,0);
   await invoke('setMyNoticePreferences',{idempotencyKey:'consent',body:{channel:'local-inbox',enabled:true,topics:['launch'],terms:TERMS,expectedRevision:0}});
   const date=new Date(epoch*DAY_MS).toISOString().slice(0,10);
   await invoke('getEarnLeaderboard',{path:{epoch:date}});

@@ -56,7 +56,7 @@ export function createEarnService(context) {
       return await repository.readWalletClaims({principal:walletPrincipal(principal),nowMs:nat(context.clock.nowMs(),'now'),after:nat(after,'cursor')});
     },
     async readWalletSubmissions(principal,{after=0}={}) {
-      return await repository.readWalletSubmissions({principal:walletPrincipal(principal),after:nat(after,'cursor')});
+      return await repository.readWalletSubmissions({principal:walletPrincipal(principal),after:nat(after,'cursor'),nowMs:nat(context.clock.nowMs(),'now')});
     },
   });
 }

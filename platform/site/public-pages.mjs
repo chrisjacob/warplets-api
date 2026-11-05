@@ -59,7 +59,7 @@ function describe(route,record){
   if(route.type==='season'){
     if(record.kind!=='season')return {missing:true};
     return {title:'Season · '+record.id,content:summaryList([['Season start',record.seasonStart],['Capacity',numeric(record.capacity)],
-      ['Slots available',numeric(record.counts.unsold)],['Paid mints',numeric(record.counts.paid)]])};
+      ['Slots available',numeric(record.counts.unsold)],['Priced-stage allocations',numeric(record.counts.paid)]])};
   }
   if(route.type==='nft'){
     const revealed=record.revealStatus==='revealed';

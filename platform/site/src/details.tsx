@@ -1,3 +1,6 @@
+import {InventoryEvidence,AssetEvidence} from './collection-details';
+import {PublishedStage,BallotCard} from './collect';
+import {rootRoute} from './routes';
 import { useRuntimeQuery, principalKey } from './capabilities';
 import { Link, useParams } from '@tanstack/react-router';
 import { useQuery } from '@tanstack/react-query';
@@ -24,12 +27,21 @@ export function CanonicalMarket(){
 export function CanonicalGenesis(){
   usePageMeta('Genesis','Permanent collection terms and Genesis tranche stages.','/collections/genesis',true);
   const terms=useQuery({queryKey:['policy'],queryFn:({signal})=>sdk.policy(signal)});
+  const {wallet}=useSession(),search=rootRoute.useSearch();
+  const inventories=useRuntimeQuery('/api/v1/collect/inventories',{queryKey:principalKey(wallet,'inventories',search.inventories),queryFn:({signal})=>sdk.inventories(search.inventories,signal)});
+  const ballots=useRuntimeQuery('/api/v1/genesis/ballots',{queryKey:['ballots'],queryFn:({signal})=>sdk.ballots(signal)});
   return <><Hero title="Genesis">Permanent membership in a collection with ten tranches and fixed Levels.</Hero>
     <Panel title="Collection terms"><Loaded query={terms}>{p=><Facts items={[['Maximum supply',pretty(p.genesis.cap)],
       ['Tranche size',pretty(p.genesis.trancheSize)],['First whitelist stage',p.genesis.firstWhitelistPriceSol+' SOL'],
       ['Stage notice',p.genesis.noticeHours+' hours'],['Mint limit',p.genesis.mintsPerEligibleWalletPerStage+' per eligible wallet per stage']]}/>}</Loaded></Panel>
     <Panel title="Tranche voting"><p>Genesis holders and whitelisted wallets vote on the next tranche’s timing.
       The founder publishes the decision and rationale.</p><Link to="/collect">View published stages and ballots ↗</Link></Panel>
+    <Panel title="Published tranches"><Loaded query={inventories}>{page=><>
+      {page.items.filter(i=>i.kind==='genesis').map(i=><article className="record" key={i.id}><h3>{i.id} · tranche {i.tranche}</h3><InventoryEvidence inventory={i}/>{i.stages.map(stage=><PublishedStage key={stage.id} inventory={i} stage={stage}/>)}</article>)}
+      {!page.items.some(i=>i.kind==='genesis')&&<p>No Genesis tranches on this page.</p>}
+      {page.nextCursor!==null&&<Link to="/collections/genesis" search={{inventories:String(page.nextCursor)}}>Next collections →</Link>}
+    </>}</Loaded><Link to="/collect">Open collection studio ↗</Link></Panel>
+    <Panel title="Published ballots"><Loaded query={ballots}>{page=>page.items.length?page.items.map(ballot=><BallotCard key={ballot.id} ballot={ballot} wallet={wallet}/>):<Empty title="No published ballots"/>}</Loaded></Panel>
     <ShareLink path="/collections/genesis" title="Genesis"/></>;
 }
 
@@ -42,9 +54,8 @@ export function CanonicalSeason(){
     <Loaded query={inventory}>{inv=>inv.kind==='season'?<>
       <Panel title="Season inventory"><Facts items={[['Season start',inv.seasonStart?utc(inv.seasonStart):'Unavailable'],
         ['Total slots',pretty(inv.capacity)],['Slots available',pretty(inv.counts.unsold)],['Awaiting fulfillment',inv.counts.pending],
-        ['Paid / free / founder mints',[inv.counts.paid,inv.counts.free,inv.counts.founder].join(' / ')]]}/></Panel>
-      <Panel title="Published stages">{inv.stages.length?<ul className="records">{inv.stages.map(s=>
-        <li key={s.id}><strong>{s.id}</strong><span>{s.status} · {s.available} slots available</span></li>)}</ul>:<Empty title="No published stages"/>}
+        ['Collection',inv.id]]}/><InventoryEvidence inventory={inv}/></Panel>
+      <Panel title="Published stages">{inv.stages.length?inv.stages.map(s=><PublishedStage key={s.id} stage={s} inventory={inv}/>):<Empty title="No published stages"/>}
         <Link to="/collect">Open collection studio ↗</Link></Panel>
     </>:<Empty title="Season not found"/>}</Loaded><ShareLink path={'/seasons/'+encodeURIComponent(seasonId)} title={'Season · '+seasonId}/></>;
 }
@@ -57,7 +68,7 @@ export function CanonicalAsset(){
     <Panel title={a.revealStatus==='revealed'?'Revealed metadata':'Awaiting reveal'}>
       <Facts items={[['Collection',a.inventoryId],['Owner',a.owner],['Status',a.revealStatus],
         ...(a.revealStatus==='revealed'?[['Level',a.level],['Model',a.traits?.model],['Backdrop',a.traits?.backdrop],['Symbol',a.traits?.symbol]] as [string,React.ReactNode][]:[])]}/>
-      {a.revealStatus==='revealed'&&<p><Link to="/vault" search={{asset:a.id}}>View Vault allocations ↗</Link></p>}
+      <AssetEvidence asset={a}/>{a.revealStatus==='revealed'&&<p><Link to="/vault" search={{asset:a.id}}>View Vault allocations ↗</Link></p>}
     </Panel>}</Loaded><ShareLink path={'/nfts/'+encodeURIComponent(assetId)} title={'NFT · '+assetId}/></>;
 }
 export function CanonicalBoard(){

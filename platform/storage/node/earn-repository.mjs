@@ -1,3 +1,4 @@
+import { readMemberStatus } from '../../earn/member-projection.mjs';
 import { loadReferenceBoard, saveReferenceBoard, loadReferenceAllocation, saveReferenceAllocation } from './earn-settlement.mjs';
 import { computeBoard, computeAllocation } from '../../earn/settlement.mjs';
 import { canonicalJson, utf8 } from '../../security/canonical.mjs';
@@ -62,6 +63,6 @@ export function createNodeEarnRepository(db,{ids}={}) {
     async commitAllocation(command) {return commit(loadReferenceAllocation,computeAllocation,saveReferenceAllocation,command);},
     async readLeaderboard({epoch}) {return readLeaderboard(db,epoch);},
     async readWalletClaims({principal,nowMs,after}) {return readWalletClaims(db,{wallet:principal.wallet,nowMs,after});},
-    async readWalletSubmissions({principal,after}) {return readWalletSubmissions(db,{wallet:principal.wallet,after});},
+    async readWalletSubmissions({principal,after,nowMs}) {return {...readWalletSubmissions(db,{wallet:principal.wallet,after}),memberStatus:readMemberStatus(db,principal,nowMs)};},
   });
 }

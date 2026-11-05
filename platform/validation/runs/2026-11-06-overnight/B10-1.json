@@ -1,0 +1,56 @@
+{
+  "taskId": "B10",
+  "substep": "B10.1",
+  "status": "in_progress",
+  "classification": "local synthetic collection/Vault/Earn member projections; Worker capability fixture only",
+  "commands": [
+    {
+      "command": "node platform/scripts/test-reference.mjs",
+      "tests": 172,
+      "exitCode": 0
+    },
+    {
+      "command": "node --test platform/site/tests/*.spec.mjs",
+      "tests": 14,
+      "exitCode": 0
+    },
+    {
+      "command": "installed TypeScript --noEmit for site and edge",
+      "exitCode": 0
+    },
+    {
+      "command": "installed Vite production build",
+      "exitCode": 0
+    },
+    {
+      "command": "node platform/site/tests/browser-qa.mjs",
+      "exitCode": 0,
+      "widths": [
+        360,
+        390,
+        768,
+        1440
+      ]
+    },
+    {
+      "command": "node platform/contracts/generate.mjs --check",
+      "exitCode": 0
+    }
+  ],
+  "assertions": [
+    "Unknown eligibility preserved; hidden asset metadata suppressed",
+    "Paginated bounded material chooser checks owner/season/level and stale pair",
+    "Complete local Vault summary or explicit unavailable; never sum a visible subset",
+    "Authenticated Earn member status separates admission/current cutoff/sealed components",
+    "Server source timestamps retained; no client multiplier computation",
+    "Financial capabilities remain disabled"
+  ],
+  "remaining": [
+    "Populated/finalized Earn and Vault browser acceptance combinations",
+    "Eligibility evidence reasons and publication review UX",
+    "Expired/reactivated Season and material-bound acceptance combinations"
+  ],
+  "screenshots": "ignored work/b10-integrated-browser;390px material chooser inspected",
+  "costUsd": 0,
+  "remoteCloudflareWrites": false
+}

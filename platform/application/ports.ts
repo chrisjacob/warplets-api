@@ -22,7 +22,7 @@ export type Claims = Readonly<{mode:'local-fixture';source?:'public-archive';exe
 export type SubmissionStatus = Submission & Readonly<{status:'pending'|'final';score:number|null;eligible:boolean|null;
   reason:string|null;components:null|Readonly<{actionTenths:number;streakDays:number;highestEligibleLevel:number;
   purchaseTokenDays:number;sourceRef:string}>;entryStakeMicroUsd:string;closingStakeMicroUsd:string|null}>;
-export type SubmissionPage = Readonly<{mode:'local-fixture';items:readonly SubmissionStatus[];nextCursor:number|null}>;
+export type SubmissionPage = Readonly<{mode:'local-fixture';items:readonly SubmissionStatus[];nextCursor:number|null;memberStatus?:import('../earn/member-projection.mjs').EarnMemberStatus}>;
 export type FinalReviewCommand=Readonly<{
   principal:OperatorPrincipal;operationKind:'earn.final-review.v1';businessIdentity:string;requestKey:string;
   requestDigest:string;expectedRevisions:Revisions;nowMs:number;
@@ -73,7 +73,7 @@ export interface EarnRepository {
   commitAllocation(command:Readonly<{query:AllocationQuery;versions:ReferenceReadVersion;plan:AllocationPlan}>):Promise<ReferenceOutcome<RecordedAllocation>>;
   readLeaderboard(query:Readonly<{epoch:number}>):Promise<Leaderboard>;
   readWalletClaims(query:Readonly<{principal:Principal;nowMs:number;after:number}>):Promise<Claims>;
-  readWalletSubmissions(query:Readonly<{principal:Principal;after:number}>):Promise<SubmissionPage>;
+  readWalletSubmissions(query:Readonly<{principal:Principal;after:number;nowMs:number}>):Promise<SubmissionPage>;
 }
 export interface CanonicalCrypto {
   sha256(bytes:Uint8Array):Promise<string>;

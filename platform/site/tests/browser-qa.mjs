@@ -1,3 +1,4 @@
+import {checkCollectionDetails} from './collections-qa.mjs';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { mkdir, stat } from 'node:fs/promises';
@@ -82,6 +83,7 @@ try {
   assert.ok(!(await privatePage.text()).includes('private-test'));
   await details.close();
   console.log('Canonical routes, public initial HTML, privacy tags, social image and real 404s passed.');
+  await checkCollectionDetails({browser,db,origin});
   await checkStandardWallet({browser,db,origin});
   await checkRuntimeProfiles({browser,origin});
   }

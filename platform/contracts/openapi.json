@@ -3826,6 +3826,9 @@
                           "type": "null"
                         }
                       ]
+                    },
+                    "memberStatus": {
+                      "$ref": "#/components/schemas/EarnMemberStatus"
                     }
                   },
                   "required": [
@@ -3857,6 +3860,9 @@
                           "type": "null"
                         }
                       ]
+                    },
+                    "memberStatus": {
+                      "$ref": "#/components/schemas/EarnMemberStatus"
                     },
                     "snapshotId": {
                       "type": "string"
@@ -4038,11 +4044,23 @@
                           },
                           "detail": {
                             "type": "string"
+                          },
+                          "ownerObservedAt": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "format": "date-time"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
                           }
                         },
                         "required": [
                           "id",
-                          "detail"
+                          "detail",
+                          "ownerObservedAt"
                         ]
                       }
                     },
@@ -4062,13 +4080,17 @@
                     "asOf": {
                       "type": "string",
                       "format": "date-time"
+                    },
+                    "summary": {
+                      "$ref": "#/components/schemas/MemberVaultSummary"
                     }
                   },
                   "required": [
                     "items",
                     "nextCursor",
                     "source",
-                    "asOf"
+                    "asOf",
+                    "summary"
                   ]
                 }
               },
@@ -4086,11 +4108,23 @@
                           },
                           "detail": {
                             "type": "string"
+                          },
+                          "ownerObservedAt": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "format": "date-time"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
                           }
                         },
                         "required": [
                           "id",
-                          "detail"
+                          "detail",
+                          "ownerObservedAt"
                         ]
                       }
                     },
@@ -4111,6 +4145,9 @@
                       "type": "string",
                       "format": "date-time"
                     },
+                    "summary": {
+                      "$ref": "#/components/schemas/MemberVaultSummary"
+                    },
                     "snapshotId": {
                       "type": "string"
                     },
@@ -4123,6 +4160,7 @@
                     "nextCursor",
                     "source",
                     "asOf",
+                    "summary",
                     "snapshotId",
                     "meta"
                   ]
@@ -4181,6 +4219,17 @@
                     "assetId": {
                       "type": "string"
                     },
+                    "ownerObservedAt": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "slot": {
                       "anyOf": [
                         {
@@ -4253,6 +4302,7 @@
                   },
                   "required": [
                     "assetId",
+                    "ownerObservedAt",
                     "slot",
                     "source",
                     "asOf",
@@ -4267,6 +4317,17 @@
                   "properties": {
                     "assetId": {
                       "type": "string"
+                    },
+                    "ownerObservedAt": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     },
                     "slot": {
                       "anyOf": [
@@ -4346,6 +4407,7 @@
                   },
                   "required": [
                     "assetId",
+                    "ownerObservedAt",
                     "slot",
                     "source",
                     "asOf",
@@ -6775,6 +6837,18 @@
           },
           "manifestDigest": {
             "type": "string"
+          },
+          "activatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "cliffEndsAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "fullyVestedAt": {
+            "type": "string",
+            "format": "date-time"
           }
         },
         "required": [
@@ -6783,7 +6857,86 @@
           "vested",
           "claimed",
           "claimable",
-          "manifestDigest"
+          "manifestDigest",
+          "activatedAt",
+          "cliffEndsAt",
+          "fullyVestedAt"
+        ]
+      },
+      "MemberVaultSummary": {
+        "anyOf": [
+          {
+            "type": "object",
+            "properties": {
+              "source": {
+                "const": "local-fixture"
+              },
+              "asOf": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "status": {
+                "const": "complete"
+              },
+              "reason": {
+                "type": "null"
+              },
+              "assetCount": {
+                "type": "integer"
+              },
+              "items": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/VaultAllocation"
+                }
+              }
+            },
+            "required": [
+              "source",
+              "asOf",
+              "status",
+              "reason",
+              "assetCount",
+              "items"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "source": {
+                "const": "local-fixture"
+              },
+              "asOf": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "status": {
+                "const": "unavailable"
+              },
+              "reason": {
+                "enum": [
+                  "asset-bound",
+                  "manifest-bound",
+                  "concealed-metadata"
+                ]
+              },
+              "assetCount": {
+                "type": "null"
+              },
+              "items": {
+                "type": "array",
+                "maxItems": 0
+              }
+            },
+            "required": [
+              "source",
+              "asOf",
+              "status",
+              "reason",
+              "assetCount",
+              "items"
+            ]
+          }
         ]
       },
       "Profile": {
@@ -6872,6 +7025,37 @@
               }
             ]
           },
+          "eligibility": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "enum": [
+                  "eligible",
+                  "ineligible",
+                  "unknown"
+                ]
+              },
+              "reason": {
+                "type": "string"
+              },
+              "cutoffAt": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "status",
+              "reason",
+              "cutoffAt"
+            ]
+          },
           "walletReservations": {
             "anyOf": [
               {
@@ -6909,6 +7093,7 @@
           "available",
           "walletLimit",
           "eligible",
+          "eligibility",
           "walletReservations",
           "termsDigest",
           "openingHold"
@@ -6950,11 +7135,54 @@
           "capacity": {
             "type": "integer"
           },
+          "asOf": {
+            "type": "string",
+            "format": "date-time"
+          },
           "counts": {
             "type": "object",
             "additionalProperties": {
               "type": "integer"
             }
+          },
+          "revealedLevelCounts": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            }
+          },
+          "concealedCount": {
+            "type": "integer"
+          },
+          "seasonExpiries": {
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "level": {
+                      "type": "integer"
+                    },
+                    "expiresAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "remainingMs": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "level",
+                    "expiresAt",
+                    "remainingMs"
+                  ]
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "initialLevelQuotas": {
             "type": "array",
@@ -6981,7 +7209,11 @@
           "tranche",
           "seasonStart",
           "capacity",
+          "asOf",
           "counts",
+          "revealedLevelCounts",
+          "concealedCount",
+          "seasonExpiries",
           "initialLevelQuotas",
           "stages",
           "source",
@@ -7059,6 +7291,20 @@
           "operationPending": {
             "type": "boolean"
           },
+          "ownerObservedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "evidenceStatus": {
+            "const": "local-fixture"
+          },
           "source": {
             "type": "string"
           },
@@ -7071,6 +7317,8 @@
           "inventoryId",
           "owner",
           "revealStatus",
+          "ownerObservedAt",
+          "evidenceStatus",
           "source",
           "executable"
         ]
@@ -7238,6 +7486,10 @@
             "type": "string",
             "format": "date-time"
           },
+          "asOf": {
+            "type": "string",
+            "format": "date-time"
+          },
           "materialProbabilities": {
             "type": "array",
             "items": {
@@ -7251,12 +7503,21 @@
                 },
                 "total": {
                   "type": "integer"
+                },
+                "expiresAt": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "remainingMs": {
+                  "type": "integer"
                 }
               },
               "required": [
                 "level",
                 "count",
-                "total"
+                "total",
+                "expiresAt",
+                "remainingMs"
               ]
             }
           },
@@ -7285,8 +7546,297 @@
           "targetId",
           "materialId",
           "feeLamports",
+          "asOf",
           "source",
           "executable"
+        ]
+      },
+      "EarnMemberStatus": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "const": "local-fixture"
+          },
+          "asOf": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "epoch": {
+            "type": "integer"
+          },
+          "admission": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "enum": [
+                  "complete",
+                  "unavailable"
+                ]
+              },
+              "reason": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "tokenId": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "enum": [
+                        "accepted",
+                        "eligible",
+                        "pending",
+                        "held"
+                      ]
+                    },
+                    "reason": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "stakeMicroUsd": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "pattern": "^(0|[1-9][0-9]*)$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "stakeObservedAt": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "sourceRef": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "tokenId",
+                    "status",
+                    "reason",
+                    "stakeMicroUsd",
+                    "stakeObservedAt",
+                    "sourceRef"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "status",
+              "reason",
+              "items"
+            ]
+          },
+          "actions": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "enum": [
+                  "complete",
+                  "unavailable"
+                ]
+              },
+              "reason": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "actionId": {
+                      "type": "string"
+                    },
+                    "label": {
+                      "type": "string"
+                    },
+                    "verifier": {
+                      "type": "string"
+                    },
+                    "startEpoch": {
+                      "type": "integer"
+                    },
+                    "status": {
+                      "enum": [
+                        "verified",
+                        "pending"
+                      ]
+                    },
+                    "verifiedAt": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "sourceRef": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "actionId",
+                    "label",
+                    "verifier",
+                    "startEpoch",
+                    "status",
+                    "verifiedAt",
+                    "sourceRef"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "status",
+              "reason",
+              "items"
+            ]
+          },
+          "currentCutoff": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "const": "pending"
+              },
+              "reason": {
+                "const": "board-not-sealed"
+              },
+              "cutoffAt": {
+                "type": "string",
+                "format": "date-time"
+              }
+            },
+            "required": [
+              "status",
+              "reason",
+              "cutoffAt"
+            ]
+          },
+          "latestFinalComponents": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "epoch": {
+                    "type": "integer"
+                  },
+                  "cutoffAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "actionTenths": {
+                    "type": "integer"
+                  },
+                  "streakDays": {
+                    "type": "integer"
+                  },
+                  "highestEligibleLevel": {
+                    "type": "integer"
+                  },
+                  "purchaseTokenDays": {
+                    "type": "integer"
+                  },
+                  "multiplierTenths": {
+                    "type": "integer"
+                  },
+                  "sourceRef": {
+                    "type": "string"
+                  },
+                  "snapshotDigest": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "epoch",
+                  "cutoffAt",
+                  "actionTenths",
+                  "streakDays",
+                  "highestEligibleLevel",
+                  "purchaseTokenDays",
+                  "multiplierTenths",
+                  "sourceRef",
+                  "snapshotDigest"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "multiplierBounds": {
+            "type": "object",
+            "properties": {
+              "minimumTenths": {
+                "const": 1
+              },
+              "maximumTenths": {
+                "const": 100
+              }
+            },
+            "required": [
+              "minimumTenths",
+              "maximumTenths"
+            ]
+          }
+        },
+        "required": [
+          "mode",
+          "asOf",
+          "epoch",
+          "admission",
+          "actions",
+          "currentCutoff",
+          "latestFinalComponents",
+          "multiplierBounds"
         ]
       },
       "EarnWinner": {

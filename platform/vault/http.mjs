@@ -1,3 +1,4 @@
+import {memberVaultSummary,ownerObservedAt} from './member-projection.mjs';
 import {currentSession} from '../server/auth.mjs';
 import {json,failure} from '../server/api.mjs';
 import {readAsset} from './ledger.mjs';
@@ -18,7 +19,7 @@ export function handleVault(db,request,now){
  }
  const session=currentSession(db,request,now);if(!session)return failure(401,'authentication_required','Connect your wallet.');
  const rows=db.prepare('SELECT id FROM vault_assets WHERE owner=? AND id>? ORDER BY id LIMIT 26').all(session.wallet,cursor);
- return json({items:rows.slice(0,25).map(({id})=>({id,detail:'/api/v1/nfts/'+encodeURIComponent(id)+'/vault'})),nextCursor:rows.length>25?rows[24].id:null,source:'local-fixture',asOf:new Date(now).toISOString()});
+ return json({summary:memberVaultSummary(db,session.wallet,now),items:rows.slice(0,25).map(({id})=>({id,ownerObservedAt:ownerObservedAt(db,id),detail:'/api/v1/nfts/'+encodeURIComponent(id)+'/vault'})),nextCursor:rows.length>25?rows[24].id:null,source:'local-fixture',asOf:new Date(now).toISOString()});
 }
 export const vaultPaths={
  '/vault':{get:{operationId:'getMyVault',responses:{200:{description:'Owner-scoped list of fixture assets'},401:{description:'Session required'}}}},

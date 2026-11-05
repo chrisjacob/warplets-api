@@ -1,3 +1,4 @@
+import {ownerObservedAt} from './member-projection.mjs';
 import {createHash} from 'node:crypto';
 import {decode58} from '../server/base58.mjs';
 import {transaction} from '../storage/database.mjs';
@@ -83,6 +84,6 @@ export function observeAsset(db,event,now=Date.now()) {
 export function readAsset(db,assetId,now,after=''){
  const asset=db.prepare('SELECT * FROM vault_assets WHERE id=?').get(assetId);if(!asset)return null;
  const rows=db.prepare('SELECT * FROM vault_manifests WHERE id>? AND activated_ms<=? ORDER BY id LIMIT 26').all(after,now);
- return {assetId,slot:JSON.parse(asset.coords),source:'local-fixture',asOf:new Date(now).toISOString(),
+ return {assetId,ownerObservedAt:ownerObservedAt(db,assetId),slot:JSON.parse(asset.coords),source:'local-fixture',asOf:new Date(now).toISOString(),
   items:rows.slice(0,25).map(m=>entitlement(db,asset,m,now)),nextCursor:rows.length>25?rows[24].id:null};
 }

@@ -18,5 +18,5 @@ export function projectEntitlement(asset,manifest,now,claimedUnits){
  const vested=vestedVaultUnits({allocation:units,activatedAt:sec(manifest.activated_ms),at:sec(now)});
  const claimed=BigInt(claimedUnits);
  if(claimed>vested)throw Error('Claimed amount exceeds snapshot vesting.');
- return {marketId:manifest.id,allocated:String(units),vested:String(vested),claimed:String(claimed),claimable:String(vested-claimed),manifestDigest:manifest.digest};
+ return {activatedAt:new Date(manifest.activated_ms).toISOString(),cliffEndsAt:new Date(manifest.activated_ms+86400000).toISOString(),fullyVestedAt:new Date(manifest.activated_ms+172800000).toISOString(),marketId:manifest.id,allocated:String(units),vested:String(vested),claimed:String(claimed),claimable:String(vested-claimed),manifestDigest:manifest.digest};
 }
