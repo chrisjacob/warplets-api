@@ -1,10 +1,8 @@
-import { createRootRoute, createRoute, createRouter, Link, Outlet, useRouterState } from '@tanstack/react-router';
+import { createRootRoute, createRoute, createRouter, lazyRouteComponent, Link, Outlet, useRouterState, type RouteComponent } from '@tanstack/react-router';
 import { useEffect } from 'react';
 import { useIsFetching } from '@tanstack/react-query';
 import { SessionProvider, useSession } from './session';
 import { compact } from './common';
-import { Markets } from './markets';
-import { Vault, Stake, Earn, Collect } from './pages';
 
 const destinations=['markets','vault','stake','earn','collect'] as const;
 const searchKeys=['market','cursor','asset','farm','date','submissions','awards','owned','operations','inventories','receipt'] as const;
@@ -37,8 +35,12 @@ function Shell(){
   </>;
 }
 export const rootRoute=createRootRoute({validateSearch,component:()=> <SessionProvider><Shell/></SessionProvider>});
-const route=<const P extends string,>(path:P,component:()=>React.JSX.Element)=>createRoute({getParentRoute:()=>rootRoute,path,component});
-const routes=[route('/',Markets),route('/markets',Markets),route('/vault',Vault),route('/stake',Stake),
-  route('/earn',Earn),route('/collect',Collect)];
+const route=<const P extends string,>(path:P,component:RouteComponent)=>createRoute({getParentRoute:()=>rootRoute,path,component});
+const Markets=lazyRouteComponent(()=>import('./markets'),'Markets');
+const routes=[route('/',Markets),route('/markets',Markets),
+  route('/vault',lazyRouteComponent(()=>import('./pages'),'Vault')),
+  route('/stake',lazyRouteComponent(()=>import('./pages'),'Stake')),
+  route('/earn',lazyRouteComponent(()=>import('./earn'),'Earn')),
+  route('/collect',lazyRouteComponent(()=>import('./collect'),'Collect'))];
 export const router=createRouter({routeTree:rootRoute.addChildren(routes),defaultPreload:'intent'});
 declare module '@tanstack/react-router' {interface Register {router:typeof router}}

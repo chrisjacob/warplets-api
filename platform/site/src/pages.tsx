@@ -4,8 +4,6 @@ import { rootRoute } from './routes';
 import { sdk } from './sdk';
 import { compact, Empty, Facts, Hero, Loaded, Metrics, Panel, percent, pretty, utc } from './common';
 import { useSession } from './session';
-export { Earn } from './earn';
-export { Collect } from './collect';
 
 function VaultRows({id,cursor}:{id:string;cursor?:string}){
   const detail=useQuery({queryKey:['nft-vault',id,cursor],queryFn:({signal})=>sdk.nftVault(id,cursor,signal)});

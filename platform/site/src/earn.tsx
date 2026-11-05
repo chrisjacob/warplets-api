@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
@@ -47,6 +47,7 @@ export function Earn(){
   const {wallet,open}=useSession(),{date:requested}=rootRoute.useSearch();
   const today=new Date().toISOString().slice(0,10),boardDate=requested&&z.iso.date().safeParse(requested).success?requested:today;
   const [editing,setEditing]=useState(boardDate);
+  useEffect(()=>setEditing(boardDate),[boardDate]);
   const navigate=useNavigate();
   const policy=useQuery({queryKey:['policy'],queryFn:({signal})=>sdk.policy(signal)});
   const board=useQuery({queryKey:['leaderboard',boardDate],queryFn:({signal})=>sdk.board(boardDate,signal)});
