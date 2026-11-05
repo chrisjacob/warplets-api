@@ -1,5 +1,5 @@
 {
   "policy": "prd-1.2",
   "scope": "local",
-  "checkpoint": "runtime-capability-discovery-and-contract-parity"
+  "checkpoint": "blueprint-b01-portable-service-and-b09-capability-guard"
 }

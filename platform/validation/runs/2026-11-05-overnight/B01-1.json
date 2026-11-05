@@ -1,0 +1,38 @@
+{
+  "taskId": "B01",
+  "substep": "B01.1 portable crypto and Node admission/read extraction",
+  "status": "substep-verified-task-in-progress",
+  "checks": [
+    {
+      "command": "node platform/scripts/test-reference.mjs",
+      "tests": 136,
+      "exitCode": 0
+    },
+    {
+      "command": "pnpm --dir platform/edge typecheck",
+      "exitCode": 0
+    },
+    {
+      "command": "pnpm --dir platform/edge test",
+      "tests": 2,
+      "exitCode": 0
+    },
+    {
+      "command": "node platform/contracts/generate.mjs --check",
+      "exitCode": 0
+    },
+    {
+      "command": "node platform/earn/recovery-drill.mjs",
+      "exitCode": 0
+    }
+  ],
+  "goldenManifest": "d19cdfd5f04dbcb8123b3e8835d58bade5e56018f48bb837607927b4f8882e4f",
+  "limitations": [
+    "B01 incomplete: final-review and settlement port contracts pending",
+    "No D1 Earn writes or Worker route additions",
+    "No production authority changes"
+  ],
+  "fixtureCorrection": "Synthetic pricing registration uses fixed startMs instead of Date.now; original audit hashes retained as capture metadata. Reward/proof pins unchanged.",
+  "spend": 0,
+  "deployment": false
+}

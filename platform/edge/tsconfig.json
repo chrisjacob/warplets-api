@@ -13,6 +13,7 @@
   },
   "include": [
     "src",
-    "worker-configuration.d.ts"
+    "worker-configuration.d.ts",
+    "../application/ports.ts"
   ]
 }

@@ -1,14 +1,9 @@
 import { createHash } from 'node:crypto';
+import { orderedJson as stringify } from '../security/canonical.mjs';
 import { transaction } from '../storage/database.mjs';
 import { conflict, name, nat, requireValue } from '../earn/checks.mjs';
 
 const FORMAT='10x-local-config-audit-v1';
-function ordered(value) {
-  if(Array.isArray(value))return value.map(ordered);
-  if(value&&typeof value==='object')return Object.fromEntries(Object.keys(value).sort().map(k=>[k,ordered(value[k])]));
-  return value;
-}
-const stringify=v=>JSON.stringify(ordered(v));
 const hash=v=>createHash('sha256').update(stringify(v)).digest('hex');
 const eventHash=(seq,prev,e)=>hash([FORMAT,seq,prev,e.category,e.entity,e.changeKey,e.atMs,e.actor,e.evidenceRef,e.payload]);
 export function appendAudit(db,e) {

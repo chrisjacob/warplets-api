@@ -1,18 +1,11 @@
-import { createHash } from 'node:crypto';
+import { sha256Sync } from '../security/node-crypto.mjs';
+import { canonicalJson as canonical, commitmentBytes, EARN_FORMAT } from '../security/canonical.mjs';
 import { allocationWindow, distributeBudget } from '../domain/earn/index.mjs';
 import { decimal, name, nat, requireValue } from './checks.mjs';
 
-export const FORMAT='10x.local.earn.public.v1';
-function canonical(value) {
-  if (value===null || typeof value==='string' || typeof value==='boolean' || Number.isSafeInteger(value)) return JSON.stringify(value);
-  if (Array.isArray(value)) return '['+value.map(canonical).join(',')+']';
-  if (value && typeof value==='object') {
-    return '{'+Object.keys(value).sort().map(k=>JSON.stringify(k)+':'+canonical(value[k])).join(',')+'}';
-  }
-  throw new TypeError('Portable manifests accept JSON strings and safe integers only.');
-}
+export const FORMAT=EARN_FORMAT;
 export function commitment(type,value) {
-  return createHash('sha256').update(canonical([FORMAT,type,value])).digest('hex');
+  return sha256Sync(commitmentBytes(type,value));
 }
 function hash(value,label) { requireValue(typeof value==='string' && /^[a-f0-9]{64}$/.test(value),'Invalid '+label+' digest.'); }
 function exactKeys(value,keys,label) {

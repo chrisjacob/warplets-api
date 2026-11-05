@@ -12,6 +12,12 @@
       "command": "pnpm --dir platform/site test",
       "exitCode": 0,
       "tests": 10
+    },
+    {
+      "command": "node platform/site/tests/browser-qa.mjs",
+      "exitCode": 0,
+      "environment": "Installed Chromium, loopback only; 360/390/768/1440 widths",
+      "classification": "Existing Node preview journeys, not physical wallets or Worker UI capability acceptance"
     }
   ],
   "assertions": [
@@ -24,7 +30,6 @@
     "One caller abort cannot cancel shared discovery"
   ],
   "limitations": [
-    "No new browser walkthrough yet",
     "Controls still render before unavailable response; React capability boundaries remain",
     "Account switch and session lifecycle work remains"
   ],

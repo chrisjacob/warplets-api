@@ -7,7 +7,8 @@ import { capacityAt } from './operations.mjs';
 import { actionDecision } from '../operations/controls.mjs';
 import { boundedJson, BodyInputError } from '../server/body.mjs';
 import { acceptSignedCompletion } from './verifiers.mjs';
-import { EarnError, readLeaderboard, readWalletClaims, readWalletSubmissions, submitContent } from './workflow.mjs';
+import { EarnError } from './validation.mjs';
+import { createNodeEarnService } from '../application/node-context.mjs';
 
 const base='/api/v1/earn';
 function dateEpoch(value) {
@@ -18,7 +19,7 @@ function dateEpoch(value) {
   }
   return ms/DAY_MS;
 }
-export async function handleEarn(db,request,peer,now) {
+export async function handleEarn(db,request,peer,now,service=createNodeEarnService(db,{nowMs:now})) {
   const url=new URL(request.url);
   const board=url.pathname.match(/^\/api\/v1\/earn\/epochs\/([^/]+)\/(leaderboard|manifest)$/);
   const post=url.pathname===base+'/submissions';
@@ -37,7 +38,7 @@ export async function handleEarn(db,request,peer,now) {
       if (quota) return quota;
       if (board) {
         const epoch=dateEpoch(board[1]);
-        return json(board[2]==='manifest'?exportBoard(db,epoch):readLeaderboard(db,epoch));
+        return json(board[2]==='manifest'?exportBoard(db,epoch):await service.readLeaderboard(epoch));
       }
       const epoch=Math.floor(now/DAY_MS);
       if (capacity) {
@@ -70,14 +71,14 @@ export async function handleEarn(db,request,peer,now) {
       if (!body || typeof body!=='object' || Array.isArray(body) || Object.keys(body).some(k=>!['tokenId','url'].includes(k))) {
         return failure(400,'invalid_input','Supply only tokenId and url.');
       }
-      const result=submitContent(db,{wallet:session.wallet,tokenId:body.tokenId,url:body.url,
-        requestKey:request.headers.get('idempotency-key'),nowMs:now});
+      const result=await service.submitContent({kind:'wallet',wallet:session.wallet},{tokenId:body.tokenId,url:body.url,
+        requestKey:request.headers.get('idempotency-key')});
       return json({mode:'local-fixture',...result.submission},result.replay?200:201);
     }
     const cursor=url.searchParams.get('cursor')??'0';
     if (!/^\d{1,15}$/.test(cursor)) return failure(400,'invalid_cursor','Invalid cursor.');
-    const args={wallet:session.wallet,nowMs:now,after:Number(cursor)};
-    return json(claims?readWalletClaims(db,args):readWalletSubmissions(db,args));
+    const principal={kind:'wallet',wallet:session.wallet},args={after:Number(cursor)};
+    return json(claims?await service.readWalletClaims(principal,args):await service.readWalletSubmissions(principal,args));
   } catch(error) {
     if (error instanceof EarnError || error instanceof BodyInputError) return failure(error.status,error.code,error.message);
     throw error;

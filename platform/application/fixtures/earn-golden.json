@@ -1,5 +1,10 @@
 {
-  "source": "Captured from pre-B01 Node behavior at 1c2dc7030060d411f58eb6f99fa1f22a566042a2; sanitized synthetic archive.test scenario with stable submission IDs.",
+  "source": "Captured from pre-B01 Node behavior at 1c2dc7030060d411f58eb6f99fa1f22a566042a2; sanitized synthetic archive.test scenario with stable submission IDs. Configuration audit capture made reproducible by pre-registering synthetic price source at startMs; audit/config hashes independently recomputed using unchanged pre-B01 audit.mjs from the same commit.",
+  "nonDeterministicCapture": {
+    "auditHead": "b77cacb309be2925f6bb6e328b7504858e6b62724edc84ef7baf5572d48d8adf",
+    "configCheckpointDigest": "2398eab88cca9bb51bcd38d76cae6082d9aad885dcd156655ca005730400702c",
+    "reason": "Original helper used Date.now for price-source audit registration; original capture values retained here for provenance."
+  },
   "epoch": 20001,
   "start": 1728086400000,
   "cutoff": 1728172799999,
@@ -162,13 +167,13 @@
       }
     }
   ],
-  "auditHead": "b77cacb309be2925f6bb6e328b7504858e6b62724edc84ef7baf5572d48d8adf",
+  "auditHead": "f3d382686756e8c71bb6828fbb6e1239aa110d8b3e91d46fc7a0758585b07537",
   "configCheckpoint": {
     "format": "10x-local-config-audit-v1",
     "chain": {
       "format": "10x-local-config-audit-v1",
       "events": 2,
-      "head": "b77cacb309be2925f6bb6e328b7504858e6b62724edc84ef7baf5572d48d8adf"
+      "head": "f3d382686756e8c71bb6828fbb6e1239aa110d8b3e91d46fc7a0758585b07537"
     },
     "tables": {
       "earn_action_catalog": {
@@ -200,6 +205,6 @@
         "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
       }
     },
-    "digest": "2398eab88cca9bb51bcd38d76cae6082d9aad885dcd156655ca005730400702c"
+    "digest": "5a86e2f3b1b3023c75ed67486530565852fbabff71c16a699ff8bf157e1dae9e"
   }
 }
