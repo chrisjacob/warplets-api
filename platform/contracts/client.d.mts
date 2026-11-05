@@ -35,6 +35,15 @@ export interface PlatformClient {
   getStakePositions(options?: { headers?: HeadersInit; signal?: AbortSignal; idempotencyKey?: string }): Promise<Record<string, unknown>>;
   getFarm(options: { headers?: HeadersInit; signal?: AbortSignal; idempotencyKey?: string; path: { "id": string } }): Promise<Record<string, unknown>>;
   getTransaction(options: { headers?: HeadersInit; signal?: AbortSignal; idempotencyKey?: string; path: { "id": string } }): Promise<Record<string, unknown>>;
+  listLocalInventories(options?: { headers?: HeadersInit; signal?: AbortSignal; idempotencyKey?: string }): Promise<Record<string, unknown>>;
+  readLocalInventory(options: { headers?: HeadersInit; signal?: AbortSignal; idempotencyKey?: string; path: { "id": string } }): Promise<Record<string, unknown>>;
+  readLocalAsset(options: { headers?: HeadersInit; signal?: AbortSignal; idempotencyKey?: string; path: { "id": string } }): Promise<Record<string, unknown>>;
+  listMyCollectionAssets(options?: { headers?: HeadersInit; signal?: AbortSignal; idempotencyKey?: string }): Promise<Record<string, unknown>>;
+  listMyCollectionOperations(options?: { headers?: HeadersInit; signal?: AbortSignal; idempotencyKey?: string }): Promise<Record<string, unknown>>;
+  readMyCollectionOperation(options: { headers?: HeadersInit; signal?: AbortSignal; idempotencyKey?: string; path: { "id": string } }): Promise<Record<string, unknown>>;
+  reserveLocalMint(options: { headers?: HeadersInit; signal?: AbortSignal; idempotencyKey?: string; path: { "id": string; "stage": string } }): Promise<Record<string, unknown>>;
+  reserveLocalProgression(options: { headers?: HeadersInit; signal?: AbortSignal; idempotencyKey?: string; path: { "id": string } }): Promise<Record<string, unknown>>;
+  quoteLocalProgression(options: { headers?: HeadersInit; signal?: AbortSignal; idempotencyKey?: string; path: { "id": string } }): Promise<Record<string, unknown>>;
 }
 export declare class PlatformApiError extends Error {status:number;code:string;retryable:boolean;requestId?:string}
 export declare function createClient(options?:{baseUrl?:string;fetchImpl?:typeof fetch}):PlatformClient;

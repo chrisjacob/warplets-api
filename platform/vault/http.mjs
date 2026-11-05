@@ -10,6 +10,9 @@ export function handleVault(db,request,now){
  if([...searchParams.keys()].some(k=>k!=='cursor'||searchParams.getAll(k).length!==1)||!/^[a-zA-Z0-9._:-]{0,128}$/.test(cursor))
    return failure(400,'invalid_cursor','Invalid Vault cursor.');
  if(match){
+  const asset=db.prepare('SELECT reveal_ms FROM collect_assets WHERE id=?').get(match[1]);
+  if(asset&&(asset.reveal_ms===null||asset.reveal_ms>now))
+    return failure(409,'metadata_unrevealed','Vault detail becomes available after the collection reveal.');
   const result=readAsset(db,match[1],now,cursor);
   return result?json(result):failure(404,'asset_not_found','Unknown NFT.');
  }

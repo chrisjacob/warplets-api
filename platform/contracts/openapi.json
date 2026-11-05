@@ -1914,6 +1914,299 @@
           }
         }
       }
+    },
+    "/collect/inventories": {
+      "parameters": [],
+      "get": {
+        "operationId": "listLocalInventories",
+        "summary": "See published local collections and stages.",
+        "responses": {
+          "200": {
+            "description": "Local collection response",
+            "content": {
+              "application/vnd.10x.v1+json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/collect/inventories/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "operationId": "readLocalInventory",
+        "summary": "See inventory and published stages.",
+        "responses": {
+          "200": {
+            "description": "Local collection response",
+            "content": {
+              "application/vnd.10x.v1+json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/collect/assets/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "operationId": "readLocalAsset",
+        "summary": "See local ownership and publicly revealed metadata.",
+        "responses": {
+          "200": {
+            "description": "Local collection response",
+            "content": {
+              "application/vnd.10x.v1+json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/collect/me/assets": {
+      "parameters": [],
+      "get": {
+        "operationId": "listMyCollectionAssets",
+        "summary": "See the signed-in wallet’s assets.",
+        "responses": {
+          "200": {
+            "description": "Local collection response",
+            "content": {
+              "application/vnd.10x.v1+json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/collect/me/operations": {
+      "parameters": [],
+      "get": {
+        "operationId": "listMyCollectionOperations",
+        "summary": "Recover pending or fulfilled local operations.",
+        "responses": {
+          "200": {
+            "description": "Local collection response",
+            "content": {
+              "application/vnd.10x.v1+json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/collect/me/operations/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "operationId": "readMyCollectionOperation",
+        "summary": "Inspect one of the signed-in wallet’s operations.",
+        "responses": {
+          "200": {
+            "description": "Local collection response",
+            "content": {
+              "application/vnd.10x.v1+json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/collect/inventories/{id}/stages/{stage}/reservations": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "stage",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "post": {
+        "operationId": "reserveLocalMint",
+        "summary": "Reserve one local fixture slot.",
+        "responses": {
+          "200": {
+            "description": "Original operation on retry",
+            "content": {
+              "application/vnd.10x.v1+json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Pending local evidence",
+            "content": {
+              "application/vnd.10x.v1+json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "State conflict",
+            "content": {
+              "application/vnd.10x.v1+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/collect/inventories/{id}/progression": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "post": {
+        "operationId": "reserveLocalProgression",
+        "summary": "Reserve local Season assets for a progression fixture.",
+        "responses": {
+          "200": {
+            "description": "Original operation on retry",
+            "content": {
+              "application/vnd.10x.v1+json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Pending local evidence",
+            "content": {
+              "application/vnd.10x.v1+json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "State conflict",
+            "content": {
+              "application/vnd.10x.v1+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/collect/inventories/{id}/progression/quote": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "post": {
+        "operationId": "quoteLocalProgression",
+        "summary": "Inspect local cost and changes before preparing a progression.",
+        "responses": {
+          "200": {
+            "description": "Local collection response",
+            "content": {
+              "application/vnd.10x.v1+json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {

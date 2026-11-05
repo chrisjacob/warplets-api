@@ -139,5 +139,50 @@ export const operations = [
     "id": "getTransaction",
     "path": "/transactions/{id}",
     "method": "GET"
+  },
+  {
+    "id": "listLocalInventories",
+    "path": "/collect/inventories",
+    "method": "GET"
+  },
+  {
+    "id": "readLocalInventory",
+    "path": "/collect/inventories/{id}",
+    "method": "GET"
+  },
+  {
+    "id": "readLocalAsset",
+    "path": "/collect/assets/{id}",
+    "method": "GET"
+  },
+  {
+    "id": "listMyCollectionAssets",
+    "path": "/collect/me/assets",
+    "method": "GET"
+  },
+  {
+    "id": "listMyCollectionOperations",
+    "path": "/collect/me/operations",
+    "method": "GET"
+  },
+  {
+    "id": "readMyCollectionOperation",
+    "path": "/collect/me/operations/{id}",
+    "method": "GET"
+  },
+  {
+    "id": "reserveLocalMint",
+    "path": "/collect/inventories/{id}/stages/{stage}/reservations",
+    "method": "POST"
+  },
+  {
+    "id": "reserveLocalProgression",
+    "path": "/collect/inventories/{id}/progression",
+    "method": "POST"
+  },
+  {
+    "id": "quoteLocalProgression",
+    "path": "/collect/inventories/{id}/progression/quote",
+    "method": "POST"
   }
 ];
