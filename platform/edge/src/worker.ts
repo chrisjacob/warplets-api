@@ -4,11 +4,12 @@ import { policy } from '../../contracts/policy.mjs';
 import { launchFeeBps } from '../../domain/economics/launch.mjs';
 import { represent } from '../../contracts/transport.mjs';
 import baseContract from '../../contracts/openapi.json';
+import {pillars} from './pillars';
 import { edgeAuth } from './wallet';
 
 const app = new Hono<{ Bindings: Env; Variables: { requestId: string } }>();
 const supportedPaths = new Set(['/health','/policy','/collections','/launch/fee-schedule','/markets','/markets/{id}',
-  '/me','/me/wallets','/auth/challenges','/auth/verify','/auth/logout']);
+  '/genesis/ballots','/genesis/ballots/{id}','/genesis/ballots/{id}/votes','/vault','/nfts/{id}/vault','/farms/{id}','/stake/positions','/earn/epochs/{epoch}/leaderboard','/earn/claims','/me','/me/wallets','/auth/challenges','/auth/verify','/auth/logout']);
 const allRoutes = baseContract.paths as Record<string, object>;
 const paths = {...Object.fromEntries(Object.entries(allRoutes).filter(([path])=>supportedPaths.has(path))),
   '/manifests/{digest}':{parameters:[{in:'path',name:'digest',required:true,schema:{type:'string',pattern:'^[0-9a-f]{64}$'}}],
@@ -84,4 +85,5 @@ app.get(base+'/manifests/:digest',async c=>{
  return new Response(bytes,{headers:{'content-type':'application/json','etag':'"'+key+'"','cache-control':'public,max-age=86400,immutable','x-content-type-options':'nosniff'}});
 });
 app.route(base,edgeAuth);
+app.route(base,pillars);
 export default app;

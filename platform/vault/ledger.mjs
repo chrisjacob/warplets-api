@@ -2,7 +2,9 @@ import {createHash} from 'node:crypto';
 import {decode58} from '../server/base58.mjs';
 import {transaction} from '../storage/database.mjs';
 import {launchAllocations} from '../domain/economics/launch.mjs';
-import {createSeasonSnapshot,genesisSlotEntitlement,vestedVaultUnits} from '../domain/economics/vault.mjs';
+import {genesisSlotEntitlement} from '../domain/economics/vault.mjs';
+import {projectEntitlement,snapshot,timestamp} from './projection.mjs';
+export {timestamp};
 
 const sha=s=>createHash('sha256').update(s).digest('hex');
 const canonicalUnits=s=>{
@@ -11,14 +13,6 @@ const canonicalUnits=s=>{
 };
 const wallet=s=>{decode58(s,32);return s;};
 const id=s=>{if(typeof s!=='string'||!(/^[A-Za-z0-9._:-]{1,128}$/).test(s))throw Error('Invalid ID.');return s;};
-export function timestamp(s){
- const ms=Date.parse(s);if(!Number.isSafeInteger(ms)||ms<0||new Date(ms).toISOString()!==s||ms%1000)throw Error('Expected UTC whole-second timestamp.');
- return ms;
-}
-const sec=ms=>BigInt(Math.floor(ms/1000));
-function snapshot(ms,rows){
- return createSeasonSnapshot({activatedAt:sec(ms),seasons:rows.map(row=>({id:row.id,startsAt:sec(timestamp(row.startsAt)),levels:row.levels}))});
-}
 // Import finalized local evidence only. No signer, on-chain claim, or public write path.
 export function recordVaultManifest(db,{marketId,originalUnits,seasons=[]}) {
  if(!Array.isArray(seasons)||seasons.length>12)throw Error('Too many concurrent Season snapshots for the pilot.');
@@ -46,18 +40,9 @@ function coordinates(input){
    return {kind:'season',seasonId:id(input.seasonId),slotIndex:input.slotIndex};
  throw Error('Invalid reserved slot.');
 }
-function slotAmount(manifest,coords){
- if(coords.kind==='genesis')return genesisSlotEntitlement({...coords,budget:BigInt(manifest.genesis_units)});
- const rows=JSON.parse(manifest.seasons);
- if(!rows.some(s=>s.id===coords.seasonId))return 0n;
- return snapshot(manifest.activated_ms,rows).entitlement({budget:BigInt(manifest.season_units),...coords});
-}
 function entitlement(db,asset,manifest,now){
- const units=slotAmount(manifest,JSON.parse(asset.coords));
- const vested=vestedVaultUnits({allocation:units,activatedAt:sec(manifest.activated_ms),at:sec(now)});
- const claimed=BigInt(db.prepare('SELECT claimed FROM vault_claim_totals WHERE asset_id=? AND launch_id=?').get(asset.id,manifest.id)?.claimed??'0');
- if(claimed>vested)throw Error('Claimed amount exceeds snapshot vesting.');
- return {marketId:manifest.id,allocated:String(units),vested:String(vested),claimed:String(claimed),claimable:String(vested-claimed),manifestDigest:manifest.digest};
+ const claimed=db.prepare('SELECT claimed FROM vault_claim_totals WHERE asset_id=? AND launch_id=?').get(asset.id,manifest.id)?.claimed??'0';
+ return projectEntitlement(asset,manifest,now,claimed);
 }
 export function observeAsset(db,event,now=Date.now()) {
  const {eventId,assetId,kind,at}=event;id(eventId);id(assetId);

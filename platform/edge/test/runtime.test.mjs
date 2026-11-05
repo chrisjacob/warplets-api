@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {Miniflare} from 'miniflare';
 import {build} from 'esbuild';
-import {readFileSync} from 'node:fs';
+import {readFileSync,readdirSync} from 'node:fs';
 import {generateKeyPairSync,sign,createHash} from 'node:crypto';
 import {fileURLToPath} from 'node:url';
 import {encode58} from '../../server/base58.mjs';
@@ -16,9 +16,19 @@ test('real workerd verifies a D1 wallet proof once and protects R2 public artifa
    env:{DB:{type:'d1',id:'00000000-0000-4000-8000-000000000001'},MANIFESTS:{type:'r2',name:'tenx-local-manifests'}}}}]});
  t.after(()=>mf.dispose());
  const db=await mf.getD1Database('DB'),bucket=await mf.getR2Bucket('MANIFESTS');
- for(const name of ['001-identity','002-markets','012-edge-proofs']){
-   const sql=readFileSync(new URL('../../storage/'+name+'.sql',import.meta.url),'utf8').replace(/^--.*$/gm,'');
-   await db.batch(sql.split(';').map(s=>s.trim()).filter(Boolean).map(s=>db.prepare(s)));
+ const storage=new URL('../../storage/',import.meta.url);
+ for(const name of readdirSync(storage).filter(n=>/^\d+.*\.sql$/.test(n)).sort()){
+   const sql=readFileSync(new URL(name,storage),'utf8').replace(/^--.*$/gm,'');
+   const statements=[];let statement='';
+   for(const line of sql.split(/\r?\n/)){
+     statement+=(statement?'\n':'')+line;
+     const value=statement.trim();
+     if(value.endsWith(';')&&(!value.startsWith('CREATE TRIGGER')||/\bEND;$/i.test(value))){
+       statements.push(db.prepare(value));statement='';
+     }
+   }
+   assert.equal(statement.trim(),'','Incomplete migration '+name);
+   await db.batch(statements);
  }
  const origin='http://localhost',url=origin+'/api/v1';
  const get=(path,headers={})=>mf.dispatchFetch(url+path,{headers});
@@ -34,6 +44,36 @@ test('real workerd verifies a D1 wallet proof once and protects R2 public artifa
  assert.deepEqual(replies.map(r=>r.status).sort(),[200,401]);
  const cookie=replies.find(r=>r.status===200).headers.get('set-cookie').split(';')[0];
  assert.equal((await (await get('/me',{cookie})).json()).wallet,wallet);
+ const time=Date.now();
+ await db.batch([
+  db.prepare('INSERT INTO genesis_ballots VALUES(?,?,?,?,?,?)').bind('next',time-1000,time+86400000,time-86400000,'digest',1),
+  db.prepare('INSERT INTO genesis_voters VALUES(?,?)').bind('next',wallet)
+ ]);
+ const votes=await Promise.all([post('/genesis/ballots/next/votes',{choice:'ASAP'},{cookie}),post('/genesis/ballots/next/votes',{choice:'ASAP'},{cookie})]);
+ assert.deepEqual(votes.map(r=>r.status).sort(),[200,201]);
+ assert.equal((await post('/genesis/ballots/next/votes',{choice:'7'},{cookie})).status,409);
+ const ballot=await (await get('/genesis/ballots/next')).json();assert.equal(ballot.votesCast,1);assert.equal(ballot.counts,null);
+ for(const path of ['/vault','/stake/positions','/earn/claims']){
+   assert.equal((await get(path)).status,401);
+   const owned=await (await get(path,{cookie,accept:'application/vnd.10x.v1+json'})).json();
+   assert.deepEqual(owned.items,[]);assert.ok(owned.meta.policyVersion);
+ }
+ const pending=await (await get('/earn/epochs/2026-11-01/leaderboard')).json();assert.equal(pending.status,'pending');
+ assert.equal((await get('/earn/epochs/2026-02-31/leaderboard')).status,400);
+ const activated=Math.floor(time/1000)*1000-3*86400000;
+ const slot=JSON.stringify({kind:'genesis',tranche:1,level:1,ordinal:0});
+ await db.batch([
+  db.prepare('INSERT INTO market_fixtures(id,att_mint,pool_address,body) VALUES(?,?,?,?)').bind('local','att','pool','{}'),
+  db.prepare('INSERT INTO vault_manifests VALUES(?,?,?,?,?,?,?)').bind('local',activated,'20130000','0','402600000','[]','fixture-digest'),
+  db.prepare('INSERT INTO vault_assets VALUES(?,?,?,?,?)').bind('owned',slot,slot,wallet,time),
+  db.prepare('INSERT INTO vault_claim_totals VALUES(?,?,?)').bind('owned','local','300'),
+  db.prepare('INSERT INTO stake_fixture_farms VALUES(?,?,?,?,?)').bind('local',activated,'402600000','20130000',0),
+  db.prepare('INSERT INTO stake_fixture_events(id,market_id,kind,wallet,at_ms,amount) VALUES(?,?,?,?,?,?)').bind('dep','local','deposit',wallet,activated,'100')
+ ]);
+ assert.equal((await (await get('/nfts/owned/vault')).json()).items[0].claimable,'700');
+ assert.equal((await (await get('/vault',{cookie})).json()).items[0].id,'owned');
+ assert.equal((await (await get('/farms/local')).json()).totalStakedUnits,'100');
+ assert.equal((await (await get('/stake/positions',{cookie})).json()).items[0].principalUnits,'100');
  await post('/auth/logout',{}, {cookie});assert.equal((await get('/me',{cookie})).status,401);
  const document='{"policy":"prd-1.2","audience":"public"}',key=createHash('sha256').update(document).digest('hex'),objectKey='public/'+key+'.json';
  await bucket.put(objectKey,document);

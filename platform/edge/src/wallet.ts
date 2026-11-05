@@ -2,7 +2,8 @@ import {Hono} from 'hono';
 import {getCookie,setCookie} from 'hono/cookie';
 import {z} from 'zod';
 import {decode58} from '../../server/base58.mjs';
-const cookie='tenx_edge_local_session';
+export const sessionCookie='tenx_edge_local_session';
+const cookie=sessionCookie;
 export const edgeAuth=new Hono<{Bindings:Env}>();
 const hash=async(value:string)=>[...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(value)))]
   .map(x=>x.toString(16).padStart(2,'0')).join('');
@@ -10,7 +11,7 @@ function token():string {
  const bytes=crypto.getRandomValues(new Uint8Array(32));
  return btoa(String.fromCharCode(...bytes)).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
 }
-async function input(req:Request) {
+export async function boundedInput(req:Request) {
  if(req.headers.get('content-type')?.split(';')[0]!=='application/json')return null;
  const reader=req.body?.getReader();if(!reader)return null;
  let bytes=0;const decoder=new TextDecoder('utf-8',{fatal:true});let text='';
@@ -34,7 +35,7 @@ edgeAuth.use('/auth/*',async(c,next)=>{
  await next();
 });
 edgeAuth.post('/auth/challenges',async c=>{
- const body=z.object({wallet:z.string().min(32).max(44)}).strict().safeParse(await input(c.req.raw));
+ const body=z.object({wallet:z.string().min(32).max(44)}).strict().safeParse(await boundedInput(c.req.raw));
  if(!body.success)return c.json({error:{code:'invalid_input',message:'A wallet is required.'}},400);
  try{decode58(body.data.wallet,32);}catch{return c.json({error:{code:'invalid_input',message:'Invalid wallet address.'}},400);}
  const now=Date.now(),nonce=token(),origin=new URL(c.req.url).origin,expiresAt=new Date(now+300000).toISOString();
@@ -46,7 +47,7 @@ edgeAuth.post('/auth/challenges',async c=>{
  return c.json({nonce,message,expiresAt},201);
 });
 edgeAuth.post('/auth/verify',async c=>{
- const parsed=z.object({nonce:z.string().length(43),signature:z.string().max(88)}).strict().safeParse(await input(c.req.raw));
+ const parsed=z.object({nonce:z.string().length(43),signature:z.string().max(88)}).strict().safeParse(await boundedInput(c.req.raw));
  if(!parsed.success)return c.json({error:{code:'invalid_input',message:'A nonce and signature are required.'}},400);
  const origin=new URL(c.req.url).origin,now=Date.now(),{nonce,signature}=parsed.data;
  const challenge=await c.env.DB.prepare('SELECT wallet,message FROM auth_challenges WHERE nonce=? AND origin=? AND expires_at>? AND consumed_at IS NULL')
@@ -68,16 +69,16 @@ edgeAuth.post('/auth/verify',async c=>{
  setCookie(c,cookie,session,{httpOnly:true,sameSite:'Strict',path:'/',maxAge:86400});
  return c.json({wallet:challenge.wallet});
 });
-async function owner(req:Request,db:D1Database,raw:string|undefined){
+export async function sessionOwner(req:Request,db:D1Database,raw:string|undefined){
  if(!raw)return null;
  return db.prepare('SELECT wallet FROM sessions WHERE token_hash=? AND origin=? AND expires_at>?').bind(await hash(raw),new URL(req.url).origin,Date.now()).first<string>('wallet');
 }
 edgeAuth.get('/me',async c=>{
- const wallet=await owner(c.req.raw,c.env.DB,getCookie(c,cookie));
+ const wallet=await sessionOwner(c.req.raw,c.env.DB,getCookie(c,cookie));
  return wallet?c.json({wallet,chain:'solana'}):c.json({error:{code:'authentication_required',message:'Connect your wallet.'}},401);
 });
 edgeAuth.get('/me/wallets',async c=>{
- const wallet=await owner(c.req.raw,c.env.DB,getCookie(c,cookie));
+ const wallet=await sessionOwner(c.req.raw,c.env.DB,getCookie(c,cookie));
  return wallet?c.json({items:[{address:wallet,chain:'solana'}]}):c.json({error:{code:'authentication_required',message:'Connect your wallet.'}},401);
 });
 edgeAuth.post('/auth/logout',async c=>{
