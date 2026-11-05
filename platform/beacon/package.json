@@ -1,0 +1,11 @@
+{
+  "name": "@10x/beacon-lab",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/*.spec.mjs"
+  },
+  "dependencies": {
+    "@noble/curves": "2.2.0"
+  }
+}

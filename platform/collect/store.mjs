@@ -5,6 +5,7 @@ import { snapshotSeasonFreeWallets, checkTimestamp, LEVEL_QUOTAS, seasonExpiry }
 import { admitMint, applyVerifiedMintDraw, createInventory, freezeFreeStage, inventoryCounts, publishStage } from '../domain/collections/inventory.mjs';
 import { prepareProgression, applyVerifiedProgressionDraw, visualRerollQuote } from '../domain/collections/progression.mjs';
 import { observeAsset } from '../vault/ledger.mjs';
+import { bindDraw,requireBoundResult } from '../randomness/selection.mjs';
 import { actionDecision } from '../operations/controls.mjs';
 
 export class CollectError extends Error {
@@ -169,6 +170,7 @@ function checkRetry(db,owner,requestKey,digest) {
 function insertOperation(db,{opId,kind,inventoryId,owner,requestKey,digest,commitment,now,operation}) {
   db.prepare('INSERT INTO collect_operations(id,kind,inventory_id,owner,request_key,request_digest,commitment,created_ms,operation) VALUES(?,?,?,?,?,?,?,?,?)')
     .run(opId,kind,inventoryId,owner,requestKey,digest,commitment,now,encode(operation));
+  bindDraw(db,{opId,kind,inventoryId,owner,commitment,now});
 }
 const opFor=(db,opId)=>db.prepare('SELECT * FROM collect_operations WHERE id=?').get(id(opId));
 function opView(row) {
@@ -228,6 +230,7 @@ function trancheOpeningHold(db,row,state,now) {
 }
 
 function checkEvidence(db,row,fixture,now) {
+  requireBoundResult(db,row,fixture);
   id(fixture.proofId);
   need(fixture.finalized===true && fixture.commitment===row.commitment,'unverified_evidence','Expected finalized fixture evidence bound to the original commitment.');
   need(checkTimestamp(fixture.at)>=row.created_ms && fixture.at<=now,'invalid_evidence_time','Evidence timing is outside the observation period.');
