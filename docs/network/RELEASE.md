@@ -38,7 +38,9 @@ with four readers, shared leases and existing global Alchemy pacing. Ingestion
 renews its lease during long batches. Finalized contract logs use a validated
 public Base RPC with configurable ranges up to 1,000 blocks; every range still
 requires matching original mint events, timestamps, block hashes and the
-existing reorg checks. Source attempts are capped at 500k/day and 3M/month.
+existing reorg checks. Source attempts are capped at 1M/day and 3M/month, allowing
+the first large refresh to use a daily burst without increasing the monthly
+request ceiling. Paid-provider credit and CU ceilings are enforced separately.
 Alchemy allocation is 6M CU/day and 20M/month, leaving 10M outside Network
 within its published 30M free allowance; the ten-RPC/s gate is unchanged.
 No provider plan or billing setting is changed.
