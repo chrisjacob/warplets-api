@@ -21,14 +21,11 @@ export async function alchemyRead(env:AlchemyEnv,method:Method,params:unknown[])
     .bind(day,cost,day,cost,dailyLimit,month,cost,limit).first();
   if(!budget)throw Error('Alchemy CU budget exhausted');
   await reserveRequest(env,'alchemy-base');
-  let acquired=false;
-  for(let i=0;i<40;i++) {
-    const at=Date.now();
-    const row=await env.WARPLETS.prepare(`INSERT INTO network_alchemy_rate(name,next_at) VALUES('base',?) ON CONFLICT(name) DO UPDATE SET next_at=excluded.next_at WHERE network_alchemy_rate.next_at<=? RETURNING next_at`).bind(at+100,at).first();
-    if(row){acquired=true;break;}
-    await new Promise(resolve=>setTimeout(resolve,100));
-  }
-  if(!acquired)throw Error('Alchemy rate pause');
+  const at=Date.now();
+  const slot=await env.WARPLETS.prepare(`INSERT INTO network_alchemy_rate(name,next_at) VALUES('base',?) ON CONFLICT(name) DO UPDATE SET next_at=MAX(network_alchemy_rate.next_at,?)+100 RETURNING next_at`).bind(at+100,at).first<{next_at:number}>();
+  const wait=slot?slot.next_at-100-Date.now():Infinity;
+  if(!Number.isFinite(wait)||wait>4000)throw Error('Alchemy rate pause');
+  if(wait>0)await new Promise(resolve=>setTimeout(resolve,wait));
   let payload:unknown;
   try {
     payload=await networkFetchJson(`https://base-mainnet.g.alchemy.com/v2/${env.ALCHEMY_API_KEY}`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:1,method,params})});

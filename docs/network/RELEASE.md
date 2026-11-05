@@ -46,6 +46,15 @@ Profile/chain collection, wallet refresh and activity now have independent cron
 leases; a slow portfolio or credit pause cannot hold up daily profile freshness.
 Neynar requests share a four-request/s gate, below the observed 300-request/min
 key limit; that rate limit is distinct from the monthly credit allocation.
+Both provider gates now atomically reserve future request times in one database
+call per turn. Sustained parallel readers cannot starve one another by winning
+repeated polling races; the rate and credit limits are unchanged. The original
+polling gate caused local rate pauses even without a provider rejection.
+Activity additionally preserves the projected cost of daily wallet-association
+refreshes for the rest of the UTC month, using the current cohort, live per-FID
+tariff and 10% growth margin. Exhaustive activity retries therefore cannot spend
+the allowance needed to keep wallet associations current. This forecast is an
+app allocation; it does not claim to know the account's remaining credits.
 The initial larger live batches exhausted the shared invocation's database
 request allowance, preventing cleanup. Production batches now leave room for
 the existing scheduled applications, and sanitized runtime failures are logged.

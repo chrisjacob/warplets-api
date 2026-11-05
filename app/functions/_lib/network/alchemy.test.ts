@@ -10,6 +10,18 @@ function fixture(){const db=new DatabaseSync(':memory:');instances.push(db);for(
 const rpc=(result:unknown)=>Response.json({jsonrpc:'2.0',id:1,result});
 afterEach(()=>{vi.unstubAllGlobals();for(const db of instances.splice(0))db.close();});
 describe('Alchemy free-tier guardrails',()=>{
+ it('paces sustained parallel readers fairly within a bounded number of database requests',async()=>{
+  const {db,env}=fixture();vi.useFakeTimers();
+  try{
+   const queries=vi.spyOn(env.WARPLETS,'prepare'),times:number[]=[];
+   vi.stubGlobal('fetch',vi.fn(async()=>{times.push(Date.now());return rpc('0x0');}));
+   const pending=Promise.all(Array.from({length:4},async()=>{for(let i=0;i<8;i++)await alchemyRead(env,'eth_getBalance',[wallet,'latest']);}));
+   await vi.runAllTimersAsync();await pending;
+   expect(times).toHaveLength(32);expect(times.slice(1).every((at,i)=>at-times[i]>=100)).toBe(true);
+   expect(queries.mock.calls.length).toBeLessThan(32*6);
+   expect(db.prepare('SELECT SUM(reserved) n FROM network_alchemy_budgets').get()?.n).toBe(640);
+  }finally{vi.useRealTimers();}
+ });
  it('stops before a provider call at the monthly or daily cap',async()=>{
   const{db,env}=fixture();const fetcher=vi.fn();vi.stubGlobal('fetch',fetcher);env.NETWORK_ALCHEMY_CU='1';
   await expect(alchemyRead(env,'eth_getBalance',[wallet,'latest'])).rejects.toThrow('budget exhausted');expect(fetcher).not.toHaveBeenCalled();
