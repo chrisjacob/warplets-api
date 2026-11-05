@@ -39,9 +39,13 @@ export function sqliteD1(sqlite: DatabaseSync) {
     };
     return statement;
   }
+  let batchTail=Promise.resolve();
   return {
     prepare,
     async batch(statements: Array<ReturnType<typeof prepare>>) {
+      const previous=batchTail;let release!:()=>void;
+      batchTail=new Promise<void>(resolve=>{release=resolve;});
+      await previous;
       sqlite.exec("BEGIN");
       try {
         const results = [];
@@ -51,7 +55,7 @@ export function sqliteD1(sqlite: DatabaseSync) {
       } catch (e) {
         sqlite.exec("ROLLBACK");
         throw e;
-      }
+      } finally {release();}
     },
   } as unknown as D1Database;
 }

@@ -3,7 +3,7 @@ import { importNetworkActivity } from './activity';
 import { NETWORK_CONTRACT, NETWORK_DEPLOY_BLOCK } from '../../../shared/network/model';
 import { networkIdentity, normalizeNetworkProfile } from '../../../shared/network/normalize';
 import { decodeAcceptanceLogs, networkFetchJson } from './source';
-import { importWalletAssociations, importWalletValue, refreshWalletPrices } from './wallets';
+import { importWalletAssociations, importWalletBatch, refreshWalletPrices } from './wallets';
 import { bounded, publishSnapshot, reserveRequest, saveEvents, saveProfile, syncGet, syncSet, type NetworkEnv } from './store';
 
 type Cursor = { block: number; hash: string; target: number };
@@ -54,12 +54,16 @@ export async function refreshNetworkCandidates(env: NetworkEnv, force = false) {
   await syncSet(env.WARPLETS, 'candidate_refresh', at);
 }
 
-export async function advanceNetwork(env: NetworkEnv, options: { publish?: boolean; scanOnly?: boolean; profilesOnly?: boolean; locationBackfillOnly?: boolean } = {}) {
+export async function advanceNetwork(env: NetworkEnv, options: { publish?: boolean; scanOnly?: boolean; profilesOnly?: boolean; locationBackfillOnly?: boolean; coreOnly?: boolean } = {}) {
   if (env.NETWORK_INGEST_ENABLED !== 'true') return { status: 'disabled' };
   const db = env.WARPLETS, owner = crypto.randomUUID(), now = Date.now();
   const lease = await db.prepare(`INSERT INTO network_leases(name,owner,expires_at) VALUES('ingestion',?,?) ON CONFLICT(name) DO UPDATE SET owner=excluded.owner,expires_at=excluded.expires_at WHERE network_leases.expires_at<? RETURNING owner`).bind(owner, now + 300_000, now).first<{ owner: string }>();
   if (lease?.owner !== owner) return { status: 'busy' };
   let eventsSaved = 0, profilesSaved = 0;
+  const renew=async()=>{
+    const renewed=await db.prepare("UPDATE network_leases SET expires_at=? WHERE name='ingestion' AND owner=? RETURNING owner").bind(Date.now()+300_000,owner).first<{owner:string}>();
+    if(renewed?.owner!==owner)throw Error('Network ingestion lease lost');
+  };
   try {
     if (!options.profilesOnly && !options.locationBackfillOnly && (options.scanOnly || await syncGet(db, 'chain_retry_after', 0) <= now)) {
       try {
@@ -79,8 +83,10 @@ export async function advanceNetwork(env: NetworkEnv, options: { publish?: boole
         }
       }
       const batches = bounded(env.NETWORK_SCAN_BATCH, 8, 100);
+      const rangeSize = bounded(env.NETWORK_SCAN_BLOCKS, 50, 1000);
       for (let i = 0; i < batches && cursor.block < cursor.target; i += 4) {
-        const ranges = Array.from({ length: Math.min(4, batches - i, Math.ceil((cursor.target - cursor.block) / 50)) }, (_, index) => ({ from: cursor.block + 1 + index * 50, to: Math.min(cursor.block + (index + 1) * 50, cursor.target) }));
+        await renew();
+        const ranges = Array.from({ length: Math.min(4, batches - i, Math.ceil((cursor.target - cursor.block) / rangeSize)) }, (_, index) => ({ from: cursor.block + 1 + index * rangeSize, to: Math.min(cursor.block + (index + 1) * rangeSize, cursor.target) }));
         // Fetch all contract logs so acceptance/mint pairing cannot use a later transfer.
         const responses = await Promise.allSettled(ranges.map(async ({ from, to }) => decodeAcceptanceLogs(await rpc(env, 'eth_getLogs', [{ address: NETWORK_CONTRACT, fromBlock: hex(from), toBlock: hex(to) }]))));
         const failed = responses.find(r => r.status === 'rejected');
@@ -134,7 +140,9 @@ export async function advanceNetwork(env: NetworkEnv, options: { publish?: boole
             await db.prepare('DELETE FROM network_profile_failures WHERE fid=?').bind(fid).run();
             profilesSaved++;
           } catch (error) {
-            await db.prepare('INSERT INTO network_profile_failures(fid,retry_after) VALUES(?,?) ON CONFLICT(fid) DO UPDATE SET retry_after=excluded.retry_after').bind(fid, Date.now() + 3_600_000).run();
+            const notFound=error instanceof Error&&error.message==='Network source HTTP 404';
+            if(notFound)await db.prepare("UPDATE network_profiles SET opt_in_status='unavailable',quality='not_returned' WHERE fid=?").bind(fid).run();
+            await db.prepare('INSERT INTO network_profile_failures(fid,retry_after) VALUES(?,?) ON CONFLICT(fid) DO UPDATE SET retry_after=excluded.retry_after').bind(fid, Date.now() + (notFound?86_400_000:3_600_000)).run();
             if (error instanceof Error && error.message.includes('429')) { paused = true; await syncSet(db, 'official_cooldown', Date.now() + 900_000); throw error; }
           }
         }
@@ -142,20 +150,28 @@ export async function advanceNetwork(env: NetworkEnv, options: { publish?: boole
       const failure = workers.find(w => w.status === 'rejected');
       if (failure?.status === 'rejected') throw failure.reason;
     }
-    if (!options.scanOnly && !options.locationBackfillOnly) {
+    if (!options.scanOnly && !options.profilesOnly && !options.locationBackfillOnly) {
       try { await refreshWalletPrices(env); }
       catch { await syncSet(db,'wallet_price_failure',{at:Date.now(),message:'Price refresh unavailable; previous accepted observations retained'}); }
     }
-    if (!options.scanOnly && !options.locationBackfillOnly && env.NETWORK_WALLETS_ENABLED === 'true') {
+    if (!options.coreOnly && !options.scanOnly && !options.profilesOnly && !options.locationBackfillOnly && env.NETWORK_WALLETS_ENABLED === 'true') {
       try { await importWalletAssociations(env); }
       catch { await syncSet(db, 'wallet_association_failure', {at:Date.now(),message:'Wallet association source unavailable or budget reached'}); }
-      try { await importWalletValue(env); }
+      try {
+        const limit=bounded(env.NETWORK_WALLET_BATCH,25,500);
+        for(let i=0;i<limit;i+=25){
+          await renew();
+          const result=await importWalletBatch(env,Math.min(25,limit-i),4);
+          if(result.status!=='advanced')break;
+        }
+      }
       catch { await syncSet(db, 'wallet_failure', {at:Date.now(),message:'Wallet source unavailable or budget reached; previous values retained'}); }
     }
-    if (!options.scanOnly && !options.profilesOnly && !options.locationBackfillOnly) {
+    if (!options.coreOnly && !options.scanOnly && !options.profilesOnly && !options.locationBackfillOnly) {
       try { await importNetworkActivity(env); }
       catch { await syncSet(db,'activity_failure',{at:Date.now(),message:'Activity source unavailable or budget reached; positive observations retained'}); }
     }
+    await renew();
     const snapshot = options.locationBackfillOnly && profilesSaved===0 ? null : await publishSnapshot(db, options.publish);
     await syncSet(db, 'last_success', { at: Date.now(), eventsSaved, profilesSaved });
     return { status: 'advanced', eventsSaved, profilesSaved, snapshot: snapshot?.id ?? null };
@@ -164,4 +180,29 @@ export async function advanceNetwork(env: NetworkEnv, options: { publish?: boole
     // Do not publish failed runs; the previous immutable snapshot remains available.
     throw error;
   } finally { await db.prepare("DELETE FROM network_leases WHERE name='ingestion' AND owner=?").bind(owner).run(); }
+}
+
+// Wallet work has its own cron lease so a long portfolio cannot stall profile
+// freshness or snapshot publication. Individual batches retain their own lease.
+export async function advanceNetworkWallets(env:NetworkEnv){
+  if(env.NETWORK_INGEST_ENABLED!=='true'||env.NETWORK_WALLETS_ENABLED!=='true')return {status:'disabled'};
+  const db=env.WARPLETS,owner=crypto.randomUUID(),now=Date.now();
+  const lease=await db.prepare(`INSERT INTO network_leases(name,owner,expires_at) VALUES('wallet-refresh',?,?) ON CONFLICT(name) DO UPDATE SET owner=excluded.owner,expires_at=excluded.expires_at WHERE network_leases.expires_at<? RETURNING owner`).bind(owner,now+900_000,now).first<{owner:string}>();
+  if(lease?.owner!==owner)return {status:'busy'};
+  try{
+    try{await importWalletAssociations(env);}
+    catch{await syncSet(db,'wallet_association_failure',{at:Date.now(),message:'Wallet association source unavailable or budget reached'});}
+    let valued=0;
+    const limit=bounded(env.NETWORK_WALLET_BATCH,25,500);
+    for(let i=0;i<limit;i+=25){
+      const renewed=await db.prepare("UPDATE network_leases SET expires_at=? WHERE name='wallet-refresh' AND owner=? RETURNING owner").bind(Date.now()+900_000,owner).first<{owner:string}>();
+      if(renewed?.owner!==owner)throw Error('Wallet refresh lease lost');
+      const result=await importWalletBatch(env,Math.min(25,limit-i),4);
+      if('results' in result)valued+=result.results.filter(r=>r.status==='valued').length;
+      if(result.status!=='advanced')break;
+    }
+    await syncSet(db,'wallet_refresh_success',{at:Date.now(),valued});
+    return {status:'advanced',valued};
+  }catch(error){await syncSet(db,'wallet_refresh_failure',{at:Date.now(),message:'Wallet refresh paused; previous values retained'});throw error;}
+  finally{await db.prepare("DELETE FROM network_leases WHERE name='wallet-refresh' AND owner=?").bind(owner).run();}
 }

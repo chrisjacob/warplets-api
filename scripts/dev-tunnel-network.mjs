@@ -1,11 +1,14 @@
 import { spawn, spawnSync } from 'node:child_process';
 import { createServer, request as proxyRequest } from 'node:http';
+import { request as secureProxyRequest } from 'node:https';
 import { randomUUID } from 'node:crypto';
 import { readdirSync, writeFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..'), app = resolve(root, 'app');
 const apiPort = 8798, publicPort = 8799, localOnly = process.argv.includes('--local-only');
+const productionData = process.argv.includes('--production-data');
+const refreshEnabled = !productionData && !process.argv.includes('--no-refresh');
 const node = process.execPath, children = [], nonce = randomUUID();
 const baseEnv = { ...process.env, WRANGLER_LOG_PATH: resolve(root, '.tmp/network-wrangler.log'), WRANGLER_SEND_METRICS: 'false' };
 function run(args, cwd = root) {
@@ -48,8 +51,9 @@ const preview = createServer((req, res) => {
   if(guarded){activeReads++;writeFileSync(readLeasePath,String(Date.now()+30_000));}
   const release=()=>{if(!guarded||released)return;released=true;if(--activeReads===0)writeFileSync(readLeasePath,'0');};
   res.once('close',release);
-  const upstream = proxyRequest({ hostname: '127.0.0.1', port: apiPort, path: url.pathname + url.search, method: req.method,
-    headers: { host: 'network-local.10x.meme', 'x-10x-public-origin': 'https://network-local.10x.meme', accept: req.headers.accept ?? '*/*' } }, response => {
+  const remote = guarded && productionData;
+  const upstream = (remote ? secureProxyRequest : proxyRequest)({ hostname: remote ? 'network.10x.meme' : '127.0.0.1', port: remote ? 443 : apiPort, path: url.pathname + url.search, method: req.method,
+    headers: { host: remote ? 'network.10x.meme' : 'network-local.10x.meme', 'x-10x-public-origin': remote ? 'https://network.10x.meme' : 'https://network-local.10x.meme', accept: req.headers.accept ?? '*/*' } }, response => {
     response.once('end',release);
     res.writeHead(response.statusCode ?? 502, { ...response.headers, 'x-network-preview': nonce, 'x-robots-tag': 'noindex, nofollow' }); response.pipe(res);
   });
@@ -58,14 +62,15 @@ const preview = createServer((req, res) => {
 });
 await new Promise((ok, reject) => { preview.once('error', reject); preview.listen(publicPort, '127.0.0.1', ok); });
 let refreshing = false;
-const refreshTimer = setInterval(() => {
+const refreshTimer = refreshEnabled ? setInterval(() => {
   if (refreshing) return;
   refreshing = true;
   const child = spawn(node, [resolve(root, 'node_modules/tsx/dist/cli.mjs'), 'scripts/network/local.ts'], { cwd: root, env: baseEnv, stdio: 'inherit', windowsHide: true });
   children.push(child);
   child.once('exit', () => { refreshing = false; const index = children.indexOf(child); if (index >= 0) children.splice(index, 1); });
   child.once('error', () => { refreshing = false; });
-}, 300_000);
+}, 300_000) : undefined;
+if (!refreshEnabled) console.log(`Network local ingestion disabled; serving ${productionData ? 'public production data' : 'saved local observations'} only.`);
 const stop = () => { stopping = true; clearTimeout(apiRestart); clearInterval(refreshTimer); for (const child of children) child.kill(); preview.close(); };
 process.on('SIGINT', stop); process.on('SIGTERM', stop);
 let ready = false;

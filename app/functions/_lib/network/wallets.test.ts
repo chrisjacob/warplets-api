@@ -91,13 +91,25 @@ describe('wallet valuation and top holdings',()=>{
     expect(db.prepare('SELECT COUNT(*) n FROM network_wallet_retries').get()?.n).toBe(0);
     expect(db.prepare("SELECT COUNT(*) n FROM network_leases WHERE name='wallet-values'").get()?.n).toBe(0);
   });
-  it('cannot raise the confirmed 250,000-credit Network cap through configuration',async()=>{
+  it('reserves the live provider tariff instead of a lower caller estimate and caches the public price feed',async()=>{
+    const {env,db}=fixture();env.NETWORK_NEYNAR_PRICING_ENABLED='true';
+    const rates={'/v2/farcaster/user/bulk':2,'/v1/userDataByFid':100,'/v1/reactionById':100,'/v1/castById':100,'/v1/verificationsByFid':50,'/v1/linkById':50};
+    const GET=Object.fromEntries(Object.entries(rates).map(([path,amount])=>[path,{price:{amount},is_free_tier_eligible:true}]));
+    const fetcher=vi.fn(async(url:string)=>Response.json(url==='https://dev.neynar.com/api/pricing'?{pricing:{products:{api:{rest:{test:{GET}}}}}}:{}));vi.stubGlobal('fetch',fetcher);
+    await neynarRead(env,'/v2/farcaster/user/bulk?fids=1,2,3',1);
+    await neynarRead(env,'/v1/userDataByFid?fid=1',1,'snapchain');
+    expect(db.prepare('SELECT reserved FROM network_credit_budgets').get()?.reserved).toBe(106);
+    expect(fetcher.mock.calls.filter(([url])=>url==='https://dev.neynar.com/api/pricing')).toHaveLength(1);
+    expect((fetcher.mock.calls[0] as unknown as [string,RequestInit])[1].headers).not.toHaveProperty('x-api-key');
+    await expect(neynarRead(env,'/v1/unknown',1)).rejects.toThrow('verified free-tier tariff');
+  });
+  it('keeps one million credits outside Network even when configuration requests the whole free allowance',async()=>{
     const {env,db}=fixture();env.NETWORK_WALLET_CREDITS='10000000';
-    db.prepare('INSERT INTO network_credit_budgets(month,reserved) VALUES(?,?)').run(new Date().toISOString().slice(0,7),249999);
+    db.prepare('INSERT INTO network_credit_budgets(month,reserved) VALUES(?,?)').run(new Date().toISOString().slice(0,7),8999999);
     const fetcher=vi.fn();vi.stubGlobal('fetch',fetcher);
     await expect(neynarRead(env,'/v2/farcaster/user/bulk?fids=1',2)).rejects.toThrow('credit cap');
     expect(fetcher).not.toHaveBeenCalled();
-    expect(db.prepare('SELECT reserved FROM network_credit_budgets').get()?.reserved).toBe(249999);
+    expect(db.prepare('SELECT reserved FROM network_credit_budgets').get()?.reserved).toBe(8999999);
   });
   it('refreshes prices without rewriting balances or changing older published snapshots',async()=>{
     const {env,db}=fixture();

@@ -43,7 +43,7 @@ export interface NetworkDashboard {
   heldTokens?: NetworkRow[]; heldCatalog?: NetworkToken[];
   suppressed: boolean; economics: NetworkEconomics;
   manMonths?: NetworkManMonths;
-  activity: { status: 'unavailable'; reason: string };
+  activity: { status: 'unavailable' | 'partial' | 'ready'; reason: string };
   methodology: string[];
 }
 export const NETWORK_METHODOLOGY = [

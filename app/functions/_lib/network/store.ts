@@ -7,6 +7,7 @@ import type { NetworkProfile } from '../../../shared/network/normalize';
 import type { AcceptanceEvent } from './source';
 import { mergeWalletCells, walletSnapshot } from './walletSnapshot';
 export interface NetworkEnv { ALCHEMY_API_KEY?: string; NETWORK_ALCHEMY_CU?: string; NETWORK_ALCHEMY_CU_PER_DAY?: string; WARPLETS: D1Database; WARPLETS_KV?: KVNamespace; NETWORK_ENABLED?: string; NETWORK_INGEST_ENABLED?: string; NETWORK_RPC_URL?: string; BASE_RPC_URL?: string; NETWORK_PROFILE_BATCH?: string; NETWORK_SCAN_BATCH?: string; NETWORK_REQUESTS_PER_DAY?: string; NETWORK_REQUESTS_PER_MONTH?: string; NETWORK_PROFILE_REFRESH_HOURS?: string; NETWORK_WALLETS_ENABLED?: string; NEYNAR_API_KEY?: string; NETWORK_WALLET_CREDITS?: string }
+export interface NetworkEnv { NETWORK_SCAN_BLOCKS?: string; NETWORK_ACTIVITY_BATCH?: string; NETWORK_WALLET_BATCH?: string; NETWORK_NEYNAR_PRICING_ENABLED?: string }
 export function bounded(value: string | undefined, fallback: number, maximum: number) { const n = Number(value); return Number.isSafeInteger(n) && n > 0 ? Math.min(n, maximum) : fallback; }
 export async function syncGet<T>(db: D1Database, key: string, fallback: T): Promise<T> {
   const row = await db.prepare('SELECT value FROM network_sync WHERE key=?').bind(key).first<{ value: string }>();
@@ -17,7 +18,7 @@ export async function syncSet(db: D1Database, key: string, value: unknown) {
 }
 export async function reserveRequest(env: NetworkEnv, provider: string) {
   const day = new Date().toISOString().slice(0, 10), month = day.slice(0, 7);
-  const daily = bounded(env.NETWORK_REQUESTS_PER_DAY, 100_000, 100_000), monthly = bounded(env.NETWORK_REQUESTS_PER_MONTH, 600_000, 1_000_000);
+  const daily = bounded(env.NETWORK_REQUESTS_PER_DAY, 100_000, 500_000), monthly = bounded(env.NETWORK_REQUESTS_PER_MONTH, 600_000, 3_000_000);
   const row = await env.WARPLETS.prepare(`INSERT INTO network_budgets(day,provider,attempts)
     SELECT ?,?,1 WHERE COALESCE((SELECT SUM(attempts) FROM network_budgets WHERE day=?),0)<? AND COALESCE((SELECT SUM(attempts) FROM network_budgets WHERE substr(day,1,7)=?),0)<?
     ON CONFLICT(day,provider) DO UPDATE SET attempts=network_budgets.attempts+1
@@ -33,15 +34,15 @@ export async function saveEvents(db: D1Database, events: AcceptanceEvent[]) {
 }
 export async function saveProfile(db: D1Database, p: NetworkProfile) {
   const geo = await resolveNetworkLocation(db, p.publicLocation ?? '', p.country);
-  await db.prepare(`INSERT INTO network_profile_locations(fid,description,place_id,country,state,city,observed_at) VALUES(?,?,?,?,?,?,?)
+  await db.batch([db.prepare(`INSERT INTO network_profile_locations(fid,description,place_id,country,state,city,observed_at) VALUES(?,?,?,?,?,?,?)
     ON CONFLICT(fid) DO UPDATE SET description=excluded.description,place_id=excluded.place_id,country=excluded.country,state=excluded.state,city=excluded.city,observed_at=excluded.observed_at`)
-    .bind(p.fid,p.country ? p.publicLocation ?? '' : '',p.country ? p.placeId ?? null : null,p.country,geo.state,geo.city,p.observedAt).run();
-  await db.prepare(`INSERT INTO network_member_profiles(fid,username,display_name,avatar_url,observed_at,source) VALUES(?,?,?,?,?,'official-client')
+    .bind(p.fid,p.country ? p.publicLocation ?? '' : '',p.country ? p.placeId ?? null : null,p.country,geo.state,geo.city,p.observedAt),
+  db.prepare(`INSERT INTO network_member_profiles(fid,username,display_name,avatar_url,observed_at,source) VALUES(?,?,?,?,?,'official-client')
     ON CONFLICT(fid) DO UPDATE SET username=excluded.username,display_name=excluded.display_name,avatar_url=excluded.avatar_url,observed_at=excluded.observed_at,source=excluded.source`)
-    .bind(p.fid, p.username, p.displayName, p.avatarUrl, p.observedAt).run();
-  await db.prepare(`INSERT INTO network_profiles(fid,country,location_status,token_id,token_status,token_name,token_symbol,opt_in_status,observed_at) VALUES(?,?,?,?,?,?,?,?,?)
-    ON CONFLICT(fid) DO UPDATE SET country=excluded.country,location_status=excluded.location_status,token_id=excluded.token_id,token_status=excluded.token_status,token_name=excluded.token_name,token_symbol=excluded.token_symbol,opt_in_status=excluded.opt_in_status,observed_at=excluded.observed_at`)
-    .bind(p.fid, p.country, p.locationStatus, p.token, p.tokenStatus, p.tokenName, p.tokenSymbol, p.vote, p.observedAt).run();
+    .bind(p.fid, p.username, p.displayName, p.avatarUrl, p.observedAt),
+  db.prepare(`INSERT INTO network_profiles(fid,country,location_status,token_id,token_status,token_name,token_symbol,opt_in_status,observed_at) VALUES(?,?,?,?,?,?,?,?,?)
+    ON CONFLICT(fid) DO UPDATE SET country=excluded.country,location_status=excluded.location_status,token_id=excluded.token_id,token_status=excluded.token_status,token_name=excluded.token_name,token_symbol=excluded.token_symbol,opt_in_status=excluded.opt_in_status,observed_at=excluded.observed_at,quality='observed'`)
+    .bind(p.fid, p.country, p.locationStatus, p.token, p.tokenStatus, p.tokenName, p.tokenSymbol, p.vote, p.observedAt)]);
 }
 export async function publishSnapshot(db: D1Database, force = false): Promise<NetworkSnapshot | null> {
   const previous = await db.prepare('SELECT created_at FROM network_snapshots ORDER BY created_at DESC LIMIT 1').first<{ created_at: number }>();
