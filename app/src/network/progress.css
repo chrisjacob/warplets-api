@@ -1,0 +1,8 @@
+.network-app .network-month-bar{width:100%;min-width:0;min-height:28px;padding:0;background:#15251b;cursor:help}
+.network-month-tooltip{z-index:100;max-width:calc(100vw - 16px);padding:12px 14px;border:1px solid #355040;border-radius:4px;background:#0a110d;color:#e2eee5;font:12px/1.5 Inter,system-ui,sans-serif;box-shadow:0 6px 24px #0008;pointer-events:none}
+.network-month-tooltip>strong{font-size:13px;font-weight:600}
+.network-month-tooltip dl{display:grid;gap:6px;margin:8px 0 0}
+.network-month-tooltip dl>div{display:flex;justify-content:space-between;gap:24px}
+.network-month-tooltip dt{display:flex;align-items:center;gap:8px;color:#8caa97}
+.network-month-tooltip dt i{width:8px;height:8px;border-radius:1px}
+.network-month-tooltip dd{margin:0;font-variant-numeric:tabular-nums}
