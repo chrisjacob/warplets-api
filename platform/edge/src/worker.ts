@@ -9,6 +9,7 @@ import {pillars} from './pillars';
 import { edgeAuth } from './wallet';
 import {earn} from './earn';
 import {quotes} from './quotes';
+import {financialReads} from './financial';
 import {r2ArtifactStore} from '../../artifacts/r2';
 
 const app = new Hono<{ Bindings: Env; Variables: { requestId: string } }>();
@@ -92,5 +93,6 @@ app.get(base+'/manifests/:digest',async c=>{
 app.route(base,edgeAuth);
 app.route(base,earn);
 app.route(base,quotes);
+app.route(base,financialReads);
 app.route(base,pillars);
 export default app;

@@ -17,7 +17,7 @@ export const shapes={
  chain:{const:'solana'},status:{enum:['scheduled','active','campaign-ended']},feeBps:nullable(integer),executable:{const:false}}),
  FeePoint:object({elapsedSeconds:integer,feeBps:integer}),
  VaultAllocation:object({marketId:str,allocated:units,vested:units,claimed:units,claimable:units,manifestDigest:str,activatedAt:iso,cliffEndsAt:iso,fullyVestedAt:iso}),
- MemberVaultSummary:{anyOf:[object({source:{const:'local-fixture'},asOf:iso,status:{const:'complete'},reason:{type:'null'},assetCount:integer,items:array(ref('VaultAllocation'))}),object({source:{const:'local-fixture'},asOf:iso,status:{const:'unavailable'},reason:{enum:['asset-bound','manifest-bound','concealed-metadata']},assetCount:{type:'null'},items:{type:'array',maxItems:0}})]},
+ MemberVaultSummary:{anyOf:[object({source:{const:'local-fixture'},asOf:iso,status:{const:'complete'},reason:{type:'null'},assetCount:integer,items:array(ref('VaultAllocation'))}),object({source:{const:'local-fixture'},asOf:iso,status:{const:'unavailable'},reason:{enum:['asset-bound','manifest-bound','concealed-metadata','claim-bound','future-accounting','invalid-accounting']},assetCount:{type:'null'},items:{type:'array',maxItems:0}})]},
  Profile:object({wallet:str,chain:{const:'solana'}}),
  Challenge:object({nonce:str,message:str,expiresAt:iso}),
  StageReservationStatus:object({status:{enum:['available','unavailable','unknown']},reason:{enum:['eligible','not-signed-in','opening-hold','stage-scheduled','stage-closed','sold-out','snapshot-pending','not-on-list','wallet-limit','operator-only']},
@@ -79,6 +79,15 @@ const rawSuccess={...rawFeatureSuccess,getPolicy:fromValue(policy),getCapabiliti
  getStakePositions:object({items:array(object({marketId:str,fundedUnits:units,treasuryFeeBps:integer,activationTime:iso,emissionEnd:iso,
   asOf:iso,source:{const:'local-fixture'},executable:{const:false},principalUnits:units,earnedGrossUnits:units,
   claimableGrossUnits:units,harvestedGrossUnits:units})),nextCursor:nullable(str),asOf:iso})};
+const accounting={sourceStatus:{const:'local-accounting'},chainAuthority:{const:'unverified'},unit:{const:'base-units'},executable:{const:false}};
+const financialIdentity={...accounting,sourceRevision:units,snapshotId:str};
+// Optional additions preserve the reference contracts while the current shared
+// runtime supplies these fields for all bounded financial projections.
+for(const name of ['getMyVault','getNftVault','getStakePositions'])Object.assign(rawSuccess[name].properties,financialIdentity);
+Object.assign(shapes.Farm.properties,financialIdentity);
+Object.assign(shapes.VaultAllocation.properties,accounting);
+for(const branch of shapes.MemberVaultSummary.anyOf)Object.assign(branch.properties,accounting);
+Object.assign(rawSuccess.getStakePositions.properties.items.items.properties,accounting);
 function wrapped(schema) {
  if(schema.type==='object'&&schema.properties?.items){
   return {...schema,properties:{...schema.properties,snapshotId:str,meta:ref('Meta')},

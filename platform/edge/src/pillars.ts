@@ -2,62 +2,14 @@ import {Hono} from 'hono';
 import {getCookie} from 'hono/cookie';
 import {z} from 'zod';
 import {sessionOwner,sessionCookie,boundedInput} from './wallet';
-import {projectEntitlement} from '../../vault/projection.mjs';
-import {describeFarm} from '../../stake/projection.mjs';
 import {BALLOT_CHOICES} from '../../domain/collections/ballot.mjs';
 
 export const pillars=new Hono<{Bindings:Env}>();
-type Asset={id:string;coords:string};
 type Row=Record<string,string|number|null>;
 const iso=(ms:number)=>new Date(ms).toISOString();
-const cursor=z.string().regex(/^[A-Za-z0-9._:-]{0,128}$/);
 const fail=(code:string,message:string)=>({error:{code,message}});
 const now=()=>Date.now();
 
-// Keep projections on the same integer arithmetic as the reference adapter.
-pillars.get('/nfts/:id/vault',async c=>{
-  const at=now(),after=c.req.query('cursor')??'';
-  if(!cursor.safeParse(after).success)return c.json(fail('invalid_cursor','Invalid Vault cursor.'),400);
-  const key=c.req.param('id');
-  const asset=await c.env.DB.prepare('SELECT id,coords FROM vault_assets WHERE id=?').bind(key).first<Asset>();
-  if(!asset)return c.json(fail('asset_not_found','Unknown NFT.'),404);
-  const reveal=await c.env.DB.prepare('SELECT reveal_ms FROM collect_assets WHERE id=?').bind(key).first<{reveal_ms:number|null}>();
-  if(reveal&&(reveal.reveal_ms===null||reveal.reveal_ms>at))return c.json(fail('metadata_unrevealed','Vault detail becomes available after reveal.'),409);
-  const manifests=await c.env.DB.prepare(`SELECT m.*,COALESCE(t.claimed,'0') AS claimed FROM vault_manifests m
-    LEFT JOIN vault_claim_totals t ON t.launch_id=m.id AND t.asset_id=? WHERE m.id>? AND m.activated_ms<=? ORDER BY m.id LIMIT 26`).bind(key,after,at).all<Row>();
-  const rows=manifests.results;
-  return c.json({assetId:key,slot:JSON.parse(asset.coords),source:'local-fixture',asOf:iso(at),
-    items:rows.slice(0,25).map(row=>projectEntitlement(asset,row,at,row.claimed)),nextCursor:rows.length>25?rows[24].id:null});
-});
-pillars.get('/vault',async c=>{
-  const owner=await sessionOwner(c.req.raw,c.env.DB,getCookie(c,sessionCookie));
-  if(!owner)return c.json(fail('authentication_required','Connect your wallet.'),401);
-  const after=c.req.query('cursor')??'';
-  if(!cursor.safeParse(after).success)return c.json(fail('invalid_cursor','Invalid cursor.'),400);
-  const {results}=await c.env.DB.prepare('SELECT id FROM vault_assets WHERE owner=? AND id>? ORDER BY id LIMIT 26').bind(owner,after).all<{id:string}>();
-  return c.json({items:results.slice(0,25).map(({id})=>({id,detail:'/api/v1/nfts/'+encodeURIComponent(id)+'/vault'})),
-    nextCursor:results.length>25?results[24].id:null,source:'local-fixture',asOf:iso(now())});
-});
-const eventSQL='SELECT * FROM stake_fixture_events WHERE market_id=? AND at_ms<=? ORDER BY at_ms,seq LIMIT 1001';
-pillars.get('/farms/:id',async c=>{
-  const id=c.req.param('id'),at=now();
-  const [farm,events]=await c.env.DB.batch<Row>([c.env.DB.prepare('SELECT * FROM stake_fixture_farms WHERE market_id=?').bind(id),
-    c.env.DB.prepare(eventSQL).bind(id,at)]);
-  if(!farm.results.length)return c.json(fail('farm_not_found','Unknown local farm.'),404);
-  return c.json(describeFarm(farm.results[0],at,null,events.results));
-});
-pillars.get('/stake/positions',async c=>{
-  const wallet=await sessionOwner(c.req.raw,c.env.DB,getCookie(c,sessionCookie));
-  if(!wallet)return c.json(fail('authentication_required','Connect your wallet.'),401);
-  const after=c.req.query('cursor')??'',at=now();
-  if(!cursor.safeParse(after).success)return c.json(fail('invalid_cursor','Invalid cursor.'),400);
-  const {results:rows}=await c.env.DB.prepare(`SELECT f.* FROM stake_fixture_farms f JOIN
-    (SELECT DISTINCT market_id FROM stake_fixture_events WHERE wallet=? AND market_id>? AND at_ms<=? ORDER BY market_id LIMIT 26)
-    e ON e.market_id=f.market_id ORDER BY f.market_id`).bind(wallet,after,at).all<Row>();
-  const page=rows.slice(0,25);
-  const events=page.length?await c.env.DB.batch(page.map(f=>c.env.DB.prepare(eventSQL).bind(f.market_id,at))):[];
-  return c.json({items:page.map((row,i)=>describeFarm(row,at,wallet,events[i].results)),nextCursor:rows.length>25?rows[24].market_id:null,asOf:iso(at)});
-});
 pillars.post('/genesis/ballots/:id/votes',async c=>{
  const origin=new URL(c.req.url).origin;
  if(c.req.header('origin')!==origin)return c.json(fail('invalid_origin','Use the configured local origin.'),403);

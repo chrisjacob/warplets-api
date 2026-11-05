@@ -1,0 +1,242 @@
+{
+  "taskId": "B14",
+  "substep": "B14.3",
+  "status": "verified-local",
+  "classification": "Shared bounded local Vault and farm reads, revision-bound opaque cursors and Node/workerd/browser acceptance; no chain authority or financial execution",
+  "lastTestedBaseCommit": "981a1c3863b447586fb520627296011ab975fdb0",
+  "implementationCommit": null,
+  "commands": [
+    {
+      "command": "node --test platform/vault/read-projection.test.mjs platform/vault/member-projection.test.mjs platform/vault/ledger.test.mjs",
+      "tests": 12,
+      "failed": 0,
+      "skipped": 0,
+      "exitCode": 0,
+      "durationMs": 1467.2713
+    },
+    {
+      "command": "node --test platform/edge/test/financial-reads.test.mjs",
+      "tests": 1,
+      "failed": 0,
+      "skipped": 0,
+      "exitCode": 0,
+      "durationMs": 67881.2559,
+      "log": "work/b14-financial-public.log"
+    },
+    {
+      "command": "node platform/edge/node_modules/typescript/bin/tsc --noEmit -p platform/edge/tsconfig.json",
+      "exitCode": 0
+    },
+    {
+      "command": "node platform/site/node_modules/typescript/bin/tsc --noEmit -p platform/site/tsconfig.json",
+      "exitCode": 0
+    },
+    {
+      "command": "vite build (installed platform/site binary)",
+      "exitCode": 0
+    },
+    {
+      "command": "node platform/site/tests/financial-cursors-qa.mjs",
+      "exitCode": 0,
+      "log": "work/b14-financial-browser.log",
+      "viewports": [
+        360,
+        390,
+        768,
+        1440
+      ]
+    },
+    {
+      "command": "node platform/site/tests/browser-qa.mjs",
+      "exitCode": 0,
+      "status": "passed",
+      "log": "work/b14-financial-full-browser.log"
+    },
+    {
+      "command": "git diff --check",
+      "exitCode": 0
+    },
+    {
+      "command": "node platform/scripts/test-reference.mjs",
+      "tests": 352,
+      "failed": 0,
+      "skipped": 0,
+      "exitCode": 0,
+      "durationMs": 80976.4699,
+      "log": "work/b14-3-reference.log",
+      "note": "Includes parallel B11 codec/planning foundation; B14 checkpoint stages only financial changes."
+    },
+    {
+      "command": "node --test platform/edge/test/*.test.mjs",
+      "tests": 56,
+      "failed": 0,
+      "skipped": 0,
+      "exitCode": 0,
+      "durationMs": 431540.3856,
+      "log": "work/b14-3-edge.log"
+    },
+    {
+      "command": "node --test platform/site/tests/*.spec.mjs",
+      "tests": 20,
+      "failed": 0,
+      "skipped": 0,
+      "exitCode": 0,
+      "log": "work/b14-collection-compat-site.log"
+    },
+    {
+      "command": "node platform/contracts/generate.mjs --check",
+      "exitCode": 0
+    }
+  ],
+  "sourceHashes": {
+    "platform/storage/034-financial-read-revisions.sql": "234cc1081329e919bd5fd2b6da6c9c616f051a2905c17d4ad1620b2293e7e20b",
+    "platform/storage/financial-vault.mjs": "46514e103cccbeaab38efffae7911d752e70d4dfbd5cff665476c6c89ea77d55",
+    "platform/storage/financial-farms.mjs": "8094ac324840fd5f394168d7b17811072981ac394cb68ef0305c57df49c8a0e8",
+    "platform/vault/projection.mjs": "36bf8c43fda065725c4a8b8c279cf639992d3987f60f4dd62ace8d97d8d28847",
+    "platform/vault/read-projection.mjs": "dbb5804734805c123f8c2324066a332e7a3148dddb5b1d25f9d3d4929d09e6d4",
+    "platform/financial/cursor.mjs": "99d8f13731f388c0e49a7fc56e2733b20a3d009c3b7486235c1f803eac40a6b4",
+    "platform/financial/service.mjs": "e637d8ce6ddca31f72f316d53f2210da1196de703ed37e8c73a2e9c4a78750ec",
+    "platform/financial/http.mjs": "2807ae439b5a308aeda2f9caf02d8c42c1ea8da369012fc065c92aaf2ef0e89a",
+    "platform/financial/read-test-harness.mjs": "0ed547a8dc29dd03728d6731404d0e2246bf1bbc325ae7edf1ae593cb760e5e4",
+    "platform/edge/src/financial.ts": "6a3f38447f2a06278045a958c10a9ac73699faa973abbe149662ecfbdc6b6ab9",
+    "platform/edge/test/financial-reads.test.mjs": "49d7628c99474672368577daa17d2714dbfc34592085ebd058d8ad9322e9ac38",
+    "platform/edge/test/fixtures/financial-reads-worker.ts": "aef8b7c7f349cdfa48a9dc66f1367820a550c2a7c08651fff76b157f1f985d9c",
+    "platform/site/src/pages.tsx": "3d4c42340e5fdd52ab7f3eed399c81dd839ec226253468f99e0d9ba843984d74",
+    "platform/site/src/style.css": "aee555f7aa187893bb48c7ac69dd0bb8e611bb2a53d3d82a81d8a50dc1b66ead",
+    "platform/site/src/routes.tsx": "3355b5291f46d526115956f1ea14f5bbca0bac1476facdf05ece96a627528dc2",
+    "platform/site/tests/financial-cursors-qa.mjs": "16241ab032c6c437db610e1e9dd45f87104d88b7a63cbc4c86d2c0297afcf50b",
+    "platform/site/tests/collection-edges-qa.mjs": "7a62c9b0e68666867d681f414f6d990c64553675e81c207955700ff9be7eb676",
+    "platform/site/src/common.tsx": "8e9c8c24c00d2e804f8c9e91e2f64680ce7ad14e4a7c66d013169519913198e9",
+    "platform/site/tests/browser-qa.mjs": "a978b3d44c1b200a9d1fe828bc95743bfb473ba3b4545dcb7c3ed554ed315fb9",
+    "platform/site/tests/collection-edges.spec.mjs": "60231134230cb8f832bab770e18329e267c02e532fd444eabf1dbd4e8ddca437",
+    "platform/application/financial-reads.ts": "13932386d95a917ada147991a4dcf0f12365eb72e5b338c2aee2f975b7b552db",
+    "platform/application/node-context.mjs": "a215b75448941d42dcb8ffb15bf110af53a4b4a0b7d5246d1f718f18ad414ba5",
+    "platform/server/application.mjs": "990d40e55443b67eb9b6d7f47e80730b1d2a6cacb58fb23d2dc13bde60e92c60",
+    "platform/contracts/shapes.mjs": "b2bddddca947044488ba0bb6db69eb95a04c7f1d622c110c7a5a0253e5ccda31"
+  },
+  "bounds": {
+    "memberVaultStatements": 5,
+    "assetVaultStatements": 4,
+    "finalSourceRevisionCheckStatements": 1,
+    "maxAssets": 100,
+    "maxManifests": 100,
+    "maxClaims": 10000,
+    "maxFarmEvents": 1000,
+    "maxSnapshotBytes": 2097152,
+    "maxCursorCharacters": 1024,
+    "cursorLifetimeMs": 300000
+  },
+  "measurements": {
+    "maximumCompleteNodeVault": {
+      "assets": 100,
+      "manifests": 100,
+      "claims": 10000,
+      "sqlStatements": 5,
+      "atomicBatches": 1,
+      "snapshotBytes": 643641,
+      "loadAndProjectionMs": 143
+    },
+    "actualD1": {
+      "pairedSharedHttpRequests": 37,
+      "pairedProductionHttpRequests": 12,
+      "maxSqlStatementsIncludingInjectedFaultAndRetry": 14
+    }
+  },
+  "publicRouteAcceptance": {
+    "routes": [
+      "/api/v1/vault",
+      "/api/v1/nfts/{id}/vault",
+      "/api/v1/farms/{id}",
+      "/api/v1/stake/positions"
+    ],
+    "transport": "Genuine mounted Node createApp and Worker routes; shared portable HTTP separately compared",
+    "authentication": "Explicit synthetic origin-bound session rows for adapter parity; genuine locally signed challenge in browser checks",
+    "responseEquality": "Exact successful bodies; error bodies exact except independently generated requestId UUIDs, whose shape is asserted",
+    "headers": {
+      "cacheControl": "no-store"
+    },
+    "checks": [
+      "owner scope and empty other-owner holdings",
+      "no-session and alternate allowed loopback-origin rejection",
+      "cross-wallet and cross-route cursor rejection",
+      "concealed detail returns409 without coordinates or amounts"
+    ],
+    "transactionsWritten": 0,
+    "attemptsWritten": 0
+  },
+  "sharedAcceptance": [
+    "26-owner summary remains complete across25-row pages",
+    "26-manifest detail pagination and26-farm position pagination",
+    "same asOf and snapshotId on later pages",
+    "raw old-ID cursor and expired cursor rejected",
+    "claim, ownership transfer, reveal and farm changes invalidate prior cursor409",
+    "source change during hash causes one fresh retry; persistent changes503; existing cursor race409",
+    "concealed holding suppresses all aggregate amounts and count",
+    "future and corrupt local accounting unavailable503",
+    "1001 farm events return event_bound503 without partial simulation",
+    "no transaction intents or attempts"
+  ],
+  "browserAcceptance": {
+    "fixture": "Synthetic member-evidence API with26 long-ID holdings; message-signature wallet only, no transaction feature",
+    "viewports": [
+      360,
+      390,
+      768,
+      1440
+    ],
+    "cursorCharacters": 268,
+    "checks": [
+      "opaque cursor survives route validation and keyboard next-page navigation",
+      "fixed asOf and snapshot identity across pages",
+      "no horizontal overflow at each viewport",
+      "real ownership transfer after first page yields409",
+      "stale page withholds old amounts",
+      "keyboard Restart holdings clears initial cache and fetches new sourceRevision/snapshotId",
+      "fresh complete owner count25 and no next page",
+      "zero page errors and zero transaction intents/attempts"
+    ],
+    "fixesValidated": [
+      "long identifier wrapping in row children",
+      "remove cached first-page query on explicit financial restart"
+    ],
+    "fullSuiteCursorResults": [
+      {
+        "width": 360,
+        "cursorLength": 268,
+        "staleStatus": 409,
+        "freshAssetCount": 25
+      },
+      {
+        "width": 390,
+        "cursorLength": 268,
+        "staleStatus": 409,
+        "freshAssetCount": 25
+      },
+      {
+        "width": 768,
+        "cursorLength": 268,
+        "staleStatus": 409,
+        "freshAssetCount": 25
+      },
+      {
+        "width": 1440,
+        "cursorLength": 267,
+        "staleStatus": 409,
+        "freshAssetCount": 25
+      }
+    ],
+    "fullSuite": "passed: baseline20 viewport/pillar checks, authenticated member workflow, collection details, Earn/Vault member evidence, collection edge cases, financial cursors, Wallet Standard lifecycle, runtime capability gating and both quote directions"
+  },
+  "authority": {
+    "sourceStatus": "local-accounting",
+    "chainAuthority": "unverified",
+    "unit": "base-units",
+    "executable": false,
+    "providerCalls": 0,
+    "remoteResourceMutations": 0
+  },
+  "pending": [
+    "Test-only CI for this milestone must be followed after push.",
+    "Captured-program quote parity remains explicitly missing; this is an R-stage gap, not local fixture parity."
+  ]
+}

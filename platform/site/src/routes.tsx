@@ -10,7 +10,7 @@ function validateSearch(input:Record<string,unknown>):Search{
   const result:Search={};
   for(const key of searchKeys){
     const value=input[key];
-    if((typeof value==='string'||typeof value==='number')&&String(value).length<=256)result[key]=String(value);
+    if((typeof value==='string'||typeof value==='number')&&String(value).length<=(key==='cursor'?1024:256))result[key]=String(value);
   }
   return result;
 }

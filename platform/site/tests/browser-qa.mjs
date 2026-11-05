@@ -1,6 +1,7 @@
 import {checkCollectionDetails} from './collections-qa.mjs';
 import {checkMemberEvidence} from './member-evidence-qa.mjs';
 import {checkCollectionEdges} from './collection-edges-qa.mjs';
+import {checkFinancialCursors} from './financial-cursors-qa.mjs';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { mkdir, stat } from 'node:fs/promises';
@@ -89,6 +90,7 @@ try {
   await checkCollectionDetails({browser,db,origin});
   await checkMemberEvidence({browser});
   await checkCollectionEdges({browser});
+  await checkFinancialCursors({browser});
   await checkStandardWallet({browser,db,origin});
   await checkRuntimeProfiles({browser,origin});
   }

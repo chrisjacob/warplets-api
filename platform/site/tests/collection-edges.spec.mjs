@@ -4,6 +4,12 @@ import {sign} from 'node:crypto';
 import {createCollectionEdgeFixture} from '../../application/fixtures/collection-edges.mjs';
 import {encode58} from '../../server/base58.mjs';
 import {observeCollectionAsset} from '../../collect/store.mjs';
+function assertHistoricalVault(after,before){
+ const semantic=({sourceRevision:ignoredRevision,snapshotId:ignoredSnapshot,...value})=>value;
+ assert.deepEqual(semantic(after),semantic(before));
+ assert.ok(BigInt(after.sourceRevision)>BigInt(before.sourceRevision),'progression must advance the cursor source revision');
+ assert.notEqual(after.snapshotId,before.snapshotId,'progression must create a new read snapshot identity');
+}
 async function actor(f,account){
  let cookie='';const call=async(path,body,requestKey)=>{
   const response=await fetch(f.origin+'/api/v1'+path,{...(body?{method:'POST',body:JSON.stringify(body)}:{}),headers:{origin:f.origin,'content-type':'application/json',cookie,...(requestKey?{'idempotency-key':requestKey}:{})}});
@@ -43,10 +49,11 @@ test('real progression API reactivates an expired pair and preserves historical 
  f.fulfill(pending.value.operation.id);assert.equal(f.fulfill(pending.value.operation.id).replayed,true);
  const after=(await original(asset(request.targetId))).value,material=(await original(asset(request.materialId))).value;
  assert.equal(after.level,2);assert.equal(after.expiresAt,quote.nextTargetExpiry);assert.deepEqual(after.traits,before.traits);assert.equal(material.level,1);assert.ok(Date.parse(material.expiresAt)<f.nowMs);
- assert.equal(f.historical(),historical);assert.deepEqual((await original('/nfts/synthetic-season-000/vault')).value,vault);
+ const upgradedVault=(await original('/nfts/synthetic-season-000/vault')).value;assert.equal(f.historical(),historical);assertHistoricalVault(upgradedVault,vault);
  const visual={kind:'visual',targetId:request.targetId,expectedTargetVersion:after.version},reroll=await original(path,visual,'synthetic-reroll');assert.equal(reroll.status,201);
  f.fulfill(reroll.value.operation.id,{traits:{model:'Synthetic new model',backdrop:'Synthetic new backdrop',symbol:'Synthetic new symbol'}});
  const rerolled=(await original(asset(request.targetId))).value;assert.equal(rerolled.level,2);assert.equal(rerolled.rerolls,1);assert.equal(Date.parse(rerolled.nextRerollAt),f.nowMs+3600000);
+ assertHistoricalVault((await original('/nfts/synthetic-season-000/vault')).value,upgradedVault);
  observeCollectionAsset(f.db,{sourceId:'synthetic-transfer-rerolled',assetId:request.targetId,kind:'transfer',from:f.accounts.original.wallet,to:f.accounts.buyer.wallet,at:f.nowMs,finalized:true},f.nowMs);
  const moved=(await buyer(asset(request.targetId))).value;assert.equal(moved.rerolls,1);assert.equal(moved.nextRerollAt,rerolled.nextRerollAt);
  assert.equal((await buyer(path+'/quote',{...visual,expectedTargetVersion:moved.version})).value.error.code,'reroll_cooldown');assert.equal(f.historical(),historical);
@@ -65,10 +72,11 @@ test('every upgrade starting Level preserves historical entitlements through tar
    const target=(await call('/collect/assets/'+targetId)).value,material=(await call('/collect/assets/'+materialId)).value;
    assert.equal(target.level,level+1);assert.equal(target.expiresAt,quote.nextTargetExpiry);assert.deepEqual(target.traits,oldTarget.traits);
    assert.equal(material.level,1);assert.deepEqual(material.traits,oldMaterial.traits);assert.ok(Date.parse(material.expiresAt)<=Date.parse(oldMaterial.expiresAt));
+   const upgradedClaims=await Promise.all([targetId,materialId].map(async id=>(await call('/nfts/'+id+'/vault')).value));upgradedClaims.forEach((value,index)=>assertHistoricalVault(value,claims[index]));
    const visual=await call(path,{kind:'visual',targetId,expectedTargetVersion:target.version},'synthetic-visual-'+level);assert.equal(visual.status,201);
    f.fulfill(visual.value.operation.id,{traits:{model:'Synthetic changed model',backdrop:'Synthetic changed backdrop',symbol:'Synthetic changed symbol'}});
    const rerolled=(await call('/collect/assets/'+targetId)).value;assert.equal(rerolled.level,level+1);assert.equal(rerolled.expiresAt,target.expiresAt);assert.equal(rerolled.rerolls,1);
-   assert.equal(f.historical(),historical);assert.deepEqual(await Promise.all([targetId,materialId].map(async id=>(await call('/nfts/'+id+'/vault')).value)),claims);
+   assert.equal(f.historical(),historical);const rerolledClaims=await Promise.all([targetId,materialId].map(async id=>(await call('/nfts/'+id+'/vault')).value));rerolledClaims.forEach((value,index)=>assertHistoricalVault(value,upgradedClaims[index]));
   }finally{await f.close();}
  }
 });

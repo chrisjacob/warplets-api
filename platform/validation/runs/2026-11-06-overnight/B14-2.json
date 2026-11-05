@@ -242,6 +242,10 @@
     "repair": "Move required browser bundle assertion to edge/test/quote-bundle.test.mjs; preserve all six dependency-free verification tests.",
     "focusedRepairTests": 7,
     "repairExitCode": 0,
-    "replacementCi": "pending-push"
+    "replacementCi": {
+      "commit": "3251d5b98c6ce0b6c99f52958f343d8b413d255c",
+      "runId": 42129733056,
+      "status": "success"
+    }
   }
 }

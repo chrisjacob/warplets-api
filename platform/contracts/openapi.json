@@ -4083,6 +4083,25 @@
                     },
                     "summary": {
                       "$ref": "#/components/schemas/MemberVaultSummary"
+                    },
+                    "sourceStatus": {
+                      "const": "local-accounting"
+                    },
+                    "chainAuthority": {
+                      "const": "unverified"
+                    },
+                    "unit": {
+                      "const": "base-units"
+                    },
+                    "executable": {
+                      "const": false
+                    },
+                    "sourceRevision": {
+                      "type": "string",
+                      "pattern": "^(0|[1-9][0-9]*)$"
+                    },
+                    "snapshotId": {
+                      "type": "string"
                     }
                   },
                   "required": [
@@ -4147,6 +4166,22 @@
                     },
                     "summary": {
                       "$ref": "#/components/schemas/MemberVaultSummary"
+                    },
+                    "sourceStatus": {
+                      "const": "local-accounting"
+                    },
+                    "chainAuthority": {
+                      "const": "unverified"
+                    },
+                    "unit": {
+                      "const": "base-units"
+                    },
+                    "executable": {
+                      "const": false
+                    },
+                    "sourceRevision": {
+                      "type": "string",
+                      "pattern": "^(0|[1-9][0-9]*)$"
                     },
                     "snapshotId": {
                       "type": "string"
@@ -4298,6 +4333,25 @@
                           "type": "null"
                         }
                       ]
+                    },
+                    "sourceStatus": {
+                      "const": "local-accounting"
+                    },
+                    "chainAuthority": {
+                      "const": "unverified"
+                    },
+                    "unit": {
+                      "const": "base-units"
+                    },
+                    "executable": {
+                      "const": false
+                    },
+                    "sourceRevision": {
+                      "type": "string",
+                      "pattern": "^(0|[1-9][0-9]*)$"
+                    },
+                    "snapshotId": {
+                      "type": "string"
                     }
                   },
                   "required": [
@@ -4397,6 +4451,22 @@
                           "type": "null"
                         }
                       ]
+                    },
+                    "sourceStatus": {
+                      "const": "local-accounting"
+                    },
+                    "chainAuthority": {
+                      "const": "unverified"
+                    },
+                    "unit": {
+                      "const": "base-units"
+                    },
+                    "executable": {
+                      "const": false
+                    },
+                    "sourceRevision": {
+                      "type": "string",
+                      "pattern": "^(0|[1-9][0-9]*)$"
                     },
                     "snapshotId": {
                       "type": "string"
@@ -4506,6 +4576,15 @@
                           "harvestedGrossUnits": {
                             "type": "string",
                             "pattern": "^(0|[1-9][0-9]*)$"
+                          },
+                          "sourceStatus": {
+                            "const": "local-accounting"
+                          },
+                          "chainAuthority": {
+                            "const": "unverified"
+                          },
+                          "unit": {
+                            "const": "base-units"
                           }
                         },
                         "required": [
@@ -4537,6 +4616,25 @@
                     "asOf": {
                       "type": "string",
                       "format": "date-time"
+                    },
+                    "sourceStatus": {
+                      "const": "local-accounting"
+                    },
+                    "chainAuthority": {
+                      "const": "unverified"
+                    },
+                    "unit": {
+                      "const": "base-units"
+                    },
+                    "executable": {
+                      "const": false
+                    },
+                    "sourceRevision": {
+                      "type": "string",
+                      "pattern": "^(0|[1-9][0-9]*)$"
+                    },
+                    "snapshotId": {
+                      "type": "string"
                     }
                   },
                   "required": [
@@ -4598,6 +4696,15 @@
                           "harvestedGrossUnits": {
                             "type": "string",
                             "pattern": "^(0|[1-9][0-9]*)$"
+                          },
+                          "sourceStatus": {
+                            "const": "local-accounting"
+                          },
+                          "chainAuthority": {
+                            "const": "unverified"
+                          },
+                          "unit": {
+                            "const": "base-units"
                           }
                         },
                         "required": [
@@ -4629,6 +4736,22 @@
                     "asOf": {
                       "type": "string",
                       "format": "date-time"
+                    },
+                    "sourceStatus": {
+                      "const": "local-accounting"
+                    },
+                    "chainAuthority": {
+                      "const": "unverified"
+                    },
+                    "unit": {
+                      "const": "base-units"
+                    },
+                    "executable": {
+                      "const": false
+                    },
+                    "sourceRevision": {
+                      "type": "string",
+                      "pattern": "^(0|[1-9][0-9]*)$"
                     },
                     "snapshotId": {
                       "type": "string"
@@ -7077,6 +7200,18 @@
           "fullyVestedAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "sourceStatus": {
+            "const": "local-accounting"
+          },
+          "chainAuthority": {
+            "const": "unverified"
+          },
+          "unit": {
+            "const": "base-units"
+          },
+          "executable": {
+            "const": false
           }
         },
         "required": [
@@ -7117,6 +7252,18 @@
                 "items": {
                   "$ref": "#/components/schemas/VaultAllocation"
                 }
+              },
+              "sourceStatus": {
+                "const": "local-accounting"
+              },
+              "chainAuthority": {
+                "const": "unverified"
+              },
+              "unit": {
+                "const": "base-units"
+              },
+              "executable": {
+                "const": false
               }
             },
             "required": [
@@ -7145,7 +7292,10 @@
                 "enum": [
                   "asset-bound",
                   "manifest-bound",
-                  "concealed-metadata"
+                  "concealed-metadata",
+                  "claim-bound",
+                  "future-accounting",
+                  "invalid-accounting"
                 ]
               },
               "assetCount": {
@@ -7154,6 +7304,18 @@
               "items": {
                 "type": "array",
                 "maxItems": 0
+              },
+              "sourceStatus": {
+                "const": "local-accounting"
+              },
+              "chainAuthority": {
+                "const": "unverified"
+              },
+              "unit": {
+                "const": "base-units"
+              },
+              "executable": {
+                "const": false
               }
             },
             "required": [
@@ -8988,6 +9150,22 @@
           "roundingReserveUnits": {
             "type": "string",
             "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "sourceStatus": {
+            "const": "local-accounting"
+          },
+          "chainAuthority": {
+            "const": "unverified"
+          },
+          "unit": {
+            "const": "base-units"
+          },
+          "sourceRevision": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "snapshotId": {
+            "type": "string"
           }
         },
         "required": [

@@ -10,6 +10,12 @@ import {createEarnReadRepository} from '../storage/earn-reads.mjs';
 import {createGuardedEarnService} from '../earn/guarded-service.mjs';
 import {createQuoteRepository} from '../quotes/repository.mjs';
 import {createQuoteService} from '../quotes/service.mjs';
+import {createFinancialVaultRepository} from '../storage/financial-vault.mjs';
+import {createFinancialFarmRepository} from '../storage/financial-farms.mjs';
+import {createFinancialReadService} from '../financial/service.mjs';
+export function createNodeFinancialReadService(db,{clock={nowMs:Date.now}}={}){
+ const driver=createNodeAtomicDriver(db);return createFinancialReadService({vaultRepository:createFinancialVaultRepository(driver),farmRepository:createFinancialFarmRepository(driver),crypto:createNodeCrypto(),clock});
+}
 export function createNodeQuoteService(db,{clock={nowMs:Date.now},store={async getVerified(identity){return {status:'missing',identity};}},ids={next:randomUUID}}={}){
  const crypto=createNodeCrypto(),repository=createQuoteRepository(createNodeAtomicDriver(db),{crypto,ids});
  return createQuoteService({repository,store,crypto,clock});

@@ -56,7 +56,12 @@ export async function checkCollectionEdges({browser}){
    const operation=f.db.prepare("SELECT id FROM collect_operations WHERE kind='upgrade' AND owner=?").get(f.accounts.original.wallet);assert.ok(operation);
    f.fulfill(operation.id);await page.reload();const target=page.locator('article.record').filter({has:page.getByRole('heading',{name:'synthetic-season-000',exact:true})});
    await target.locator('dt').filter({hasText:/^Level$/}).locator('..').getByText('2',{exact:true}).waitFor();
-   assert.equal(f.historical(),historical);assert.deepEqual(await (await page.request.get(f.origin+'/api/v1/nfts/synthetic-season-000/vault')).json(),before);
+   assert.equal(f.historical(),historical);
+   const after=await (await page.request.get(f.origin+'/api/v1/nfts/synthetic-season-000/vault')).json();
+   const {sourceRevision:beforeRevision,snapshotId:beforeSnapshot,...beforeAccounting}=before;
+   const {sourceRevision:afterRevision,snapshotId:afterSnapshot,...afterAccounting}=after;
+   assert.ok(BigInt(afterRevision)>BigInt(beforeRevision));assert.notEqual(afterSnapshot,beforeSnapshot);
+   assert.deepEqual(afterAccounting,beforeAccounting);
    assert.equal(await target.getByText('Awaiting committed draw evidence.',{exact:true}).count(),0);await target.getByText('Historical allocations retain their original vesting clock after expiry, transfer or progression.',{exact:true}).waitFor();
    await target.getByRole('link',{name:'Vault allocations ↗',exact:true}).click();await page.getByRole('heading',{name:'Allocations for synthetic-season-000',exact:true}).waitFor();
    await page.getByText('Original allocation vesting clocks',{exact:true}).click();await page.goBack();await target.getByRole('link',{name:'Vault allocations ↗',exact:true}).waitFor();

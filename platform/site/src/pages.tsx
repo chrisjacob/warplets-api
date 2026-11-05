@@ -1,14 +1,15 @@
 import { useRuntimeQuery } from './capabilities';
 import { Link } from '@tanstack/react-router';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery,useQueryClient } from '@tanstack/react-query';
 import { rootRoute } from './routes';
 import { sdk } from './sdk';
 import { compact, Empty, Facts, Hero, Loaded, Metrics, MobileRecords, Panel, percent, pretty, usePageMeta, utc } from './common';
 import { useSession } from './session';
 
 function VaultRows({id,cursor}:{id:string;cursor?:string}){
+  const cache=useQueryClient();
   const detail=useRuntimeQuery('/api/v1/nfts/{id}/vault',{queryKey:['nft-vault',id,cursor],queryFn:({signal})=>sdk.nftVault(id,cursor,signal)});
-  return <Panel title={'Allocations for '+id}><Loaded query={detail}>{page=><>
+  return <Panel title={'Allocations for '+id}><Loaded query={detail} restart={<Link to="/vault" search={{asset:id}} onClick={()=>cache.removeQueries({queryKey:['nft-vault',id,undefined],exact:true})}>Restart allocations</Link>}>{page=><>
     {page.items.length?<><MobileRecords entries={page.items.map(i=>({id:i.marketId,summary:i.marketId+' · '+i.claimable+' base units available',
       facts:[['Allocation',i.allocated],['Vested',i.vested],['Claimed',i.claimed],['Available',i.claimable],['Manifest digest',i.manifestDigest],['Original activation',i.activatedAt?utc(i.activatedAt):'Unavailable'],['Cliff ends',i.cliffEndsAt?utc(i.cliffEndsAt):'Unavailable'],['Fully vested',i.fullyVestedAt?utc(i.fullyVestedAt):'Unavailable']]}))}/>
     <div className="scroller wide-table"><table><caption>Token base units · {utc(page.asOf)}</caption>
@@ -23,6 +24,7 @@ function VaultRows({id,cursor}:{id:string;cursor?:string}){
   </>}</Loaded></Panel>;
 }
 export function Vault(){
+  const cache=useQueryClient();
   usePageMeta('Vault','NFT allocations, vesting and historical ATT claims.','/vault');
   const {asset,cursor}=rootRoute.useSearch();
   const {wallet,open}=useSession();
@@ -36,7 +38,7 @@ export function Vault(){
       ['Season allocation',percent(p.launch.allocationBps.seasonVault),'while Season weight is active'],
       ['Vesting period',pretty(p.vault.vestHours)+'h','after a '+p.vault.cliffHours+'h cliff'],
     ]}/>}</Loaded>
-    <Panel title="Your NFTs">{wallet?<Loaded query={holdings}>{page=><>
+    <Panel title="Your NFTs">{wallet?<Loaded query={holdings} restart={<Link to="/vault" search={{}} onClick={()=>cache.removeQueries({queryKey:['private',wallet,'solana','vault',undefined],exact:true})}>Restart holdings</Link>}>{page=><>
       <p className="muted">Local holdings for {compact(wallet)} · projection as of {utc(page.asOf)}. This is a local fixture ledger, not verified chain coverage.</p>
       {page.items.length?<ul className="rows">{page.items.map(nft=><li key={nft.id}><Link to="/vault" search={{asset:nft.id}}>
         <strong>{nft.id}</strong><span>Owner evidence: {nft.ownerObservedAt?utc(nft.ownerObservedAt):'Unavailable'} · View allocations ↗</span></Link></li>)}</ul>:<Empty title="No NFT holdings">This wallet has no assets in the local Vault ledger.</Empty>}
@@ -57,6 +59,7 @@ export function Vault(){
   </>;
 }
 export function Stake(){
+  const cache=useQueryClient();
   usePageMeta('Stake','Continuous same-token campaign rewards and recorded staking positions.','/stake');
   const {farm,cursor}=rootRoute.useSearch(),{wallet,open}=useSession();
   const policy=useQuery({queryKey:['policy'],queryFn:({signal})=>sdk.policy(signal)});
@@ -77,7 +80,7 @@ export function Stake(){
       {farm && <Loaded query={detail}>{f=><><h3>{f.marketId} · {f.status}</h3><Facts items={[
         ['Funded units',f.fundedUnits],['Total staked units',f.totalStakedUnits??'Pending'],['Harvest treasury fee',percent(f.treasuryFeeBps)],['Emissions end',utc(f.emissionEnd)],
       ]}/></>}</Loaded>}</Panel>
-    <Panel title="Your positions">{wallet?<Loaded query={positions}>{page=><>
+    <Panel title="Your positions"><p>Local accounting only. On-chain claim authority is unverified; financial execution is disabled.</p>{wallet?<Loaded query={positions} restart={<Link to="/stake" search={{farm}} onClick={()=>cache.removeQueries({queryKey:['private',wallet,'solana','stake',undefined],exact:true})}>Restart positions</Link>}>{page=><>
       {page.items.length?<><MobileRecords entries={page.items.map(p=>({id:p.marketId,summary:p.marketId+' · '+p.principalUnits+' base units staked',
         facts:[['Principal',p.principalUnits],['Earned gross',p.earnedGrossUnits],['Available gross',p.claimableGrossUnits],['Harvested gross',p.harvestedGrossUnits]]}))}/>
       <div className="scroller wide-table"><table><caption>Local positions · amounts in token base units</caption>
