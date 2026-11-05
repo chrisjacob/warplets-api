@@ -23,6 +23,8 @@ SQLite chose indexed lookups for session, idempotency, latest per-wallet market 
 
 The second command opens four distinct SQLite connections and concurrently retries submission, review, finalization and allocation against one file. All 16 operations completed. Exactly one submission, review, decision, board, allocation and award persisted. Closing and reopening the file reproduced the commitment. See [replay-result.json](replay-result.json). This checks a specific concurrent-write pattern; production consensus and on-chain custody need separate evidence.
 
+After the founder-configurable workload queue was added, the same three workloads retained the same admission and refusal counts. Capacity now reads a per-epoch counter using its integer primary key. The trigger costs one extra row change per accepted post; the slot count no longer scans the accepted cohort for each refused request. The 10,000-wallet run changed 10,200 rows at ingress and measured 3.109 ms p95. Local timings vary with host load. See [staffed-results.json](staffed-results.json).
+
 ## Operating assumptions to quote
 
 - **Moderation time.** At the PRD's illustrative three minutes per review, 100 admitted posts require five operator-hours per day. At 10,000 contributors and ten posts each, an uncapped queue would require 5,000 hours. Confirm staffed capacity and lower admission before a real pilot if five hours is unavailable.

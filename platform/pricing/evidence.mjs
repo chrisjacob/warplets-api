@@ -60,12 +60,12 @@ export function importPriceObservation(db,input) {
 }
 
 export function observationAt(db,wallet,tokenId,time) {
-  const row=db.prepare(`SELECT receipt,decision,read_id FROM price_observations
+  const row=db.prepare(`SELECT receipt,decision,read_id,as_of_ms FROM price_observations
     WHERE wallet=? AND token_id=? AND as_of_ms<=? ORDER BY as_of_ms DESC,revision DESC LIMIT 1`).get(wallet,tokenId,time);
   if (!row) return {status:'pending',reason:'missing-observation'};
   const decision=JSON.parse(row.decision);
   if (decision.status==='verified' && decision.expiresMs<time) return {status:'pending',reason:'stale-or-future',receipt:row.receipt};
-  return {...decision,receipt:row.receipt,readId:row.read_id};
+  return {...decision,receipt:row.receipt,readId:row.read_id,asOfMs:row.as_of_ms};
 }
 
 export function verifiedStakeAt(db,wallet,tokenId,time) {

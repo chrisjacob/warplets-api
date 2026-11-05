@@ -2,6 +2,7 @@ import { DAY_MS, epochAt, onboardingTenths } from '../domain/earn/index.mjs';
 import { seasonActiveWeight } from '../domain/collections/policy.mjs';
 import { transaction } from '../storage/database.mjs';
 import { conflict, digest, name, nat, requireValue } from './checks.mjs';
+import { observationAt } from '../pricing/evidence.mjs';
 
 function preventClosed(db, epoch) {
   if (db.prepare('SELECT 1 FROM earn_boards WHERE epoch=?').get(epoch)) conflict('board_closed','Published evidence is immutable.');
@@ -118,6 +119,12 @@ export function deriveComponents(db,epoch,wallet) {
     WHERE e.wallet=? AND e.enrolled_ms<=? AND m.activation_ms<=? AND m.activation_ms>? ORDER BY e.token_id`)
     .all(epoch,wallet,cutoff,cutoff,cutoff-10*DAY_MS);
   if (positions.some(p=>p.token_days==null)) return {status:'pending',reason:'purchase-reconciliation'};
+  for (const p of positions) {
+    const valuation=observationAt(db,wallet,p.token_id,cutoff);
+    if (valuation.status!=='verified' || valuation.asOfMs!==cutoff || !p.source_ref.endsWith(' / '+valuation.receipt)) {
+      return {status:'pending',reason:'purchase-reconciliation'};
+    }
+  }
   const purchaseTokenDays=Math.min(50,positions.reduce((n,p)=>n+p.token_days,0));
   const intervals=listActiveActions(db,epoch);
   const completions=db.prepare(`SELECT action_id AS actionId,verified_ms AS verifiedAtMs,source_ref AS sourceRef

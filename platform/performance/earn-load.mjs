@@ -26,7 +26,7 @@ function plans(db) {
     session:'SELECT wallet FROM sessions WHERE token_hash=? AND origin=? AND expires_at>?',
     entryEvidence:'SELECT receipt,decision,read_id FROM price_observations WHERE wallet=? AND token_id=? AND as_of_ms<=? ORDER BY as_of_ms DESC,revision DESC LIMIT 1',
     idempotency:'SELECT id FROM earn_submissions WHERE wallet=? AND request_key=?',
-    boardCapacity:'SELECT COUNT(*) FROM earn_submissions WHERE epoch=?',
+    boardCapacity:'SELECT admitted FROM earn_admission_counts WHERE epoch=?',
     publicBoard:'SELECT winners FROM earn_boards WHERE epoch=?',
     portfolio:'SELECT assets FROM earn_owner_snapshots WHERE epoch=? AND wallet=?',
     vestedAwards:'SELECT amount FROM earn_awards WHERE wallet=? AND rowid>? ORDER BY rowid LIMIT 51',

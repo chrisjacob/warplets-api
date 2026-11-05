@@ -7,6 +7,8 @@ import { deriveComponents } from './components.mjs';
 import { readRecoveredClaims, readRecoveredLeaderboard, recoveryMode } from './archive.mjs';
 import { recordSamplePrice } from '../pricing/fixtures.mjs';
 import { verifiedStakeAt as readAt } from '../pricing/evidence.mjs';
+import { capacityAt } from './operations.mjs';
+export { PILOT_BOARD_CAPACITY } from './operations.mjs';
 export { EarnError } from './checks.mjs';
 function canonicalUrl(text) {
   requireValue(typeof text==='string' && text.length<=2048, 'Provide one HTTPS content URL.');
@@ -18,7 +20,6 @@ function canonicalUrl(text) {
   return url.href;
 }
 function pending(epoch,reason) { return { mode:'local-fixture',status:'pending',epoch,reason }; }
-export const PILOT_BOARD_CAPACITY = 100;
 
 export function addCampaign(db,{tokenId,activationMs,originalUnits}) {
   name(tokenId,'token'); nat(activationMs,'activation');
@@ -69,7 +70,7 @@ export function submitContent(db,{wallet,tokenId,url,requestKey,nowMs}) {
     if (db.prepare('SELECT 1 FROM earn_submissions WHERE epoch=? AND wallet=? AND token_id=?').get(epoch,wallet,tokenId)) {
       conflict('already_submitted','You already submitted for this token today.');
     }
-    if (db.prepare('SELECT COUNT(*) AS n FROM earn_submissions WHERE epoch=?').get(epoch).n>=PILOT_BOARD_CAPACITY) {
+    if (!capacityAt(db,epoch,nowMs).accepting) {
       conflict('board_capacity','Pilot moderation slots are full for today.');
     }
     const read=readAt(db,wallet,tokenId,nowMs);

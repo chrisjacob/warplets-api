@@ -82,6 +82,8 @@ test('enrolled purchase position uses the exact same wallet valuation as submiss
   const db=dbFor(t);registerPosition(db,{wallet,tokenId,enrolledMs:time});
   const args={wallet,tokenId,epoch,asOfMs:cutoff,reconciledSequence:0,sourceRef:'farm'};
   assert.equal(reconcilePosition(db,args).status,'pending');
+  importPriceObservation(db,observation(cutoff-1));
+  assert.equal(reconcilePosition(db,args).reason,'missing-cutoff-observation');
   importPriceObservation(db,observation(cutoff));
   assert.throws(()=>reconcilePosition(db,{...args,priceNumerator:'99999'}),/match the verified checkpoint/);
   const actual=reconcilePosition(db,args);

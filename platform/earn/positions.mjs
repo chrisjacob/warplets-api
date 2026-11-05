@@ -82,6 +82,9 @@ export function reconcilePosition(db,{epoch,wallet,tokenId,asOfMs,reconciledSequ
   return transaction(db,()=>{
     const evidence=observationAt(db,wallet,tokenId,cutoff);
     if (evidence.status!=='verified') return {status:'pending',reason:evidence.reason,epoch,wallet,tokenId};
+    // Underlying pool/feed reads may precede cutoff within freshness bounds,
+    // but the adapter must explicitly assemble this position proof for the cutoff.
+    if (evidence.asOfMs!==cutoff) return {status:'pending',reason:'missing-cutoff-observation',epoch,wallet,tokenId};
     requireValue((stakedUnits===undefined||stakedUnits===evidence.stakedUnits)
       &&(priceNumerator===undefined||priceNumerator===evidence.priceNumerator)
       &&(priceDenominator===undefined||priceDenominator===evidence.priceDenominator),'Position price/units must match the verified checkpoint.');
@@ -90,9 +93,19 @@ export function reconcilePosition(db,{epoch,wallet,tokenId,asOfMs,reconciledSequ
     sourceRef=sourceRef+' / '+evidence.receipt;
     const stored=db.prepare('SELECT * FROM earn_position_cutoffs WHERE wallet=? AND token_id=? AND epoch=?').get(wallet,tokenId,epoch);
     if (stored) {
+      // Repair provisional legacy snapshots that were derived from an earlier
+      // observation only when no subsequent snapshot or published board depends on them.
+      if (!stored.source_ref.endsWith(' / '+evidence.receipt)) {
+        if (db.prepare('SELECT 1 FROM earn_boards WHERE epoch=?').get(epoch)
+          || db.prepare('SELECT 1 FROM earn_position_cutoffs WHERE wallet=? AND token_id=? AND epoch>? LIMIT 1').get(wallet,tokenId,epoch)) {
+          conflict('position_sealed','Use the published snapshot history for this position.');
+        }
+        db.prepare('DELETE FROM earn_position_cutoffs WHERE wallet=? AND token_id=? AND epoch=?').run(wallet,tokenId,epoch);
+      } else {
       if (stored.sequence!==reconciledSequence || stored.stake!==stakedUnits || stored.numerator!==priceNumerator ||
           stored.denominator!==priceDenominator || stored.source_ref!==sourceRef) conflict('position_sealed','Position checkpoint already recorded.');
       return {epoch,wallet,tokenId,tokenDays:stored.token_days};
+      }
     }
     const enrollment=db.prepare('SELECT * FROM earn_position_enrollments WHERE wallet=? AND token_id=?').get(wallet,tokenId);
     requireValue(enrollment && enrollment.enrolled_ms<=cutoff,'Position not enrolled at cutoff.');

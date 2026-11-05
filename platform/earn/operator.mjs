@@ -6,10 +6,12 @@ import { registerPriceSource, importPriceObservation } from '../pricing/evidence
 import { configureAction, registerCollection, recordOwnership, recordActionCompletion } from './components.mjs';
 import { registerPosition, recordPositionEvent, reconcilePosition } from './positions.mjs';
 import { recoveryMode } from './archive.mjs';
+import { configureWorkload, moderatorQueue, workloadMetrics } from './operations.mjs';
 
 const commands = {campaign:addCampaign,source:registerPriceSource,observation:importPriceObservation,review:recordReview,
   finalize:finalizeBoard,allocate:recordAllocation,action:configureAction,completion:recordActionCompletion,
-  collection:registerCollection,owner:recordOwnership,enroll:registerPosition,event:recordPositionEvent,position:reconcilePosition};
+  collection:registerCollection,owner:recordOwnership,enroll:registerPosition,event:recordPositionEvent,position:reconcilePosition,
+  workload:configureWorkload,queue:moderatorQueue,metrics:workloadMetrics};
 export function runOperator(argv) {
   const [database,action,fixture]=argv;
   if (argv.length!==3 || !Object.hasOwn(commands,action)) {

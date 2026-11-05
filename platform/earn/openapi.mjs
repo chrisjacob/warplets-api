@@ -1,6 +1,8 @@
 const response = description => ({description,content:{'application/json':{schema:{type:'object'}}}});
 const cursor = {in:'query',name:'cursor',schema:{type:'integer',minimum:0},description:'Continue from nextCursor.'};
 export const earnPaths = {
+  '/earn/capacity':{get:{operationId:'getEarnAdmissionCapacity',summary:'Read available review slots for the current UTC board.',
+    responses:{200:response('Daily limit, admitted count and remaining slots')}}},
   '/earn/epochs/{epoch}/manifest':{get:{operationId:'exportEarnManifest',summary:'Export public board and recorded allocations for independent reconciliation.',
     parameters:[{in:'path',name:'epoch',required:true,schema:{type:'string',format:'date'}}],responses:{200:response('Verified local manifest and digest'),409:response('Board not yet finalized')}}},
   '/earn/claims/proof':{get:{operationId:'getMyEarnProof',summary:'Read your fixture award inclusion proof for one recorded allocation.',

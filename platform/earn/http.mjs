@@ -3,6 +3,7 @@ import { failure, json } from '../server/api.mjs';
 import { DAY_MS } from '../domain/earn/index.mjs';
 import { listActiveActions } from './components.mjs';
 import { exportBoard, proofForWallet, recoveryMode } from './archive.mjs';
+import { capacityAt } from './operations.mjs';
 import { EarnError, readLeaderboard, readWalletClaims, readWalletSubmissions, submitContent } from './workflow.mjs';
 
 const base='/api/v1/earn';
@@ -46,11 +47,12 @@ export async function handleEarn(db,request,peer,now) {
   const claims=url.pathname===base+'/claims';
   const proof=url.pathname===base+'/claims/proof';
   const actions=url.pathname===base+'/actions';
-  if (!board && !post && !me && !claims && !actions && !proof) return null;
+  const capacity=url.pathname===base+'/capacity';
+  if (!board && !post && !me && !claims && !actions && !proof && !capacity) return null;
   const expected=post?'POST':'GET';
   if (request.method!==expected) return failure(405,'method_not_allowed','Unsupported method.',{allow:expected});
   try {
-    if (board || actions) {
+    if (board || actions || capacity) {
       const quota=consumeQuota(db,'earn-read:'+peer,now,60);
       if (quota) return quota;
       if (board) {
@@ -58,6 +60,10 @@ export async function handleEarn(db,request,peer,now) {
         return json(board[2]==='manifest'?exportBoard(db,epoch):readLeaderboard(db,epoch));
       }
       const epoch=Math.floor(now/DAY_MS);
+      if (capacity) {
+        const available=capacityAt(db,epoch,now);
+        return json({mode:'local-fixture',...available,accepting:!recoveryMode(db)&&available.accepting});
+      }
       return json({epoch,mode:'local-fixture',items:listActiveActions(db,epoch)});
     }
     if (post && request.headers.get('origin')!==url.origin) return failure(403,'invalid_origin','Use the configured local origin.');

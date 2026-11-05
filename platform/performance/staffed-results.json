@@ -1,0 +1,207 @@
+{
+  "mode": "local-loopback-only",
+  "node": "v22.22.3",
+  "platform": "win32",
+  "arch": "x64",
+  "reviewCapacity": 100,
+  "scenarios": [
+    {
+      "contributors": 100,
+      "counts": {
+        "accepted": 100,
+        "capacity": 0
+      },
+      "latencyMs": {
+        "p50": 3.375,
+        "p95": 8.373,
+        "p99": 12.466
+      },
+      "httpElapsedMs": 450.18,
+      "sequentialRequestsPerSecond": 222.1,
+      "ingressMetrics": {
+        "statements": 1403,
+        "rowsReturned": 599,
+        "rowsChanged": 100,
+        "sqliteChangedRows": 300
+      },
+      "fixtureSeedBytes": 294912,
+      "wholeRunDatabaseGrowth": 688128,
+      "reviewFixtureSetupMs": 78.38,
+      "finalizeAllocateExportMs": 67.09,
+      "settlementMetrics": {
+        "statements": 1224,
+        "rowsReturned": 507,
+        "rowsChanged": 402,
+        "sqliteChangedRows": 402
+      },
+      "manifestBytes": 28451,
+      "plans": {
+        "session": [
+          "SEARCH sessions USING INDEX sqlite_autoindex_sessions_1 (token_hash=?)"
+        ],
+        "entryEvidence": [
+          "SEARCH price_observations USING INDEX price_checkpoint (wallet=? AND token_id=? AND as_of_ms<?)"
+        ],
+        "idempotency": [
+          "SEARCH earn_submissions USING INDEX sqlite_autoindex_earn_submissions_2 (wallet=? AND request_key=?)"
+        ],
+        "boardCapacity": [
+          "SEARCH earn_admission_counts USING INTEGER PRIMARY KEY (rowid=?)"
+        ],
+        "publicBoard": [
+          "SEARCH earn_boards USING INTEGER PRIMARY KEY (rowid=?)"
+        ],
+        "portfolio": [
+          "SEARCH earn_owner_snapshots USING INDEX sqlite_autoindex_earn_owner_snapshots_1 (epoch=? AND wallet=?)"
+        ],
+        "vestedAwards": [
+          "SEARCH earn_awards USING INDEX earn_awards_by_wallet (wallet=? AND rowid>?)"
+        ]
+      },
+      "budget": {
+        "assumedMinutesPerReview": 3,
+        "acceptedReviewHours": 5,
+        "uncappedOnePostHours": 5,
+        "uncappedTenPostsHours": 50,
+        "independentSourceReads": 1000,
+        "sourceReadsWithSharedClose": 604,
+        "rpcAttemptBudgetIfOneCallPerReadAndOneRetry": 1208,
+        "measuredRpcCalls": 0,
+        "measuredTransfers": 0,
+        "providerUnitPriceUsd": null
+      }
+    },
+    {
+      "contributors": 1000,
+      "counts": {
+        "accepted": 100,
+        "capacity": 900
+      },
+      "latencyMs": {
+        "p50": 2.713,
+        "p95": 4.678,
+        "p99": 7.365
+      },
+      "httpElapsedMs": 2964.1,
+      "sequentialRequestsPerSecond": 337.4,
+      "ingressMetrics": {
+        "statements": 11303,
+        "rowsReturned": 4199,
+        "rowsChanged": 100,
+        "sqliteChangedRows": 1200
+      },
+      "fixtureSeedBytes": 491520,
+      "wholeRunDatabaseGrowth": 978944,
+      "reviewFixtureSetupMs": 65.95,
+      "finalizeAllocateExportMs": 43.85,
+      "settlementMetrics": {
+        "statements": 1224,
+        "rowsReturned": 507,
+        "rowsChanged": 402,
+        "sqliteChangedRows": 402
+      },
+      "manifestBytes": 28451,
+      "plans": {
+        "session": [
+          "SEARCH sessions USING INDEX sqlite_autoindex_sessions_1 (token_hash=?)"
+        ],
+        "entryEvidence": [
+          "SEARCH price_observations USING INDEX price_checkpoint (wallet=? AND token_id=? AND as_of_ms<?)"
+        ],
+        "idempotency": [
+          "SEARCH earn_submissions USING INDEX sqlite_autoindex_earn_submissions_2 (wallet=? AND request_key=?)"
+        ],
+        "boardCapacity": [
+          "SEARCH earn_admission_counts USING INTEGER PRIMARY KEY (rowid=?)"
+        ],
+        "publicBoard": [
+          "SEARCH earn_boards USING INTEGER PRIMARY KEY (rowid=?)"
+        ],
+        "portfolio": [
+          "SEARCH earn_owner_snapshots USING INDEX sqlite_autoindex_earn_owner_snapshots_1 (epoch=? AND wallet=?)"
+        ],
+        "vestedAwards": [
+          "SEARCH earn_awards USING INDEX earn_awards_by_wallet (wallet=? AND rowid>?)"
+        ]
+      },
+      "budget": {
+        "assumedMinutesPerReview": 3,
+        "acceptedReviewHours": 5,
+        "uncappedOnePostHours": 50,
+        "uncappedTenPostsHours": 500,
+        "independentSourceReads": 1000,
+        "sourceReadsWithSharedClose": 604,
+        "rpcAttemptBudgetIfOneCallPerReadAndOneRetry": 1208,
+        "measuredRpcCalls": 0,
+        "measuredTransfers": 0,
+        "providerUnitPriceUsd": null
+      }
+    },
+    {
+      "contributors": 10000,
+      "counts": {
+        "accepted": 100,
+        "capacity": 9900
+      },
+      "latencyMs": {
+        "p50": 1.764,
+        "p95": 3.109,
+        "p99": 5.417
+      },
+      "httpElapsedMs": 19338.92,
+      "sequentialRequestsPerSecond": 517.1,
+      "ingressMetrics": {
+        "statements": 110303,
+        "rowsReturned": 40199,
+        "rowsChanged": 100,
+        "sqliteChangedRows": 10200
+      },
+      "fixtureSeedBytes": 2449408,
+      "wholeRunDatabaseGrowth": 3866624,
+      "reviewFixtureSetupMs": 53.07,
+      "finalizeAllocateExportMs": 29.66,
+      "settlementMetrics": {
+        "statements": 1224,
+        "rowsReturned": 507,
+        "rowsChanged": 402,
+        "sqliteChangedRows": 402
+      },
+      "manifestBytes": 28451,
+      "plans": {
+        "session": [
+          "SEARCH sessions USING INDEX sqlite_autoindex_sessions_1 (token_hash=?)"
+        ],
+        "entryEvidence": [
+          "SEARCH price_observations USING INDEX price_checkpoint (wallet=? AND token_id=? AND as_of_ms<?)"
+        ],
+        "idempotency": [
+          "SEARCH earn_submissions USING INDEX sqlite_autoindex_earn_submissions_2 (wallet=? AND request_key=?)"
+        ],
+        "boardCapacity": [
+          "SEARCH earn_admission_counts USING INTEGER PRIMARY KEY (rowid=?)"
+        ],
+        "publicBoard": [
+          "SEARCH earn_boards USING INTEGER PRIMARY KEY (rowid=?)"
+        ],
+        "portfolio": [
+          "SEARCH earn_owner_snapshots USING INDEX sqlite_autoindex_earn_owner_snapshots_1 (epoch=? AND wallet=?)"
+        ],
+        "vestedAwards": [
+          "SEARCH earn_awards USING INDEX earn_awards_by_wallet (wallet=? AND rowid>?)"
+        ]
+      },
+      "budget": {
+        "assumedMinutesPerReview": 3,
+        "acceptedReviewHours": 5,
+        "uncappedOnePostHours": 500,
+        "uncappedTenPostsHours": 5000,
+        "independentSourceReads": 1000,
+        "sourceReadsWithSharedClose": 604,
+        "rpcAttemptBudgetIfOneCallPerReadAndOneRetry": 1208,
+        "measuredRpcCalls": 0,
+        "measuredTransfers": 0,
+        "providerUnitPriceUsd": null
+      }
+    }
+  ]
+}
