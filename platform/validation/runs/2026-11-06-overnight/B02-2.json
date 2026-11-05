@@ -1,0 +1,58 @@
+{
+  "taskId": "B02",
+  "substep": "B02.2",
+  "status": "in_progress",
+  "implementationCommit": "f3e424fa0f98162163c2ed158754489f81cc4846",
+  "migration": "023-operating-receipts.sql",
+  "classification": "synthetic-fixture; Node/SQLite plus actual local workerd/D1/R2",
+  "commands": [
+    {
+      "command": "node platform/scripts/test-reference.mjs",
+      "tests": 160,
+      "exitCode": 0
+    },
+    {
+      "command": "node --test platform/edge/test/*.test.mjs",
+      "tests": 16,
+      "exitCode": 0
+    },
+    {
+      "command": "node platform/edge/node_modules/typescript/bin/tsc --noEmit -p platform/edge/tsconfig.json",
+      "exitCode": 0
+    },
+    {
+      "command": "node platform/contracts/generate.mjs --check",
+      "exitCode": 0
+    },
+    {
+      "command": "node platform/earn/recovery-drill.mjs",
+      "exitCode": 0
+    }
+  ],
+  "assertions": [
+    "Scope and staffing changes retain exact reference audit hashes",
+    "Concurrent cost reservations and policy changes recheck captured authority; one bounded recompute",
+    "Reserved costs cross months; actual charge uses settlement month and overrun retained",
+    "Provider quota records precede an attempt; pending prevents any call and replay alone never authorizes redispatch",
+    "R2 bytes precede private D1 reference; interrupted reference has no receipt or public catalog entry",
+    "Async board snapshot matches golden inputs; mid-read source revision changes conflict",
+    "Mutation during awaited hashing cannot change accepted payload or principal; supplied revisions honored"
+  ],
+  "review": {
+    "method": "Independent implementation-agent read-only review plus reproduced regression tests",
+    "fixed": [
+      "Caller mutation during hash could break digest binding",
+      "Nonempty expected revisions were ignored"
+    ]
+  },
+  "measurements": {
+    "threeWalletInputBytes": 2706
+  },
+  "remaining": [
+    "Fenced atomic board/allocation persistence",
+    "B05 independent coverage manifest; raw loaded inputs are not complete evidence",
+    "B05/B07 bounded pages for current-plus-late wallet union over100"
+  ],
+  "costUsd": 0,
+  "remoteWrites": false
+}

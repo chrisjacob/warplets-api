@@ -55,5 +55,10 @@
     "B05 cutoff completeness and B06 public route wiring are later dependencies"
   ],
   "remoteWrites": false,
-  "costUsd": 0
+  "costUsd": 0,
+  "ci": {
+    "url": "https://github.com/chrisjacob/warplets-api/actions/runs/42037734436",
+    "head": "2fc890fd5c1072c114b78adf016bc14838bfc693",
+    "status": "success"
+  }
 }

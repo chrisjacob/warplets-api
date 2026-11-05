@@ -1,5 +1,5 @@
 {
   "policy": "prd-1.2",
   "scope": "local",
-  "checkpoint": "blueprint-b02-1-atomic-admission-private-artifacts-6e36ec1"
+  "checkpoint": "blueprint-b02-2-controls-private-references-f3e424f"
 }

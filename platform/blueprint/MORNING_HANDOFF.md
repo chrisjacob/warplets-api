@@ -1,17 +1,25 @@
-# Morning handoff - active implementation
+# Morning handoff - continuing overnight run
 
-The run is continuing. Branch work/10x-prd-foundation; latest tested product code ce59deed69820a4535d3985eb0812e6dc197cea8.
+Branch: work/10x-prd-foundation. Latest tested product code: f3e424fa0f98162163c2ed158754489f81cc4846. This is a resumable checkpoint, not a stopping condition.
 
-B00 and B01 are verified. B01 now includes portable final moderation and read/compute/guarded-commit settlement and allocations. Node operator HTTP uses the service. The pinned board, award and proof bytes are unchanged. Stale input and interrupted-write tests pass. No migration or public API change.
+## Working behavior
 
-Validation: 139 reference tests passed; edge TypeScript, portable bundle, contract drift and recovery passed. Four loopback tests need authorized execution outside the network sandbox. B01 evidence: platform/validation/runs/2026-11-06-overnight/B01.json. Current integration CI is pending push/check.
+B00, B01 and B09 are verified. Earn admission, final moderation, board computation and allocation now cross portable services in the Node reference; golden commitments remain unchanged. The client gates queries/actions by runtime capability, isolates wallet caches and handles account/disconnect/cancel/expiry. Browser journeys passed 360/390/768/1440 using Node and a clearly labeled Worker capability fixture.
 
-B02 is next: implement guarded command receipts, SQL revisions, minimum operating controls and private artifacts, then D1 parity. Migration 022 remains next and the 019 gap stays untouched. B09 agent is implementing capability-aware UI, private query/session lifecycle and browser acceptance; its uncommitted site files are work in progress.
+B02 remains in progress. Tested substeps add guarded Node/D1 admission/review receipts, exact attempt nonces and abort assertions; explicit staffing and scope checks; immutable private filesystem/R2 objects; scope/staffing audits; cost reservation/settlement; pre-attempt quota records; verified private object references; bounded multi-batch board input reads. Migrations022 and023 are applied locally. Next migration024; preserve019 gap.
 
-The reference input digest is not yet a D1 revision/fence. Reference sourceComplete remains a local attestation pending B05. B02-B08 and B20-core are unfinished. Continue the dependency queue without stopping at this checkpoint.
+## Verification
 
-No deployment, remote Cloudflare mutation, spending, funding, broadcasting or external messages. Financial execution remains disabled. Sydney launch hours, later prices and all R-stage gates remain open.
+Latest milestone passed160 reference tests and16 local edge tests, edge TypeScript, contract drift and recovery. Site source is unchanged from B09's11 tests/build/browser pass; beacon's2 tests remain in CI. Test-only CI passed B01 run42035657295, B09 run42036397864 and B02.1 run42037734436. B02.2 CI is pending its checkpoint push. Evidence lives in platform/validation/runs/2026-11-06-overnight/.
 
-B09 source milestone 6134ee56714a393394738fde9818a0ce22bcbd79: capability-aware client, account/session cache lifecycle and four-width browser acceptance passed (11 site tests, TypeScript, build, browser harness). The Worker-profile browser is a client fixture, not D1 integration; B20-core retains that gate. B01 CI 42035657295 passed. B02 is actively editing reserved migration 022 and atomic repository files; those are not yet verified or committed.
+Review reproduced and fixed caller mutation during async hashing and ignored expected revisions. Regression tests cover both. Loopback/Chromium/hard-link tests need authorized execution outside the local sandbox; expectations were not weakened.
 
-B02.1 code 6e36ec1e02bdc02add0591836436ce5abc4d9500: migration022, durable attempt-guarded Node/D1 admission and final review, final SQL assertions, staffed capacity/scoped replay, immutable private filesystem/R2 stores. Local tests and adversarial workerd races pass; B02 remains in progress. See B02-1.json for exact commands/counts. B09 CI42036397864 passed. Current next work is B02.2 operations/audit/cost commands and private verified references; generic receipt-engine extraction is in progress. No new Worker routes advertised.
+## Next executable work
+
+Run node platform/blueprint/validate-plan.mjs --next. Continue B02.3: fenced commitBoard/commitAllocation and complete-input pointer guards using atomic-board-input.mjs, atomic-receipts.mjs and unchanged portable computation. Reserve migration024 centrally for execution-fence/complete-input metadata. Then finish B02 acceptance before B03/B04. B10 is independently ready after B09 but core Earn remains priority.
+
+Raw board input is not independent cutoff coverage. B05 must seal requirements; B07 must retain fences and original vesting. Current combined current/late-review wallet union above100 or input above256KiB explicitly holds; bounded pagination is still needed for full pilot acceptance. Provider metering happens before a call: pending means no call, failed admitted attempts keep usage, and B03 must checkpoint dispatch/outcome so a replay cannot resend. Public Earn Worker writes, immutable public award publication, isolated R2 restore and B20-core remain unfinished.
+
+Preview: node platform/scripts/demo.mjs then http://127.0.0.1:4173/markets (existing compiled client). Node CLI fixture completeness remains an explicitly local attestation. Actual Worker-backed browser acceptance belongs to B20-core; physical wallets remain untested.
+
+No deployment, remote Cloudflare resource mutation, spending, wallet funding, broadcasting or external messages. Financial execution stays disabled. Sydney launch hours, later prices, provider/custody choices and R-stage approvals remain open.
