@@ -8,6 +8,7 @@ import { handleWeb } from '../web/handler.mjs';
 import { handleVault } from '../vault/http.mjs';
 import { handleStake } from '../stake/farms.mjs';
 import { handleTransactions } from '../transactions/http.mjs';
+import { represent } from '../contracts/transport.mjs';
 export function createApp(db,{clock=Date.now}={}) {
   let nextCleanup=0;
   return async (request,peer='loopback')=>{
@@ -18,10 +19,11 @@ export function createApp(db,{clock=Date.now}={}) {
       db.prepare('DELETE FROM auth_challenges WHERE expires_at<=?').run(now);
       nextCleanup=now+60000;
     }
-    return await handleAuth(db,request,peer,now)??handleMarkets(db,request,now)??handleVault(db,request,now)??
+    const response=await handleAuth(db,request,peer,now)??handleMarkets(db,request,now)??handleVault(db,request,now)??
       handleStake(db,request,now)??handleTransactions(db,request,now)??await handleBallots(db,request,peer,now)??
       await handleEarn(db,request,peer,now)??
       await handleLaunchPlans(request,{nowSeconds:Math.floor(now/1000)})??
       await handleWeb(request)??readApi(request);
+    return represent(request,response,now);
   };
 }
