@@ -5,7 +5,7 @@
   "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
   "currentTask": "B16",
-  "lastUpdatedAt": "2026-11-06T21:45:01.164184+00:00",
+  "lastUpdatedAt": "2026-11-06T21:47:28.367351+00:00",
   "migrationAllocation": {
     "next": 69,
     "reserved": [
@@ -538,7 +538,7 @@
       "status": "in_progress",
       "owner": "coordinator",
       "baseCommit": "d5e98c3e3c07423d010662676a6bc1e6fba792ca",
-      "implementationCommit": "a1d1d78",
+      "implementationCommit": "751e37a",
       "pushed": true,
       "evidence": [
         "platform/validation/runs/2026-11-06-overnight/B16-01.json",
@@ -551,7 +551,7 @@
         "platform/validation/runs/2026-11-06-overnight/B16-07.json",
         "platform/validation/runs/2026-11-06-overnight/B16-acceptance.json"
       ],
-      "nextAction": "Supported read-only diagnostic profile localacceptance complete; fullCI pending. No complete executable costpacket; unsupported actionprofiles/account/wire/closure/cost evidence remainexplicit.",
+      "nextAction": "FullCI42299274676 active at751e37a; local supporteddiagnostic acceptance passed. FollowCI tocompletion beforeverified.",
       "blocker": null
     },
     "B17": {
@@ -560,8 +560,10 @@
       "baseCommit": "a1d1d78",
       "implementationCommit": null,
       "pushed": false,
-      "evidence": [],
-      "nextAction": "Bounded pure metadata/permission foundation using actual collection/progression identities; no storage or refresh workflow yet.",
+      "evidence": [
+        "platform/validation/runs/2026-11-06-overnight/B17-01.json"
+      ],
+      "nextAction": "Metadata permissionfoundation verified20Node+3beacon checks; nextpure refresh state machine and privacy-safe fairness projection. Durable workflow/repository/API/UI remainunfinished.",
       "blocker": null
     },
     "B18": {
