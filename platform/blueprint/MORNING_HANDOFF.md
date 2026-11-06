@@ -1,3 +1,13 @@
+# Active checkpoint: B17 local foundations
+
+User authorized continuing through 100% account usage; last measured 84%. Save review summary near exhaustion, then continue. No usage reset authorized.
+
+B00-B15 verified. B16 local supported diagnostic acceptance passed at 751e37a; full CI 42299274676 still running. B17 metadata/permissions pushed at 2e9e458; refresh reducer and sealed fairness projector now pass 12 combined tests (900.1485 ms), with separate declarations and actual pinned BLS fixture checks. Evidence B17-01/02/03. These are pure boundaries, not authenticated repositories or production authorization.
+
+Next: actual Worker foundation parity, private immutable refresh checkpoint recovery, and normalized mint fairness evidence reader. No migration allocated; schema 068, 117 business tables, next 069. Golden checkpoint 126931/131072 bytes. Preserve unrelated work/ scratch. All financial capabilities disabled; original deployment/spending/release boundaries remain.
+
+## Earlier checkpoint history
+
 # Active resumed run - B16 readiness and B17 permissions
 
 User superseded75/80% stop: continue through100% accountusage; save summarynear95 thencontinueuntilexhaustion. No reset/spending authorized. Lastusage79%. Work resumed from6b8bdd9, currentpusheda1d1d78; untrackedwork/ scratchpreserved.

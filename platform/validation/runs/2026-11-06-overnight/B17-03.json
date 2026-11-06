@@ -1,0 +1,54 @@
+{
+  "task": "B17 pure fairness projection",
+  "status": "partial-pure-projection-no-public-route",
+  "checks": [
+    {
+      "command": "node --test platform/collect/fairness-projection.test.mjs",
+      "passed": 5,
+      "durationMs": 860.1314,
+      "log": "work/b17-fairness-projection-node.log"
+    },
+    {
+      "command": "node platform/edge/node_modules/typescript/bin/tsc --noEmit -p platform/edge/tsconfig.json",
+      "status": "passed",
+      "log": "work/b17-fairness-projection-types.log"
+    },
+    {
+      "command": "scoped git diff --check",
+      "status": "passed"
+    }
+  ],
+  "acceptance": [
+    "Separate request/evidence/financial states; financialState not-applicable-local",
+    "Before gates output exactallowlist opaque domain hash plus nonsensitive status; combined owner ID/time and public policy never supplies rawcommitment/context/proof/traits",
+    "Transcript requires irreversible assigned fact, selected reveal and mint-prefix/all-progression-participants reveal coverage from trusted repository context",
+    "Mint/visual/upgrade replay existing context/round/proof/uniform selection, no new entropy or redraw",
+    "Missing replay policy/verifier remains sealed; tampered proof/context/result/timing conflicts while retaining opaque commitment",
+    "Replay determinism and pre-await input capture; getter/oversized/extra-future-mapping rejection",
+    "Actual pinned BLS adapter checks existing recorded round30000000 proof and rejects changed round"
+  ],
+  "limits": {
+    "inputBytes": 262144,
+    "transcriptBytes": 262144
+  },
+  "limitations": [
+    "Facts/reveal coverage in unit fixture are synthetic, not authenticated repository evidence",
+    "Requires verified repository input; supplied booleans do not grant disclosure permission",
+    "Recorded draw replay scope only; full original policy closure and reserved asset association still trusted retained repository responsibility",
+    "Future reserved mapping never exposed; large valid trait policies beyond bound require later bounded public-reference adapter and cannot be truncated",
+    "No route, writes, entropy changes, payment/refund/signing/broadcast or production provider selection"
+  ],
+  "sourceHashes": {
+    "platform/collect/fairness-projection.mjs": "4aa946c77a97a31b74227a334674edb219d9b707c72c2742a01f8f6378448767",
+    "platform/collect/fairness-projection.d.mts": "0828328bcfda1b72f6fc1fad220fc571d45c2c3cda8e461f92c26b0979fb2f0b",
+    "platform/collect/fairness-projection.fixtures.mjs": "2d0480b68fe2bad3a0a1b869a401080f2c1229c9013446ab3061d7eadac2d8e9",
+    "platform/collect/fairness-projection.test.mjs": "a34e9487f99f26070f7a7ecb8f197d2086b03ac471bd8faae73bab4b6275be76"
+  },
+  "recordedProofSha256": "3d15f14250d2aebb1d5f2d8d1ba692647f5cfa118880ff0469b9d9a40ee8cd73",
+  "financialExecution": false,
+  "coordinatorCombinedCheck": {
+    "passed": 12,
+    "durationMs": 900.1485,
+    "log": "work/b17-pure-combined.log"
+  }
+}

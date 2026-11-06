@@ -1,0 +1,63 @@
+{
+  "milestone": "B17 private Genesis refresh pure rehearsal",
+  "status": "partial-verified",
+  "implementationCommit": null,
+  "baseCommit": "2e9e458ce948c1424be467e89480e7c9547781b0",
+  "files": [
+    "platform/nfts/refresh-workflow.mjs",
+    "platform/nfts/refresh-workflow.d.mts",
+    "platform/nfts/refresh-workflow.test.mjs"
+  ],
+  "sourceHashes": {
+    "platform/nfts/refresh-workflow.mjs": "25b5ca4085d652d6db864b4a383b2e548d273ce15bb77dbee9796d4ea4c3718f",
+    "platform/nfts/refresh-workflow.d.mts": "112feb76d124097f4094cc2c6a93b94c5bc96faebfbb4807ba9671af40110ad4",
+    "platform/nfts/refresh-workflow.test.mjs": "adc99299b4279f15b1a6d5e19a317d6b06f95652b491d82c993ec21e35cd24d4"
+  },
+  "checks": [
+    {
+      "command": "node --test platform/nfts/metadata-schema.test.mjs platform/nfts/permissions.test.mjs platform/nfts/refresh-workflow.test.mjs",
+      "passed": 14,
+      "newTests": 7,
+      "durationMs": 555.195,
+      "log": "work/b17-refresh-node.log"
+    },
+    {
+      "command": "platform/edge tsc --noEmit and direct refresh-workflow.d.mts declaration typecheck",
+      "passed": true
+    }
+  ],
+  "bounds": {
+    "events": 16,
+    "measured16EventStateBytes": 13163,
+    "stateLimitBytes": 32768,
+    "eventLimitBytes": 4096,
+    "entries": 4096,
+    "depth": 20
+  },
+  "covered": [
+    "Exact recorded fixture lifecycle, replayed outcome and JSON restart at each phase",
+    "Immutable original owner/version/reference/quote, named retained event actors and bound provider job hash",
+    "Preview/job/quote substitution rejects, wrong actor rejects",
+    "Owner change before approval invalidates; after approval permanently holds",
+    "Provider absent remains unavailable; failed provider retries same job",
+    "Full transcript replay rejects changed derived state, history and economic fields",
+    "Async input capture; getters rejected;16-event bound preserves history"
+  ],
+  "limitations": [
+    "Pure structural rehearsal: supplied owner contexts, actors, artifact existence and receipt authenticity remain unverified",
+    "No durable repository/schema/mutation route, provider/AI calls, payment/signing/broadcast",
+    "Fulfilled means explicitly recorded synthetic fixture rehearsal; metadataApplied:false",
+    "Actual Worker parity is next, not claimed here"
+  ],
+  "financialState": "not-applicable-local",
+  "rehearsalOnly": true,
+  "metadataApplied": false,
+  "receiptAuthenticity": "unverified",
+  "financialExecution": false,
+  "isAuthorization": false,
+  "coordinatorCombinedCheck": {
+    "passed": 12,
+    "durationMs": 900.1485,
+    "log": "work/b17-pure-combined.log"
+  }
+}

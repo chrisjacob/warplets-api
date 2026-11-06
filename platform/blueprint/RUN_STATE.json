@@ -5,7 +5,7 @@
   "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
   "currentTask": "B16",
-  "lastUpdatedAt": "2026-11-06T21:47:28.367351+00:00",
+  "lastUpdatedAt": "2026-11-06T21:54:23.304932+00:00",
   "migrationAllocation": {
     "next": 69,
     "reserved": [
@@ -558,12 +558,14 @@
       "status": "in_progress",
       "owner": "snapshot_acceptance",
       "baseCommit": "a1d1d78",
-      "implementationCommit": null,
-      "pushed": false,
+      "implementationCommit": "2e9e458",
+      "pushed": true,
       "evidence": [
-        "platform/validation/runs/2026-11-06-overnight/B17-01.json"
+        "platform/validation/runs/2026-11-06-overnight/B17-01.json",
+        "platform/validation/runs/2026-11-06-overnight/B17-02.json",
+        "platform/validation/runs/2026-11-06-overnight/B17-03.json"
       ],
-      "nextAction": "Metadata permissionfoundation verified20Node+3beacon checks; nextpure refresh state machine and privacy-safe fairness projection. Durable workflow/repository/API/UI remainunfinished.",
+      "nextAction": "Pure refresh/projection tested; actual Worker parity, private checkpoint restore and normalized mint evidence reader underway. Durable authenticated workflow/API/UI remain unfinished.",
       "blocker": null
     },
     "B18": {
