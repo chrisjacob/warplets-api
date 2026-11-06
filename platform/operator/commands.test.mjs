@@ -1,9 +1,10 @@
+import {OBSERVE_COLLECTION_ASSET} from '../collect/observation-service.mjs';
 import {SEAL_COLLECTION_LIST,SEAL_COLLECTION_SOURCE} from '../collect/source-intake.mjs';
 import {MATERIALIZE_ELIGIBILITY_PAGE} from '../collect/eligibility-index-service.mjs';
 import {CONFIGURE_ACTION} from '../earn/action-policy-service.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {prepareOperatorCommand,dispatchOperatorCommand,LOCAL_OPERATOR_COMMANDS,LOCAL_OPERATOR_SCOPES,operatorCommandScope} from '../application/operator-commands.mjs';
+import {prepareOperatorCommand,dispatchOperatorCommand,LOCAL_OPERATOR_UPLOADS,LOCAL_OPERATOR_COMMANDS,LOCAL_OPERATOR_SCOPES,operatorCommandScope} from '../application/operator-commands.mjs';
 import {createOperationsCommand,OPERATIONS} from '../storage/atomic-operations.mjs';
 import {createNodeCrypto} from '../security/node-crypto.mjs';
 import {FINAL_REVIEW,reviewRequestBytes} from '../application/commands.mjs';
@@ -43,7 +44,7 @@ test('local operator registry rejects member authority, extra fields, unknown co
  for(const badPrincipal of [{kind:'wallet',wallet:'synthetic'}, {...principal,sessionToken:'not-command-data'}, {kind:'operator',id:' '}])
   await assert.rejects(prepareOperatorCommand({principal:badPrincipal,request:staffing(),nowMs},counting),invalid);
  await assert.rejects(prepareOperatorCommand({principal,request:staffing(),nowMs:NaN},counting),invalid);
- assert.equal(hashes,0);assert.deepEqual(LOCAL_OPERATOR_COMMANDS,[SEAL_COLLECTION_LIST,SEAL_COLLECTION_SOURCE,MATERIALIZE_ELIGIBILITY_PAGE,CONFIGURE_ACTION,OPERATIONS.configureWorkload,OPERATIONS.changeScope,FINAL_REVIEW,PUBLISH_COLLECTION_STAGE,PUBLISH_BALLOT,RECORD_DECISION,BEGIN_COLLECTION_FREE_CUT,VALIDATE_COLLECTION_CUT_PAGE,SEAL_COLLECTION_FREE_CUT]);
+ assert.equal(hashes,0);assert.deepEqual(LOCAL_OPERATOR_COMMANDS,[OBSERVE_COLLECTION_ASSET,...LOCAL_OPERATOR_UPLOADS,SEAL_COLLECTION_LIST,SEAL_COLLECTION_SOURCE,MATERIALIZE_ELIGIBILITY_PAGE,CONFIGURE_ACTION,OPERATIONS.configureWorkload,OPERATIONS.changeScope,FINAL_REVIEW,PUBLISH_COLLECTION_STAGE,PUBLISH_BALLOT,RECORD_DECISION,BEGIN_COLLECTION_FREE_CUT,VALIDATE_COLLECTION_CUT_PAGE,SEAL_COLLECTION_FREE_CUT]);
 });
 
 test('final moderation keeps historical receipt identity while confirmation binds explicit revisions',async()=>{
@@ -211,7 +212,7 @@ test('fixed-cut input bounds reject caller timing, lists, record uploads, aliase
  for(const pageIndex of [-1,100,0.5,'0',null,NaN,Infinity])bad.push({...cutPage(),input:{...cutPage().input,pageIndex}});
  for(const operationKind of [STAGE_COLLECTION_CUT_RECORD,'beginCut','validatePage','sealCut','collection.freeze-free-cut.v1'])bad.push({...cutBegin(),operationKind});
  for(const request of bad)await assert.rejects(prepareOperatorCommand({principal,request,nowMs},counting));assert.equal(hashes,0);
- assert.equal(LOCAL_OPERATOR_COMMANDS.includes(STAGE_COLLECTION_CUT_RECORD),false);
+ assert.equal(LOCAL_OPERATOR_UPLOADS.includes(STAGE_COLLECTION_CUT_RECORD),true); // Available only through the separately bounded upload route.
 });
 
 test('fixed-cut request is captured and deeply frozen before either asynchronous digest',async()=>{
@@ -269,4 +270,9 @@ test('action policy registry binds exact future configuration and keeps accepted
  const changed=structuredClone(request);changed.input.enabled=false;const next=await prepareOperatorCommand({principal,request:changed,nowMs:1},crypto);assert.notEqual(a.command.requestDigest,next.command.requestDigest);assert.notEqual(a.preview.confirmationDigest,next.preview.confirmationDigest);
  await assert.rejects(prepareOperatorCommand({principal,request:{...request,input:{...request.input,issuer:'untrusted'}},nowMs:1},crypto));
  let received;assert.equal(await dispatchOperatorCommand({configureAction:async c=>{received=c;return 'named-dispatch';}},a),'named-dispatch');assert.equal(received,a.command);
+});
+
+test('record upload kinds cannot bypass the separate bounded route',async()=>{
+ for(const operationKind of LOCAL_OPERATOR_UPLOADS)assert.throws(()=>dispatchOperatorCommand({changeScope(){throw Error('must not dispatch');}},{command:{operationKind}}),/bounded private upload dispatcher/);
+ for(const operationKind of LOCAL_OPERATOR_UPLOADS)await assert.rejects(prepareOperatorCommand({principal:{kind:'operator',id:'synthetic-upload'},request:{operationKind,requestKey:'synthetic-upload',input:{id:'a'.repeat(64)},expectedRevisions:{earn:'0',source:'0',control:'0'}},nowMs:1},createNodeCrypto()),/bounded private upload route/);
 });

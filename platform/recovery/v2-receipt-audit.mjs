@@ -1,3 +1,4 @@
+import {OBSERVE_COLLECTION_ASSET} from '../collect/observation-service.mjs';
 import {sql} from '../storage/atomic-driver.mjs';
 import {canonicalJson,utf8} from '../security/canonical.mjs';
 import {prepareConfigAudit} from '../storage/atomic-audit.mjs';
@@ -15,13 +16,13 @@ export async function verifiedRecoveryReceiptInput(receipt,read,crypto){
  const r=structuredClone(receipt),input=JSON.parse(r.input_json);
  need(input&&typeof input==='object'&&!Array.isArray(input)&&r.input_json===canonicalJson(input),'canonical input envelope.');
  if(!Object.hasOwn(input,'audit'))return input;
- need(sourceKinds.includes(r.operation_kind)||cutKinds.includes(r.operation_kind)||r.operation_kind===PUBLISH_COLLECTION_STAGE,'unsupported audited kind.');
+ need(r.operation_kind===OBSERVE_COLLECTION_ASSET||sourceKinds.includes(r.operation_kind)||cutKinds.includes(r.operation_kind)||r.operation_kind===PUBLISH_COLLECTION_STAGE,'unsupported audited kind.');
  const {audit,...business}=input;
  need(exact(audit,['seq','previousHash','eventHash','payload','recordedMs'])&&Number.isSafeInteger(audit.seq)&&audit.seq>=1&&hash(audit.eventHash)&&(audit.seq===1?audit.previousHash===null:hash(audit.previousHash))&&typeof audit.payload==='string'&&utf8(audit.payload).length<=16384&&Number.isSafeInteger(audit.recordedMs)&&audit.recordedMs>=0&&audit.recordedMs===r.created_ms,'metadata.');
  need(typeof r.principal_key==='string'&&/^operator:[A-Za-z0-9._:-]{1,128}$/.test(r.principal_key),'principal.');
  const result=JSON.parse(r.result_json),isStage=r.operation_kind===PUBLISH_COLLECTION_STAGE;
  const event=isStage?{category:'collection-stage',entity:business.inventoryId,changeKey:r.business_key,atMs:r.created_ms,actor:r.principal_key.slice(9),evidenceRef:business.eligibilityListId??business.sourceKind,payload:{inventoryId:business.inventoryId,stageId:business.stageId,termsDigest:result.termsDigest,eligibility:result.eligibility,requestDigest:r.request_digest,priceLamports:business.priceLamports,costLamports:business.costLamports,sourceKind:business.sourceKind}}:
-  {category:sourceKinds.includes(r.operation_kind)?'collection-source':'collection-free-cut',entity:r.business_key,changeKey:sourceKinds.includes(r.operation_kind)?canonicalJson([r.operation_kind,r.request_key]):r.request_key,atMs:r.created_ms,actor:r.principal_key.slice(9),evidenceRef:business.id??business.rootId??business.attemptId,payload:{operationKind:r.operation_kind,requestDigest:r.request_digest,resultRef:r.result_ref,resultDigest:r.output_digest}};
+  {category:r.operation_kind===OBSERVE_COLLECTION_ASSET?'collection-observation':sourceKinds.includes(r.operation_kind)?'collection-source':'collection-free-cut',entity:r.operation_kind===OBSERVE_COLLECTION_ASSET?business.assetId:r.business_key,changeKey:r.operation_kind===OBSERVE_COLLECTION_ASSET?r.result_ref:sourceKinds.includes(r.operation_kind)?canonicalJson([r.operation_kind,r.request_key]):r.request_key,atMs:r.created_ms,actor:r.principal_key.slice(9),evidenceRef:r.operation_kind===OBSERVE_COLLECTION_ASSET?business.evidenceReceiptId:business.id??business.rootId??business.attemptId,payload:{operationKind:r.operation_kind,requestDigest:r.request_digest,resultRef:r.result_ref,resultDigest:r.output_digest}};
  const [rows]=await read([sql(`SELECT seq,${bounded('previous_hash',64)},${bounded('event_hash',64)},${bounded('category',64)},${bounded('entity',512)},${bounded('change_key',512)},recorded_ms,${bounded('actor',128)},${bounded('evidence_ref',256)},${bounded('payload',16384)} FROM ops_config_audit WHERE seq IN (?,?) ORDER BY seq`,audit.seq,audit.seq-1)]);
  const row=rows.find(v=>v.seq===audit.seq),previous=rows.find(v=>v.seq===audit.seq-1);
  need(rows.length===(audit.seq===1?1:2)&&row&&(audit.seq===1?!previous:previous&&hash(previous.event_hash)&&previous.event_hash===audit.previousHash),'row or predecessor.');

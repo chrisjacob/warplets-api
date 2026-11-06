@@ -1,0 +1,24 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {openDatabase} from '../storage/database.mjs';
+import {createNodeAtomicDriver} from '../storage/node/atomic-driver.mjs';
+import {createNodeCrypto} from '../security/node-crypto.mjs';
+import {seedCollectionContext} from '../application/fixtures/collection-context.mjs';
+import {memoryArtifacts} from '../application/fixtures/memory-artifacts.mjs';
+import {dispatchCollectionObservation,observationInput,OBSERVATION_TEST_OPERATOR} from '../collect/observation-test-harness.mjs';
+import {createOperatorSessionAuthority} from './session.mjs';
+import {createOperatorCommandTransport} from './command-transport.mjs';
+const origin='http://127.0.0.1:4174',kind='collection.observe-asset.v1';
+test('private observation preview uses retained evidence, binds revisions and projects no hidden asset state',async t=>{
+ const db=openDatabase();t.after(()=>db.close());const f=seedCollectionContext(db),driver=createNodeAtomicDriver(db),crypto=createNodeCrypto(),artifacts=memoryArtifacts(),now=Date.now(),actor=OBSERVATION_TEST_OPERATOR;
+ for(const scope of ['evidence-ingest','collection-evidence'])db.prepare('INSERT INTO app_operator_scopes VALUES(?,?,0,1)').run(actor.id,scope);
+ const assetId=f.ids(1,'target'),evidence=await dispatchCollectionObservation({driver,crypto,store:artifacts,request:{method:'evidence',nowMs:now,idPrefix:'synthetic-console-observation-evidence',inventoryId:f.inventoryId,assetId,events:[{id:'transfer',kind:'transfer',observedMs:Math.floor((now-1000)/1000)*1000,from:f.wallet,to:f.other}],recordId:'transfer'}});assert.equal(evidence.result.kind,'committed');
+ const code='synthetic-observation-bootstrap-longer-than32',sessions=createOperatorSessionAuthority({bootCode:code,operatorId:actor.id,allowedKinds:[kind]}),token=sessions.login(code).sessionToken,handler=createOperatorCommandTransport(db,{sessions,artifacts});
+ const revisions=()=>Object.fromEntries(db.prepare('SELECT * FROM app_revisions').all().map(r=>[r.name,String(r.revision)]));
+ const {requestKey,...input}=observationInput(evidence.result.value,{requestKey:'synthetic-console-observation',expectedAssetVersion:0});let body={operationKind:kind,requestKey,input,expectedRevisions:revisions()};
+ const send=async(path,b,confirmation)=>{const r=await handler(new Request(origin+'/ops/commands/'+path,{method:'POST',headers:{origin,'content-type':'application/json',authorization:'Bearer '+token,...(confirmation?{'x-operator-preview':confirmation}:{})},body:JSON.stringify(b)}));return {status:r.status,value:await r.json()};};
+ const before=db.prepare('SELECT COUNT(*) n FROM ops_config_audit').get().n,p=await send('preview',body);assert.equal(p.status,200,JSON.stringify(p));assert.equal(db.prepare('SELECT COUNT(*) n FROM ops_config_audit').get().n,before);assert.equal(p.value.summary.result.assetVersion,1);assert.equal(p.value.summary.result.executable,false);for(const hidden of ['owner','traits','level','slot','asset'])assert.equal(Object.hasOwn(p.value.summary.result,hidden),false);
+ db.prepare("UPDATE app_operator_scopes SET revision=revision+1 WHERE operator=? AND scope='collection-evidence'").run(actor.id);assert.equal((await send('execute',body,p.value.confirmationDigest)).value.code,'revision_conflict');assert.equal(db.prepare('SELECT owner FROM collect_assets WHERE id=?').get(assetId).owner,f.wallet);
+ body={...body,expectedRevisions:revisions()};const fresh=await send('preview',body),result=await send('execute',body,fresh.value.confirmationDigest);assert.equal(result.status,200,JSON.stringify(result));assert.equal(result.value.kind,'committed');assert.equal(result.value.projection,'safe-observation-summary-v1');assert.equal(Object.hasOwn(result.value.value,'owner'),false);assert.equal(db.prepare('SELECT owner FROM collect_assets WHERE id=?').get(assetId).owner,f.other);
+ db.prepare('UPDATE app_operator_scopes SET enabled=0 WHERE operator=?').run(actor.id);artifacts.objects.clear();const replay=await send('receipt',body);assert.equal(replay.value.kind,'replayed');assert.deepEqual(replay.value.value,result.value.value);assert.equal(db.prepare('SELECT COUNT(*) n FROM ops_config_audit').get().n,before+1);assert.equal(db.prepare('SELECT COUNT(*) n FROM tx_intents').get().n,0);
+});

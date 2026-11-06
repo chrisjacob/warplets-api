@@ -1,0 +1,176 @@
+{
+  "task": "B12",
+  "slice": "B12-10",
+  "status": "verified-slice",
+  "baseCommit": "ed8b97d",
+  "scope": [
+    "Dedicated streamed private source<=131072B/cut<=65536B upload route",
+    "Live scoped session and exact metadata confirmation; byte validation even for execute replay",
+    "Metadata-only journal, readonly receipt recovery and explicit exact-file retry",
+    "Explicit logout clears local private state even when server logout fails"
+  ],
+  "checks": {
+    "transport": "8PASS4644.6322ms work/b12-upload-transport.log; realSQLclock and streamed exact128KiB",
+    "boundary": "28PASS1288.5469ms work/b12-upload-boundary.log",
+    "browser": {
+      "scope": "B12 explicit private codec upload UI and metadata-only unknown-outcome recovery",
+      "capturedAt": "2026-11-06T15:03:07.763284+00:00",
+      "sourceHashes": {
+        "platform/operator/ui.mjs": "00cb772102690562883482a69d6c1fd115389b8606ce2b0c052eade8012840f7",
+        "platform/operator/index.html": "7740e36355f8c5a38eb2c26ee7c7b50f8e721ebf44a00ce48548a7b0fb033e4e",
+        "platform/operator/approval-packet.mjs": "534b12d81abbec145aa928ccbc9594ecaeeeffda4bd31ae0eddec6c65f010195",
+        "platform/operator/approval-packet.test.mjs": "e2a8648507db36a6b5683560b856243a656e8aa4598a65f6506a4dc1674bc7c8",
+        "platform/operator/upload-browser-qa.mjs": "f96f48a3e9403255fdfaf6c624af63b2a978027865e55d41a55322c97837755b",
+        "platform/operator/source-browser-qa.mjs": "1a07ef1a8720c492e038005ab1f3513cbf43dc9743e43236f0b38b6e8ed74530"
+      },
+      "commands": [
+        "node platform/operator/upload-browser-qa.mjs",
+        "node platform/operator/browser-qa.mjs",
+        "node platform/operator/source-browser-qa.mjs",
+        "node --test platform/operator/approval-packet.test.mjs",
+        "node --check platform/operator/ui.mjs",
+        "node --check platform/operator/approval-packet.mjs",
+        "node --check platform/operator/upload-browser-qa.mjs",
+        "git diff --check -- platform/operator/ui.mjs platform/operator/index.html platform/operator/approval-packet.mjs platform/operator/approval-packet.test.mjs platform/operator/upload-browser-qa.mjs platform/operator/source-browser-qa.mjs"
+      ],
+      "results": [
+        {
+          "log": "work/b12-upload-final-upload-browser-qa.log",
+          "result": {
+            "passed": true,
+            "widths": [
+              360,
+              390,
+              768,
+              1440
+            ],
+            "source": "synthetic-local-operator-fixture",
+            "localCodecFiles": true,
+            "clientSha256": true,
+            "byteLimitsBeforeRead": true,
+            "canonicalAndHashNegatives": true,
+            "previewReadOnly": true,
+            "metadataOnlyJournal": true,
+            "uploadMetadataPackets": true,
+            "unsubmittedReloadRequiresExplicitReselection": true,
+            "lostResponseReloadReceiptOnly": true,
+            "missingReceiptRequiresSameFile": true,
+            "wrongReselectionHeld": true,
+            "exactHeaderAndBytesRetry": true,
+            "expiredSessionSamePrincipalRecovery": true,
+            "differentPrincipalIsolation": true,
+            "scopeRevokedReceiptLookup": true,
+            "emptyReceiptBodies": true,
+            "logoutClearsPrivateSelection": true,
+            "explicitLogoutClearsUnknownAfter401": true,
+            "auditEvents": 2,
+            "noSealAdoptionPublicationOrFinancialEffects": true,
+            "financialExecution": false,
+            "screenshots": "work/b12-upload-operator"
+          }
+        },
+        {
+          "log": "work/b12-upload-final-browser-qa.log",
+          "result": {
+            "passed": true,
+            "widths": [
+              360,
+              390,
+              768,
+              1440
+            ],
+            "realCommandExecutions": 14,
+            "auditEvents": 10,
+            "newAuditEvents": 9,
+            "baselineAuditEvents": 1,
+            "previewReadOnly": true,
+            "localReviewPacketDownload": true,
+            "packetNoAuthorityOrPrivateData": true,
+            "packetDisabledAfterAttempt": true,
+            "negativeResponseLoss": true,
+            "exactRetryAfterReload": true,
+            "expiredSessionReauthentication": true,
+            "stablePrincipalRetry": true,
+            "differentPrincipalIsolation": true,
+            "negativeStalePreview": true,
+            "readOnlySession": true,
+            "auditedFinalReview": true,
+            "immutableReviewConflict": true,
+            "reviewExactReplay": true,
+            "confirmationRevisionBinding": true,
+            "negativePreviewMismatch": true,
+            "legacyReceiptReadOnly": true,
+            "missingLegacyReceiptHeld": true,
+            "keyboardFocus": true,
+            "logoutClearsPrivateState": true,
+            "financialExecution": false,
+            "screenshots": "work/b12-operator"
+          }
+        },
+        {
+          "log": "work/b12-upload-final-source-browser-qa.log",
+          "result": {
+            "passed": true,
+            "widths": [
+              360,
+              390,
+              768,
+              1440
+            ],
+            "source": "synthetic-local-operator-fixture",
+            "clock": "actual Date.now and database execution-time fence",
+            "missingListClosure": "source-records-missing",
+            "missingSourceClosureHeld": true,
+            "previewReadOnly": true,
+            "noUploadControl": true,
+            "exactProjectedReceiptIdentity": true,
+            "originalOutputDigestRetained": true,
+            "readOnlyReceiptProjectionAfterRevocation": true,
+            "noPrivateWalletBoundsRecordsOrOutcomes": true,
+            "threeSafePacketDownloads": true,
+            "threeLostAckScopeRevokedReplays": true,
+            "negativeAlteredProjectionRetained": true,
+            "auditEvents": 3,
+            "noAdoptionPublicationOrFinancialEffects": true,
+            "readOnlyPermissions": true,
+            "financialExecution": false,
+            "screenshots": "work/b12-source-operator"
+          }
+        }
+      ],
+      "packetTests": {
+        "passed": 10,
+        "failed": 0,
+        "durationMs": 278.2803,
+        "log": "work/b12-upload-packet.log"
+      },
+      "executionScope": "Upload and existing operator browser rerun after final explicit-logout401 fix; source seal/index browser passed immediately before that isolated logout change, with all source protocol code unchanged. Packet helper unchanged since final10-test pass.",
+      "fixture": "Actual local synthetic codec files selected through Chromium file input; real loopback API with installed pinned runtime and migrated SQLite. Date.now used for positive writes; private session clock offset/restart used only for expiry negatives.",
+      "coverage": [
+        "Explicit source/cut family selection, client SHA256 and131072/65536-byte bounds; oversized files rejected before File.arrayBuffer or network",
+        "Actual canonical/hash negative requests reject without staging",
+        "Read-only preview at360/390/768/1440; metadata journal excludes bytes, names, paths, wallets and record internals",
+        "Safe packet labels requestIdentity upload-metadata, source local-fixture, financialExecution false/isAuthorization false",
+        "Unsubmitted reload drops bytes and requires explicit same-file reselection before confirmation",
+        "Committed lost response reload performs empty-body read-only receipt lookup, with zero File.arrayBuffer calls",
+        "Missing receipt404 retains identity, rejects wrong-file reselection, and allows only explicit sameid/size retry with identical header/body/key/confirmation",
+        "Expired session preserves unknown metadata; same-principal trusted reauthentication resolves receipt without file read; different principal clears journal",
+        "Accepted receipt resolves after scope revocation; no automatic file access, record fetching or upload replay",
+        "Explicit logout always clears local bytes/journal, including server401; message distinguishes unconfirmed server logout",
+        "Two genuine private record staging audit events; no seal, adoption, active authority, stage publication or transaction intent",
+        "Existing operator session/review/staff/pause/download regression passes; source seal/index workflow remains intact"
+      ],
+      "visualInspection": "work/b12-upload-operator/source-preview-360.png; no filename retained after preview and no horizontal overflow atfourwidths",
+      "compatibilityChange": "source-browser-qa no-file-input assertion narrowed to its three seal/index forms, as coordinator authorized; dedicated new upload form is now intended",
+      "limitations": [
+        "Private local record staging only; no external source/provenance authentication or economic approval",
+        "No remote file fetching, deployment, public upload endpoint or financial execution",
+        "Packet digests retain reviewed server identities and explicitly do not claim the safe metadata is the original raw command preimage"
+      ],
+      "ownership": "Six paths only; no backend, registry, console, service or schema edits"
+    },
+    "finalUiRegression": "Upload browser rerun on final observation UI: B12-11 evidence",
+    "types": "PASS work/b12-upload-types.log"
+  },
+  "financialExecution": false
+}

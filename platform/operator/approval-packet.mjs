@@ -1,7 +1,7 @@
 /** Descriptive local review artifact only. This module grants no authority and
  * deliberately never serializes the request or arbitrary preview properties. */
 export const OPERATOR_APPROVAL_PACKET_MAX_BYTES=16384;
-const STAFF='ops.configure-workload.v1',ACTION='earn.configure-action.v1',SEAL_LIST='collection.seal-list.v1',SEAL_SOURCE='collection.seal-source.v1',INDEX_PAGE='collection.materialize-eligibility-page.v1',SCOPE='ops.change-scope.v1',REVIEW='earn.final-review.v1',STAGE='collection.publish-stage.v1',BALLOT='governance.publish-ballot.v1',DECISION='governance.record-decision.v1',BEGIN='collection.begin-free-cut.v1',PAGE='collection.validate-cut-page.v1',SEAL='collection.seal-free-cut.v1';
+const OBSERVE='collection.observe-asset.v1',UPLOAD_SOURCE='collection.stage-record.v1',UPLOAD_CUT='collection.stage-cut-record.v1',STAFF='ops.configure-workload.v1',ACTION='earn.configure-action.v1',SEAL_LIST='collection.seal-list.v1',SEAL_SOURCE='collection.seal-source.v1',INDEX_PAGE='collection.materialize-eligibility-page.v1',SCOPE='ops.change-scope.v1',REVIEW='earn.final-review.v1',STAGE='collection.publish-stage.v1',BALLOT='governance.publish-ballot.v1',DECISION='governance.record-decision.v1',BEGIN='collection.begin-free-cut.v1',PAGE='collection.validate-cut-page.v1',SEAL='collection.seal-free-cut.v1';
 const fail=()=>{throw new TypeError('Invalid operator approval preview.');};
 const plain=v=>v!==null&&typeof v==='object'&&!Array.isArray(v)&&(Object.getPrototypeOf(v)===Object.prototype||Object.getPrototypeOf(v)===null);
 const field=(v,k)=>{if(!plain(v))fail();const d=Object.getOwnPropertyDescriptor(v,k);if(!d||!Object.hasOwn(d,'value'))fail();return d.value;};
@@ -17,7 +17,10 @@ const bool=v=>typeof v==='boolean';
 const isNull=v=>v===null;
 const fixed=value=>v=>v===value;
 const scope=v=>['launch-preparation','earn-admission','collection-mint','collection-progression','optional-refresh','optional-images','optional-notifications'].includes(v);
+const wallet=v=>{if(typeof v!=='string'||v.length<32||v.length>44)return false;const chars='123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';let n=0n;for(const c of v){const i=chars.indexOf(c);if(i<0)return false;n=n*58n+BigInt(i);}let bytes=0;while(n){bytes++;n>>=8n;}return bytes+(v.match(/^1*/)?.[0].length??0)===32;};
 const INPUTS=Object.freeze({
+ [OBSERVE]:{assetId:id,kind:v=>['transfer','reveal'].includes(v),from:v=>v===null||wallet(v),to:v=>v===null||wallet(v),observedMs:time,expectedAssetVersion:nat,evidenceReceiptId:hex,evidenceDigest:hex},
+ [UPLOAD_SOURCE]:{id:hex,size:v=>nat(v,131072)&&v>0},[UPLOAD_CUT]:{id:hex,size:v=>nat(v,65536)&&v>0},
  [SEAL_LIST]:{id:hex},[SEAL_SOURCE]:{id:hex},[INDEX_PAGE]:{id:hex},
  [ACTION]:{actionId:text,label:text,verifier:text,effectiveEpoch:nat,enabled:bool,evidenceRef:text},
  [STAFF]:{effectiveEpoch:nat,staffedMinutes:v=>nat(v,1440),secondsPerReview:v=>nat(v,3600)&&v>=1,admissionLimit:v=>nat(v,100),reason:text},
@@ -49,10 +52,17 @@ export function createOperatorApprovalPacket({request,preview}){
  const revisions=field(request,'expectedRevisions'),previewRevisions=field(preview,'expectedRevisions');exact(revisions,['earn','source','control']);exact(previewRevisions,['earn','source','control']);const expectedRevisions=select(revisions,{earn:revision,source:revision,control:revision});for(const key of Object.keys(expectedRevisions))if(field(previewRevisions,key)!==expectedRevisions[key])fail();
  const raw=field(request,'input'),rawSummary=field(preview,'summary'),schema=INPUTS[operationKind];exact(raw,Object.keys(schema));const input=select(raw,schema);for(const [key,value] of Object.entries(input))if(field(rawSummary,key)!==value)fail();
  let summary={...input};
- if([SEAL_LIST,SEAL_SOURCE,INDEX_PAGE].includes(operationKind)){
+ if([UPLOAD_SOURCE,UPLOAD_CUT].includes(operationKind)){Object.assign(summary,select(rawSummary,{format:v=>(operationKind===UPLOAD_SOURCE?['collection-page-v1','collection-list-v1','collection-source-v1']:['collection-cut-page-v1','collection-cut-root-v1']).includes(v),privateStaging:fixed(true),financialExecution:fixed(false)}));}
+ else if([SEAL_LIST,SEAL_SOURCE,INDEX_PAGE].includes(operationKind)){
   Object.assign(summary,select(rawSummary,{privateStaging:fixed(true),financialExecution:fixed(false)}));
   const schema=operationKind===SEAL_LIST?{id:hex,count:v=>nat(v,10000),pageCount:v=>nat(v,100)&&v>0,walletsDigest:hex,closureDigest:hex,visibility:fixed('private-staging')}:operationKind===INDEX_PAGE?{id:hex,entryCount:v=>nat(v,100),visibility:fixed('private-staging')}:{id:hex,inventoryId:id,sourceRevision:revision,declaredStateDigest:hex,stageCount:v=>nat(v,32),admissionCount:v=>nat(v,1000),closureDigest:hex,verification:fixed('record-closure-only'),semanticStateDigestVerified:fixed(false),economicsVerified:fixed(false),provenanceVerified:fixed(false)};
   summary.result=select(field(rawSummary,'result'),schema);if(summary.result.id!==input.id||operationKind===SEAL_LIST&&summary.result.pageCount!==Math.max(1,Math.ceil(summary.result.count/100)))fail();
+ }
+ else if(operationKind===OBSERVE){
+  if(input.kind==='reveal'?(input.from!==null||input.to!==null):(!wallet(input.from)||!wallet(input.to)||input.from===input.to||input.observedMs%1000!==0))fail();
+  Object.assign(summary,select(rawSummary,{fixtureOnly:fixed(true),financialExecution:fixed(false)}));
+  summary.result=select(field(rawSummary,'result'),{sourceId:id,assetId:id,kind:fixed(input.kind),observedMs:fixed(input.observedMs),revealMs:v=>v===null||time(v),assetVersion:nat,resultKind:v=>['applied','held'].includes(v),conflictId:v=>v===null||id(v),operationId:v=>v===null||id(v),evidenceReceiptId:fixed(input.evidenceReceiptId),source:fixed('local-fixture'),executable:fixed(false)});
+  const r=summary.result;if(r.assetId!==input.assetId||r.assetVersion!==input.expectedAssetVersion+(input.kind==='transfer'?1:0)||(input.kind==='reveal'&&r.revealMs!==input.observedMs)||(r.resultKind==='held'?(input.kind!=='transfer'||r.conflictId===null||r.operationId===null):(r.conflictId!==null||r.operationId!==null)))fail();
  }
  else if(operationKind===ACTION){Object.assign(summary,select(rawSummary,{futureOnly:fixed(true),financialExecution:fixed(false)}));}
  else if(operationKind===STAFF){Object.assign(summary,select(rawSummary,{calculatedCapacity:v=>nat(v,100),currentOrFutureEpoch:bool}));if(summary.calculatedCapacity!==Math.min(input.admissionLimit,Math.floor(input.staffedMinutes*60/input.secondsPerReview)))fail();}
@@ -65,6 +75,6 @@ export function createOperatorApprovalPacket({request,preview}){
  else if(operationKind===BALLOT){Object.assign(summary,select(rawSummary,{advisory:fixed(true),financialExecution:fixed(false),snapshotHash:hex,eligibleCount:v=>nat(v,10000),closesAt:time}));if(input.cutoffMs!==input.opensMs||summary.closesAt!==input.opensMs+172800000)fail();}
  else if(operationKind===DECISION){Object.assign(summary,select(rawSummary,{advisory:fixed(true),financialExecution:fixed(false),earliestMs:time,ballotSnapshotHash:hex}));if(summary.earliestMs<input.decidedMs||summary.earliestMs<input.noticeMs+172800000)fail();}
  else if([BEGIN,PAGE,SEAL].includes(operationKind))summary=cutSummary(operationKind,input,rawSummary);
- const packet={format:'10x.local.operator-approval.v1',source:'local-fixture',financialExecution:false,isAuthorization:false,operationKind,requestKey,requestDigest,confirmationDigest,expectedRevisions,summary};
+ const packet={...([UPLOAD_SOURCE,UPLOAD_CUT].includes(operationKind)?{requestIdentity:'upload-metadata'}:{}),format:'10x.local.operator-approval.v1',source:'local-fixture',financialExecution:false,isAuthorization:false,operationKind,requestKey,requestDigest,confirmationDigest,expectedRevisions,summary};
  if(new TextEncoder().encode(JSON.stringify(packet)).length>OPERATOR_APPROVAL_PACKET_MAX_BYTES)fail();return freeze(packet);
 }

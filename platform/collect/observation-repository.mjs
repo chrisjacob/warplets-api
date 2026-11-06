@@ -1,5 +1,6 @@
+import {prepareConfigAudit,configAuditStatement} from '../storage/atomic-audit.mjs';
 import {createAtomicReceipts} from '../storage/atomic-receipts.mjs';
-import {sql,revisions} from '../storage/atomic-driver.mjs';
+import {sql,revisions,matchesExpectedRevisions} from '../storage/atomic-driver.mjs';
 import {canonicalJson,utf8} from '../security/canonical.mjs';
 import {buildCollectionObservationCommand,OBSERVE_COLLECTION_ASSET} from './observation-service.mjs';
 import {verifyCollectionObservationEvidence,MAX_COLLECTION_OBSERVATION_BYTES} from './observation-evidence.mjs';
@@ -13,11 +14,11 @@ const bounded=(column,size,alias=column.split('.').at(-1))=>`CASE WHEN length(CA
  * verified here; a service-supplied boolean cannot authorize asset mutation. */
 export function createCollectionObservationRepository(driver,ports){
  const {crypto,clock,artifacts}=ports,{read,replay,execute}=createAtomicReceipts(driver,ports),nowSql=driver.leaseNowSql??"CAST(unixepoch('subsec')*1000 AS INTEGER)";
- return Object.freeze({async observe(value){
-  const c=clone(value);demand(c&&Object.keys(c).length===6&&c.operationKind===OBSERVE_COLLECTION_ASSET,'Invalid collection observation command.');
-  demand(canonicalJson(c)===canonicalJson(await buildCollectionObservationCommand(c.principal,{requestKey:c.requestKey,...c.input},crypto)),'Observation request digest or identity mismatch.');
+ async function observe(value,previewOnly=false){
+  const c=clone(value);demand(c&&Object.keys(c).length===(Object.hasOwn(c,'expectedRevisions')?7:6)&&c.operationKind===OBSERVE_COLLECTION_ASSET,'Invalid collection observation command.');
+  demand(canonicalJson(c)===canonicalJson(await buildCollectionObservationCommand(c.principal,{requestKey:c.requestKey,...c.input,...(Object.hasOwn(c,'expectedRevisions')?{expectedRevisions:c.expectedRevisions}:{})},crypto)),'Observation request digest or identity mismatch.');
   const prior=await replay(c);if(prior)return prior;const i=c.input,nowMs=clock.nowMs(),sourceId='evidence:'+i.evidenceReceiptId;
-  if(!Number.isSafeInteger(nowMs)||nowMs<0||nowMs>8640000000000000||i.observedMs>nowMs)return pending('observation-clock-unavailable');
+  if(!Number.isSafeInteger(nowMs)||nowMs<0||nowMs>8640000000000000-30000||i.observedMs>nowMs)return pending('observation-clock-unavailable');
   const captured=await read([
    sql('SELECT name,CAST(revision AS TEXT) revision FROM app_revisions ORDER BY name'),
    sql("SELECT enabled FROM app_operator_scopes WHERE operator=? AND scope='collection-evidence'",c.principal.id),
@@ -31,12 +32,14 @@ export function createCollectionObservationRepository(driver,ports){
    sql(`SELECT id,${bounded('slot_key',4096)},${bounded('coords',4096)},${bounded('owner',64)},latest_ms FROM vault_assets WHERE id=?`,i.assetId),
    sql(`SELECT ${bounded('event_id',128)},asset_id,kind,observed_ms,${bounded('body',4096)} FROM vault_observations WHERE asset_id=? AND kind IN ('bind','transfer') ORDER BY observed_ms DESC,rowid DESC LIMIT 1`,i.assetId),
    sql(`SELECT ${bounded('id',128)},${bounded('kind',16)},${bounded('inventory_id',128)},${bounded('owner',64)},${bounded('commitment',512)},settled_ms,${bounded('operation',16384)} FROM collect_operations WHERE id=(SELECT CASE WHEN length(CAST(asset AS BLOB))<=16384 AND json_valid(asset) THEN json_extract(asset,'$.pending') ELSE NULL END FROM collect_assets WHERE id=?)`,i.assetId),
+   sql('SELECT seq,event_hash FROM ops_config_audit ORDER BY seq DESC LIMIT 1'),
   ]);
-  const [versionRows,grants,existing,evidenceRows,assets,vaults,owners,operations]=clone(captured);
+  const [versionRows,grants,existing,evidenceRows,assets,vaults,owners,operations,heads]=clone(captured);
   if(grants[0]?.enabled!==1)return conflict('operator_scope_required');if(existing.length)return conflict('observation_already_recorded');
   if(utf8(canonicalJson(captured)).length>196608)return pending('observation-input-byte-bound');
   if(versionRows.length!==3||new Set(versionRows.map(r=>r.name)).size!==3||versionRows.some(r=>!['earn','source','control'].includes(r.name)||typeof r.revision!=='string'||!/^\d+$/.test(r.revision)))return pending('observation-revisions-unavailable');
   const version=revisions(versionRows),e=evidenceRows[0],a=assets[0],v=vaults[0],o=owners[0],op=operations[0]??null;
+  if(c.expectedRevisions&&!matchesExpectedRevisions(c.expectedRevisions,version))return conflict('revision_conflict');
   if(e&&['stream_key','source_revision','source_id','object_key','envelope_json','decision_json','config_json','config_digest'].some(k=>e[k]===null)||a&&['inventory_id','owner','slot','asset','inventory_kind'].some(k=>a[k]===null)||v&&['slot_key','coords','owner'].some(k=>v[k]===null))return pending('observation-read-byte-bound');
   if(!e)return pending('observation-evidence-missing');
   if(e.head_digest!==i.evidenceReceiptId)return pending('observation-evidence-head-changed');
@@ -51,7 +54,9 @@ export function createCollectionObservationRepository(driver,ports){
    plan=await prepareCollectionObservation({input:i,event:verified.event,asset:a??null,inventory:a?{id:a.inventory_id,kind:a.inventory_kind,tranche:a.inventory_tranche,season_start:a.season_start}:null,vault:v??null,ownerEvidence:o??null,operation:op,nowMs},crypto);
   }catch(error){return pending(typeof error.code==='string'?error.code:'observation-evidence-invalid');}
   const {effect,result,conflict:hold}=plan,effectJson=canonicalJson(effect),resultJson=canonicalJson(result);
-  const authority=[grant,`${nowSql}>=?`,
+  if(previewOnly)return {kind:'preview',value:{...result,expectedRevisions:version,financialExecution:false}};
+  const event={category:'collection-observation',entity:i.assetId,changeKey:sourceId,atMs:nowMs,actor:c.principal.id,evidenceRef:i.evidenceReceiptId,payload:{operationKind:c.operationKind,requestDigest:c.requestDigest,resultRef:sourceId,resultDigest:await crypto.sha256(utf8(resultJson))}},audit=await prepareConfigAudit(heads[0],event,crypto);
+  const authority=[grant,`${nowSql}>=? AND ${nowSql}<=?`,
    'EXISTS(SELECT 1 FROM app_evidence_heads WHERE stream_key=? AND receipt_digest=?)',
    "EXISTS(SELECT 1 FROM app_evidence_receipts WHERE receipt_digest=? AND status='verified' AND envelope_json=? AND decision_json=?)",
    'EXISTS(SELECT 1 FROM app_evidence_sources WHERE source_id=? AND source_revision=? AND config_digest=?)',
@@ -61,8 +66,8 @@ export function createCollectionObservationRepository(driver,ports){
    'EXISTS(SELECT 1 FROM vault_assets WHERE id=? AND owner=? AND latest_ms=? AND coords=? AND slot_key=?)',
    ...(hold?["EXISTS(SELECT 1 FROM collect_operations WHERE id=? AND operation=? AND settled_ms IS NULL)"]:[]),
   ].join(' AND ');
-  const values=[c.principal.id,nowMs,e.stream_key,i.evidenceReceiptId,i.evidenceReceiptId,e.envelope_json,e.decision_json,e.source_id,e.source_revision,e.config_digest,e.object_key,e.byte_digest,e.size,sourceId,a.id,a.inventory_id,a.owner,a.asset,a.observed_ms,a.reveal_ms,a.slot,v.id,v.owner,v.latest_ms,v.coords,v.slot_key,...(hold?[op.id,op.operation]:[])];
-  return execute({...c,nowMs,expectedRevisions:version},{businessKey:c.businessIdentity,input:i,result,resultRef:sourceId,version,authoritySql:authority,authorityValues:values,child:(gate,p)=>[
+  const values=[c.principal.id,nowMs,nowMs+30000,e.stream_key,i.evidenceReceiptId,i.evidenceReceiptId,e.envelope_json,e.decision_json,e.source_id,e.source_revision,e.config_digest,e.object_key,e.byte_digest,e.size,sourceId,a.id,a.inventory_id,a.owner,a.asset,a.observed_ms,a.reveal_ms,a.slot,v.id,v.owner,v.latest_ms,v.coords,v.slot_key,...(hold?[op.id,op.operation]:[])];
+  return execute({...c,nowMs,expectedRevisions:version},{businessKey:c.businessIdentity,input:{...i,audit},result,resultRef:sourceId,version,authoritySql:authority,authorityValues:values,child:(gate,p)=>[
    sql(`UPDATE collect_assets SET asset=?,owner=?,observed_ms=?,reveal_ms=? WHERE id=? AND asset=? AND owner=? AND ${gate}`,effect.assetAfterJson,result.owner,effect.collectObservedMs,effect.revealMs,a.id,a.asset,a.owner,...p),
    ...(i.kind==='transfer'?[
     sql(`UPDATE vault_assets SET owner=?,latest_ms=? WHERE id=? AND owner=? AND latest_ms=? AND ${gate}`,effect.vaultOwner,effect.vaultLatestMs,v.id,v.owner,v.latest_ms,...p),
@@ -71,6 +76,8 @@ export function createCollectionObservationRepository(driver,ports){
    sql(`INSERT INTO collect_observations SELECT ?,?,?,?,? WHERE ${gate}`,sourceId,a.id,i.kind,i.observedMs,effect.collectObservationDigest,...p),
    ...(hold?[sql(`INSERT INTO app_collection_operation_conflicts(id,operation_id,asset_id,evidence_receipt_digest,from_wallet,to_wallet,observed_ms,recorded_ms,status,command_operation_id) SELECT ?,?,?,?,?,?,?,?,'held',operation_id FROM app_command_receipts WHERE operation_id=? AND claim_nonce=? AND state='staging' AND ${gate}`,hold.id,hold.operation_id,hold.asset_id,hold.evidence_receipt_digest,hold.from_wallet,hold.to_wallet,hold.observed_ms,hold.recorded_ms,...p,...p)]:[]),
    sql(`INSERT INTO app_collection_observation_bindings(source_id,asset_id,event_kind,observed_ms,evidence_receipt_digest,byte_digest,stream_key,source_revision,expected_asset_version,result_kind,conflict_id,command_operation_id,result_json,effect_json) SELECT ?,?,?,?,?,?,?,?,?,?,?,operation_id,?,? FROM app_command_receipts WHERE operation_id=? AND claim_nonce=? AND state='staging' AND ${gate}`,sourceId,a.id,i.kind,i.observedMs,i.evidenceReceiptId,i.evidenceDigest,e.stream_key,e.source_revision,i.expectedAssetVersion,result.resultKind,result.conflictId,resultJson,effectJson,...p,...p),
+   configAuditStatement(audit,event,gate,p),
   ]});
- }});
+ }
+ return Object.freeze({observe:value=>observe(value),previewObservation:value=>observe(value,true)});
 }

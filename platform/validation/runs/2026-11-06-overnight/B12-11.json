@@ -1,0 +1,179 @@
+{
+  "task": "B12",
+  "slice": "B12-11",
+  "status": "verified-slice",
+  "baseCommit": "ed8b97d",
+  "scope": [
+    "Scoped synthetic reveal/transfer observation previews from retained verified B04 evidence",
+    "Atomic062audit with exact historical receipt compatibility and reviewed revisions",
+    "Authenticated recovery audit envelope before historical observation reconstruction",
+    "Safe summaries omit retained owner projection/hiddenassetstate; permanent hold shown separately",
+    "CLI local immutable artifact store; no remote reads or chain authority"
+  ],
+  "checks": {
+    "repository": "24PASS6381.7915ms work/b12-observation-audit-node.log;max9SQL13521Bbatch48params",
+    "boundary": "35PASS2828.307ms work/b12-observation-boundary.log",
+    "transport": "1PASS1042.993ms work/b12-observation-transport.log",
+    "privateRecovery": "1PASS1710.0213ms work/b12-observation-private-recovery.log;112tables/replay after scope revocation and object loss",
+    "reader": "7PASS3329.3259ms work/b12-observation-recovery-negative.log;10corruptionvariants+historicalplain; other2Node readers passed work/b12-observation-reader.log (one earlier currentreader TypeError fixed and7rerun)",
+    "d1Paired": "34callsPASS30020.0933ms work/b12-observation-edge-final.log;max30totalSQL15093Bbatch51params1objectread;4genuineauditrows",
+    "d1Retained": "PASS59755.582ms work/b12-observation-retained-edge.log;normal/pending,max10SQL+1object3188Bbatch341347Bworking",
+    "d1Precut": "2suitesPASS99625.7211ms/131390.3092ms work/b12-observation-precut-edge.log;max34operations497075Bworking104075Bbatch; explicit synthetic upstream prerequisite and no full-readiness claim",
+    "types": "Edge/direct declarations and diffPASS",
+    "browser": {
+      "task": "B12 fixture observation operator UI acceptance",
+      "scope": "Private synthetic fixture review/confirmation; no automatic chain observation or finality, financial execution, external publication or release authority.",
+      "createdAt": "2026-11-06T15:12:51.154675+00:00",
+      "sourceHashes": {
+        "platform/operator/ui.mjs": "f72652aeec2a1ce127de8b8378d9656040b75bbdbd6eb85bdacde7ce38e9f504",
+        "platform/operator/index.html": "820bcbca505e89649911fd714416f37528904199b8962cb0424ace9b29ea9b9c",
+        "platform/operator/approval-packet.mjs": "c2f5191b3bdc61c3740fea0390f24e5ae5e211fcdd18ec5bc2b79b8d74b1a144",
+        "platform/operator/approval-packet.test.mjs": "f469c75533e6634ba07db3101e8790921c5998686fd841bd3a42a3f966a422b4",
+        "platform/operator/observation-browser-qa.mjs": "2eda33d54297c7683ac2f431f2272ff3dbcf7698eee31c3805981ebf5f45ccfa"
+      },
+      "commands": [
+        {
+          "command": "node --test platform/operator/approval-packet.test.mjs",
+          "passed": 11,
+          "failed": 0,
+          "durationMs": 246.4043,
+          "log": "work/b12-observation-packet.log"
+        },
+        {
+          "command": "node platform/operator/observation-browser-qa.mjs",
+          "passed": true,
+          "durationSeconds": 6.2857235,
+          "log": "work/b12-observation-browser.log"
+        },
+        {
+          "command": "node platform/operator/upload-browser-qa.mjs",
+          "passed": true,
+          "log": "work/b12-observation-upload-browser-qa.log"
+        },
+        {
+          "command": "node platform/operator/browser-qa.mjs",
+          "passed": true,
+          "log": "work/b12-observation-browser-qa.log"
+        },
+        {
+          "command": "node --check platform/operator/ui.mjs; node --check platform/operator/approval-packet.mjs; node --check platform/operator/observation-browser-qa.mjs",
+          "passed": true
+        },
+        {
+          "command": "git diff --check -- <five owned source paths>",
+          "passed": true
+        }
+      ],
+      "browserResults": {
+        "work/b12-observation-browser.log": {
+          "passed": true,
+          "widths": [
+            360,
+            390,
+            768,
+            1440
+          ],
+          "source": "synthetic-local-operator-fixture",
+          "clock": "actual Date.now and database execution-time fence",
+          "retainedB04Evidence": true,
+          "previewReadOnly": true,
+          "missingEvidenceHeld": true,
+          "staleVersionRejected": true,
+          "changedHeadRejected": true,
+          "revealPreservesPrivateAsset": true,
+          "transferApplied": true,
+          "permanentPendingOperationHold": true,
+          "lostAckReloadRevokedScopeReplay": true,
+          "wrongResponseRetainsOriginal": true,
+          "explicitTransferInputsOnly": true,
+          "safePacket": true,
+          "originalOutputDigestScopeDisclosed": true,
+          "auditEvents": 3,
+          "financialExecution": false,
+          "screenshots": "work/b12-observation-operator"
+        },
+        "work/b12-observation-upload-browser-qa.log": {
+          "passed": true,
+          "widths": [
+            360,
+            390,
+            768,
+            1440
+          ],
+          "source": "synthetic-local-operator-fixture",
+          "localCodecFiles": true,
+          "clientSha256": true,
+          "byteLimitsBeforeRead": true,
+          "canonicalAndHashNegatives": true,
+          "previewReadOnly": true,
+          "metadataOnlyJournal": true,
+          "uploadMetadataPackets": true,
+          "unsubmittedReloadRequiresExplicitReselection": true,
+          "lostResponseReloadReceiptOnly": true,
+          "missingReceiptRequiresSameFile": true,
+          "wrongReselectionHeld": true,
+          "exactHeaderAndBytesRetry": true,
+          "expiredSessionSamePrincipalRecovery": true,
+          "differentPrincipalIsolation": true,
+          "scopeRevokedReceiptLookup": true,
+          "emptyReceiptBodies": true,
+          "logoutClearsPrivateSelection": true,
+          "explicitLogoutClearsUnknownAfter401": true,
+          "auditEvents": 2,
+          "noSealAdoptionPublicationOrFinancialEffects": true,
+          "financialExecution": false,
+          "screenshots": "work/b12-upload-operator"
+        },
+        "work/b12-observation-browser-qa.log": {
+          "passed": true,
+          "widths": [
+            360,
+            390,
+            768,
+            1440
+          ],
+          "realCommandExecutions": 14,
+          "auditEvents": 10,
+          "newAuditEvents": 9,
+          "baselineAuditEvents": 1,
+          "previewReadOnly": true,
+          "localReviewPacketDownload": true,
+          "packetNoAuthorityOrPrivateData": true,
+          "packetDisabledAfterAttempt": true,
+          "negativeResponseLoss": true,
+          "exactRetryAfterReload": true,
+          "expiredSessionReauthentication": true,
+          "stablePrincipalRetry": true,
+          "differentPrincipalIsolation": true,
+          "negativeStalePreview": true,
+          "readOnlySession": true,
+          "auditedFinalReview": true,
+          "immutableReviewConflict": true,
+          "reviewExactReplay": true,
+          "confirmationRevisionBinding": true,
+          "negativePreviewMismatch": true,
+          "legacyReceiptReadOnly": true,
+          "missingLegacyReceiptHeld": true,
+          "keyboardFocus": true,
+          "logoutClearsPrivateState": true,
+          "financialExecution": false,
+          "screenshots": "work/b12-operator"
+        }
+      },
+      "boundaries": [
+        "Observation from/to addresses are explicitly supplied operator decision inputs, allowed in preview and packet; owner projections, traits, levels, slots, wallet arrays and raw asset/evidence bytes are excluded.",
+        "Receipt outputDigest remains the underlying full-result commitment, explicitly distinguished from the safe-observation-summary-v1 value.",
+        "All positive observation evidence ingested through actual B04 recorded reader/service and immutable private artifacts. Existing asset fixture is labeled synthetic; transport/transaction use actual Date.now.",
+        "Missing retained evidence holds; stale asset or changed head cannot commit. Transfer involving pending progression records accepted permanent conflict; command success does not resolve the pending operation.",
+        "Only negative response loss/corruption is browser-injected. Positive preview/execute/replay use actual local HTTP and migrated SQLite.",
+        "Initial browser attempt identified a missing explicit select accessible label; final run passed after adding aria-label. No product acceptance weakened.",
+        "Existing source/stage/cut browser evidence reused per coordinator; shared upload and operator journal regressions rerun."
+      ],
+      "visualInspection": "transfer-preview-360.png inspected; responsive no-overflow assertions pass360/390/768/1440.",
+      "noCompletionClaim": "B12 completion and shared checkpoint remain coordinator-owned."
+    }
+  },
+  "migration": "062-collection-observation-audit.sql",
+  "financialExecution": false,
+  "remaining": "Curated whitelist dry-run console; explicit later-tranche ballot/inventory override stage fields; final B12 command matrix/acceptance."
+}

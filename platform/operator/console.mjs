@@ -1,3 +1,5 @@
+import {nodeArtifactStore} from '../artifacts/node.mjs';
+import {createOperatorUploadTransport} from './upload-transport.mjs';
 import {randomBytes} from 'node:crypto';
 import {readFile,mkdir} from 'node:fs/promises';
 import {fileURLToPath,pathToFileURL} from 'node:url';
@@ -20,9 +22,9 @@ function parseDate(value){
  if(!Number.isSafeInteger(ms)||ms<0||iso(ms).slice(0,10)!==value)throw new EarnError(400,'invalid_epoch','Invalid UTC date.');
  return ms/DAY_MS;
 }
-export function createOperatorApp(db,{bootToken,clock=Date.now,operatorId='local-founder',allowedKinds=[]}){
+export function createOperatorApp(db,{bootToken,clock=Date.now,operatorId='local-founder',allowedKinds=[],artifacts}){
  const sessions=createOperatorSessionAuthority({bootCode:bootToken,operatorId,allowedKinds,clock});
- const commands=createOperatorCommandTransport(db,{sessions,clock});
+ const commands=createOperatorCommandTransport(db,{sessions,clock,artifacts}),uploads=createOperatorUploadTransport(db,{sessions,clock});
  return async request=>{
   const {origin,hostname,pathname,searchParams}=new URL(request.url),now=clock();
   if(!['localhost','127.0.0.1'].includes(hostname))return failure(403,'local_only','Use the local operator origin.');
@@ -42,6 +44,7 @@ export function createOperatorApp(db,{bootToken,clock=Date.now,operatorId='local
     return json({sessionToken:login.sessionToken,expiresAt:iso(login.expiresAtMs)});
    }
    if(pathname.startsWith('/ops/commands/'))return commands(request);
+   if(pathname.startsWith('/ops/uploads/'))return uploads(request);
    const raw=request.headers.get('authorization')?.match(/^Bearer ([A-Za-z0-9_-]{43})$/)?.[1];
    const authorization=sessions.authenticate(raw);
    if(pathname==='/ops/logout'&&request.method==='POST'){sessions.revoke();return json({revoked:true});}
@@ -75,7 +78,7 @@ if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href){
  const allowedKinds=(process.env.OPERATOR_COMMANDS??'').split(',').map(value=>value.trim()).filter(Boolean);
  if(allowedKinds.some(kind=>!LOCAL_OPERATOR_COMMANDS.includes(kind)))throw Error('Unknown local operator command in OPERATOR_COMMANDS.');
  const operatorId=process.env.OPERATOR_ID??'local-founder';
- const server=createLocalServer(createOperatorApp(db,{bootToken,operatorId,allowedKinds}));
+ const server=createLocalServer(createOperatorApp(db,{bootToken,operatorId,allowedKinds,artifacts:nodeArtifactStore(fileURLToPath(new URL('artifacts/',dir)))}));
  server.on('close',()=>db.close());
  server.listen(port,'127.0.0.1',()=>{
   console.log('Local 10X operator console: http://127.0.0.1:'+port+'/');

@@ -17,7 +17,9 @@ export function normalizeCollectionObservation(value){
 export const collectionObservationBytes=c=>utf8(canonicalJson([OBSERVE_COLLECTION_ASSET,c.principal,c.businessIdentity,c.requestKey,c.input]));
 export async function buildCollectionObservationCommand(principal,value,crypto){
  const p=clone(principal),v=clone(value);fail(p&&Object.keys(p).length===2&&p.kind==='operator'&&id(p.id),'collection-evidence-operator-required');fail(v&&id(v.requestKey),'invalid-observation-request-key');
- const {requestKey,...body}=v,input=normalizeCollectionObservation(body),c={operationKind:OBSERVE_COLLECTION_ASSET,principal:p,requestKey,input,businessIdentity:canonicalJson([input.assetId,input.evidenceReceiptId])};
- return freeze({...c,requestDigest:await crypto.sha256(collectionObservationBytes(c))});
+ const {requestKey,expectedRevisions,...body}=v;
+ if(expectedRevisions!==undefined)fail(expectedRevisions&&typeof expectedRevisions==='object'&&!Array.isArray(expectedRevisions)&&Object.keys(expectedRevisions).length===3&&['earn','source','control'].every(k=>typeof expectedRevisions[k]==='string'&&/^(0|[1-9][0-9]*)$/.test(expectedRevisions[k])&&Number.isSafeInteger(Number(expectedRevisions[k]))),'invalid-observation-revisions');
+ const input=normalizeCollectionObservation(body),c={operationKind:OBSERVE_COLLECTION_ASSET,principal:p,requestKey,input,businessIdentity:canonicalJson([input.assetId,input.evidenceReceiptId])};
+ return freeze({...c,...(expectedRevisions===undefined?{}:{expectedRevisions}),requestDigest:await crypto.sha256(collectionObservationBytes(c))});
 }
-export function createCollectionObservationService({repository,crypto}){return Object.freeze({async observe(principal,input){return repository.observe(await buildCollectionObservationCommand(principal,input,crypto));}});}
+export function createCollectionObservationService({repository,crypto}){return Object.freeze({async observe(principal,input){return repository.observe(await buildCollectionObservationCommand(principal,input,crypto));},async previewObservation(principal,input){return repository.previewObservation(await buildCollectionObservationCommand(principal,input,crypto));}});}

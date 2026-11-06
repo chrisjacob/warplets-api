@@ -72,3 +72,24 @@ test('private source packet projections omit wallet bounds, raw records and hidd
  const mutations=[[10,v=>v.preview.summary.result.pageCount=2],[10,v=>v.preview.summary.result.count=10001],[10,v=>v.preview.summary.result.walletsDigest='wrong'],[11,v=>v.preview.summary.result.provenanceVerified=true],[11,v=>v.preview.summary.result.economicsVerified=true],[11,v=>v.preview.summary.result.semanticStateDigestVerified=true],[11,v=>v.preview.summary.result.verification='verified-source'],[11,v=>v.preview.summary.result.stageCount=33],[11,v=>v.preview.summary.result.sourceRevision='01'],[12,v=>v.preview.summary.result.entryCount=101],[12,v=>v.preview.summary.result.visibility='public']];for(const [index,change] of mutations){const value=await pair(index);change(value);assert.throws(()=>createOperatorApprovalPacket(value),TypeError);}
  for(const index of [10,11,12]){const value=await pair(index);value.preview.summary.result.id=digest('f');assert.throws(()=>createOperatorApprovalPacket(value),TypeError);}
 });
+
+test('upload review packets bind safe metadata without treating it as a raw command body',()=>{
+ for(const [kind,size,format] of [['collection.stage-record.v1',131072,'collection-source-v1'],['collection.stage-cut-record.v1',65536,'collection-cut-root-v1']]){
+  const request={operationKind:kind,requestKey:'synthetic-upload',input:{id:digest('a'),size},expectedRevisions:{...revisions}},preview={operationKind:kind,requestKey:request.requestKey,requestDigest:digest('b'),confirmationDigest:digest('c'),expectedRevisions:{...revisions},financialExecution:false,summary:{...request.input,format,privateStaging:true,financialExecution:false}};
+  const packet=createOperatorApprovalPacket({request,preview});assert.equal(packet.requestIdentity,'upload-metadata');assert.deepEqual(packet.summary,preview.summary);assert.equal(packet.isAuthorization,false);assert.equal(packet.financialExecution,false);
+  Object.assign(preview.summary,{filename:'PRIVATE_FILE',path:'PRIVATE_PATH',bytes:[1,2,3],bodyBase64:'PRIVATE_RAW',wallets:['PRIVATE_WALLET']});assert.deepEqual(createOperatorApprovalPacket({request,preview}),packet);assert.ok(!JSON.stringify(packet).includes('PRIVATE_'));
+  for(const mutate of [v=>v.request.input.size=v.preview.summary.size=size+1,v=>v.request.input.size=v.preview.summary.size=0,v=>v.preview.summary.id=digest('d'),v=>v.preview.summary.privateStaging=false,v=>v.preview.summary.format='unknown',v=>v.preview.summary.format=kind==='collection.stage-record.v1'?'collection-cut-root-v1':'collection-source-v1',v=>v.request.input.raw='PRIVATE_RAW']){const bad=structuredClone({request,preview});mutate(bad);assert.throws(()=>createOperatorApprovalPacket(bad),TypeError);}
+ }
+});
+
+test('fixture observation packets bind explicit transfer inputs and exclude hidden result fields',async()=>{
+ const from='11111111111111111111111111111111',to='11111111111111111111111111111112';
+ for(const held of [false,true])for(const kind of ['reveal','transfer']){
+  if(held&&kind==='reveal')continue;
+  const input={assetId:'synthetic-asset',kind,from:kind==='transfer'?from:null,to:kind==='transfer'?to:null,observedMs:now,expectedAssetVersion:0,evidenceReceiptId:digest('a'),evidenceDigest:digest('b')},request={operationKind:'collection.observe-asset.v1',requestKey:'synthetic-observation',input,expectedRevisions:revisions},prepared=await prepareOperatorCommand({principal,request,nowMs:now},crypto),preview=structuredClone(prepared.preview);
+  preview.summary.result={sourceId:'evidence:'+digest('a'),assetId:input.assetId,kind,observedMs:now,revealMs:now,assetVersion:kind==='transfer'?1:0,resultKind:held?'held':'applied',conflictId:held?'synthetic-conflict':null,operationId:held?'synthetic-operation':null,evidenceReceiptId:input.evidenceReceiptId,source:'local-fixture',executable:false,owner:'PRIVATE_OWNER',traits:{secret:'PRIVATE_TRAITS'},wallets:['PRIVATE_WALLET'],level:10};
+  const packet=createOperatorApprovalPacket({request,preview});assert.equal(packet.summary.from,input.from);assert.equal(packet.summary.to,input.to);assert.equal(packet.summary.result.resultKind,held?'held':'applied');assert.doesNotMatch(JSON.stringify(packet),/PRIVATE_|"owner"|"traits"|"level"|"wallets"/);assert.equal(packet.isAuthorization,false);
+  for(const patch of [{assetId:'wrong'},{evidenceReceiptId:digest('c')},{assetVersion:9},{observedMs:now+1000},{resultKind:'held',conflictId:null}]){const changed=structuredClone(preview);Object.assign(changed.summary.result,patch);assert.throws(()=>createOperatorApprovalPacket({request,preview:changed}));}
+  const wrong=structuredClone(preview);wrong.summary.to=from;assert.throws(()=>createOperatorApprovalPacket({request,preview:wrong}));
+ }
+});

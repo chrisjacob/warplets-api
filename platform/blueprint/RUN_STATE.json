@@ -5,9 +5,9 @@
   "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
   "currentTask": "B12",
-  "lastUpdatedAt": "2026-11-06T14:50:38.286082+00:00",
+  "lastUpdatedAt": "2026-11-06T15:13:32.815188+00:00",
   "migrationAllocation": {
-    "next": 62,
+    "next": 63,
     "reserved": [
       {
         "version": 31,
@@ -163,6 +163,11 @@
         "version": 61,
         "task": "B12",
         "purpose": "mandatory collection source intake/index audit; no new tables"
+      },
+      {
+        "version": 62,
+        "task": "B12",
+        "purpose": "mandatory collection fixture observation audit; no new tables"
       }
     ],
     "historicalGap": 19
@@ -410,7 +415,7 @@
       "status": "in_progress",
       "owner": "coordinator",
       "baseCommit": "b9efc0c8c97896a286c5f78ac4bf03e3a52727be",
-      "implementationCommit": "e3130a0",
+      "implementationCommit": "ed8b97d",
       "pushed": true,
       "evidence": [
         "platform/validation/runs/2026-11-06-overnight/B12-01.json",
@@ -422,9 +427,11 @@
         "platform/validation/runs/2026-11-06-overnight/B12-07.json",
         "platform/validation/runs/2026-11-06-overnight/B12-08.json",
         "platform/validation/runs/2026-11-06-overnight/B12-ci-02.json",
-        "platform/validation/runs/2026-11-06-overnight/B12-09.json"
+        "platform/validation/runs/2026-11-06-overnight/B12-09.json",
+        "platform/validation/runs/2026-11-06-overnight/B12-10.json",
+        "platform/validation/runs/2026-11-06-overnight/B12-11.json"
       ],
-      "nextAction": "Commit/push B12-09 audited source/index commands; implement separate bounded private source/cut upload path, fixture observations and remaining explicit publication lanes. Follow CI42235233410 on c02a47b.",
+      "nextAction": "Commit/push tested upload+observation slices, then curated whitelist readonly draft handler/UI and explicit ballot/override stage publication. Finish B12 matrix before advancing. CI42235233410 stillEdge onc02a47b.",
       "blocker": null
     },
     "B13": {
