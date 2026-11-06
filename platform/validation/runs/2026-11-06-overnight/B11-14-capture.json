@@ -1,0 +1,173 @@
+{
+  "task": "B11",
+  "slice": "B11.14 continued private v2 capture",
+  "status": "partial",
+  "baseCommit": "0c2b97cd16f552406a2f50b81550c379f0d1ab3a",
+  "implementationCommit": null,
+  "recordedAt": "2026-11-06T02:39:03.292Z",
+  "sourceHashes": {
+    "platform/edge/test/fixtures/recovery-v2-worker.ts": "e216c9be7f6242e6dcb7a2a515ba76b90e3defc8b65fdda38cba4393534c3a36",
+    "platform/edge/test/recovery-v2.test.mjs": "82b319b88c1db6225631d55492e1778ec2a8a6cb87d161480bc5d9d46f169157",
+    "platform/recovery/V2_CAPTURE.md": "3044e527e28d1994aa8fee9f4edced4d5b2db81f3bbbcc9c24cf776ba65acdf2",
+    "platform/recovery/capacity-baseline.test.mjs": "21d8a2b8c9b56fb37785dfb8efa1903ac3991c8ebd82ead41fe45fa4eb602bca",
+    "platform/recovery/capacity-fixtures.mjs": "0a122e663921a49b71f74114f18b62ef587aa19e2d869c5c2a18844563848dda",
+    "platform/recovery/schema.mjs": "1b752a102bd077c52b990b8f7a41da5501305f6bd0162f2b4e3c12ad630105c2",
+    "platform/recovery/v2-capacity.test.mjs": "e0accb4d35239e3715059d7a3699301c843f99a0efad448eb1657683073abeb8",
+    "platform/recovery/v2-capture-indexes.mjs": "142a4c40ccf0f51ed2b3385daae6380e66619f7da17e23da6a2e6c64eaffcf17",
+    "platform/recovery/v2-capture-references.mjs": "6c7aacb5387e9aa9d1373fbfddf7473054a7d48139de56ceda0c5cb510327c95",
+    "platform/recovery/v2-capture-references.test.mjs": "83d677a483e2e08dea5b86b0c063d7d77098f4f244255a98f7e6dd571a8862e3",
+    "platform/recovery/v2-capture-source.mjs": "629ea01c0ab96cdde2b133ecc5cd0bfbc5c160e449d73ac175e5bb17aa696f67",
+    "platform/recovery/v2-capture-source.test.mjs": "19b09bb001fc2c665cd6dab55db778592ae8929cf5df2ee4ee7624b81e0f6534",
+    "platform/recovery/v2-capture.d.mts": "e38e550b736cd850a74b3b69ba7e3a6668bf6ae2112de0a8fd5996cffff47bfe",
+    "platform/recovery/v2-capture.mjs": "54c450761ea0326ba61e12c461aa9ffdf9be48eef09df1736854022a11980cd4",
+    "platform/recovery/v2-capture.test.mjs": "31608d25505c4e1883e8d53bc8e45e9fcb0cadea7397fd52a63520afb09ac52e",
+    "platform/recovery/v2-codec.d.mts": "4fef0a51d0596ceafc385f309b034e239c9dcc9fc8fbb5b59387f585397fc12d",
+    "platform/recovery/v2-codec.mjs": "21655cd6697e13af8fb7c423c24ca9b07761c4c810c729bcb5d30c3452caedad",
+    "platform/recovery/v2-codec.test.mjs": "656a5269430605e053f2fb5e275ae80c91178cf908d57db1ef83917ed03a733c",
+    "platform/recovery/v2-contracts.ts": "acf9115ab8922505c1b2bad002b3c7b07fb4834deca0a873f04cf647798c9e04",
+    "platform/recovery/v2-maximum-source.test.mjs": "4d24e7b3823e6830bf4fd5ce05cc806782f07c03678296dc73cbd7232c075f46",
+    "platform/recovery/v2-planning.d.mts": "fa578499894eadd1dd7e6eb08608651fd923b0ed7ca789f7459320b71978bbb6",
+    "platform/recovery/v2-planning.mjs": "c5d4642f9f4432938fc497e67ba6c43cd764f5f90456cbfd525e8585c9cc0da9",
+    "platform/recovery/v2-planning.test.mjs": "12a125d10e9c10e7ae811e61e4ad7536700222cc2f13dbfa23a1ed9bcd9e346c",
+    "platform/recovery/v2-schema.mjs": "6c48246f10539aa1285ba23636d8e38fd7120ca12ce0c7ad4347bbc2caac0b2e",
+    "platform/recovery/v2-traversal.d.mts": "55c56c7e3a4b1b46343ca11be20d0039ac5e7d67cb4cdb088a84f8008ba70561",
+    "platform/recovery/v2-traversal.mjs": "901438f363a260222fc987dd014bd577d9e779c2816aa644a63f5bcb82555d33",
+    "platform/recovery/v2-traversal.test.mjs": "fe7cbdb43c21d29bace1f4d661e0d669202b902e1b457c20bd25ecdf2073aa08",
+    "platform/recovery/v2-watermark.d.mts": "19fb89c455336329bbb55b001253da62de8b3867c544338c04541972d62cb971",
+    "platform/recovery/v2-watermark.mjs": "43d6ff8544a370b7fa95a2fbb17db1351d2f1ffcd869bbd1d3cdc3e553894b16",
+    "platform/recovery/v2-watermark.test.mjs": "6636f34906046a2e98047748ce7ab55319666419d8da0e3d1b4ac23a0f535401",
+    "platform/storage/044-recovery-continuations.sql": "c33ff066e08bc4c154b1c2c7e1a04aa62a1af2cdca6003cdbe50e870e45f9f23",
+    "platform/storage/atomic-receipts.mjs": "375ea325e053d09b8f9bf518aa40d0b8e3202f6ac38b01b4689de95951979ed6",
+    "platform/storage/atomic-operations.test.mjs": "b51b960b2b6c6caf87adfc6d2be9cacc6f955833ff783ce57e91d0db257f654c"
+  },
+  "checks": [
+    {
+      "command": "node --test platform/recovery/v2-codec.test.mjs platform/recovery/v2-planning.test.mjs platform/recovery/v2-watermark.test.mjs platform/recovery/v2-traversal.test.mjs platform/recovery/v2-capture-source.test.mjs platform/recovery/v2-capture-references.test.mjs platform/recovery/v2-capture.test.mjs",
+      "result": "PASS",
+      "tests": 23,
+      "durationMs": 16134.0575,
+      "log": "work/b11-recovery-v2-final-focused.log",
+      "logSha256": "4cc324b6fefd5707eb942bcdb409b071c3945df689482831a5c799c0c15ebe5a"
+    },
+    {
+      "command": "node --test platform/recovery/v2-capacity.test.mjs",
+      "result": "PASS",
+      "tests": 1,
+      "durationMs": 104595.0994,
+      "log": "work/b11-recovery-v2-full-turnout.log",
+      "logSha256": "c198a13c42bb86164970f8fd98f354335e616e2a6d91b390fcfe1356a75e07db"
+    },
+    {
+      "command": "node --test platform/recovery/v2-maximum-source.test.mjs",
+      "result": "PASS",
+      "tests": 1,
+      "durationMs": 134417.2304,
+      "log": "work/b11-recovery-v2-maximum-source.log",
+      "logSha256": "18e3db5e6ee97cd5af79e8e99720ccc3f43f006df3ba82f7d593375d10a9bb3f"
+    },
+    {
+      "command": "node --test platform/edge/test/recovery-v2.test.mjs",
+      "result": "PASS",
+      "tests": 1,
+      "durationMs": 36096.1421,
+      "log": "work/b11-recovery-v2-d1.log",
+      "logSha256": "c093c827660c75fad3fe69a1459ba8fe735f93b2e6ecbdd2df1216a277f56fc8"
+    },
+    {
+      "command": "node platform/edge/node_modules/typescript/bin/tsc --noEmit -p platform/edge",
+      "result": "PASS"
+    },
+    {
+      "result": "PASS",
+      "tests": 20,
+      "durationMs": 2430.3082,
+      "log": "work/b11-044-receipt-compat.log"
+    },
+    {
+      "result": "PASS",
+      "tests": 11,
+      "durationMs": 6890.4859,
+      "log": "work/b11-recovery-044-compat.log"
+    },
+    {
+      "result": "PASS",
+      "tests": 9,
+      "durationMs": 114650.9912,
+      "log": "work/b11-044-d1-compat.log"
+    },
+    {
+      "command": "node work/b11-044-reference.mjs",
+      "result": "PASS",
+      "tests": 515,
+      "durationMs": 192395.5124,
+      "log": "work/b11-044-reference.log",
+      "logSha256": "c7d9478c7ae07e2618e330b8abb6349d62f512c77d193fe97a4f9c061817dc09"
+    }
+  ],
+  "metrics": {
+    "fullTurnout": [
+      {
+        "calls": 1117,
+        "rows": 30661,
+        "objects": 499,
+        "bytes": 13982756,
+        "rootBytes": 6086,
+        "maxOperations": 24,
+        "maxBatchBytes": 60666,
+        "maxSerializedWorkingBytes": 859737,
+        "restoreAcceptanceOutstanding": true
+      }
+    ],
+    "maximumSourceGraph": [
+      {
+        "records": 3245,
+        "indexedPages": 3200,
+        "lists": 32,
+        "declaredAdmissions": 1000,
+        "receipts": 6478,
+        "calls": 1334,
+        "rows": 12960,
+        "objects": 607,
+        "bytes": 60193723,
+        "rootBytes": 6075,
+        "maxOperations": 24,
+        "maxBatchBytes": 60641,
+        "maxSerializedWorkingBytes": 859860,
+        "sourceAuthority": "record-closure-only",
+        "economicActivation": false,
+        "restoreAcceptanceOutstanding": true
+      }
+    ],
+    "workerd": [
+      {
+        "steps": 433,
+        "maxOperations": 24,
+        "maxBatchBytes": 60784,
+        "maxParameters": 23,
+        "maxSerializedWorkingBytes": 240188,
+        "capturedObjects": 162,
+        "readyCapture": true,
+        "restoreImplemented": false
+      }
+    ]
+  },
+  "acceptance": [
+    "Trusted migration names match actual schema_versions; exact watermark SQL verified before capture and exact schema checked again at every source commit.",
+    "Source watermark/schema/generation guards detect business writes and same-name DDL substitution during asynchronous hashing; source is never paused.",
+    "Lost start, continuation and final acknowledgements replay durable identity; omitted row/reference/index ledger children cannot advance.",
+    "Sealed pages determine references; missing/corrupt objects retain the cursor, including final post-index readback.",
+    "Node independently traverses every root/index edge, exact page count and row cursor, and reconciles unique reachable object/byte totals.",
+    "Node18 and actual workerd17 retained public archive pins span multiple index leaves; reverse insertion order becomes sorted content-key order without changing bytes or semantic commitments.",
+    "Actual10000-member ballot and10000 guarded votes retain30661 rows,10327 receipts and complete metadata in bounded calls.",
+    "Actual3245 source records,3200 private indexed pages,32 sealed lists,1 source seal and6478 receipts retain the complete large root and1000 declared admissions.",
+    "No new public capability, deployment, remote resources, provider call, chain broadcast or financial execution."
+  ],
+  "limitations": [
+    "This milestone implements v2 capture only. Continued v2 restore, target watermark reconciliation, audit/economic checks and maximum-graph restore acceptance remain unfinished.",
+    "V1 format, exporter and restore limits remain unchanged. Large sources continue to be rejected by v1 instead of truncated.",
+    "Maximum source fixture is record-closure-only, with provenanceVerified false and no economic inventory activation.",
+    "Oversized legacy collect_inventories.state remains held until separately authorized normalization/adoption.",
+    "Aggregate bounds are explicit; unknown future business tables require matching watermark triggers. No claim of arbitrary unbounded history."
+  ],
+  "nextStep": "Continue private v2 restore through bounded graph copying, topological row imports, session/lease fencing and durable target-watermark checks; then prove full legal graphs on Node and D1/R2."
+}

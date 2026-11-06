@@ -5,9 +5,9 @@
   "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
   "currentTask": "B11",
-  "lastUpdatedAt": "2026-11-06T02:06:32.086717+00:00",
+  "lastUpdatedAt": "2026-11-06T03:06:36.796690+00:00",
   "migrationAllocation": {
-    "next": 46,
+    "next": 47,
     "reserved": [
       {
         "version": 31,
@@ -82,7 +82,12 @@
       {
         "version": 45,
         "task": "B11",
-        "purpose": "guarded normalized mint admission and fulfillment with bounded authority effects"
+        "purpose": "guarded normalized mint admission, immutable fairness binding and authority counters"
+      },
+      {
+        "version": 46,
+        "task": "B11",
+        "purpose": "guarded normalized mint fulfillment, concealed Collect and Vault binding, immutable outcome evidence"
       }
     ],
     "historicalGap": 19
@@ -245,7 +250,7 @@
       "status": "in_progress",
       "owner": "coordinator",
       "baseCommit": "96cdfa1fb6334fcb27deb831d786243227b9d1a8",
-      "implementationCommit": "6aae0e22ce54cc8e8a8d8fd2d16ef71f66804530",
+      "implementationCommit": "0c2b97cd16f552406a2f50b81550c379f0d1ab3a",
       "pushed": true,
       "evidence": [
         "platform/validation/runs/2026-11-06-overnight/B11-1.json",
@@ -261,9 +266,10 @@
         "platform/validation/runs/2026-11-06-overnight/B11-10-observations.json",
         "platform/validation/runs/2026-11-06-overnight/B11-11-reads.json",
         "platform/validation/runs/2026-11-06-overnight/B11-12-fulfillment.json",
-        "platform/validation/runs/2026-11-06-overnight/B11-13-stages.json"
+        "platform/validation/runs/2026-11-06-overnight/B11-13-stages.json",
+        "platform/validation/runs/2026-11-06-overnight/B11-14-capture.json"
       ],
-      "nextAction": "CI42147963849 tests dependency-order repair6aae0e2 over042fulfillment4fc655a.043 normalizedstage installed and tested486reference+10Node+10000wallet actualD1+4recovery cases; readycheckpoint afterrepairCI.044durablecapture agent active;045normalizedmint plans/design agent active. B11notcomplete.",
+      "nextAction": "Checkpoint044 private v2 capture, then install045 guarded normalized mint admission and continue046 fulfillment plus v2restore. Inventory GET/UI lane remains separately uncommitted. B11 partial; B20 skipped until full prerequisites.",
       "blocker": null
     },
     "B12": {

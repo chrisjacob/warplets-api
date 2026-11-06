@@ -1,6 +1,6 @@
 # Continuous implementation checkpoint
 
-Branch: `work/10x-prd-foundation`. Latest pushed product `66ce5b37e0466635013e238a57068ee30805c29f` passed test-only CI42144116071. B11.12 guarded progression fulfillment is locally verified and awaiting its checkpoint. Continuous execution remains active; milestones are not stopping conditions.
+Branch: `work/10x-prd-foundation`. Latest pushed product `0c2b97cd16f552406a2f50b81550c379f0d1ab3a` passed test-only CI42148428060. Guarded progression4fc655a plus CI setup repair6aae0e2 passed CI42147963849. Private normalized stages043 are checkpointed. Continuous execution remains active; milestones are not stopping conditions.
 
 B00-B10 and B14 are verified. B11 is partial; B12/B13/B15 onward remain unfinished. B20-core is verified at b18dec7/CI42125215062; skip B20 until all full-profile prerequisites pass. Financial execution remains false. No deployment, resource provisioning, spending, funding, broadcast, subscriptions, external messages, main/dev merge, force push or R-stage work. Sydney hours and later mint prices remain open.
 
@@ -14,16 +14,18 @@ B11.11 product66ce5b3/CI42144116071 adds four exact public/owner asset/operation
 
 ## Immediate next work
 
-Commit/push042 and follow exact CI. Coordinator then installs043 from work/b11-043.sql, adds its two normalized stage tables to recovery and runs populated recovery. Draft043 already passed6Node cases plus actualD1 with10000wallets (20SQL/7119batch bytes/34parameters). It publishes compact immutable terms using verified indexed lists and separate founder scope, adopts only an exactly empty reference header, and explicitly holds populated legacy state. Stage and mint public read/admission authority remain unfinished.
+044 continued private v2 capture is locally verified and being checkpointed. It retains102 business tables, five excluded continuation controls and306 mutation-watermark triggers. Source writes remain live; pre-seal changes hold capture, post-seal immutable pages remain valid. Full10000-voter turnout passes (1117 calls,30661 rows,499 objects,13,982,756 bytes). Maximum32-list source closure passes (3245 records,3200 pages,6478 receipts,607 objects,60,193,723 bytes). Calls stay below24 SQL/object operations,256 KiB SQL batches and1 MiB ordinary working data. Multiple reverse-ordered publication archives pass actualD1/R2. Existing v1 recovery remains unchanged. V2 restore is still unfinished; capture does not claim full disaster recovery.
 
-Frontend agent owns bounded durable v2 recovery capture/restore against draft044. Existing v1 remains unchanged. Legal10000-voter turnout needs1380capture operations; maximum3245-record source graph plus index already exceeds36.7MiB before SQL envelopes/receipts. V2 needs bounded keyset steps, verified whole-business mutation watermark, immutable paged indexes and phased target reconciliation; no blind request limit increase. Draft044 has five recovery control tables and306 business mutation triggers for the post043102-table schema. Snapshot agent owns normalized mint pure plans/design; coordinator owns all migrations, shared contracts and commits. Preserve these separate uncommitted lanes.
+Shared receipt winner detection now uses the durable operation ID and attempt nonce, since D1 change counts include watermark trigger writes. Existing Node20, recovery11 and actualD1 nine compatibility tests pass. Capture evidence records exact files and full-capacity results.
 
-Unfinished B11 also includes safe populated legacy adoption, free-phase cut completeness, guarded normalized mint admission/fulfillment, supported inventory/stage reads and maximum-capacity recovery acceptance. Fixtures never imply chain authority.
+After044 commit/push and CI, install work/b11-045.sql and add app_collection_mint_admissions to business recovery. Rename pending admission tests/remove draft loaders, run populated recovery and checkpoint045. Admission already passes17Node cases, actualNode/D1 parity and a real1000th-slot race seeded by999 genuine guarded admissions. Coordinator owns all migrations/contracts/commits; snapshot agent owns separate046 fulfillment repository and acceptance, frontend agent owns separate v2restore. Exclude restore, mint and inventory-read files from044 capture commit.
+
+Inventory GET/UI lane remains uncommitted: bounded normalized/legacy read projection, exact signed-wallet visibility, recovery/source revision fences and explicit admission-unavailable status until normalized mint HTTP is mounted. Final actualD1 passes44443.4177ms; finalNode4 passes17254.1858ms. Site25/types pass; build/browser acceptance still required. UTF-8 strings repaired and dead legacy GET branch removed; use Python -X utf8 for all text edits on Windows.
+
+Unfinished B11 includes safe populated legacy adoption, free-phase cut completeness, guarded normalized mint admission/fulfillment, inventory reads and maximum-capacity restore acceptance. Fixtures never imply chain authority. Continue independently; no routine milestone is a stopping condition.
 
 ## Earlier checkpoints and resume
 
 040 reservations118ad4b/CI42140229608;039 governancea118aa1/CI42139747263;038 index1734e3b/CI42138242958;037 quotes3eb3718/CI42137548857;036 governancef76f741/CI42136334301;035 source3cfdf54/CI42134854897. B14 product88eb0dd/CI42132784073 retains missing captured-program parity and disabled execution. Details remain in evidence JSONs.
 
 Read RUN_STATE.json, inspect git status/HEAD and run `node platform/blueprint/validate-plan.mjs --next --self-check`. Preserve newer work. Use installed pinned runtimes. Local rehearsal: `node platform/scripts/rehearse-hosted-slice.mjs`; instructions in platform/scripts/HOSTED_REHEARSAL.md. Physical-device and release gates remain separate.
-
-Stage continuation:043 is installed and locally verified with486reference tests45450.0935ms,10stage tests6985.7648ms, actualD1 full10000-wallet test42053.0901ms, and4populated recovery tests1328.2889ms across102business tables. It is ready for a separate checkpoint.042 product4fc655a hit a CI setup-order failure (beacon package not installed before its Worker import); repair6aae0e2 moved the existing frozen beacon install/test before Workers, with no criteria change. Follow repairCI42147963849.045 reserved for normalized mint.

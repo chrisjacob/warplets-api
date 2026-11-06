@@ -181,7 +181,7 @@
     "holdClearing": false
   },
   "remaining": [
-    "Commit/push and follow exact test-only CI; existing HTTP lifecycle browser evidence remains applicable because no production route or UI changed",
+    "Guarded progression checkpoint complete; further normalized mint and operator composition remain separate",
     "Normalized stage and mint authority before guarded mint fulfillment",
     "Operator application composition/public approval boundaries remain separate; no public fulfillment route"
   ],
@@ -198,7 +198,8 @@
     "cause": "Worker test imported pinned beacon adapter before beacon package dependencies were installed",
     "repairCommit": "6aae0e22ce54cc8e8a8d8fd2d16ef71f66804530",
     "repairRun": 42147963849,
-    "repairConclusion": "in_progress",
-    "acceptanceCriteriaChanged": false
+    "repairConclusion": "success",
+    "acceptanceCriteriaChanged": false,
+    "repairUrl": "https://github.com/chrisjacob/warplets-api/actions/runs/42147963849"
   }
 }

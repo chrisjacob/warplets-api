@@ -4,7 +4,7 @@
   "status": "partial",
   "classification": "Private synthetic local stage authority; no mint admission, public publication route or chain authority",
   "lastTestedBaseCommit": "4fc655a8538d6d5735a8afcfbaf462ff670f95ed",
-  "implementationCommit": null,
+  "implementationCommit": "0c2b97cd16f552406a2f50b81550c379f0d1ab3a",
   "commands": [
     {
       "command": "node --test platform/collect/stage-plan.test.mjs platform/collect/stage-repository.test.mjs",
@@ -98,10 +98,16 @@
     "chainAuthority": false
   },
   "remaining": [
-    "Commit/push and follow exact test-only CI",
+    "Private publication checkpoint complete; normalized inventory/member read composition remains separate",
     "Guarded normalized mint admission and fulfillment; safe populated legacy adoption",
     "Exact-opening complete free eligibility source binding",
     "Consistent bounded inventory and stage read projections",
     "Bounded v2 recovery for legal maximum source graph and10000-voter turnout"
-  ]
+  ],
+  "ci": {
+    "run": 42148428060,
+    "conclusion": "success",
+    "url": "https://github.com/chrisjacob/warplets-api/actions/runs/42148428060",
+    "commit": "0c2b97cd16f552406a2f50b81550c379f0d1ab3a"
+  }
 }

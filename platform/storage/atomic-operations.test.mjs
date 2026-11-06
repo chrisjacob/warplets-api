@@ -15,6 +15,15 @@ function fixture(t){
  const db=openDatabase();t.after(()=>db.close());db.exec("INSERT INTO app_operator_scopes VALUES('fixture-operator','operations',0,1)");
  const driver=createNodeAtomicDriver(db);return {db,driver,repo:createAtomicOperationsRepository(driver,ports)};
 }
+
+test('receipt attempt nonce identifies one winner when trigger-inclusive mutation counts differ by runtime',async t=>{
+ const {db,driver}=fixture(t),inclusive={...driver,async batch(statements){return (await driver.batch(statements)).map(result=>({...result,changes:result.changes?result.changes+7:0}));}};
+ const make=nonce=>{let step=0;return createAtomicOperationsRepository(inclusive,{crypto,ids:{next:()=>step++===0?'synthetic-shared-operation':nonce}});};
+ const c=await command('changeScope','synthetic-trigger-count',{scope:'earn-admission',paused:true,previousRevision:null,reason:'synthetic count parity',evidenceRef:'synthetic'});
+ const outcomes=await Promise.all([make('synthetic-attempt-a').changeScope(c),make('synthetic-attempt-b').changeScope(c)]);
+ assert.deepEqual(outcomes.map(o=>o.kind).sort(),['committed','replayed']);assert.deepEqual(outcomes[0].receipt,outcomes[1].receipt);assert.deepEqual(outcomes[0].value,outcomes[1].value);
+ assert.equal(db.prepare('SELECT COUNT(*) n FROM app_command_receipts').get().n,1);assert.equal(db.prepare('SELECT COUNT(*) n FROM ops_scope_log').get().n,1);
+});
 test('portable scope and workload preserve exact legacy revisions/audit hashes; retry survives revocation',async t=>{
  const {db,repo}=fixture(t),legacy=openDatabase();t.after(()=>legacy.close());
  const scope={scope:'earn-admission',paused:true,previousRevision:null,reason:'fixture pause',evidenceRef:'fixture evidence'};
