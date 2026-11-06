@@ -1,5 +1,7 @@
 # Account100% checkpoint: pinned v2 Vault liability reader
 
+Product f66dc6a pushed. Final direct GitHub query confirms B17 run42308923046 remains in_progress at e80941ef56adf46af01b5d9be46fcb4029e7ec35; no conclusion yet.
+
 Latest slice manifest-from-recovery.mjs derives liabilities from an independently pinned v2 root through bounded table/page index paths. It verifies source snapshot digest, exact page/schema/row identity and derived budgets. Seven focused tests pass259.0131ms, including branched index traversal and corrupted or internally inconsistent sources. EvidenceB19-06. Return explicitly says pinned-liability-page-only and fullRecoveryVerified=false. Structural synthetic test root is not a complete recovery-ready graph.
 
 Next executable: compose full inventory plus binding/transfer/cumulative-claim history and prove actual empty-database restore with partial claims, transfer, Season expiry and conflicting evidence holds. Reuse current v2 capture/restore; preserve128346/131072 golden checkpoint bound. Then claim codecs and detailed custody/farm dossiers. B19 remains partial. B17CI42308923046 active at last observation (reference stage); follow to final before marking B17 verified. B18 waits B17. B20-core passed; full waits all prerequisites. B00-B16 verified.
