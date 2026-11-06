@@ -1,3 +1,4 @@
+import {inspectCollectionObservation} from '../collect/observation-evidence.mjs';
 import {decodePoolAccount,decodeMintAccount,decodeVaultAccount} from '../quotes/accounts.mjs';
 import {normalizePolicy,assessObservation} from '../pricing/policy.mjs';
 import {applyPurchaseActivity,enrollPosition} from '../domain/earn/index.mjs';
@@ -76,6 +77,7 @@ export function decodeRecorded(source,record,envelope){
  if(envelope.blockTimeMs>effectiveCutoff)return decision('pending','future-cutoff-observation','decoder-only');
  if(effectiveCutoff-envelope.blockTimeMs>source.maxAgeMs)return decision('pending','stale-cutoff-observation','decoder-only');
  try{
+  if(source.decoderVersion==='synthetic-collection-observation-v1')return decision('verified','synthetic-collection-event-validated','synthetic-transcript',inspectCollectionObservation(source,payload,envelope));
   if(source.decoderVersion==='synthetic-quote-capture-v1'){
    if(source.mode!=='synthetic-fixture'||payload?.mode!=='synthetic-fixture')return decision('incompatible','synthetic-quote-mode-required','decoder-only');
    if(source.subject.kind!=='quote-market'||source.subject.id!==payload.marketId||source.policy.marketId!==payload.marketId||envelope.requestedCutoffMs!==null)

@@ -2,7 +2,7 @@
   "taskId": "B11",
   "substep": "B11.9-shared-progression-transport",
   "status": "partial",
-  "implementationCommit": null,
+  "implementationCommit": "0f8570c0fc34f9ea1813f309d9423aa83ad8df24",
   "baseCommit": "118ad4bb16ebd9bfbbaf121351ccc6a46d8a38c4",
   "classification": "Local Node and actual workerd with genuine signed fixture wallets; financial execution disabled",
   "commands": [
@@ -71,5 +71,11 @@
     "Collection read routes remain Node-only until separately ported.",
     "Synthetic sources and local locking establish no chain custody or execution authority.",
     "041 observations, normalized stage/mint authority, atomic fulfillment and larger recovery capacity remain unfinished."
-  ]
+  ],
+  "ci": {
+    "runId": 42142496021,
+    "status": "success",
+    "url": "https://github.com/chrisjacob/warplets-api/actions/runs/42142496021",
+    "headSha": "0f8570c0fc34f9ea1813f309d9423aa83ad8df24"
+  }
 }

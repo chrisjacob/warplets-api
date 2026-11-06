@@ -3,7 +3,7 @@
   "slice": "B11.9 guarded progression browser review lifecycle",
   "status": "partial",
   "baseCommit": "118ad4bb16ebd9bfbbaf121351ccc6a46d8a38c4",
-  "implementationCommit": null,
+  "implementationCommit": "0f8570c0fc34f9ea1813f309d9423aa83ad8df24",
   "recordedAt": "2026-11-06T01:12:57.739Z",
   "sourceHashes": {
     "platform/site/src/models.ts": "5443389f0958459ca407851e85f35f64a2dc3dbe00e840136f12e75883cc43e7",
@@ -166,5 +166,11 @@
     "Session storage does not provide cross-device or browser-session recovery",
     "Synthetic fixture data and private deterministic clock are not live chain evidence",
     "B11 remains partial; remaining collection authority, full legacy migration and maximum legal recovery capacity are not claimed complete"
-  ]
+  ],
+  "ci": {
+    "runId": 42142496021,
+    "status": "success",
+    "url": "https://github.com/chrisjacob/warplets-api/actions/runs/42142496021",
+    "headSha": "0f8570c0fc34f9ea1813f309d9423aa83ad8df24"
+  }
 }

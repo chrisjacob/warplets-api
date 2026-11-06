@@ -1,0 +1,35 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {randomUUID} from 'node:crypto';
+import {openDatabase} from '../storage/database.mjs';
+import {createNodeAtomicDriver} from '../storage/node/atomic-driver.mjs';
+import {createNodeCrypto} from '../security/node-crypto.mjs';
+import {seedCollectionContext} from '../application/fixtures/collection-context.mjs';
+import {memoryArtifacts} from '../application/fixtures/memory-artifacts.mjs';
+import {dispatchProgressionReservation,reviewedReservation} from './reservation-test-harness.mjs';
+import {dispatchCollectionObservation,observationInput,OBSERVATION_TEST_OPERATOR} from './observation-test-harness.mjs';
+import {createCollectionObservationRepository} from './observation-repository.mjs';
+import {createCollectionObservationService} from './observation-service.mjs';
+import {canonicalJson} from '../security/canonical.mjs';
+import {createManifestCodec} from '../artifacts/manifest-codec.mjs';
+import {readInstalledRecoverySchema} from '../recovery/node-schema.mjs';
+import {createRecoveryExporter} from '../recovery/export.mjs';
+import {createPrivateRecovery} from '../recovery/restore.mjs';
+
+test('private recovery preserves B04 observation bindings, transferred owner, pending locks and permanent fulfillment hold',async t=>{
+ const source=openDatabase(),target=openDatabase();t.after(()=>{source.close();target.close();});const f=seedCollectionContext(source),crypto=createNodeCrypto(),driver=createNodeAtomicDriver(source),targetDriver=createNodeAtomicDriver(target),sourceStore=memoryArtifacts(),targetStore=memoryArtifacts(),principal={kind:'wallet',wallet:f.wallet};
+ for(const scope of ['evidence-ingest','collection-evidence'])source.prepare('INSERT INTO app_operator_scopes VALUES(?,?,0,1)').run(OBSERVATION_TEST_OPERATOR.id,scope);
+ const q=await dispatchProgressionReservation({driver,crypto,request:{method:'quote',principal,nowMs:f.nowMs,idPrefix:'synthetic-recovery-quote',input:{requestKey:'synthetic-recovery-quote',inventoryId:f.inventoryId,...f.request(2)}}});assert.equal(q.result.kind,'committed');
+ const reservation=await dispatchProgressionReservation({driver,crypto,request:{principal,nowMs:f.nowMs,idPrefix:'synthetic-recovery-reserve',input:reviewedReservation(q.result.value,'synthetic-recovery-reserve')}});assert.equal(reservation.result.kind,'committed');
+ const assetId=f.ids(2,'target'),evidence=await dispatchCollectionObservation({driver,crypto,store:sourceStore,request:{method:'evidence',nowMs:f.nowMs+10000,idPrefix:'synthetic-recovery-evidence',inventoryId:f.inventoryId,assetId,events:[{id:'away',kind:'transfer',observedMs:f.nowMs-1000,from:f.wallet,to:f.other}],recordId:'away'}});assert.equal(evidence.result.kind,'committed');
+ const input=observationInput(evidence.result.value,{requestKey:'synthetic-recovery-observe',expectedAssetVersion:1}),accepted=await dispatchCollectionObservation({driver,crypto,store:sourceStore,request:{input,nowMs:f.nowMs+10000,idPrefix:'synthetic-recovery-observe'}});assert.equal(accepted.result.kind,'committed');assert.equal(accepted.result.value.resultKind,'held');
+ const ports={crypto,clock:{nowMs:()=>f.nowMs+86400000},ids:{next:randomUUID},schema:await readInstalledRecoverySchema(crypto),codec:createManifestCodec({crypto})},capture=await createRecoveryExporter({...ports,driver,artifacts:sourceStore,sourceCommit:'0'.repeat(40)}).capturePrivate();assert.equal(capture.kind,'captured',JSON.stringify(capture));
+ for(const name of ['app_collection_observation_bindings','app_collection_operation_conflicts'])assert.equal(capture.inventory.tables.find(row=>row.name===name).rowCount,1);
+ const recovery=createPrivateRecovery({...ports,driver:targetDriver,artifacts:targetStore,sourceArtifacts:sourceStore}),pin={inventory:structuredClone(capture.inventory),pinnedDigest:capture.digest};assert.equal((await recovery.restore(pin)).kind,'restored');
+ for(const table of ['collect_assets','vault_assets','vault_observations','collect_observations','collect_operations','app_collection_reservations','app_collection_observation_bindings','app_collection_operation_conflicts','app_evidence_receipts','app_evidence_heads','app_command_receipts'])assert.equal(canonicalJson(target.prepare('SELECT * FROM '+table+' ORDER BY rowid').all()),canonicalJson(source.prepare('SELECT * FROM '+table+' ORDER BY rowid').all()),table);
+ target.prepare("UPDATE app_operator_scopes SET enabled=0 WHERE operator=?").run(OBSERVATION_TEST_OPERATOR.id);targetStore.objects.clear();const restored=createCollectionObservationService({crypto,repository:createCollectionObservationRepository(targetDriver,{...ports,artifacts:targetStore})}),replay=await restored.observe(OBSERVATION_TEST_OPERATOR,input);assert.equal(replay.kind,'replayed');assert.deepEqual(replay.value,accepted.result.value);assert.deepEqual(replay.receipt,accepted.result.receipt);
+ assert.throws(()=>target.prepare('UPDATE collect_operations SET settled_ms=? WHERE id=?').run(f.nowMs+20000,reservation.result.value.operationId),/unresolved external-transfer/);
+ assert.throws(()=>target.prepare('DELETE FROM app_collection_operation_conflicts').run(),/immutable/);assert.equal(target.prepare('SELECT owner FROM collect_assets WHERE id=?').get(assetId).owner,f.other);assert.equal(JSON.parse(target.prepare('SELECT asset FROM collect_assets WHERE id=?').get(assetId).asset).pending,reservation.result.value.operationId);
+ for(const table of ['collect_level_history','vault_claim_totals','tx_intents','tx_attempts'])assert.equal(target.prepare('SELECT COUNT(*) n FROM '+table).get().n,0);
+ t.diagnostic(JSON.stringify({tables:capture.inventory.tables.length,bindings:1,permanentHolds:1,rawEvidenceRetained:true,acceptedReplayAfterRevocationAndObjectLoss:true,financialExecution:false}));
+});

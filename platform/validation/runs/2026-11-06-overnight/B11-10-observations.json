@@ -1,0 +1,128 @@
+{
+  "taskId": "B11",
+  "substep": "B11.10-retained-observations-and-operation-holds",
+  "status": "partial",
+  "classification": "Locally verified synthetic B04 observation application; no chain authority or financial execution",
+  "lastTestedBaseCommit": "0f8570c0fc34f9ea1813f309d9423aa83ad8df24",
+  "implementationCommit": null,
+  "commands": [
+    {
+      "command": "node --test platform/collect/observation-evidence.test.mjs platform/collect/observation-repository.test.mjs platform/collect/observation-recovery.test.mjs",
+      "tests": 20,
+      "failed": 0,
+      "skipped": 0,
+      "exitCode": 0,
+      "durationMs": 2928.6185,
+      "log": "work/b11-observation-node.log"
+    },
+    {
+      "command": "node --test platform/edge/test/collection-observations.test.mjs",
+      "tests": 1,
+      "failed": 0,
+      "skipped": 0,
+      "exitCode": 0,
+      "durationMs": 19752.6804,
+      "log": "work/b11-observation-edge.log"
+    },
+    {
+      "command": "node platform/edge/node_modules/typescript/bin/tsc --noEmit -p platform/edge/tsconfig.json",
+      "exitCode": 0
+    },
+    {
+      "command": "git diff --check",
+      "exitCode": 0
+    },
+    {
+      "command": "node platform/scripts/test-reference.mjs",
+      "tests": 456,
+      "exitCode": 0,
+      "durationMs": 43446.9841,
+      "log": "work/b11-observation-reference.log",
+      "scope": "Includes four separate uncommitted bounded read tests and four pure stage-plan tests."
+    }
+  ],
+  "sourceHashes": {
+    "platform/application/fixtures/collection-observation.mjs": "6e0a0f32c57c023d3b116cc9b4f23d63e82da561fa4fd04685b21340bfadb4b4",
+    "platform/collect/observation-contract.md": "5f9a905d45964cc2e7933620a345ae825ecac552479dc279dace64f8e38af128",
+    "platform/collect/observation-evidence.d.mts": "9f784b5cf057c53994a6818d2f9c2dc7168dd94fba10a0831a4abaa69ba5f67e",
+    "platform/collect/observation-evidence.mjs": "b74dfa6415b32e5e8ed100321563722b926c3aca2c13c5a5a183d74167c58cf7",
+    "platform/collect/observation-evidence.test.mjs": "fa482485c2fc22454d722089de37c0f2d51d8b9ee913ce013121dfba712906c2",
+    "platform/collect/observation-plan.mjs": "455c114a9787675b46b0193064f806d86e775b1c85f5811168e97ec49c790b80",
+    "platform/collect/observation-recovery.test.mjs": "5e83d1af89b296870350a71458b30ea52d04820b02c37a54ea337b64ffb25a2d",
+    "platform/collect/observation-repository.d.mts": "3c957b42337b20ddf47443aef9c8ef0f1cd02c7f154521f1e45a22ccabfbf0f1",
+    "platform/collect/observation-repository.mjs": "3d5373a49bb18bad399d1fefb152c66c3691bfe0b295023cdd1c27fd0b1e61ff",
+    "platform/collect/observation-repository.test.mjs": "faa3693b3d48c2fb42ca26aec1a97f240e2c578a75c75571ef614c1ef2e9e19d",
+    "platform/collect/observation-service.d.mts": "8d7468e7f362b9f49955c33f6e280d6a77f5fbc116ea487fb8e3737dd14a4732",
+    "platform/collect/observation-service.mjs": "140207b1858432bf82bed94094cc77083cc5624737078fe0edf66b34407f2336",
+    "platform/collect/observation-test-harness.mjs": "56a66be7518d9b61633b5f425bd3c715033272d1e32c9a45c3a332501208617c",
+    "platform/edge/test/collection-observations.test.mjs": "63da09905f159f99c9cabce61dec1a7c2413ee2c1998b1cbc485174587891f4a",
+    "platform/edge/test/fixtures/collection-observation-worker.ts": "3ad3196ee0acd8d974903e978a1d42399667e502c6f5826220ea00173f1aca54",
+    "platform/evidence/decoders.mjs": "65ac58feb5177e5658c978ce1014fd1b480b8caf15fd4cca4a9da3ab6c0b3926",
+    "platform/evidence/envelope.mjs": "bed88c44f9324bd8b8d680cb63e44138f78edafe1a83a7f73cfe9795ea630ab3",
+    "platform/recovery/schema.mjs": "f33102ab19e8fa189b5a803c763cbe050cc56dcd661b5d98b7b2935596ac8288",
+    "platform/storage/041-collection-observations.sql": "a4f36ba190a2298856fcf7086b0a90c1bc7fa06219f04e40547578f02333c388"
+  },
+  "measurements": {
+    "pairedNodeD1Calls": 30,
+    "immutableBindings": 4,
+    "permanentHolds": 2,
+    "maxStatementsPerCallIncludingB04Ingestion": 30,
+    "maxBatchBytes": 13535,
+    "maxParameters": 51,
+    "maxPrivateObjectReadsPerObservation": 1,
+    "contextSnapshotStatements": 8,
+    "maxHydratedSnapshotBytes": 196608,
+    "sqlColumnByteBounds": {
+      "asset": 16384,
+      "slot": 4096,
+      "vaultCoords": 4096,
+      "ownerEvidence": 4096,
+      "operation": 16384,
+      "sourceConfig": 65536,
+      "envelope": 16384,
+      "decision": 16384
+    },
+    "oversizedCorruptionCases": 7,
+    "oversizedCaseResultBytesLessThan": 16384,
+    "oversizedCaseObjectReads": 0
+  },
+  "recovery": {
+    "businessTables": 99,
+    "populatedBindings": 1,
+    "populatedPermanentHolds": 1,
+    "rawB04ObjectsAndReceiptsPreserved": true,
+    "exactOriginalCommandReceipts": true,
+    "ownerAndPendingOperationPreserved": true,
+    "acceptedReplayAfterRevocationAndObjectLoss": true,
+    "fulfillmentHoldStillEnforced": true
+  },
+  "acceptance": [
+    "Exact Node/D1 row and receipt parity for reveal, normal transfer and late external transfer during a local reservation",
+    "Collect and Vault owner updated together; slot/coordinates/Level/history/claims retained",
+    "Return of original owner does not clear permanent hold",
+    "Legacy fulfillment rollback still enforced after synthetic restoration of old asset version",
+    "Every omitted Collect/Vault/observation/conflict/binding child rolls back receipt and all effects",
+    "Lost committed response resolves original accepted receipt",
+    "Wrong command digest, missing/corrupt raw artifact, changed current B04 head and revoked scope cannot authorize ownership",
+    "Accepted replay precedes current grant/source/object availability; changed valid input conflicts",
+    "Corrupt oversized JSON held before hydration or private object access",
+    "Private 99-table recovery retains evidence, ownership, locks, original receipt and hold"
+  ],
+  "boundaries": {
+    "sourceMode": "synthetic-fixture",
+    "coverageComplete": false,
+    "publicObservationRoutes": false,
+    "financialExecution": false,
+    "chainCustodyClaim": false,
+    "holdClearing": false,
+    "mintFulfillment": false
+  },
+  "remaining": [
+    "Coordinator broader reference checks, commit and test-only CI",
+    "Guarded progression fulfillment and held-state read projection",
+    "Normalized collection mint authority and guarded mint fulfillment",
+    "Explicit future conflict reconciliation design before any hold can be cleared"
+  ],
+  "mandatoryEffectCompatibility": "041 global receipt trigger exactly preserves040 predicates; only collection.observe-asset.v1 allowlist entry added.",
+  "formatting": "After tests normalized CRLF and excess EOF whitespace only; source hashes reflect final bytes."
+}
