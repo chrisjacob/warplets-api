@@ -75,6 +75,14 @@
       "tests": 4,
       "durationMs": 188.4613,
       "log": "work/b11-35-recovery.log"
+    },
+    {
+      "command": "node work/test-b11-35-reference.mjs",
+      "result": "PASS",
+      "tests": 708,
+      "durationMs": 906690.9802,
+      "log": "work/b11-35-reference.log",
+      "scope": "Combined frozen35 reference discovery excludes ongoing36,37,38 exact test names;39/40 did not exist at launch. Run began before27 optional observer instrumentation;39 separately reran all9old27+7new tests and realD1/BLS against final observer change."
     }
   ],
   "nodePhases": {

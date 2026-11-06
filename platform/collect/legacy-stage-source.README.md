@@ -1,0 +1,17 @@
+# Retained legacy stage source bridge
+
+`createLegacyStageSource(...).read(...)` reads one selected stage from a committed035 source root and verifies an independently retained private original publication preimage. It uses the existing bounded25 stage auditor to reproduce the old terms hash and scalar reducer output. The original artifact is canonical JSON, at most16KiB, copied before asynchronous hashing, and independently checked against its exact byte identity.
+
+The artifact is a retained preimage, not evidence of who recorded it or when. Missing original wallet limits, founder approvals, or discarded public/free wallet lists produce a hold. Current free-cut membership is verified as separate immutable list metadata and is never substituted for the original publication list. This bridge does not establish free-cut authority, original operator authorization, or chain ownership completeness.
+
+Original wallets come from named immutable038 index pages with retained committed staging and materialization receipts. At most ten named100-wallet pages are read per chunk, up to ten chunks for10000 wallets. Each page is reconstructed as exact canonical035 bytes and its content identity is rechecked. The full original list is streamed into independent native wallet-list and legacy-terms hashes. Empty lists still require their named empty indexed page. No full10000-wallet runtime array is hydrated.
+
+The shared helpers `legacySealedListSql`, `verifyLegacySealedLists`, `legacyIndexedPagesSql`, and `verifyLegacyIndexedPage` expose this lineage and byte verification for other private readers. The list verifier returns `{seals: CollectionListSeal[], recordBytes, transportBytes}`. The page verifier returns a frozen wallet array. A single page does not prove list completeness or absent membership. Callers must provide their own source fence.
+
+For the first Genesis stage after tranche1, the retained previous opening is the **minimum opening across all prior stages**, matching the reference store. Publication order is not chronological order; the fixture explicitly publishes a later opening first. The bounded SQL projection validates the prior header, stage count/types and retained ballot opening. A changed minimum incompatible with the ballot holds.
+
+Every bridge result pins generation, inventory revision and the whole-business watermark before reads and again after the final digest. The source root also requires committed source-seal and staged-root receipt lineage. Exact installed-schema validation and durable source-to-legacy relation remain the surrounding guarded repository's responsibility. This read-only result explicitly reports `sourceRelation:false`, `economics:false`, `adoption:false`, and `executable:false`.
+
+Limits are64 SQL statements,256KiB per SQL batch, one16KiB original artifact read, and1MiB measured working data. Root verification buffers are released before page reads. Measurements include separate root, artifact, list, wallet, audit and final phase peaks; aggregate returned bytes across all reads are not a single-batch or retained-memory figure. On partial streaming failure the existing pure auditor aborts both native streams.
+
+Acceptance uses actual reference-store publication, actual guarded035/038 intake, Node SQLite and local workerd D1/R2. All original artifacts, wallets and publication sources are labeled synthetic local fixtures. No public route, economic authority, migration, adoption or activation is added.

@@ -1,0 +1,131 @@
+{
+  "task": "B11",
+  "slice": "B11.37 retained original stage source bridge",
+  "status": "verified-read-only-source-bridge; B11 remains partial",
+  "baseCommit": "81cef3815d0eba09925c8cd21573aa4ab0a9986f",
+  "implementationCommit": null,
+  "recordedAt": "2026-11-06T06:47:34.641793+00:00",
+  "sourceHashes": {
+    "platform/collect/legacy-stage-source.mjs": "85ae8d2d4dcc1a618282c5eeba0c57dbce96dc2475ff34e83df9b224b92c003d",
+    "platform/collect/legacy-stage-source.d.mts": "35f78d256147a3ce988de6c26adedfb4121fea50e6328c4775deec9ba7dfd7aa",
+    "platform/collect/legacy-stage-source.fixtures.mjs": "b99cedaf1125dc3404bfb510289f5d90ccabbf37e6b6e933cc6a7b2eeaa3b174",
+    "platform/collect/legacy-stage-source.test.mjs": "f603131c1b1af5a09874454fb61a4aec0a47093817ecf21333a48f6dae9096b7",
+    "platform/collect/legacy-stage-source.README.md": "f950f735d7a261421b48985d819f34be2489053ae143c9f7c50991b7a3ff922d",
+    "platform/edge/test/legacy-stage-source.test.mjs": "1a4407b99fd2ac7b94d172dff85c2bde0ddb1758cf78bba588ec299328041687",
+    "platform/edge/test/fixtures/legacy-stage-source-worker.ts": "45ce6d33b067d520cd57e276964d00ad0719602ad117459f545ad9c86e25ccfb"
+  },
+  "sharedDependencies": {
+    "platform/collect/legacy-stage-audit.mjs": "5b9a9da840603dcd2985a84d3aa6f6b5436c3ffdac41397f53375ce80f0b87b6",
+    "platform/collect/source-intake.mjs": "7d1b975db02032bacba704742c2416a2dad7d1761f4da89c656ead556cf15a3c",
+    "platform/collect/source-seal-guard.mjs": "ca3ee3ceab6a201fecc552d3afedccfd9d00eba20fc3a46a1a162a3bf70d0091",
+    "platform/recovery/v2-node-digest.mjs": "36f67367aafa4875e2c7b06b20ae58a07878d223320035c567331b8621c50467",
+    "platform/recovery/v2-worker-digest.mjs": "decf73c5c67dd2005e74550f6fe1b5811242b45a993f1375d6315bb59321c60c",
+    "platform/artifacts/r2.ts": "281685d22f00b09f8ee7bd4cc94c1ecad569659a98170a68d1ee354ebc2f5fff",
+    "platform/storage/035-collection-source-intake.sql": "cf4bf49a98431edc8fddb2fc907766c4c07fd20e145e6ef6e3ea6820c318633b",
+    "platform/storage/038-collection-eligibility-index.sql": "4db97eebf2fd844c3e20df42db36c4ed79a685c29c839873b7d00c5666bf25e9",
+    "platform/storage/051-legacy-relation-continuations.sql": "99624e2faf86e1bf46f75bdbfbac3ee9c2b9005356276bdb5362981e3129b95d"
+  },
+  "installedSchema": {
+    "lastMigration": "051-legacy-relation-continuations.sql",
+    "migrations": 50
+  },
+  "checks": [
+    {
+      "command": "node --test platform/collect/legacy-stage-source.test.mjs",
+      "result": "PASS",
+      "tests": 7,
+      "durationMs": 10613.5728,
+      "log": "work/b11-37-stage-source-node.log"
+    },
+    {
+      "command": "node --test platform/edge/test/legacy-stage-source.test.mjs",
+      "result": "PASS",
+      "tests": 2,
+      "durationMs": 92133.9027,
+      "log": "work/b11-37-stage-source-edge.log"
+    },
+    {
+      "command": "node platform/edge/node_modules/typescript/bin/tsc --noEmit -p platform/edge",
+      "result": "PASS",
+      "log": "work/b11-37-stage-source-types.log"
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS"
+    }
+  ],
+  "measurements": {
+    "node": {
+      "sql": 14,
+      "batches": 14,
+      "maxBatchBytes": 1960,
+      "readBytes": 537687,
+      "artifactReads": 1,
+      "artifactBytes": 478,
+      "walletChunks": 10,
+      "wallets": 10000,
+      "maxChunkTransportBytes": 51981,
+      "workingBytes": 408870,
+      "phasePeaks": {
+        "root": 25122,
+        "artifact": 22866,
+        "lists": 120026,
+        "wallets": 408870,
+        "audit": 344682,
+        "final": 74059
+      }
+    },
+    "workerd": {
+      "elapsedMs": 47386.878600000004,
+      "sql": 14,
+      "batches": 14,
+      "maxBatchBytes": 1960,
+      "readBytes": 538924,
+      "artifactReads": 1,
+      "artifactBytes": 478,
+      "walletChunks": 10,
+      "wallets": 10000,
+      "maxChunkTransportBytes": 51981,
+      "workingBytes": 408870,
+      "phasePeaks": {
+        "root": 32537,
+        "artifact": 22866,
+        "lists": 120026,
+        "wallets": 408870,
+        "audit": 344682,
+        "final": 74059
+      },
+      "classification": "synthetic retained preimages; actual D1/R2/native streaming SHA; no adoption"
+    }
+  },
+  "acceptance": [
+    "Actual reference-store Genesis whitelist/public/founder and ordered Season stages, free before and after fixed cut, named empty indexed list.",
+    "Original discarded public/free lists remain separate from current membership; canonical sorted/deduplicated publication hash retained.",
+    "Missing original artifact, missing original list seal, missing index, borrowed stage-record receipt, corrupt R2 bytes and oversized artifact metadata hold.",
+    "Original null/default wallet limit and approval preimages with identical normalized fields fail exact legacy terms hash.",
+    "Caller mutation during digest awaits cannot change captured request or indexed page; business mutation during final source-digest hashing fails the final pin.",
+    "Previous Genesis opening uses exact MIN across all bounded stages, including non-monotone publication order; later earlier opening incompatible with retained ballot is held.",
+    "Maximum10000 original wallets through10 indexed chunks, real guarded035/038 intake, exact Node/workerd native streaming hash parity.",
+    "Actual production-style R2 adapter with local binding only; private fixture endpoint, no public mount."
+  ],
+  "designCorrection": "Previous tranche opening is MIN across all stages, matching legacy store; ordinal zero is incorrect because publication order need not be chronological.",
+  "limits": {
+    "sql": 64,
+    "sqlBatchBytes": 262144,
+    "workingBytes": 1048576,
+    "originalArtifactBytes": 16384,
+    "originalArtifactReads": 1,
+    "wallets": 10000,
+    "walletsPerChunk": 1000,
+    "indexPagesPerChunk": 10,
+    "chunks": 10
+  },
+  "measurementMeaning": "readBytes is aggregate separately handled SQL result bytes across the entire bridge, not one SQL batch or retained memory. Working peaks count full root/encoded/parsed buffers before releasing them, then compact retained facts plus each wallet chunk.",
+  "limitations": [
+    "Read-only result does not establish source-to-legacy equality, economics, current authority or adoption; durable B11.35 relation and later economic composition remain prerequisites.",
+    "Original private artifact proves exact retained preimage bytes and original terms hash only, not ingestion actor/time or chain completeness. Future durable composition must preselect identities and preserve artifacts through recovery.",
+    "Current free-cut membership is separately identified; this bridge does not establish047 cut authority.",
+    "Shared list/page helpers require surrounding source/schema fencing; one indexed page does not prove absent membership or whole-list completeness.",
+    "Fixtures remain explicitly synthetic-local. Financial and executable capabilities are false; no migration, active pointer, public API, deployment or external transaction added."
+  ]
+}
