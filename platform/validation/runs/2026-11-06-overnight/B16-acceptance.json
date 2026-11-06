@@ -1,0 +1,23 @@
+{
+  "task": "B16",
+  "status": "local-supported-profile-acceptance-pending-full-CI",
+  "review": "Independent read-only audit after selected-swap graph and unsupported comparison profile integration",
+  "covered": [
+    "Fourteen scenarios with original output compatibility and fresh/expired FX/context/count semantics",
+    "Bounded cashflow shared setup, concurrent/sequential closure, interruption liabilities",
+    "FirstATT includes reserve/unminted setup; declared empty burn vs root alternatives retain later roots",
+    "Selected swap10requirement graph binds actual stored plan/source/account byte identities; unknown costs remainunknown",
+    "Original B15plan and actualB13usage snapshot joined with finalfences and immutable report digest",
+    "Separate completeness, spend review and protocol status; protectedrecovery remainsavailable",
+    "Scoped readonly operator view actualAPI4widths/session/scope/owner/privacy/late-response cases",
+    "Node actualD1 parity includesgraph andprofilebindings"
+  ],
+  "limits": [
+    "No complete executable or production costpacket is claimed",
+    "Selected swap total and spend review remain unavailable without account/wire/funding/closure/fee evidence",
+    "Launch/claim/mint source-bound cost factories explicitly unsupported; monthly comparison planningonly",
+    "Pure declared firstboarddigest is not authenticatedboardproof",
+    "No custody/provider/financialauthority upgraded"
+  ],
+  "next": "Follow fullCI checkpoint; B16 local diagnostic profile may be verified onlyafterpass"
+}

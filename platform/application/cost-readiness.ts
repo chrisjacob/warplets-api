@@ -1,3 +1,4 @@
+import type {SwapCostRequirements} from '../costs/swap-cost-requirements.mjs';
 import type {Principal} from './ports';
 import type {PreparedSwapPlan} from './action-plans';
 import type {CostPacketInput,CostScenario,CostJson} from '../costs/packet-types.mjs';
@@ -16,8 +17,9 @@ export interface CostReadinessReport {
  readonly executionContext:Readonly<{id:string;known:Readonly<{slot:string;validUntilMs:number;ogMint:string}>;missing:readonly string[]}>;
  readonly costs:Readonly<{status:CostCompleteness;sourceAuthority:'caller-supplied-unverified';categories:CostCategories;scenarios:readonly Readonly<Pick<CostScenario,'id'|'name'|'status'|'byPayer'|'pilotBudget'>&{categories:CostCategories}>[]}>;
  readonly comparisons:CostComparisons;
+ readonly comparisonBindings:Readonly<{firstAtt:Readonly<{status:'unsupported-plan-profile';requiredFactory:'launch';reason:'selected-plan-is-swap'}>;oneClaim:Readonly<{status:'unsupported-plan-profile';requiredFactory:'claim';reason:'selected-plan-is-swap'}>;oneMint:Readonly<{status:'unsupported-plan-profile';requiredFactory:'collection';reason:'selected-plan-is-swap'}>;monthly:Readonly<{status:'planning-comparison';reason:'aggregate-is-not-selected-action'}>}>;
  readonly cashflows:Readonly<{firstAtt:null;firstAttAlternatives:Readonly<{recipientRoot:ScenarioCashflow;emptyBurn:ScenarioCashflow}>;laterMandatoryRoot:ScenarioCashflow;oneClaim:ScenarioCashflow;oneMint:ScenarioCashflow;monthly:ScenarioCashflow}>;
- readonly selectedActionCosts:Readonly<{status:'missing';reason:'swap-cost-branch-not-enumerated';maximumFeeUnits:string;feeCeilingIsQuote:false;inputUnits:string;expectedOutputUnits:string;minimumOutputUnits:string;economicAmounts:Readonly<Pick<PreparedSwapPlan['quote'],'inputMint'|'outputMint'|'inputDecimals'|'outputDecimals'|'inputUnits'|'grossOutputUnits'|'expectedOutputUnits'|'minimumOutputUnits'|'inputFeeUnits'|'outputFeeUnits'>>;companyCollectibleUnits:null;fees:PreparedSwapPlan['quote']['fees']}>;
+ readonly selectedActionCosts:Readonly<{status:'missing';reason:'selected-action-cost-evidence-missing';requirements:SwapCostRequirements;maximumFeeUnits:string;feeCeilingIsQuote:false;inputUnits:string;expectedOutputUnits:string;minimumOutputUnits:string;economicAmounts:Readonly<Pick<PreparedSwapPlan['quote'],'inputMint'|'outputMint'|'inputDecimals'|'outputDecimals'|'inputUnits'|'grossOutputUnits'|'expectedOutputUnits'|'minimumOutputUnits'|'inputFeeUnits'|'outputFeeUnits'>>;companyCollectibleUnits:null;fees:PreparedSwapPlan['quote']['fees']}>;
  readonly spendReview:Readonly<{status:'not-assessed';reason:'selected-action-costs-incomplete';cashEvidence:'missing'|'caller-supplied-unverified';isAuthorization:false}>;
  readonly protocolReadiness:Readonly<{status:'blocked';reasons:readonly string[];financialExecution:false}>;
  readonly usage:Readonly<{asOfMs:number;watermark:string;budget:Readonly<Record<string,CostJson>>;attempts:Readonly<Record<string,CostJson>>;effects:Readonly<Record<string,CostJson>>;optionalWork:readonly CostJson[];protectedRecovery:readonly CostJson[]}>;

@@ -5,7 +5,7 @@
   "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
   "currentTask": "B16",
-  "lastUpdatedAt": "2026-11-06T21:38:48.465377+00:00",
+  "lastUpdatedAt": "2026-11-06T21:45:01.164184+00:00",
   "migrationAllocation": {
     "next": 69,
     "reserved": [
@@ -538,7 +538,7 @@
       "status": "in_progress",
       "owner": "coordinator",
       "baseCommit": "d5e98c3e3c07423d010662676a6bc1e6fba792ca",
-      "implementationCommit": "83e60d7",
+      "implementationCommit": "a1d1d78",
       "pushed": true,
       "evidence": [
         "platform/validation/runs/2026-11-06-overnight/B16-01.json",
@@ -546,19 +546,22 @@
         "platform/validation/runs/2026-11-06-overnight/B16-ci-01.json",
         "platform/validation/runs/2026-11-06-overnight/B16-03.json",
         "platform/validation/runs/2026-11-06-overnight/B16-04.json",
-        "platform/validation/runs/2026-11-06-overnight/B16-05.json"
+        "platform/validation/runs/2026-11-06-overnight/B16-05.json",
+        "platform/validation/runs/2026-11-06-overnight/B16-06.json",
+        "platform/validation/runs/2026-11-06-overnight/B16-07.json",
+        "platform/validation/runs/2026-11-06-overnight/B16-acceptance.json"
       ],
-      "nextAction": "Source-bound readiness and scoped operator comparison verified locally. Next integrate selected-swap requirement graph; clarify unsupported comparison profiles/source-bound account/closure gaps, final acceptance/fullCI. Continue through100%usage, summarynear95.",
+      "nextAction": "Supported read-only diagnostic profile localacceptance complete; fullCI pending. No complete executable costpacket; unsupported actionprofiles/account/wire/closure/cost evidence remainexplicit.",
       "blocker": null
     },
     "B17": {
-      "status": "not_started",
-      "owner": null,
-      "baseCommit": null,
+      "status": "in_progress",
+      "owner": "snapshot_acceptance",
+      "baseCommit": "a1d1d78",
       "implementationCommit": null,
       "pushed": false,
       "evidence": [],
-      "nextAction": null,
+      "nextAction": "Bounded pure metadata/permission foundation using actual collection/progression identities; no storage or refresh workflow yet.",
       "blocker": null
     },
     "B18": {

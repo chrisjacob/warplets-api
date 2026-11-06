@@ -1,0 +1,85 @@
+{
+  "task": "B16 selected-swap cost requirement graph",
+  "status": "partial-local-tested",
+  "checks": [
+    {
+      "command": "node --test platform/costs/swap-cost-requirements.test.mjs",
+      "passed": 3,
+      "durationMs": 1935.7263,
+      "log": "work/b16-swap-requirements-node.log"
+    },
+    {
+      "command": "node platform/edge/node_modules/typescript/bin/tsc --noEmit -p platform/edge/tsconfig.json",
+      "status": "passed",
+      "log": "work/b16-swap-requirements-types.log"
+    },
+    {
+      "command": "scoped git diff --check",
+      "status": "passed"
+    }
+  ],
+  "metrics": [
+    {
+      "direction": "buy-att",
+      "inputBytes": 4663,
+      "outputBytes": 12821,
+      "requirements": 10
+    },
+    {
+      "direction": "sell-att",
+      "inputBytes": 4640,
+      "outputBytes": 12798,
+      "requirements": 10
+    }
+  ],
+  "acceptance": [
+    "Actual repository-verified B04/065 retained plans for buy and sell directions",
+    "Exact original plan/request/source/quote/account byte commitments and graph digest",
+    "Input/output owner and mint identities; unimplemented token accounts, vault addresses, PDA, signer, layout and existence remain unavailable",
+    "Ten explicit network/priority/setup/temporary/lookup/retry/simulation/retention/cleanup requirements with unknown counts and amounts",
+    "Cashflow conservative dependency projection reuses existing evaluator; no invented shared identity, closure or interrupted state",
+    "Protocol input/output fees remain quoted economic units separate from incremental funding; company collectible unknown",
+    "Input captured before await; getters/oversize and mismatched commitment/source/mints/request rejected",
+    "Current clock never renews original observation or changes historical graph"
+  ],
+  "limitations": [
+    "Requires actual verified-repository input; self-consistent hashes alone do not prove evidence authority",
+    "Retained synthetic economic plan has no executable wire; exact instruction/account derivation, payer, rent and provider amounts remain missing",
+    "No production signing/broadcast, no provider or funding actions; no D1 integration claimed here",
+    "Parent will integrate service/report and add actual D1 parity"
+  ],
+  "sourceHashes": {
+    "platform/costs/swap-cost-requirements.mjs": "bbb93140516c43af715348174b86d8d686f5fea71d7fbc758bb986cfd1c77af2",
+    "platform/costs/swap-cost-requirements.d.mts": "f62cdfd03d7b7fe5e7f6d87bd2d8774594ca677bc0a6de5bdad6ccf77f64e86d",
+    "platform/costs/swap-cost-requirements.test.mjs": "4a329d13e8a92483305d6102feccb45be2054955e216d1c9b136c8fcca1ad64c"
+  },
+  "financialExecution": false,
+  "integrationChecks": [
+    {
+      "command": "node --test platform/costs/readiness.test.mjs",
+      "passed": 7,
+      "durationMs": 6096.3898
+    },
+    {
+      "command": "node --test platform/edge/test/cost-readiness.test.mjs",
+      "passed": 1,
+      "calls": 9,
+      "durationMs": 27330.407,
+      "maxSql": 32,
+      "maxReportBytes": 136906
+    },
+    {
+      "command": "node platform/edge/node_modules/typescript/bin/tsc --noEmit -p platform/edge/tsconfig.json",
+      "status": "passed"
+    },
+    {
+      "command": "node platform/contracts/generate.mjs --check",
+      "status": "passed"
+    }
+  ],
+  "integrationSourceHashes": {
+    "platform/costs/readiness-service.mjs": "53fa1185648e65ab6c8628e00dae02d4735c344602b99905733849aa63166bd4",
+    "platform/costs/readiness.test.mjs": "0ee71c3aed0de7a904db3955e2e504b54ade5d21b00d0a56491f131a538da3e0",
+    "platform/application/cost-readiness.ts": "a5bbe1b918afe465168852f1ee08ab3352ca2e37b0c6a63f45da196804d6fa84"
+  }
+}

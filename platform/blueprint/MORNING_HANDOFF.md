@@ -1,3 +1,19 @@
+# Active resumed run - B16 readiness and B17 permissions
+
+User superseded75/80% stop: continue through100% accountusage; save summarynear95 thencontinueuntilexhaustion. No reset/spending authorized. Lastusage79%. Work resumed from6b8bdd9, currentpusheda1d1d78; untrackedwork/ scratchpreserved.
+
+B16-03 comparisons/projector pushed83e60d7: firstATT includesGenesisreservebeforelazy mint, emptyburn vsroot alternatives,pendingselectsneither, laterroots retained; conservative rentprojection, no quote-impliedclosure/sharedidentity, receiptsnotfunding.13comparison/cost/compat tests+15projection/cashflowtests+18actualWorker paritycalls+types passed.
+
+B16-04/05 pusheda1d1d78: source-bound immutable readiness report andoperatorGET /ops/cost-readiness?owner=&intentId=&preparationId=. ActualretainedB15plan/B13usage, originalsource/plan/input/usage/reportdigests, samegeneration/watermark/revisions+finalclockfences; report<=196608B, working<=1MiB.6Node+9actualD1calls pass,max32SQL/4667Bbatch/123624Breport. Operator requires session+explicitcost-review scope, noautogrant, no walletmutationauthority.3transport+5consoletests, fourwidthcostbrowser+existingreadinessbrowser pass; no DBwrites/signing. All costs are datedreference/caller-unverified. Selectedswap fees preserved gross/net/companyunknown.
+
+Currentlocalgaps beforeB16complete: frontend_b09 implements costs/swap-cost-requirements pure selectedplan-bound requirements+digest/unknown-costgraph; parentwillintegrate report/sharedtypes and explicit unsupportedcomparison profiles. Remainingwire/account/funding/binary/closure proofs muststayunknown, nevermanufacture. Generic14scenarios do not enumerate selectedswap; independentauditfoundthatmandatorygap. Finaltaskaudit/fullCIpending; lastfullgreen42282361317 coversc8d9de6 only.
+
+B17 readybecauseB11+B15verified: snapshot_acceptance nowowns only pure nfts metadata-schema/permissions foundation+tests usingactualasset/progression identities. No newstorage/migration/UI yet. Parent owns sharedcontracts/migrations/commits. Nextmigration069unreserved;117business tables and goldencheckpoint126931B/131072cap means any schemaaddition mustcheckbound.
+
+B00-B15 verified; B16/B17partial; B18/B19notstarted; B20coreonly andskipuntilfullprerequisites. Allprior boundaries persist: no deployment/remoteCF/resources/spending/funds/signing/broadcast/subscriptions/externalmessages/merges/forcepush/Rstage. Sydneyhours/latermintpricesopen.
+
+## Prior reviewed checkpoint
+
 # Review checkpoint - B15 verified; B16 foundation partial
 
 Product c8d9de6 pushed on work/10x-prd-foundation. Account usage measured75%. Implementation stopped for the user-requested manual review, safely below80%; no reset/spending. FullCI42282361317 succeeded on c8d9de6. No active tests or implementation agents remain.

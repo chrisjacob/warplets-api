@@ -1,0 +1,41 @@
+{
+  "task": "B16 selected swap requirement view",
+  "status": "locally-tested-no-financial-authority",
+  "checks": [
+    {
+      "command": "node platform/operator/cost-readiness-browser-qa.mjs",
+      "result": "PASS",
+      "log": "work/b16-cost-browser-requirements.log",
+      "widths": [
+        360,
+        390,
+        768,
+        1440
+      ]
+    },
+    {
+      "command": "node --check platform/operator/ui.mjs; scoped git diff --check",
+      "result": "PASS"
+    }
+  ],
+  "acceptance": [
+    "All existing real-API owner/scope/session/input/privacy/budget checks retained",
+    "Selected gross output, input fee, output fee, expected net output and mint denominations rendered exactly from retained plan",
+    "Company collectible remains unknown, protocol fees not counted again as incremental funding",
+    "Ten selected-swap requirement rows show unknown count/amount/existence with original graph digest",
+    "Selected graph cashflow uses source-bound conservative graph; no invented closure/account creation",
+    "Launch/claim/collection comparisons explicitly unsupported selected-plan profiles; monthly aggregate not selected action",
+    "No approval, payment, signer or broadcast controls"
+  ],
+  "sourceHashes": {
+    "platform/operator/index.html": "234a7d121d7503e9401c2eae956fbcc5390e32f03f5bf76cc48030b976246447",
+    "platform/operator/ui.mjs": "a5870532bf3f1ed890e62dc02b83c6c51dd08c58f4efa59492202954c36b1c82",
+    "platform/operator/cost-readiness-browser-qa.mjs": "cecdc13d184ee97e06eea3eecb788a3b39b3d4405f2e258e9ca4f22a89ae23ee"
+  },
+  "dependencyHashes": {
+    "platform/costs/readiness-service.mjs": "53fa1185648e65ab6c8628e00dae02d4735c344602b99905733849aa63166bd4",
+    "platform/application/cost-readiness.ts": "a5bbe1b918afe465168852f1ee08ab3352ca2e37b0c6a63f45da196804d6fa84",
+    "platform/costs/swap-cost-requirements.mjs": "bbb93140516c43af715348174b86d8d686f5fea71d7fbc758bb986cfd1c77af2"
+  },
+  "financialExecution": false
+}
