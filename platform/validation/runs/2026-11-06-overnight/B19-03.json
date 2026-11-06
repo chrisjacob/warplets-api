@@ -1,0 +1,26 @@
+{
+  "milestone": "B19 recorded compatibility matrix",
+  "status": "partial-source-records-verified",
+  "baseCommit": "710c38f",
+  "checks": [
+    {
+      "command": "node --test platform/validation/gates.test.mjs platform/validation/recorded-gates.test.mjs",
+      "passed": 4,
+      "failed": 0,
+      "durationMs": 170.41
+    }
+  ],
+  "records": 9,
+  "incompatible": 4,
+  "fixtureProven": 1,
+  "reviewRequired": 4,
+  "sourceHashes": {
+    "platform/validation/recorded-gates.mjs": "6f3b2dd74678c9e4f288f426d4479fd721c0775d186812548918cbbc8a229bcf",
+    "platform/validation/recorded-gates.test.mjs": "1ee31b4c71fd634f968f23835c39286b77a7480ed156d91f67f9f0a2d98073c4"
+  },
+  "limitations": [
+    "Historical report bytes only; no current configuration or approval authority.",
+    "Vault manifest/recovery, claim codecs and detailed dossiers remain unfinished."
+  ],
+  "financialExecution": false
+}

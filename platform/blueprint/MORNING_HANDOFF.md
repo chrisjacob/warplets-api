@@ -1,3 +1,7 @@
+# Latest B19 checkpoint: nine recorded findings
+
+The pinned report index now retains four incompatible configurations, one scoped successful owner-transfer fixture and four review-required findings (fractional precision, metadata/progression authority, permanent proof availability and full costs). All four focused tests pass in170.41ms. EvidenceB19-03. Next executable: compact Vault manifest and independently pinned recovery, then supported claim codecs and decision dossiers. Existing ledger/projection inspected; no manifest code started yet. B17 CI42308923046 still active in reference checks. Usage99%; user authorized continued work to exhaustion.
+
 # Latest B19 checkpoint: pinned historical findings
 
 Two recorded incompatibility findings now verify the exact retained protocol-status.md SHA-256 before indexing: unrestricted Kamino admin principal custody and direct wallet-bound Rewards leaf used for NFT ownership. Four focused tests pass (186.0776ms), including altered/missing/oversized evidence rejection. Source identity is not provider or review authority. B19-02 records hashes and checks. B19 remains partial; next extend recorded gate coverage, then Vault manifests/recovery, supported claim codecs and dossiers. B17 CI42308923046 remains active in reference checks; B00-B16 verified. Account99%, continue as authorized. Financial execution remains disabled.
