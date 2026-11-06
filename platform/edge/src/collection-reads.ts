@@ -1,3 +1,6 @@
+import {handleCollectionFairness} from '../../collect/fairness-http.mjs';
+import {createCollectionFairnessRepository} from '../../collect/fairness-repository.mjs';
+import {createNobleBeaconVerifier} from '../../beacon/noble-verifier.mjs';
 import {createWebCrypto} from '../../security/web-crypto.mjs';
 import {createInventoryReadRepository} from '../../collect/inventory-read-model.mjs';
 import {handleInventoryReads} from '../../collect/inventory-read-http.mjs';
@@ -17,6 +20,6 @@ collectionReads.all('/collect/*',async(c,next)=>{
    if(!row||row.hits>limit)return new Response(JSON.stringify({error:{code:'rate_limited',message:'Please retry later.'}}),{status:429,headers:{'content-type':'application/json','cache-control':'no-store','retry-after':String(Math.max(1,Math.ceil(((row?.resets_at??at+60000)-at)/1000)))}});
    return null;
   }};
- const response=await handleInventoryReads(c.req.raw,{...common,reads:createInventoryReadRepository(driver,{normalizedAdmissionAvailable:true,legacyAdmissionAvailable:false,crypto:createWebCrypto()})})??await handleCollectionReads(c.req.raw,{...common,reads:createCollectionReadRepository(driver)});
+ const response=await handleCollectionFairness(c.req.raw,{...common,repository:createCollectionFairnessRepository(driver,{crypto:createWebCrypto(),clock:common.clock,beaconVerifier:createNobleBeaconVerifier()})})??await handleInventoryReads(c.req.raw,{...common,reads:createInventoryReadRepository(driver,{normalizedAdmissionAvailable:true,legacyAdmissionAvailable:false,crypto:createWebCrypto()})})??await handleCollectionReads(c.req.raw,{...common,reads:createCollectionReadRepository(driver)});
  if(response)return response;await next();
 });

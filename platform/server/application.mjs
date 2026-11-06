@@ -35,7 +35,7 @@ export function createApp(db,{clock=Date.now,artifactStore,operationalEventSink}
       await handleFinancialReads(request,{service:financial,authenticate:async(req)=>{const session=currentSession(db,req,clock());return session?{kind:'wallet',wallet:session.wallet}:null;}})??await handleTransactions(db,request,now)??await handleNotifications(db,request,peer,now)??
       await handleInteractiveGovernance(request,{service:governance,peer,authenticate:async(req)=>{const session=currentSession(db,req,clock());return session?{kind:'wallet',wallet:session.wallet}:null;},consumeQuota:async(bucket,limit)=>consumeQuota(db,bucket,now,limit)})??
       await handleEarn(db,request,peer,now)??
-      await handleCollect(db,request,peer,now)??
+      await handleCollect(db,request,peer,now,{clock})??
       await handleLaunchPlans(request,{nowSeconds:Math.floor(now/1000)})??
       await serveSite(request,undefined,path=>{
         if(typeof path!=='string'||!path.startsWith('/api/v1/'))throw Error('Invalid public SSR resource.');

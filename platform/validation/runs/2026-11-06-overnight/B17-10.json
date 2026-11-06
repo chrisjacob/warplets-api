@@ -1,0 +1,114 @@
+{
+  "milestone": "B17 owner-only explicit fairness HTTP and React disclosure",
+  "status": "local-tested-partial",
+  "base": "a33a6d204e0d79c51234c12c3d7fc769bef89e7a",
+  "implementationCommit": null,
+  "sourceHashes": {
+    "platform/collect/fairness-http.mjs": "05a3c2e954b88e4d32b8a46310d7054ce5f2be063d839267a8de206845c35bf4",
+    "platform/collect/fairness-http.test.mjs": "edced2bbc015aa5beea7941fbb07ff67b9c47e20436b09eac3f1b4cc0251be72",
+    "platform/collect/http.mjs": "c7840b311db34b04ae3272079f1e30147bbdebc59d8aed4df3a1133471e96d62",
+    "platform/server/application.mjs": "5bac1673c9efe31b0e2e5a41967f2a4cb17dc07fc198ee2c719f0d48919e51de",
+    "platform/edge/src/collection-reads.ts": "14ec4ce139c79155dc734b8ad9200fa85ea372b12b9fbe0a0de35bc37d1a3e2e",
+    "platform/edge/src/worker.ts": "31dbf26bede10a8b8aeab4b994a42104839ab15210eac8fde83474849b6f04aa",
+    "platform/edge/test/collection-fairness.test.mjs": "b8581dae523c401a1ee74a353bafed9487af3c4ed93f5bea26b3a350f8018dc9",
+    "platform/edge/test/fixtures/collection-fairness-worker.ts": "50954dfe969c673d15914e90afbb475993470969ba857627be192da0edeaacd3",
+    "platform/contracts/capabilities.mjs": "e26c6e4061c722a5a8c9180e879264bef4e391a9770d251c9822626b4450d879",
+    "platform/contracts/feature-shapes.mjs": "14c98abcf4a369b07e5f1bb4c9c416b586e559b547906987a58b241b5aa9ec2f",
+    "platform/contracts/client.d.mts": "ec55e0d5304c3d14602a805cf4510fc0780acefd51e8b6f3a6ad57915f6bfd8a",
+    "platform/contracts/operations.mjs": "aee292f9325203424c6328e706b73a813a6511b7188f6853707e120423b30cf6",
+    "platform/contracts/openapi.json": "5946bd32fd8dd66fff5ec14945a83329d8d75d1edb94b3633ea6478ef7c3bf93",
+    "platform/site/src/collection-operation.tsx": "d0f613e646930b35b30c4b00ab42a04a8aab7e11d8d97a9f3050fd57d64ab2e4",
+    "platform/site/src/collect.tsx": "33964a1a94444963c9c5906d094c57058791997355784aa6b5f74a2492bf4f41",
+    "platform/site/tests/fairness-runtime-qa.mjs": "1172c9b1ab765667e09291a85368730d9fac04f8fe8d246487f10f1152b6a48f"
+  },
+  "checks": [
+    {
+      "command": "node --test platform/collect/fairness-http.test.mjs",
+      "passed": 2,
+      "durationMs": 4384.3132,
+      "log": "work/b17-fairness-http-node.log"
+    },
+    {
+      "command": "node --test platform/edge/test/collection-fairness.test.mjs",
+      "passed": 1,
+      "durationMs": 78727.1074,
+      "log": "work/b17-fairness-http-d1.log"
+    },
+    {
+      "command": "node --test platform/contracts/transport.test.mjs platform/contracts/feature-contracts.test.mjs platform/contracts/capabilities.test.mjs platform/collect/fairness-http.test.mjs",
+      "passed": 9,
+      "durationMs": 4232.9271,
+      "log": "work/b17-fairness-http-regression.log"
+    },
+    {
+      "command": "node --test platform/site/tests/collection-operation.spec.mjs platform/site/tests/capabilities.spec.mjs",
+      "passed": 9,
+      "durationMs": 2996.2257,
+      "log": "work/b17-fairness-site-regression.log"
+    },
+    {
+      "command": "node platform/site/tests/fairness-runtime-qa.mjs",
+      "status": "passed",
+      "widths": [
+        360,
+        390,
+        768,
+        1440
+      ],
+      "log": "work/b17-fairness-browser.log"
+    },
+    {
+      "command": "FAIRNESS_WIDTH=1440 node platform/site/tests/fairness-runtime-qa.mjs",
+      "status": "passed",
+      "coverage": "additional genuine delayed-response/logout and expired-session clearing",
+      "log": "work/b17-fairness-browser-races.log"
+    },
+    {
+      "command": "node platform/site/node_modules/typescript/bin/tsc --noEmit -p platform/site/tsconfig.json",
+      "status": "passed"
+    },
+    {
+      "command": "node platform/edge/node_modules/typescript/bin/tsc --noEmit -p platform/edge/tsconfig.json",
+      "status": "passed"
+    },
+    {
+      "command": "node platform/site/node_modules/vite/bin/vite.js build platform/site",
+      "status": "passed",
+      "log": "work/b17-fairness-site-build.log"
+    },
+    {
+      "command": "node platform/contracts/generate.mjs --check",
+      "status": "passed"
+    }
+  ],
+  "contract": {
+    "method": "GET",
+    "path": "/api/v1/collect/me/operations/{id}/fairness",
+    "operationId": "readMyCollectionFairness",
+    "feature": "collection-fairness-read",
+    "quotaPerMinute": 12,
+    "authentication": "exact owner before and after async verification",
+    "cacheControl": "private, no-store",
+    "ordinaryOperationReadsUnchanged": true
+  },
+  "coverage": [
+    "Actual Node and main production Worker handler with real migrated DB and canonical synthetic session fixtures",
+    "Actual retained B04/045/046/041 and pinned BLS, hidden selected or predecessor reveal gates",
+    "Generated client/envelope, owner isolation, absent session401, otherowner404, query400, method405, quota429, missing service503",
+    "Reauthentication check after async verifier blocks changed or expired owner",
+    "No fairness fetch until explicit button; reload, owner switch, logout, session expiry and delayed-response logout clear local view",
+    "No raw context/round/proof before reveal; selected transcript excludes predecessor asset/future map",
+    "Restricted and failed capability negative injection makes zero fairness requests",
+    "Concrete base58 asset heading wrapping fix verified at360/390/768/1440"
+  ],
+  "scopeNotes": [
+    "Browser sessions are explicitly canonical synthetic fixtures; this slice does not claim a fresh wallet signature ceremony. Positive API responses are real, with no positive HTTP mocks.",
+    "Four-width baseline preceded added race-only browser assertions; final1440 rerun includes both baseline and race assertions.",
+    "D1 test originated in prior repository-only milestone; this evidence hashes its subsequent deliberate main-Worker HTTP forwarding/assertion additions.",
+    "Closed transcript schema includes the approved upgrade/visual fixture unions for concurrent parent progression integration. These tests cover mint; parent owns progression evidence.",
+    "Parent may extend fairness-repository independently; this evidence hashes only the HTTP/UI owned files."
+  ],
+  "financialExecution": false,
+  "serverSigning": false,
+  "broadcast": false
+}

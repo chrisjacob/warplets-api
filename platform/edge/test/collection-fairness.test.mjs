@@ -1,3 +1,5 @@
+import {createHash} from 'node:crypto';
+import {createClient} from '../../contracts/client.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -20,5 +22,10 @@ test('actual D1 normalized owner fairness matches Node across assigned/reveal/pr
  await reveal(1);assert.equal((await both(1)).value.disclosure,'sealed');await reveal(0);const released=await both(1);assert.equal(released.value.disclosure,'revealed');assert.equal(released.value.transcript.remainingQuotas.reduce((a,b)=>a+b,0),999);assert.equal((await both()).value.disclosure,'revealed');assert.ok(!JSON.stringify(released.value).includes(assets[0]));
  const watermark=await db.prepare('SELECT revision FROM app_recovery_watermark WHERE id=1').first('revision');await both(1);assert.equal(await db.prepare('SELECT revision FROM app_recovery_watermark WHERE id=1').first('revision'),watermark);
  const race=await call({query:f.query(1),fault:'after-bls'});assert.equal(race.result.kind,'pending');assert.equal(race.result.reason,'fairness-snapshot-changed');assert.ok(!JSON.stringify(race).includes(assets[1]));
+ const cookie='synthetic-fairness-owner',other='synthetic-fairness-other';for(const [token,wallet] of [[cookie,f.holders[0]],[other,f.holders[1]]])await db.prepare('INSERT INTO sessions VALUES(?,?,?,?)').bind(createHash('sha256').update(token).digest('hex'),wallet,'http://localhost',Date.now()+60000).run();
+ const client=createClient({baseUrl:'http://localhost/api/v1',fetchImpl:(url,init)=>mf.dispatchFetch(url,{...init,headers:{...Object.fromEntries(new Headers(init.headers)),cookie:'tenx_edge_local_session='+cookie}})}),publicResult=(await client.readMyCollectionFairness({path:{id:f.operations[0].id}})).data;assert.equal(publicResult.disclosure,'revealed');assert.equal(publicResult.transcript.selectedAssignment.assetId,assets[0]);
+ const path='http://localhost/api/v1/collect/me/operations/'+f.operations[0].id+'/fairness',raw=await mf.dispatchFetch(path,{headers:{cookie:'tenx_edge_local_session='+cookie}});assert.equal(raw.status,200);assert.match(raw.headers.get('cache-control'),/private.*no-store/);assert.equal((await mf.dispatchFetch(path,{headers:{cookie:'tenx_edge_local_session='+other}})).status,404);assert.equal((await mf.dispatchFetch(path)).status,401);assert.equal((await mf.dispatchFetch(path+'?bad=1',{headers:{cookie:'tenx_edge_local_session='+cookie}})).status,400);
+ const capabilities=await (await mf.dispatchFetch('http://localhost/api/v1/capabilities')).json();assert.ok(capabilities.features.some(x=>x.id==='collection-fairness-read'));assert.equal(capabilities.production.financialExecution,false);
+ await db.prepare('UPDATE sessions SET expires_at=0').run();assert.equal((await mf.dispatchFetch(path,{headers:{cookie:'tenx_edge_local_session='+cookie}})).status,401);
  t.diagnostic(JSON.stringify({pairedReads:paired,maxStatements:Math.max(...metrics.map(x=>x.statements)),maxBatchBytes:Math.max(...metrics.map(x=>x.maxBatchBytes)),maxResultBytes:Math.max(...metrics.map(x=>x.maxResultBytes)),maxWorkingBytes:Math.max(...metrics.map(x=>x.serializedWorkingBytes)),actualPinnedBls:true,actualB04MintAndReveal:true,financialExecution:false}));
 });

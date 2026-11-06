@@ -14,6 +14,7 @@ const shared=[
  ['earn-actions',[['GET','/earn/actions'],['POST','/earn/actions/{actionId}/completions']]],
  ['collection-inventory-read',[['GET','/collect/inventories'],['GET','/collect/inventories/{id}']]],
  ['collection-fixture-requests',[['POST','/collect/inventories/{id}/stages/{stage}/reservations']]],
+ ['collection-fairness-read',[['GET','/collect/me/operations/{id}/fairness']]],
  ['collection-asset-operation-read',[['GET','/collect/assets/{id}'],['GET','/collect/me/assets'],['GET','/collect/me/operations'],['GET','/collect/me/operations/{id}']]],
  ['collection-progression-preview',[['POST','/collect/inventories/{id}/progression'],['POST','/collect/inventories/{id}/progression/quote']]],
  ['genesis-advisory-vote',[['GET','/genesis/ballots'],['GET','/genesis/ballots/{id}'],['POST','/genesis/ballots/{id}/votes']]],

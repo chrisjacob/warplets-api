@@ -181,6 +181,11 @@ export const operations = [
     "method": "GET"
   },
   {
+    "id": "readMyCollectionFairness",
+    "path": "/collect/me/operations/{id}/fairness",
+    "method": "GET"
+  },
+  {
     "id": "readMyCollectionOperation",
     "path": "/collect/me/operations/{id}",
     "method": "GET"

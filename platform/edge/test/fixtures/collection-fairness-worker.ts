@@ -1,3 +1,4 @@
+import worker from '../../src/worker';
 // Private local conformance fixture; no production mutation route.
 import {createD1AtomicDriver} from '../../../storage/d1/atomic-driver';
 import {createWebCrypto} from '../../../security/web-crypto.mjs';
@@ -6,8 +7,9 @@ import {r2ArtifactStore} from '../../../artifacts/r2';
 import {createCollectionFairnessRepository} from '../../../collect/fairness-repository.mjs';
 import {dispatchMintFulfillment} from '../../../collect/mint-fulfillment-test-harness.mjs';
 import {dispatchCollectionObservation} from '../../../collect/observation-test-harness.mjs';
-export default {async fetch(request:Request,env:Env){
- if(request.method!=='POST'||new URL(request.url).pathname!=='/__fixture')return new Response('Not found',{status:404});
+export default {async fetch(request:Request,env:Env,ctx:ExecutionContext){
+ if(new URL(request.url).pathname!=='/__fixture')return worker.fetch(request,env,ctx);
+ if(request.method!=='POST')return new Response('Not found',{status:404});
  const body=await request.json() as any;if(!Number.isSafeInteger(body.nowMs)||body.nowMs<0)return new Response('Invalid fixture clock',{status:400});
  const driver={...createD1AtomicDriver(env.DB),leaseNowSql:String(body.nowMs)},crypto=createWebCrypto(),beaconVerifier=createNobleBeaconVerifier(),store=r2ArtifactStore(env.MANIFESTS);
  if(body.lane==='fulfill')return Response.json(await dispatchMintFulfillment({driver,crypto,beaconVerifier,store,request:body}));

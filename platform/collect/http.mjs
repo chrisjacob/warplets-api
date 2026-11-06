@@ -1,3 +1,5 @@
+import {handleCollectionFairness} from './fairness-http.mjs';
+import {createCollectionFairnessRepository} from './fairness-repository.mjs';
 import {createNodeCrypto} from '../security/node-crypto.mjs';
 import {createNodeMintServices} from './node-mint.mjs';
 import {handleMintReservation} from './mint-http.mjs';
@@ -31,9 +33,15 @@ async function bodyOf(request) {
   need(input && typeof input==='object' && !Array.isArray(input),'invalid_input','Expected an object.');
   return input;
 }
-export async function handleCollect(db,request,peer,now) {
+export async function handleCollect(db,request,peer,now,{clock=()=>now}={}) {
   const url=new URL(request.url),path=url.pathname;
   if(path!==base && !path.startsWith(base+'/')) return null;
+  if(/^\/api\/v1\/collect\/me\/operations\/[A-Za-z0-9._:-]{1,128}\/fairness$/.test(path)){
+    // Optional verifier is loaded only for this explicit local read.
+    let beaconVerifier;try{const {createNobleBeaconVerifier}=await import('../beacon/noble-verifier.mjs');beaconVerifier=createNobleBeaconVerifier();}catch{}
+    return handleCollectionFairness(request,{repository:beaconVerifier?createCollectionFairnessRepository(createNodeAtomicDriver(db),{crypto:createNodeCrypto(),clock:{nowMs:clock},beaconVerifier}):null,
+      authenticate:async req=>{const session=currentSession(db,req,clock());return session?{kind:'wallet',wallet:session.wallet}:null;},consumeQuota:async(bucket,limit)=>consumeQuota(db,bucket,clock(),limit)});
+  }
   if(patterns.inventory.test(path)||path===base+'/inventories')return handleInventoryReads(request,{reads:createInventoryReadRepository(createNodeAtomicDriver(db),{normalizedAdmissionAvailable:true,crypto:createNodeCrypto()}),clock:{nowMs:()=>now},
     authenticate:async req=>{const session=currentSession(db,req,now);return session?{kind:'wallet',wallet:session.wallet}:null;},
     consumeQuota:async(bucket,limit)=>consumeQuota(db,bucket,now,limit)});
@@ -87,6 +95,7 @@ export const collectPaths={
   '/collect/assets/{id}':read('readLocalAsset','See local ownership and publicly revealed metadata.',['id']),
   '/collect/me/assets':read('listMyCollectionAssets','See the signed-in wallet’s assets.'),
   '/collect/me/operations':read('listMyCollectionOperations','Recover pending or fulfilled local operations.'),
+  '/collect/me/operations/{id}/fairness':read('readMyCollectionFairness','Inspect owner-only retained fairness after explicit reveal gates.',['id']),
   '/collect/me/operations/{id}':read('readMyCollectionOperation','Inspect one of the signed-in wallet’s operations.',['id']),
   '/collect/inventories/{id}/stages/{stage}/reservations':write('reserveLocalMint','Reserve one local fixture slot.',['id','stage']),
   '/collect/inventories/{id}/progression':write('reserveLocalProgression','Reserve local Season assets for a progression fixture.',['id']),

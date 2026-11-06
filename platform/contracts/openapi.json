@@ -5291,6 +5291,51 @@
         ]
       }
     },
+    "/collect/me/operations/{id}/fairness": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "operationId": "readMyCollectionFairness",
+        "summary": "Inspect owner-only retained fairness after explicit reveal gates.",
+        "responses": {
+          "200": {
+            "description": "Local collection response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionFairness"
+                }
+              },
+              "application/vnd.10x.v1+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/CollectionFairness"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/Meta"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/collect/me/operations/{id}": {
       "parameters": [
         {
@@ -8221,6 +8266,504 @@
           "networkCost",
           "totalCost",
           "historicalAllocationsChange"
+        ]
+      },
+      "CollectionFairness": {
+        "anyOf": [
+          {
+            "type": "object",
+            "properties": {
+              "format": {
+                "const": "10x.local.fairness.v1"
+              },
+              "source": {
+                "const": "local-fixture"
+              },
+              "providerStatus": {
+                "const": "candidate-unselected"
+              },
+              "requiresVerifiedRepository": {
+                "const": true
+              },
+              "requestState": {
+                "enum": [
+                  "waiting",
+                  "assigned",
+                  "held"
+                ]
+              },
+              "evidenceState": {
+                "enum": [
+                  "manual-fixture",
+                  "retained-unverified",
+                  "conflicted",
+                  "verified",
+                  "waiting-prior-admission",
+                  "waiting-entropy",
+                  "waiting-fulfillment"
+                ]
+              },
+              "financialState": {
+                "const": "not-applicable-local"
+              },
+              "commitment": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "financialExecution": {
+                "const": false
+              },
+              "serverSigning": {
+                "const": false
+              },
+              "broadcast": {
+                "const": false
+              },
+              "disclosure": {
+                "const": "sealed"
+              },
+              "transcript": {
+                "type": "null"
+              }
+            },
+            "required": [
+              "format",
+              "source",
+              "providerStatus",
+              "requiresVerifiedRepository",
+              "requestState",
+              "evidenceState",
+              "financialState",
+              "commitment",
+              "financialExecution",
+              "serverSigning",
+              "broadcast",
+              "disclosure",
+              "transcript"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "format": {
+                "const": "10x.local.fairness.v1"
+              },
+              "source": {
+                "const": "local-fixture"
+              },
+              "providerStatus": {
+                "const": "candidate-unselected"
+              },
+              "requiresVerifiedRepository": {
+                "const": true
+              },
+              "requestState": {
+                "enum": [
+                  "waiting",
+                  "assigned",
+                  "held"
+                ]
+              },
+              "evidenceState": {
+                "enum": [
+                  "manual-fixture",
+                  "retained-unverified",
+                  "conflicted",
+                  "verified",
+                  "waiting-prior-admission",
+                  "waiting-entropy",
+                  "waiting-fulfillment"
+                ]
+              },
+              "financialState": {
+                "const": "not-applicable-local"
+              },
+              "commitment": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "financialExecution": {
+                "const": false
+              },
+              "serverSigning": {
+                "const": false
+              },
+              "broadcast": {
+                "const": false
+              },
+              "disclosure": {
+                "const": "revealed"
+              },
+              "transcript": {
+                "type": "object",
+                "properties": {
+                  "format": {
+                    "const": "10x.recorded-draw-transcript.v1"
+                  },
+                  "verificationScope": {
+                    "const": "recorded-beacon-draw-only"
+                  },
+                  "requestPreimage": {
+                    "type": "array",
+                    "minItems": 9,
+                    "maxItems": 9,
+                    "items": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "integer"
+                        }
+                      ]
+                    }
+                  },
+                  "contextDigest": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  },
+                  "policyHash": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  },
+                  "publicTraitChoices": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "model": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "name": {
+                                  "type": "string"
+                                },
+                                "weight": {
+                                  "type": "integer"
+                                }
+                              },
+                              "required": [
+                                "name",
+                                "weight"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "backdrop": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "name": {
+                                  "type": "string"
+                                },
+                                "weight": {
+                                  "type": "integer"
+                                }
+                              },
+                              "required": [
+                                "name",
+                                "weight"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "symbol": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "name": {
+                                  "type": "string"
+                                },
+                                "weight": {
+                                  "type": "integer"
+                                }
+                              },
+                              "required": [
+                                "name",
+                                "weight"
+                              ],
+                              "additionalProperties": false
+                            }
+                          }
+                        },
+                        "required": [
+                          "model",
+                          "backdrop",
+                          "symbol"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "proof": {
+                    "type": "object",
+                    "properties": {
+                      "chain": {
+                        "type": "string"
+                      },
+                      "round": {
+                        "type": "integer"
+                      },
+                      "signature": {
+                        "type": "string"
+                      },
+                      "randomness": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "chain",
+                      "round",
+                      "signature",
+                      "randomness"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "fixture": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "operationId": {
+                            "type": "string"
+                          },
+                          "commitment": {
+                            "type": "string"
+                          },
+                          "proofId": {
+                            "type": "string",
+                            "pattern": "^[a-f0-9]{64}$"
+                          },
+                          "at": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "finalized": {
+                            "const": true
+                          },
+                          "traits": {
+                            "type": "object",
+                            "properties": {
+                              "model": {
+                                "type": "string"
+                              },
+                              "backdrop": {
+                                "type": "string"
+                              },
+                              "symbol": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "model",
+                              "backdrop",
+                              "symbol"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "ticket": {
+                            "type": "integer"
+                          },
+                          "assetId": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "operationId",
+                          "commitment",
+                          "proofId",
+                          "at",
+                          "finalized",
+                          "traits",
+                          "ticket",
+                          "assetId"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "operationId": {
+                            "type": "string"
+                          },
+                          "commitment": {
+                            "type": "string"
+                          },
+                          "proofId": {
+                            "type": "string",
+                            "pattern": "^[a-f0-9]{64}$"
+                          },
+                          "at": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "finalized": {
+                            "const": true
+                          },
+                          "ticket": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 999
+                          }
+                        },
+                        "required": [
+                          "operationId",
+                          "commitment",
+                          "proofId",
+                          "at",
+                          "finalized",
+                          "ticket"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "operationId": {
+                            "type": "string"
+                          },
+                          "commitment": {
+                            "type": "string"
+                          },
+                          "proofId": {
+                            "type": "string",
+                            "pattern": "^[a-f0-9]{64}$"
+                          },
+                          "at": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "finalized": {
+                            "const": true
+                          },
+                          "traits": {
+                            "type": "object",
+                            "properties": {
+                              "model": {
+                                "type": "string"
+                              },
+                              "backdrop": {
+                                "type": "string"
+                              },
+                              "symbol": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "model",
+                              "backdrop",
+                              "symbol"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "required": [
+                          "operationId",
+                          "commitment",
+                          "proofId",
+                          "at",
+                          "finalized",
+                          "traits"
+                        ],
+                        "additionalProperties": false
+                      }
+                    ]
+                  },
+                  "selectedAssignment": {
+                    "type": "object",
+                    "properties": {
+                      "assetId": {
+                        "type": "string"
+                      },
+                      "level": {
+                        "anyOf": [
+                          {
+                            "type": "integer"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      }
+                    },
+                    "required": [
+                      "assetId",
+                      "level"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "remainingQuotas": {
+                    "anyOf": [
+                      {
+                        "type": "array",
+                        "minItems": 10,
+                        "maxItems": 10,
+                        "items": {
+                          "type": "integer"
+                        }
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "reservedAssetMapping": {
+                    "const": "withheld"
+                  },
+                  "policyClosure": {
+                    "const": "requires-trusted-retained-policy"
+                  },
+                  "productionOrderAndCustody": {
+                    "const": "unverified"
+                  },
+                  "digest": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  }
+                },
+                "required": [
+                  "format",
+                  "verificationScope",
+                  "requestPreimage",
+                  "contextDigest",
+                  "policyHash",
+                  "publicTraitChoices",
+                  "proof",
+                  "fixture",
+                  "selectedAssignment",
+                  "remainingQuotas",
+                  "reservedAssetMapping",
+                  "policyClosure",
+                  "productionOrderAndCustody",
+                  "digest"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "format",
+              "source",
+              "providerStatus",
+              "requiresVerifiedRepository",
+              "requestState",
+              "evidenceState",
+              "financialState",
+              "commitment",
+              "financialExecution",
+              "serverSigning",
+              "broadcast",
+              "disclosure",
+              "transcript"
+            ],
+            "additionalProperties": false
+          }
         ]
       },
       "EarnMemberStatus": {

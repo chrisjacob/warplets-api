@@ -1,6 +1,6 @@
 import {AssetEvidence,InventoryEvidence,StageEvidence,eligibleMaterials} from './collection-details';
 import {ProgressionAssetContext} from './progression-review';
-import {CollectionOperationHold} from './collection-operation';
+import {CollectionOperationHold,CollectionOperationFairness} from './collection-operation';
 import { Capability, useRuntimeQuery, useCapability, principalKey } from './capabilities';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from '@tanstack/react-router';
@@ -218,7 +218,7 @@ function MemberAssets({wallet,review}:{wallet:string;review:(review:Review)=>voi
   return <>
     <Panel title="Your collection"><Loaded query={assets}>{page=><>
       {!page.items.length && <Empty title="No local collection assets"/>}
-      {page.items.map(asset=><article className="record" key={asset.id}><h3><Link to="/nfts/$assetId" params={{assetId:asset.id}}>{asset.id}</Link></h3><p>{asset.inventoryId} · {asset.revealStatus}</p>
+      {page.items.map(asset=><article className="record" key={asset.id}><h3 className="wrap-anywhere"><Link to="/nfts/$assetId" params={{assetId:asset.id}}>{asset.id}</Link></h3><p>{asset.inventoryId} · {asset.revealStatus}</p>
         {asset.revealStatus==='revealed' && <><Facts items={[['Level',asset.level],['Model',asset.traits?.model],['Backdrop',asset.traits?.backdrop],
           ['Symbol',asset.traits?.symbol],['Benefit expiry',asset.expiresAt?utc(asset.expiresAt):'Permanent']]}/>
           {asset.operationPending?<p>Awaiting committed draw evidence.</p>:asset.expiresAt&&<>
@@ -230,7 +230,7 @@ function MemberAssets({wallet,review}:{wallet:string;review:(review:Review)=>voi
     </>}</Loaded></Panel>
     <Panel title="Operation history">{search.receipt && <Loaded query={receipt}>{r=><article className="receipt"><h3>Operation receipt</h3>
       <Facts items={[['ID',r.id],['State',r.status],['Requested',utc(r.createdAt)],['Action',r.kind],['Collection',r.inventoryId],
-        ['Recorded price',sol(r.priceLamports??r.feeLamports)],['Result NFT',r.assetId??'Pending']]}/><CollectionOperationHold operation={r}/></article>}</Loaded>}
+        ['Recorded price',sol(r.priceLamports??r.feeLamports)],['Result NFT',r.assetId??'Pending']]}/><CollectionOperationHold operation={r}/><CollectionOperationFairness key={wallet+':'+r.id} operation={r} wallet={wallet}/></article>}</Loaded>}
       <Loaded query={operations}>{page=><>{page.items.length?<ul className="rows">{page.items.map(op=><li key={op.id}><Link to="/collect" search={{receipt:op.id}}>
         <strong>{op.kind} · {op.inventoryId}</strong><span>{op.reconciliation?'Held after observed transfer':op.status} ↗</span></Link></li>)}</ul>:<p>No operations for this wallet.</p>}
         {page.nextCursor!==null&&<Link to="/collect" search={{operations:String(page.nextCursor)}}>Next operations →</Link>}</>}</Loaded></Panel>

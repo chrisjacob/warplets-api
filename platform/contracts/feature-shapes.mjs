@@ -10,7 +10,12 @@ const commonSubmission={id:s,tokenId:s,epoch:i,url:{type:'string',format:'uri'},
 const winner={userId:s,wallet:s,submissionId:s,tokenId:s,submittedAtMs:ms,contentScore:{type:'integer',minimum:1,maximum:10},
   multiplierTenths:{type:'integer',minimum:1,maximum:100},pointsTenths:{type:'integer',minimum:1,maximum:1000}};
 const allocation={tokenId:s,day:{type:'integer',minimum:1,maximum:10},budgetUnits:u,burnUnits:u,vestsFromMs:ms,vestsThroughMs:ms};
+const closed=properties=>({...o(properties),additionalProperties:false});
+const hash={type:'string',pattern:'^[a-f0-9]{64}$'},choice=closed({name:s,weight:i});
+const fairnessBase={format:{const:'10x.local.fairness.v1'},source:local,providerStatus:{const:'candidate-unselected'},requiresVerifiedRepository:{const:true},requestState:{enum:['waiting','assigned','held']},evidenceState:{enum:['manual-fixture','retained-unverified','conflicted','verified','waiting-prior-admission','waiting-entropy','waiting-fulfillment']},financialState:{const:'not-applicable-local'},commitment:hash,financialExecution:{const:false},serverSigning:{const:false},broadcast:{const:false}};
+const mintTranscript=closed({format:{const:'10x.recorded-draw-transcript.v1'},verificationScope:{const:'recorded-beacon-draw-only'},requestPreimage:{type:'array',minItems:9,maxItems:9,items:{anyOf:[s,i]}},contextDigest:hash,policyHash:hash,publicTraitChoices:n(closed({model:a(choice),backdrop:a(choice),symbol:a(choice)})),proof:closed({chain:s,round:i,signature:s,randomness:s}),fixture:{anyOf:[closed({operationId:s,commitment:s,proofId:hash,at:ms,finalized:{const:true},traits:closed({model:s,backdrop:s,symbol:s}),ticket:i,assetId:s}),closed({operationId:s,commitment:s,proofId:hash,at:ms,finalized:{const:true},ticket:{type:'integer',minimum:0,maximum:999}}),closed({operationId:s,commitment:s,proofId:hash,at:ms,finalized:{const:true},traits:closed({model:s,backdrop:s,symbol:s})})]},selectedAssignment:closed({assetId:s,level:n(i)}),remainingQuotas:n({type:'array',minItems:10,maxItems:10,items:i}),reservedAssetMapping:{const:'withheld'},policyClosure:{const:'requires-trusted-retained-policy'},productionOrderAndCustody:{const:'unverified'},digest:hash});
 export const featureShapes={
+  CollectionFairness:{anyOf:[closed({...fairnessBase,disclosure:{const:'sealed'},transcript:{type:'null'}}),closed({...fairnessBase,disclosure:{const:'revealed'},transcript:mintTranscript})]},
   EarnMemberStatus:o({mode:local,asOf:iso,epoch:i,
     admission:o({status:{enum:['complete','unavailable']},reason:n(s),items:a(o({tokenId:s,status:{enum:['accepted','eligible','pending','held']},reason:n(s),stakeMicroUsd:n(u),stakeObservedAt:n(iso),sourceRef:n(s)}))}),
     actions:o({status:{enum:['complete','unavailable']},reason:n(s),items:a(o({actionId:s,label:s,verifier:s,startEpoch:i,status:{enum:['verified','pending']},verifiedAt:n(iso),sourceRef:n(s)}))}),
@@ -49,6 +54,7 @@ export const featureShapes={
     nextLocalTransition:{enum:['prepare-recorded-packet','observe-or-expire-unsubmitted','replace-expired-unsubmitted','reconcile-existing-attempt','none']},requiredObservation:n({enum:['fresh-verified-preparation','recorded-block-height-or-submission','same-attempt-recorded-outcome']}),replacementEligible:b}),
 };
 export const rawFeatureSuccess={
+  readMyCollectionFairness:r('CollectionFairness'),
   getGenesisBallot:r('GenesisBallot'),
   listGenesisBallots:o({items:a(r('GenesisBallot')),nextCursor:{type:'null'},asOf:s}),
   getFarm:r('Farm'),getTransaction:r('TransactionIntent'),
