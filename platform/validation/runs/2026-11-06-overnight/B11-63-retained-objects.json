@@ -1,0 +1,191 @@
+{
+  "task": "B11",
+  "slice": "B11.63 retained original-object closure",
+  "status": "verified-local-private-phase; aggregate readiness and B11 completion remain unfinished",
+  "baseCommit": "dcf4fa9c9f53dc538ea383e1444f4137289e3562",
+  "implementationCommit": null,
+  "recordedAt": "2026-11-06T11:15:20.497218+00:00",
+  "sourceHashes": {
+    "platform/recovery/v2-reconcile-legacy-objects.mjs": "2bea1d9b98ac3caa85a82c68abda1eab37c575e3cc825efd7a8485ef89d51823",
+    "platform/recovery/v2-reconcile-legacy-objects.test.mjs": "46a798e9bafc62ed36878b5e9ebd611ed60a157571240d1cb4093695c4824e99",
+    "platform/recovery/v2-legacy-object-control.test.mjs": "730c38fa5a10d817ccdedd2d532e839ccd0c59503a431492fd0facd7100e0d08",
+    "platform/recovery/v2-legacy-object-fixtures.mjs": "6dca244a0143cde04c92d464596277bc5103001e9c4e559f9d49b8a2f9e08bcb",
+    "platform/recovery/V2_LEGACY_OBJECTS.md": "e34a0e9eaffa839750c46ef683dcf3b3618e28a7a026d56e4f0acc657eb4f32b",
+    "platform/edge/test/recovery-legacy-object.test.mjs": "9283025a6d50540e796b12f66027b159f25548365ce22e93173314482fef9873",
+    "platform/edge/test/recovery-legacy-object-control.test.mjs": "7edb78bd44835fc6022d7d0b00b1763d6fe6e5f08b1fd4cd889b58d546d16e42",
+    "platform/edge/test/fixtures/recovery-legacy-object-worker.ts": "20faad54a962fedb50e352752492f4ff99a1dc98497a6338ff68e0c776ad041c"
+  },
+  "sharedDependencies": {
+    "platform/collect/legacy-adoption-preparation-plan.mjs": "b94a3e2e25654b9eb739d95179693e973459fe79f0d84030b04ac38b96b999f9",
+    "platform/collect/legacy-adoption-authority.mjs": "cbd487650e7c151cccbed487b891ecdb09b3fdeda4b50216cea4143e24cdcf44",
+    "platform/recovery/v2-legacy-admission-controls.mjs": "15479e803f0c35449439ce0b2c2abc02502f3f284a10931a5ce98b897411b1c4",
+    "platform/recovery/v2-reconcile-legacy-economics.mjs": "e0f7aa904eeeff9f7ad323a1779a276ae45cfaf89428e5b1a9af8a9fcdf391e8",
+    "platform/recovery/v2-legacy-mint-fixtures.mjs": "6040842fc95ccf48023f7e2879d84cf58029d6af80301784a822c75cb5e72b48"
+  },
+  "installedSchema": {
+    "last": "055-collection-imported-admission.sql",
+    "migrationFiles": 54
+  },
+  "checks": [
+    {
+      "command": "node --test platform/recovery/v2-reconcile-legacy-objects.test.mjs",
+      "log": "work/b11-63-all-objects-node-verified.log",
+      "passed": 3,
+      "failed": 0,
+      "durationMs": 214840.1735,
+      "measurements": [
+        {
+          "configured": false,
+          "objects": 3,
+          "objectBytes": 2042,
+          "nonLexicographic": false,
+          "syntheticPriorPhaseCursor": true,
+          "readiness": false,
+          "maxOperations": 22,
+          "maxWorkingBytes": 337047,
+          "maxBatchBytes": 1798
+        },
+        {
+          "configured": true,
+          "objects": 8,
+          "objectBytes": 250432,
+          "nonLexicographic": true,
+          "syntheticPriorPhaseCursor": true,
+          "readiness": false,
+          "maxOperations": 23,
+          "maxWorkingBytes": 822780,
+          "maxBatchBytes": 1863
+        }
+      ]
+    },
+    {
+      "command": "node --test platform/recovery/v2-legacy-object-control.test.mjs",
+      "log": "work/b11-63-large-control-node.log",
+      "passed": 1,
+      "failed": 0,
+      "durationMs": 40854.0088,
+      "measurements": [
+        {
+          "selectionBytes": 84370,
+          "genuineSource": true,
+          "genuinePriorProofs": true,
+          "syntheticPrerequisiteProof": false,
+          "readiness": false,
+          "maxWorkingBytes": 913615,
+          "maxEconomicWorkingBytes": 988772,
+          "maxOperations": 25
+        }
+      ]
+    },
+    {
+      "command": "node --test platform/edge/test/recovery-legacy-object.test.mjs",
+      "log": "work/b11-63-objects-d1.log",
+      "passed": 1,
+      "failed": 0,
+      "durationMs": 165047.7595,
+      "measurements": [
+        {
+          "actualD1": true,
+          "actualR2": true,
+          "pinnedBlsSource": true,
+          "objects": 8,
+          "objectBytes": 250432,
+          "sourceObjects": 286,
+          "nonLexicographic": true,
+          "syntheticPriorPhaseCursor": true,
+          "readiness": false,
+          "maxOperations": 21,
+          "maxWorkingBytes": 823194,
+          "maxBatchBytes": 5013
+        }
+      ],
+      "reuseNote": "Configured D1 run predates only the large historical-control proof-reuse branch and additional Worker method dispatch. Its small-control/object path is unchanged; final Node profiles and final genuine large-control D1 test cover the resulting implementation."
+    },
+    {
+      "command": "node --test platform/edge/test/recovery-legacy-object-control.test.mjs",
+      "log": "work/b11-63-large-control-d1.log",
+      "passed": 1,
+      "failed": 0,
+      "durationMs": 118309.607,
+      "measurements": [
+        {
+          "selectionBytes": 84370,
+          "actualD1": true,
+          "actualR2": true,
+          "genuineSource": true,
+          "genuinePriorProofs": true,
+          "syntheticPrerequisiteProof": false,
+          "readiness": false,
+          "maxOperations": 29,
+          "maxWorkingBytes": 914029,
+          "maxEconomicWorkingBytes": 989186
+        }
+      ]
+    },
+    {
+      "command": "node platform/edge/node_modules/typescript/bin/tsc -p platform/edge/tsconfig.json --noEmit",
+      "status": "passed"
+    },
+    {
+      "command": "git diff --check -- [owned paths] and UTF-8/LF/trailing whitespace validation",
+      "status": "passed"
+    }
+  ],
+  "bounds": {
+    "operations": 64,
+    "sqlBatchBytes": 262144,
+    "workingBytes": 1048576,
+    "phaseStateBytes": 32768,
+    "checkpointBytes": 131072,
+    "objects": 2048,
+    "objectBytes": 16777216
+  },
+  "acceptance": [
+    "Actual source parent audits, preparation, activation, capture and fresh target imports.",
+    "Original53 chain traversal with unique successor; configured child discovery exercises non-lexicographic key order.",
+    "Canonical retained identity/discovery/body, exact original bytes, source role/index and parent descriptor proof verified.",
+    "Required source references and retained objects checked in both directions, including exact identity collisions and descriptor child omissions.",
+    "Same-key proof cannot repeat; distinct key/ordinal/count/byte coverage and terminal preparation digest enforced.",
+    "Object proof and independent chain update atomically; omitted proof conflicts and lost acknowledgement replays.",
+    "Missing/corrupt bytes, wrong discovery, duplicate successor, missing/wrong references and target mutation hold.",
+    "Manual3-object, configured8-object and empty0-object cases; actual D1 configured source uses offline pinned beacon verification.",
+    "Genuine84370-byte historical-control source runs restored stage/mint/control/economics/current proofs before closure; exact control proof and same-anchor economics required for bounded reuse."
+  ],
+  "checkpointContract": {
+    "phase": "reconcile-legacy-adoption-closure",
+    "nextPhase": "reconcile-legacy-adoption-aggregate",
+    "fields": [
+      "chain",
+      "objectOrdinal",
+      "objectBytes",
+      "objectChain",
+      "objectResultDigest"
+    ],
+    "perObjectCheck": {
+      "phase": "legacy-adoption-object",
+      "scope": "canonicalJson([adoptionId,objectKey])",
+      "ordinal": "processing ordinal",
+      "itemCount": 1,
+      "digest": "SHA(canonical([v2-legacy-original-object,id,ordinal,key,bodyDigest,identity,priorChain,nextChain]))"
+    },
+    "completionCheck": {
+      "phase": "legacy-adoption-objects-complete",
+      "scope": "adoptionId",
+      "ordinal": 0,
+      "itemCount": "accepted objectCount",
+      "digest": "SHA(canonical([v2-legacy-objects-complete,id,certificateDigest,{count,bytes,terminal},objectChain]))"
+    }
+  },
+  "limitations": [
+    "Main dispatcher unchanged; target stops at aggregate prerequisite and remains restoring.",
+    "Manual/configured object-isolation cases supply an explicit synthetic prior phase cursor; separate large-control cases use genuine prerequisite proofs.",
+    "2048/16MiB are enforced limits, not a new maximum2032-object full-roundtrip capacity claim.",
+    "A separate106770-byte legal control transcript fails existing original53 preparation working bound; this preexisting source-preparation capacity gap remains outside the accepted84370-byte profile.",
+    "No public import endpoint, remote resource action, financial capability or release authority."
+  ],
+  "capacityProbes": {
+    "acceptedHelper84370": "work/b11-63-control-bound-probe80.log",
+    "originalPreparationHold106770": "work/b11-63-control-bound-probe.log"
+  },
+  "nextExecutableStep": "Coordinator aggregate closure rebuilds stage/economic/current/object proof chains, checks all family coverage and only then integrates private readiness."
+}
