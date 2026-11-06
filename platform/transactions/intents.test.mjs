@@ -54,3 +54,17 @@ test('wrong chain, fee, lookup state, instruction substitution or expiry fails c
  assert.equal(readIntent(db,f.intent.id,f.owner).state,'attempt_expired');
  assert.throws(()=>observeSignedAttempt(db,{attemptId:'packet-1',signatures:[f.signature],currentBlockHeight:111},f.now));
 });
+
+
+test('caller mutation during packet hashing cannot change persisted preparation',async t=>{
+ const db=openDatabase();t.after(()=>db.close());const f=await build(db);
+ const original=structuredClone(f.packet),observation=structuredClone(f.observation);
+ const pending=prepareAttempt(db,{intentId:f.intent.id,packet:f.packet,observation:f.observation},f.now);
+ f.packet.attemptId='substituted-attempt';f.packet.messageHash='0'.repeat(64);
+ f.packet.lifetime.lastValidBlockHeight=999999;f.packet.messageBase64='AAAA';
+ f.observation.ref='substituted-observation';f.observation.feeUnits='999999';
+ assert.deepEqual(await pending,{id:original.attemptId,replayed:false});
+ const stored=db.prepare('SELECT * FROM tx_attempts WHERE intent_id=?').get(f.intent.id);
+ assert.deepEqual(JSON.parse(stored.packet),original);assert.equal(stored.simulation_ref,observation.ref);
+ assert.equal(stored.message_hash,original.messageHash);
+});

@@ -1,0 +1,16 @@
+{
+  "task": "B15",
+  "slice": "legacy recorded preparation captures input before asynchronous packet hashing",
+  "checks": {
+    "command": "node --test platform/transactions/intents.test.mjs",
+    "passed": 3,
+    "failed": 0,
+    "durationMs": 1088.2122,
+    "log": "work/b15-prepare-snapshot.log"
+  },
+  "sourceHashes": {
+    "platform/transactions/intents.mjs": "2cc5ee5764384ae138b8bb53bdba27dd07efe32f04e10bc38bc13116d8285471",
+    "platform/transactions/intents.test.mjs": "15eb5d882e52003bf6a33b7cf62d1cffe2b6164febc5be045eb0321cb6036690"
+  },
+  "scope": "Existing Node-only rehearsal adapter; no new signing, broadcast, preparation factory, portable write parity or production provenance claim."
+}

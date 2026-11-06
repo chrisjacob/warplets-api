@@ -44,7 +44,10 @@ export function createIntent(db,{owner,requestKey,plan},now=Date.now()){
   return {id,planHash:hash,state:old?.state??'validated'};
  });
 }
-export async function prepareAttempt(db,{intentId,packet,observation},now=Date.now()){
+export async function prepareAttempt(db,input,now=Date.now()){
+ // Freeze the recorded preparation inputs before packet hashing yields. The
+ // verified bytes and observation must be exactly those persisted afterwards.
+ const {intentId,packet,observation}=structuredClone(input);
  const row=get(db,intentId);if(!row)throw Error('Unknown intent.');
  const plan=JSON.parse(row.plan);
  if(!['validated','attempt_expired','awaiting_signature'].includes(row.state)||plan.expiresMs<=now)throw Error('Intent unavailable for a new packet.');
