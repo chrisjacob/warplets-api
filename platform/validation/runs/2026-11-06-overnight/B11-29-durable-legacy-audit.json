@@ -1,7 +1,7 @@
 {
   "task": "B11",
   "slice": "B11-29 durable private legacy fingerprint continuations",
-  "status": "verified-focused; broader reference running; no adoption authority",
+  "status": "verified-focused-and-combined-reference; no adoption authority",
   "sourceHashes": {
     "platform/storage/050-legacy-audit-continuations.sql": "02273b565bcba0f1faf81bdfb5c05e6e24a7f3304edf3401e6e836fc71f968de",
     "platform/recovery/schema.mjs": "30f3765959803517dfccf5cd4db351b6265c684c124ff7b824f38cb4a44a991d",
@@ -41,10 +41,11 @@
     },
     {
       "command": "node work/test-b11-29-reference.mjs",
-      "result": "RUNNING",
-      "session": 29781,
+      "result": "PASS",
       "log": "work/b11-29-reference.log",
-      "scope": "Full discovered reference checkpoint through29; excludes only unfinished30/31 tests. Launched before final050 NULL-ready guard tightening, covered by final focusedNode/D1 SQL rejection tests."
+      "scope": "Full discovered reference checkpoint through29; excludes only unfinished30/31 tests. Launched before final050 NULL-ready guard tightening, covered by final focusedNode/D1 SQL rejection tests.",
+      "tests": 657,
+      "durationMs": 881381.2761
     }
   ],
   "migration": {

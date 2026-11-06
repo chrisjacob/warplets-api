@@ -25,6 +25,21 @@ invalidates the continuation. Lost read responses can retry the same checkpoint;
 the adapter performs no database writes. Scalar cell aggregation is limited before
 hydration, so repeated known keys cannot create an unbounded result.
 
+The verified-root helper returns only cloned header/scalar facts, counts,
+eligibility kinds, admission page IDs and the current stage. Its complete parsed
+root, encoded SQL row and byte buffers leave scope before component SQL starts.
+The component helper owns page and comparison buffers; those leave scope before
+the final checkpoint/result hash. Admission queries request precisely the named,
+verified page's entry count, including pages whose 64 KiB bound yields fewer than
+100 entries.
+
+`resultBytes` remains the sum of **every** returned batch. Working measurements
+use separate root/component/final lifetime peaks and retain the original
+conservative three-copy multiplier for live returned data, checkpoint, selected
+facts and comparison data, plus 16 KiB fixed overhead. `phasePeaks`,
+`retainedFactsBytes` and `maxResultBatchBytes` expose the calculation. This is a
+serialized live-data bound, not a claim about JavaScript GC timing or process RSS.
+
 Successful output is `source-components-equal-legacy-json`. Its
 `declaredStateDigest` is a reference, not a verified digest. Canonical digest,
 raw-byte digest, economics and adoption flags remain false. B11-26 and B11-28
@@ -45,16 +60,25 @@ reads and digest-await mutation injection; these tests expose only a private
 fixture route. No remote reads, resource mutation, public audit route or financial
 execution is introduced.
 
-Measured maximum Node graph: 3,248 steps, at most six SQL statements per step,
-2,031-byte SQL request batch, 275,758 cumulative returned bytes across separate
+The B11-30 baseline maximum Node graph used 3,248 steps and at most six SQL
+statements per step, a 2,031-byte SQL request batch, 275,758 cumulative returned bytes across separate
 read batches in a step, and 1,041,262 bytes of conservative working data. The
 256 KiB SQL batch bound applies to requests; cumulative returned bytes are
 separately included in the 1 MiB working guard. Only 7,314 bytes remain below
-that working ceiling, so this measurement does **not** establish that a durable
-repository wrapper also fits. Integration must reduce retained root/encoded
-buffer lifetimes and measure the whole wrapper before making that claim.
+that working ceiling. B11-34 addresses that retained-buffer constraint, but
+integration must still measure the whole durable repository wrapper before
+claiming its complete budget fits.
 
-The maximum run preceded removal of the unsupported schema-cookie scalar;
+The final B11-34 maximum graph preserves all 3,248 steps, 3,245 retained records,
+320,000 wallet occurrences and 1,000 admissions. Working peak is **738,772 bytes**
+(root 302,890; component 738,772; final 32,164), with at most 3,560 retained fact
+bytes. Cumulative returned bytes peak at 265,056 per step; the largest individual
+result batch is 91,283 bytes. The full run passed in 252.3 seconds including
+99.3 seconds of real 035 fixture intake. The actual D1 test with byte-bounded
+admission pages peaks at 739,456 bytes. Both leave over 300 KiB of measured core
+headroom; complete guarded-wrapper measurement is still required.
+
+That baseline maximum run preceded removal of the unsupported schema-cookie scalar;
 removing that one pin field reduces serialized data and does not change compared
 components or SQL partitions. Final focused Node and D1 checks cover the resulting
 pin shape. Full maximum graph D1 execution has not been established.

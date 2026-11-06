@@ -1,0 +1,170 @@
+{
+  "task": "B11",
+  "slice": "B11.34 bounded source-relation retained-buffer optimization",
+  "status": "verified-read-primitive-optimization; B11 remains partial",
+  "baseCommit": "728033111f5479cee2b8701825326a894e7c4fb5",
+  "implementationCommit": null,
+  "recordedAt": "2026-11-06T05:53:15.442Z",
+  "sourceHashes": {
+    "platform/collect/legacy-source-relation.mjs": "1b4d574739b0c3a7cc9ec0654ed1aec3dd3b56abf23cc726be632dd8a0538517",
+    "platform/collect/legacy-source-relation.d.mts": "89f3f2eac513b044f378a1c9d8c7f132751c6ac23ff2572cf02a592b78502c0a",
+    "platform/collect/legacy-source-relation.fixtures.mjs": "7ceaa91e36b8448d243f19887132e92cf77c933d2700bcba3235e3d04335b298",
+    "platform/collect/legacy-source-relation.test.mjs": "b4839f7cc2f43aceb2011e02f3e3c5b7619fe0b5d80c983c7b9455bc5468d970",
+    "platform/collect/legacy-source-relation.capacity.test.mjs": "4b75649f207e8f141da860875cde941ad798e953d95497fd675014c5a23e8060",
+    "platform/collect/legacy-source-relation.README.md": "05c0296feeaeb6b1eb84ac71cac9e910ae5902b5b5e9d1489e3368d89fcabf8f",
+    "platform/edge/test/legacy-source-relation.test.mjs": "62c05f40ef240697c7e25641df8e19e26f4de374175768832a755e9419eba2d4",
+    "platform/edge/test/fixtures/legacy-source-relation-worker.ts": "e867c65858d2beb3a71018b3f5b70658bbafad736046a29d6d98cfbf629b62ee"
+  },
+  "checks": [
+    {
+      "command": "node --test platform/collect/legacy-source-relation.test.mjs",
+      "result": "PASS",
+      "tests": 9,
+      "durationMs": 16686.1849,
+      "log": "work/b11-34-relation-focused.log"
+    },
+    {
+      "command": "node --test platform/collect/legacy-source-relation.capacity.test.mjs",
+      "result": "PASS",
+      "tests": 1,
+      "durationMs": 252250.588,
+      "log": "work/b11-34-relation-capacity.log",
+      "note": "Final implementation; one complete32-distinct-list/1000-admission graph run."
+    },
+    {
+      "command": "node --test platform/edge/test/legacy-source-relation.test.mjs",
+      "result": "PASS",
+      "tests": 1,
+      "durationMs": 28643.9724,
+      "log": "work/b11-34-relation-edge.log",
+      "note": "ActualD1 fixture explicitly asserts first admission page has fewer than100 rows, with all1000 long identities compared."
+    },
+    {
+      "command": "node platform/edge/node_modules/typescript/bin/tsc --noEmit -p platform/edge",
+      "result": "PASS",
+      "log": "work/b11-34-relation-types.log"
+    },
+    {
+      "command": "git diff --check -- <owned paths>",
+      "result": "PASS"
+    }
+  ],
+  "maximum": {
+    "source": "synthetic SQL legacy state versus real035 retained source records; no economic or adoption authority",
+    "installedMigration": {
+      "version": "050-legacy-audit-continuations.sql"
+    },
+    "records": 3245,
+    "rawBytes": 15836660,
+    "sourceBytes": 16301094,
+    "seedMs": 99283.0038,
+    "result": {
+      "kind": "verified",
+      "pin": {
+        "generation": "initial-local",
+        "id": "synthetic-legacy-canonical",
+        "kind": "season",
+        "mode": "live",
+        "origin_digest": "synthetic-origin",
+        "revision": 1032,
+        "season_month": "2023-11",
+        "season_start": 1700000000000,
+        "source_bytes": 15836660,
+        "status": "live",
+        "tranche": null,
+        "watermark": 9838
+      },
+      "rootId": "fcfd6200471eaf40978993c0f592330cfb08f83bf920358802d416f6d3a33ad6",
+      "inventoryId": "synthetic-legacy-canonical",
+      "declaredStateDigest": "ce09af71926a664f9e7fa87c2fc0e232efc2fb306ee676a389ba8dcd56d0b4e7",
+      "stageCount": 32,
+      "admissionCount": 1000,
+      "listOccurrences": 32,
+      "walletOccurrences": 320000,
+      "verification": "source-components-equal-legacy-json",
+      "canonicalDigestVerified": false,
+      "rawByteDigestVerified": false,
+      "economicsVerified": false,
+      "adoptionAuthorized": false,
+      "executable": false,
+      "relationDigest": "4408f51aae158215b5f43043146b7c34341bfadd9221f89d3292e9f7829cabc7",
+      "metrics": {
+        "operations": 3,
+        "maxBatchBytes": 946,
+        "resultBytes": 91579,
+        "maxResultBatchBytes": 91283,
+        "maxWorkingBytes": 296488,
+        "records": 1,
+        "retainedFactsBytes": 1473,
+        "phasePeaks": {
+          "root": 296488,
+          "component": 22639,
+          "final": 25861
+        }
+      }
+    },
+    "steps": 3248,
+    "maxWorkingBytes": 738772,
+    "maxOperations": 6,
+    "maxBatchBytes": 2031,
+    "maxResultBytes": 265056,
+    "maxResultBatchBytes": 91283,
+    "maxRetainedFactsBytes": 3560,
+    "phasePeaks": {
+      "root": 302890,
+      "component": 738772,
+      "final": 32164
+    },
+    "elapsedMs": 252004.498
+  },
+  "d1": {
+    "calls": 24,
+    "maxOperations": 6,
+    "maxWorkingBytes": 739456,
+    "maxBatchBytes": 2030,
+    "maxResultBytes": 178525,
+    "maxResultBatchBytes": 87224,
+    "maxRetainedFactsBytes": 1824,
+    "phasePeaks": {
+      "root": 36580,
+      "component": 739456,
+      "final": 26866
+    },
+    "elapsedMs": 27233.5001,
+    "source": "synthetic private fixture; Node and workerd actual installed SQL"
+  },
+  "comparison": {
+    "baseline": "B11-30-legacy-source-relation.json",
+    "baselineWorkingBytes": 1041262,
+    "finalMaximumNodeWorkingBytes": 738772,
+    "finalD1WorkingBytes": 739456,
+    "nodeReductionBytes": 302490,
+    "nodeHeadroomBytes": 309804,
+    "minMeasuredHeadroomBytes": 309120,
+    "criterion": "Every original count,identity,canonical record,SQL component,duplicate-key and final-pin check retained; immutable logical continuation goldens from ebf5b57 plus current full checkpoint digest checks.",
+    "accounting": "Original three-copy multiplier plus16KiB overhead retained. Helper-local fullroot buffers leave scope before component reads; component buffers leave scope before final hash. All returned bytes remain cumulatively counted; separate phase peaks include every retained fact and checkpoint.",
+    "admissionQuery": "Reads the verified named page length, not100 rows when a64KiB partition contains fewer. Focused maximal pages89x11+21."
+  },
+  "scope": {
+    "schemaChanges": false,
+    "repositoryChanges": false,
+    "readOnly": true,
+    "financialExecution": false,
+    "rawWholeStateHydration": false,
+    "canonicalDigestVerified": false,
+    "rawByteDigestVerified": false,
+    "economicsVerified": false,
+    "adoptionAuthorized": false
+  },
+  "remaining": [
+    "Measure the complete guarded durable repository wrapper including controls and schema fence; core margin is not wrapper acceptance.",
+    "Full32x10000 graph is Node only; actualD1 proves smaller byte-bounded graph and continuation parity.",
+    "Exact schema/trigger authorization, owner/CAS durable prefix and economic/source adoption remain separate unfinished work.",
+    "Metrics bound serialized live reachable data; they do not claim process RSS or garbage-collector timing."
+  ],
+  "schema": {
+    "version": "050-legacy-audit-continuations.sql",
+    "sha256": "02273b565bcba0f1faf81bdfb5c05e6e24a7f3304edf3401e6e836fc71f968de",
+    "businessTables": 108
+  }
+}

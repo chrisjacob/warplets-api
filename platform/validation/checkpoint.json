@@ -1,5 +1,5 @@
 {
   "policy": "prd-1.2",
   "scope": "local",
-  "checkpoint": "blueprint-b11-legacy-admission-audit"
+  "checkpoint": "blueprint-b11-relation-buffer-lifetimes"
 }

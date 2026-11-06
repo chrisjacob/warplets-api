@@ -55,53 +55,71 @@ function capture(value){need(exact(value,['inventoryId','rootId','checkpoint'])&
  need(exact(c,cpKeys)&&c.format===FORMAT&&c.inventoryId===value.inventoryId&&c.rootId===value.rootId&&pinValid(c.pin)&&c.pin.id===value.inventoryId&&['admissions','stages','wallets','finish'].includes(c.phase)&&digest(c.checkpointDigest),'legacy-relation-checkpoint');
  for(const [k,max] of [['admissionIndex',16],['admissionCount',1000],['stageIndex',32],['walletPageIndex',100],['walletCount',10000],['listOccurrences',32],['walletOccurrences',320000]])need(nat(c[k],max),'legacy-relation-checkpoint');need(c.lastWallet===null||typeof c.lastWallet==='string'&&c.lastWallet.length<=44,'legacy-relation-checkpoint');need(utf8(canonicalJson(c)).length<=8192,'legacy-relation-checkpoint-bound');return clone(value);
 }
-function cursor(c,root){need(c.admissionIndex<=root.admissions.pageIds.length&&c.admissionCount>=c.admissionIndex&&c.admissionCount<=c.admissionIndex*100&&c.admissionCount<=root.admissions.count&&c.stageIndex<=root.stages.length,'legacy-relation-cursor');
- if(c.phase==='admissions')need(c.stageIndex===0&&c.listOccurrences===0&&c.walletOccurrences===0,'legacy-relation-cursor');else need(c.admissionIndex===root.admissions.pageIds.length&&c.admissionCount===root.admissions.count,'legacy-relation-cursor');
- need(c.listOccurrences===root.stages.slice(0,c.stageIndex).filter(s=>s.eligibility.kind==='list').length&&c.walletOccurrences<=c.listOccurrences*10000,'legacy-relation-cursor');
- if(c.phase==='wallets')need(c.stageIndex<root.stages.length&&root.stages[c.stageIndex].eligibility.kind==='list'&&c.walletCount===c.walletPageIndex*100&&(c.walletCount===0?c.lastWallet===null:c.lastWallet!==null),'legacy-relation-cursor');else need(c.walletCount===0&&c.walletPageIndex===0&&c.lastWallet===null,'legacy-relation-cursor');
- if(c.phase==='finish')need(c.stageIndex===root.stages.length,'legacy-relation-cursor');
+function cursor(c,facts){need(c.admissionIndex<=facts.admissions.pageIds.length&&c.admissionCount>=c.admissionIndex&&c.admissionCount<=c.admissionIndex*100&&c.admissionCount<=facts.admissions.count&&c.stageIndex<=facts.stageKinds.length,'legacy-relation-cursor');
+ if(c.phase==='admissions')need(c.stageIndex===0&&c.listOccurrences===0&&c.walletOccurrences===0,'legacy-relation-cursor');else need(c.admissionIndex===facts.admissions.pageIds.length&&c.admissionCount===facts.admissions.count,'legacy-relation-cursor');
+ need(c.listOccurrences===facts.stageKinds.slice(0,c.stageIndex).filter(kind=>kind==='list').length&&c.walletOccurrences<=c.listOccurrences*10000,'legacy-relation-cursor');
+ if(c.phase==='wallets')need(c.stageIndex<facts.stageKinds.length&&facts.stageKinds[c.stageIndex]==='list'&&c.walletCount===c.walletPageIndex*100&&(c.walletCount===0?c.lastWallet===null:c.lastWallet!==null),'legacy-relation-cursor');else need(c.walletCount===0&&c.walletPageIndex===0&&c.lastWallet===null,'legacy-relation-cursor');
+ if(c.phase==='finish')need(c.stageIndex===facts.stageKinds.length,'legacy-relation-cursor');
 }
 /** Read-only semantic relation. Private durable CAS/source schema validation and
  * the independent canonical digest/economic audits remain required authority. */
 export function createLegacySourceRelationAudit({driver,crypto}){return Object.freeze({async step(value){
- const metrics={operations:0,maxBatchBytes:0,resultBytes:0,maxWorkingBytes:0,records:0},held=reason=>freeze({kind:'held',reason,metrics});let c,cpBytes=0,compareBytes=0;
- const bound=()=>{metrics.maxWorkingBytes=Math.max(metrics.maxWorkingBytes,metrics.resultBytes*3+cpBytes*3+compareBytes*3+16384);need(metrics.maxWorkingBytes<=1048576,'legacy-relation-working-bound');};
- const read=async statements=>{const m=measureBatch(statements);metrics.operations+=m.statements;metrics.maxBatchBytes=Math.max(metrics.maxBatchBytes,m.batchBytes);need(metrics.operations<=64,'legacy-relation-query-bound');const values=await driver.batch(statements);need(values.length===statements.length&&values.every(v=>Array.isArray(v.rows)),'legacy-relation-read-invalid');metrics.resultBytes+=utf8(canonicalJson(values)).length;bound();return values.map(v=>v.rows);};
- const record=async (rows,expectedId)=>{need(rows.length===1&&rows[0].id===expectedId&&rows[0].body_base64,'legacy-relation-record-missing');const row=rows[0],bytes=Uint8Array.from(atob(row.body_base64),x=>x.charCodeAt(0));metrics.records++;need(metrics.records<=3,'legacy-relation-record-bound');const body=await verifyCollectionRecordBody({id:row.id,size:row.size,bytes},crypto);return body;};
+ const metrics={operations:0,maxBatchBytes:0,resultBytes:0,maxResultBatchBytes:0,maxWorkingBytes:0,records:0,retainedFactsBytes:0,phasePeaks:{root:0,component:0,final:0}},held=reason=>freeze({kind:'held',reason,metrics});let c,cpBytes=0,phaseName='root',phaseResultBytes=0,compareBytes=0;
+ // Aggregate returned bytes never reset. Only helper-local live buffers are
+ // released between phases; each phase still uses the original conservative
+ // three-copy accounting plus all facts/checkpoint retained across helpers.
+ const bound=()=>{const working=(phaseResultBytes+cpBytes+metrics.retainedFactsBytes+compareBytes)*3+16384;metrics.phasePeaks[phaseName]=Math.max(metrics.phasePeaks[phaseName],working);metrics.maxWorkingBytes=Math.max(metrics.maxWorkingBytes,working);need(working<=1048576,'legacy-relation-working-bound');};
+ const phase=async(name,work)=>{phaseName=name;phaseResultBytes=0;compareBytes=0;bound();const result=await work();bound();return result;};
+ const read=async statements=>{const m=measureBatch(statements);metrics.operations+=m.statements;metrics.maxBatchBytes=Math.max(metrics.maxBatchBytes,m.batchBytes);need(metrics.operations<=64,'legacy-relation-query-bound');const values=await driver.batch(statements);need(values.length===statements.length&&values.every(v=>Array.isArray(v.rows)),'legacy-relation-read-invalid');const bytes=utf8(canonicalJson(values)).length;metrics.resultBytes+=bytes;metrics.maxResultBatchBytes=Math.max(metrics.maxResultBatchBytes,bytes);phaseResultBytes+=bytes;bound();return values.map(v=>v.rows);};
+ const record=async (rows,expectedId)=>{need(rows.length===1&&rows[0].id===expectedId&&rows[0].body_base64,'legacy-relation-record-missing');const row=rows[0],bytes=Uint8Array.from(atob(row.body_base64),x=>x.charCodeAt(0));metrics.records++;need(metrics.records<=3,'legacy-relation-record-bound');return verifyCollectionRecordBody({id:row.id,size:row.size,bytes},crypto);};
  const samePin=rows=>{need(rows.length===1&&pinValid(rows[0])&&same(rows[0],c.pin),'legacy-relation-source-pin-changed');};
- try{
-  const input=capture(value);if(input.checkpoint){const {checkpointDigest,...body}=input.checkpoint;need(await crypto.sha256(utf8(canonicalJson(body)))===checkpointDigest,'legacy-relation-checkpoint-digest');c=body;cpBytes=utf8(canonicalJson(c)).length;}
+ // This helper owns the encoded record rows, decoded bytes and complete parsed
+ // root. None escape its frame. Selected facts are independently cloned before
+ // return, so page SQL never retains a parent root or its encoded buffers.
+ async function rootFacts(input){
   const [pins,roots]=await read([sql(pinSql,input.inventoryId),sourceRecord(input.rootId)]);need(pins.length===1&&pinValid(pins[0]),'legacy-relation-source-unavailable');if(c)samePin(pins);
   const root=await record(roots,input.rootId);need(root.format==='collection-source-v1'&&root.source.inventoryId===input.inventoryId&&root.inventory.kind===pins[0].kind&&root.source.revision===String(pins[0].revision)&&(root.inventory.tranche??null)===pins[0].tranche,'legacy-relation-source-identity');
   for(const stage of root.stages)need(Object.keys(stage.terms).every(k=>termKeys.includes(k)&&k!=='wallets'),'legacy-relation-unknown-source-terms');
-  if(!c){c={format:FORMAT,inventoryId:input.inventoryId,rootId:input.rootId,pin:pins[0],phase:'admissions',admissionIndex:0,admissionCount:0,stageIndex:0,walletPageIndex:0,walletCount:0,lastWallet:null,listOccurrences:0,walletOccurrences:0};
-   const [top]=await read([sql(topSql,input.inventoryId)]);need(top.length===1,'legacy-relation-top-object');fields(top[0],root.inventory,2);need(top[0].stages_type==='array'&&top[0].stage_count===root.stages.length&&top[0].admissions_type==='array'&&top[0].admission_count===root.admissions.count,'legacy-relation-top-count');
-  }else{cursor(c,root);
-   if(c.phase==='admissions'){
-    if(c.admissionIndex===root.admissions.pageIds.length){need(c.admissionCount===root.admissions.count,'legacy-relation-admission-count');c.phase='stages';}
-    else{const [pages,rows]=await read([sourceRecord(root.admissions.pageIds[c.admissionIndex]),sql(admissionSql,c.inventoryId,c.admissionCount,c.admissionCount+100)]),page=await record(pages,root.admissions.pageIds[c.admissionIndex]);need(page.format==='collection-page-v1'&&page.kind==='admissions'&&page.index===c.admissionIndex&&page.entries.length>0&&c.admissionCount+page.entries.length<=root.admissions.count,'legacy-relation-admission-page');
-     // Source admission pages can be byte-bounded below100 entries. The SQL
-     // projection is truncated to the exact named page only after validating
-     // that no ordinal is missing in its compared prefix.
-     need(rows.length>=page.entries.length,'legacy-relation-admission-missing');
-     for(const [n,expected] of page.entries.entries()){const row=rows[n];need(row.ordinal===c.admissionCount+n&&row.type==='object'&&row.field_count===9&&row.unique_count===9&&row.cost_type==='object'&&row.cost_count===1&&row.cost_unique===1&&typeof row.body_json==='string','legacy-relation-admission-object');need(row.admitted_type==='integer'&&row.level_type===(expected.level===null?'null':'integer')&&row.ticket_type===(expected.ticket===null?'null':'integer'),'legacy-relation-number-format');need(same(JSON.parse(row.body_json),expected),'legacy-relation-admission-mismatch');}
-     compareBytes=utf8(canonicalJson(page.entries)).length;bound();c.admissionIndex++;c.admissionCount+=page.entries.length;
-    }
-   }else if(c.phase==='stages'){
-    if(c.stageIndex===root.stages.length)c.phase='finish';
-    else{const stage=root.stages[c.stageIndex],statements=[sql(stageSql,c.inventoryId,c.stageIndex)];if(stage.eligibility.kind==='list')statements.push(sourceRecord(stage.eligibility.manifestId));const [rows,lists]=await read(statements);need(rows.length===1,'legacy-relation-stage-missing');fields(rows[0],stage.terms,1);
-     if(stage.eligibility.kind==='list'){const list=await record(lists,stage.eligibility.manifestId);need(list.format==='collection-list-v1'&&rows[0].wallets_type==='array'&&rows[0].wallet_count===list.count,'legacy-relation-wallet-count');c.phase='wallets';}
-     else{need(rows[0].wallets_type==='null','legacy-relation-wallet-null');c.stageIndex++;}
-    }
-   }else if(c.phase==='wallets'){
-    const stage=root.stages[c.stageIndex],[lists]=await read([sourceRecord(stage.eligibility.manifestId)]),list=await record(lists,stage.eligibility.manifestId);need(list.format==='collection-list-v1'&&c.walletPageIndex<list.pageIds.length,'legacy-relation-list-page');
-    const expected=c.walletPageIndex===list.pageIds.length-1?list.count-c.walletPageIndex*100:100,[pages,rows]=await read([sourceRecord(list.pageIds[c.walletPageIndex]),sql(walletsSql,'$.stages['+c.stageIndex+'].wallets',c.inventoryId,c.walletCount,c.walletCount+expected)]),page=await record(pages,list.pageIds[c.walletPageIndex]);
-    need(page.format==='collection-page-v1'&&page.kind==='eligibility'&&page.index===c.walletPageIndex&&page.entries.length===expected&&rows.length===expected&&(c.lastWallet===null||page.entries.length>0&&c.lastWallet<page.entries[0]),'legacy-relation-wallet-page');for(const [n,wallet]of page.entries.entries())need(rows[n].ordinal===c.walletCount+n&&rows[n].type==='text'&&rows[n].wallet===wallet,'legacy-relation-wallet-mismatch');
-    c.walletPageIndex++;c.walletCount+=expected;c.lastWallet=page.entries.at(-1)??c.lastWallet;if(c.walletPageIndex===list.pageIds.length){need(c.walletCount===list.count,'legacy-relation-wallet-count');c.walletOccurrences+=c.walletCount;c.listOccurrences++;c.stageIndex++;c.phase='stages';c.walletPageIndex=0;c.walletCount=0;c.lastWallet=null;}
-   }else{const result={kind:'verified',pin:c.pin,rootId:c.rootId,inventoryId:c.inventoryId,declaredStateDigest:root.source.stateDigest,stageCount:c.stageIndex,admissionCount:c.admissionCount,listOccurrences:c.listOccurrences,walletOccurrences:c.walletOccurrences,verification:'source-components-equal-legacy-json',canonicalDigestVerified:false,rawByteDigestVerified:false,economicsVerified:false,adoptionAuthorized:false,executable:false};
-    result.relationDigest=await crypto.sha256(utf8(canonicalJson(result)));const [after]=await read([sql(pinSql,c.inventoryId)]);samePin(after);return freeze({...result,metrics});
-   }
+  const selected=c&&['stages','wallets'].includes(c.phase)?root.stages[c.stageIndex]??null:null;
+  const facts=clone({pin:pins[0],inventory:c?null:root.inventory,stateDigest:root.source.stateDigest,admissions:root.admissions,stageKinds:root.stages.map(s=>s.eligibility.kind),stage:selected});
+  metrics.retainedFactsBytes=utf8(canonicalJson(facts)).length;bound();return facts;
+ }
+ // All record rows, comparison rows and parsed pages stay inside this helper.
+ // The final checkpoint/hash phase retains only selected facts and counters.
+ async function advance(input,facts){
+  if(!c){c={format:FORMAT,inventoryId:input.inventoryId,rootId:input.rootId,pin:facts.pin,phase:'admissions',admissionIndex:0,admissionCount:0,stageIndex:0,walletPageIndex:0,walletCount:0,lastWallet:null,listOccurrences:0,walletOccurrences:0};cpBytes=utf8(canonicalJson(c)).length;
+   const [top]=await read([sql(topSql,input.inventoryId)]);need(top.length===1,'legacy-relation-top-object');fields(top[0],facts.inventory,2);need(top[0].stages_type==='array'&&top[0].stage_count===facts.stageKinds.length&&top[0].admissions_type==='array'&&top[0].admission_count===facts.admissions.count,'legacy-relation-top-count');return;
   }
-  cursor(c,root);const checkpoint={...c,checkpointDigest:await crypto.sha256(utf8(canonicalJson(c)))};need(utf8(canonicalJson(checkpoint)).length<=8192,'legacy-relation-checkpoint-bound');const [after]=await read([sql(pinSql,c.inventoryId)]);samePin(after);return freeze({kind:'continue',checkpoint,metrics});
+  cursor(c,facts);
+  if(c.phase==='admissions'){
+   if(c.admissionIndex===facts.admissions.pageIds.length){need(c.admissionCount===facts.admissions.count,'legacy-relation-admission-count');c.phase='stages';return;}
+   const pageId=facts.admissions.pageIds[c.admissionIndex],[pages]=await read([sourceRecord(pageId)]),page=await record(pages,pageId);need(page.format==='collection-page-v1'&&page.kind==='admissions'&&page.index===c.admissionIndex&&page.entries.length>0&&c.admissionCount+page.entries.length<=facts.admissions.count,'legacy-relation-admission-page');
+   // Byte-bounded035 admission pages can contain fewer than100 entries. Read
+   // precisely the verified page's contiguous prefix, including its last row.
+   const [rows]=await read([sql(admissionSql,c.inventoryId,c.admissionCount,c.admissionCount+page.entries.length)]);need(rows.length===page.entries.length,'legacy-relation-admission-missing');
+   for(const [n,expected]of page.entries.entries()){const row=rows[n];need(row.ordinal===c.admissionCount+n&&row.type==='object'&&row.field_count===9&&row.unique_count===9&&row.cost_type==='object'&&row.cost_count===1&&row.cost_unique===1&&typeof row.body_json==='string','legacy-relation-admission-object');need(row.admitted_type==='integer'&&row.level_type===(expected.level===null?'null':'integer')&&row.ticket_type===(expected.ticket===null?'null':'integer'),'legacy-relation-number-format');need(same(JSON.parse(row.body_json),expected),'legacy-relation-admission-mismatch');}
+   compareBytes=utf8(canonicalJson(page.entries)).length;bound();c.admissionIndex++;c.admissionCount+=page.entries.length;
+  }else if(c.phase==='stages'){
+   if(c.stageIndex===facts.stageKinds.length){c.phase='finish';return;}
+   const stage=facts.stage,statements=[sql(stageSql,c.inventoryId,c.stageIndex)];if(stage.eligibility.kind==='list')statements.push(sourceRecord(stage.eligibility.manifestId));const [rows,lists]=await read(statements);need(rows.length===1,'legacy-relation-stage-missing');fields(rows[0],stage.terms,1);
+   if(stage.eligibility.kind==='list'){const list=await record(lists,stage.eligibility.manifestId);need(list.format==='collection-list-v1'&&rows[0].wallets_type==='array'&&rows[0].wallet_count===list.count,'legacy-relation-wallet-count');c.phase='wallets';}
+   else{need(rows[0].wallets_type==='null','legacy-relation-wallet-null');c.stageIndex++;}
+  }else if(c.phase==='wallets'){
+   const stage=facts.stage,[lists]=await read([sourceRecord(stage.eligibility.manifestId)]),list=await record(lists,stage.eligibility.manifestId);need(list.format==='collection-list-v1'&&c.walletPageIndex<list.pageIds.length,'legacy-relation-list-page');
+   const expected=c.walletPageIndex===list.pageIds.length-1?list.count-c.walletPageIndex*100:100,[pages,rows]=await read([sourceRecord(list.pageIds[c.walletPageIndex]),sql(walletsSql,'$.stages['+c.stageIndex+'].wallets',c.inventoryId,c.walletCount,c.walletCount+expected)]),page=await record(pages,list.pageIds[c.walletPageIndex]);
+   need(page.format==='collection-page-v1'&&page.kind==='eligibility'&&page.index===c.walletPageIndex&&page.entries.length===expected&&rows.length===expected&&(c.lastWallet===null||page.entries.length>0&&c.lastWallet<page.entries[0]),'legacy-relation-wallet-page');for(const [n,wallet]of page.entries.entries())need(rows[n].ordinal===c.walletCount+n&&rows[n].type==='text'&&rows[n].wallet===wallet,'legacy-relation-wallet-mismatch');
+   c.walletPageIndex++;c.walletCount+=expected;c.lastWallet=page.entries.at(-1)??c.lastWallet;if(c.walletPageIndex===list.pageIds.length){need(c.walletCount===list.count,'legacy-relation-wallet-count');c.walletOccurrences+=c.walletCount;c.listOccurrences++;c.stageIndex++;c.phase='stages';c.walletPageIndex=0;c.walletCount=0;c.lastWallet=null;}
+  }
+ }
+ try{
+  const input=capture(value);if(input.checkpoint){const {checkpointDigest,...body}=input.checkpoint;need(await crypto.sha256(utf8(canonicalJson(body)))===checkpointDigest,'legacy-relation-checkpoint-digest');c=body;cpBytes=utf8(canonicalJson(c)).length;}
+  const facts=await phase('root',()=>rootFacts(input)),finishing=c?.phase==='finish';
+  await phase('component',()=>advance(input,facts));cursor(c,facts);cpBytes=Math.max(cpBytes,utf8(canonicalJson(c)).length);
+  return freeze(await phase('final',async()=>{
+   if(finishing){const result={kind:'verified',pin:c.pin,rootId:c.rootId,inventoryId:c.inventoryId,declaredStateDigest:facts.stateDigest,stageCount:c.stageIndex,admissionCount:c.admissionCount,listOccurrences:c.listOccurrences,walletOccurrences:c.walletOccurrences,verification:'source-components-equal-legacy-json',canonicalDigestVerified:false,rawByteDigestVerified:false,economicsVerified:false,adoptionAuthorized:false,executable:false};
+    compareBytes=utf8(canonicalJson(result)).length;bound();result.relationDigest=await crypto.sha256(utf8(canonicalJson(result)));const [after]=await read([sql(pinSql,c.inventoryId)]);samePin(after);return {...result,metrics};
+   }
+   const checkpoint={...c,checkpointDigest:await crypto.sha256(utf8(canonicalJson(c)))};compareBytes=utf8(canonicalJson(checkpoint)).length;need(compareBytes<=8192,'legacy-relation-checkpoint-bound');bound();const [after]=await read([sql(pinSql,c.inventoryId)]);samePin(after);return {kind:'continue',checkpoint,metrics};
+  }));
  }catch(error){return held(error instanceof Held?error.reason:'legacy-relation-read-or-record-invalid');}
  }});}

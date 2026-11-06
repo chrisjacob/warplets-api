@@ -20,6 +20,11 @@ export async function relationFixture(t,{state=canonicalStateFixture(),mutateRaw
  const input={inventoryId:state.id,rootId:bundle.root.id,checkpoint:null},service=createLegacySourceRelationAudit({driver,crypto});
  return {db,driver,ports,raw,state,bundle,records,input,service};
 }
-export async function runRelation(service,input,{limit=4000,onStep=()=>{}}={}){let checkpoint=input.checkpoint,steps=0,maxWorkingBytes=0,maxOperations=0,maxBatchBytes=0,maxResultBytes=0;
- while(steps<limit){const result=await service.step({...input,checkpoint});steps++;for(const [name,key]of [['maxWorkingBytes','maxWorkingBytes'],['maxOperations','operations'],['maxBatchBytes','maxBatchBytes'],['maxResultBytes','resultBytes']]){if(name==='maxWorkingBytes')maxWorkingBytes=Math.max(maxWorkingBytes,result.metrics[key]);if(name==='maxOperations')maxOperations=Math.max(maxOperations,result.metrics[key]);if(name==='maxBatchBytes')maxBatchBytes=Math.max(maxBatchBytes,result.metrics[key]);if(name==='maxResultBytes')maxResultBytes=Math.max(maxResultBytes,result.metrics[key]);}await onStep(result);if(result.kind!=='continue')return {result,steps,maxWorkingBytes,maxOperations,maxBatchBytes,maxResultBytes};checkpoint=JSON.parse(JSON.stringify(result.checkpoint));}throw Error('Synthetic relation continuation bound');
+export async function runRelation(service,input,{limit=4000,onStep=()=>{}}={}){
+ let checkpoint=input.checkpoint;const stats={steps:0,maxWorkingBytes:0,maxOperations:0,maxBatchBytes:0,maxResultBytes:0,maxResultBatchBytes:0,maxRetainedFactsBytes:0,phasePeaks:{root:0,component:0,final:0}};
+ while(stats.steps<limit){const result=await service.step({...input,checkpoint});stats.steps++;
+  for(const [name,key]of [['maxWorkingBytes','maxWorkingBytes'],['maxOperations','operations'],['maxBatchBytes','maxBatchBytes'],['maxResultBytes','resultBytes'],['maxResultBatchBytes','maxResultBatchBytes'],['maxRetainedFactsBytes','retainedFactsBytes']])stats[name]=Math.max(stats[name],result.metrics[key]??0);
+  for(const name of Object.keys(stats.phasePeaks))stats.phasePeaks[name]=Math.max(stats.phasePeaks[name],result.metrics.phasePeaks?.[name]??0);
+  await onStep(result);if(result.kind!=='continue')return {result,...stats};checkpoint=JSON.parse(JSON.stringify(result.checkpoint));
+ }throw Error('Synthetic relation continuation bound');
 }
