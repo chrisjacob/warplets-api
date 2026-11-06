@@ -1,0 +1,4 @@
+import {createLegacyMembershipSource} from '../../../collect/legacy-membership-source.mjs';
+import {createD1AtomicDriver} from '../../../storage/d1/atomic-driver';
+import {createWebCrypto} from '../../../security/web-crypto.mjs';
+export default {async fetch(request:Request,env:{DB:D1Database}){if(new URL(request.url).pathname!=='/__fixture'||request.method!=='POST')return new Response('Not found',{status:404});try{const input=await request.json() as Parameters<ReturnType<typeof createLegacyMembershipSource>['read']>[0],result=await createLegacyMembershipSource({driver:createD1AtomicDriver(env.DB),crypto:createWebCrypto()}).read(input);if(result.kind!=='verified'||result.membership===null)return Response.json(result);const {bytes,...page}=result.membership.page;return Response.json({...result,membership:{seal:result.membership.seal,page:{...page,base64:btoa(String.fromCharCode(...bytes))}}});}catch(error){return Response.json({error:String(error)},{status:409});}}};

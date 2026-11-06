@@ -1,0 +1,5 @@
+import type {CanonicalCrypto} from '../application/ports';
+import type {LegacyAdmissionSourcePin} from './legacy-admission-source.mjs';
+import type {LegacyAdmissionAuditInput} from './legacy-admission-audit.mjs';
+export type LegacyMembershipSourceResult=Readonly<{kind:'held';reason:string}>|Readonly<{kind:'verified';membership:LegacyAdmissionAuditInput['membership'];stageId:string;wallet:string;sourceDigest:string;sourcePin:LegacyAdmissionSourcePin;verification:'unrestricted'|'fixed-free-list-projection'|'original-list-membership';authoritativeFreeCutFact:false;prefixAuthority:false;economics:false;adoption:false;metrics:{sql:number;maxBatchBytes:number;maxReturnedBytes:number;workingBytes:number}}>;
+export function createLegacyMembershipSource(ports:{driver:{batch(statements:readonly {sql:string;values:readonly (string|number|null)[]}[]):Promise<{rows:Record<string,unknown>[];changes:number}[]>};crypto:CanonicalCrypto}):Readonly<{read(input:{rootId:string;ordinal:number;pageIndex:number;entryIndex:number;source:LegacyAdmissionSourcePin}):Promise<LegacyMembershipSourceResult>}>;

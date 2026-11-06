@@ -1,5 +1,5 @@
 {
   "policy": "prd-1.2",
   "scope": "local",
-  "checkpoint": "blueprint-b11-original-stage-source"
+  "checkpoint": "blueprint-b11-original-membership-source"
 }

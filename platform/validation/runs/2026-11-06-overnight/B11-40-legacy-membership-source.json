@@ -1,0 +1,77 @@
+{
+  "task": "B11",
+  "slice": "B11.40 bounded original admission membership source",
+  "status": "verified-private-membership-only; B11 partial",
+  "baseCommit": "6bbebac0c1379b59e3c8c421efd613eaae2ad1ce",
+  "implementationCommit": null,
+  "recordedAt": "2026-11-06T06:49:33.969736+00:00",
+  "sourceHashes": {
+    "platform/collect/legacy-membership-source.mjs": "c11ef260431a16da4c5c0ccf6fb03ed728ab58e1bb23a43db1d47bf89c0ec7d3",
+    "platform/collect/legacy-membership-source.d.mts": "cbf03a572dc605c9eca12df6b7908c316762b34678c51742a6eb9499133ca12b",
+    "platform/collect/legacy-membership-source.fixtures.mjs": "9f19909f0eefd9b285fabae80d7ecf7f5d290fbbecd956a772338ac06798a5ad",
+    "platform/collect/legacy-membership-source.test.mjs": "4461333e3199f2e14759fd8b87e95cbccec6e1e075b8e7975396f089bc7d015d",
+    "platform/edge/test/legacy-membership-source.test.mjs": "db41e4b8bad45847ac89fdc4c4d316509cb20ed558c1ee8b6ea8a5aa284e8669",
+    "platform/edge/test/fixtures/legacy-membership-source-worker.ts": "a70580a589d5b4f256e74421445f17effb10dd009c2817c0c5ce2b0d2700b0f0"
+  },
+  "sharedDependencies": {
+    "platform/collect/legacy-stage-source.mjs": "85ae8d2d4dcc1a618282c5eeba0c57dbce96dc2475ff34e83df9b224b92c003d",
+    "platform/collect/legacy-stage-source.d.mts": "35f78d256147a3ce988de6c26adedfb4121fea50e6328c4775deec9ba7dfd7aa",
+    "platform/collect/legacy-admission-source.mjs": "d504828853a1f5aff60e4ba6ab75ae1eca8bfcb815d020c0b2a8a27b9181745b",
+    "platform/collect/source-seal-guard.mjs": "ca3ee3ceab6a201fecc552d3afedccfd9d00eba20fc3a46a1a162a3bf70d0091"
+  },
+  "checks": [
+    {
+      "command": "node --test platform/collect/legacy-membership-source.test.mjs",
+      "result": "PASS",
+      "tests": 4,
+      "durationMs": 9408.967,
+      "log": "work/b11-membership-source-node.log"
+    },
+    {
+      "command": "node --test platform/edge/test/legacy-membership-source.test.mjs",
+      "result": "PASS",
+      "tests": 1,
+      "durationMs": 24733.4248,
+      "log": "work/b11-membership-source-edge.log",
+      "note": "Later fixture-only correction adds valid preceding paid/free phases in public/free branches; actualD1 uses unchanged whitelist branch. FinalNode covers all final branches.37 helpers unchanged after successful40checks."
+    },
+    {
+      "command": "node platform/edge/node_modules/typescript/bin/tsc --noEmit -p platform/edge/tsconfig.json",
+      "result": "PASS"
+    }
+  ],
+  "maximumNode": {
+    "wallets": 10000,
+    "sql": 12,
+    "maxBatchBytes": 7197,
+    "maxReturnedBytes": 16501,
+    "workingBytes": 130908
+  },
+  "actualD1": {
+    "wallets": 101,
+    "sql": 12,
+    "maxBatchBytes": 2811,
+    "maxReturnedBytes": 1354,
+    "workingBytes": 27589
+  },
+  "acceptance": [
+    "33 selects actual original admission wallet/stage/cursor, committed035source and frozen revision/generation/wholebusiness watermark.",
+    "37 shared helpers require committed listseal/staging/materialization receipts and independently rehash list/page bytes; no copied SQL verifier.",
+    "Lookup only locates named candidate page; independently verified bytes must include actualwallet. Missing index holds, never proves absentmembership.",
+    "10000member list selects last100memberpage with bounded12SQL and named IDs; no full walletarray hydration.",
+    "Whitelisted/public31audit succeeds; free fixedlist projection stillholds31 without separate authoritativecutfact.",
+    "Correct index bytes borrowing a staging receipt fail; finalhash source mutation invalidates membership.",
+    "ActualD1 parity and public404; no schema/public/write effects."
+  ],
+  "scope": {
+    "authoritativeFreeCutFact": false,
+    "prefixAuthority": false,
+    "economics": false,
+    "adoption": false,
+    "financialExecution": false
+  },
+  "remaining": [
+    "Durableeconomic repository must select and persist these facts under original privateprefix CAS.",
+    "Freecut historicalownership/completeness and laterGenesisoriginalopening decision remain separate evidence requirements."
+  ]
+}
