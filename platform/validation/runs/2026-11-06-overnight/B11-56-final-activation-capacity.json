@@ -1,0 +1,95 @@
+{
+  "task": "B11",
+  "slice": "B11-56 final activation capacity and installed-schema regression corrections",
+  "status": "verified-focused; B11 partial",
+  "recordedAt": "2026-11-06T10:22:25.143358+00:00",
+  "sourceHashes": {
+    "platform/collect/legacy-adoption-preparation.capacity.test.mjs": "64ca7fa5f0e861aff55d5dba36f67b19e93f54f8a40dc5759a56cb17267df17e",
+    "platform/collect/legacy-adoption-preparation-schema.test.mjs": "f969dde0aa5ac17fca826bc9358be58537003c30855622fc1419631156720cb4",
+    "platform/collect/legacy-audit-repository.test.mjs": "3107ba6ea91d8c9e2bafd6950053000d4af4db6b7e70a63fbe9ef26eee81c8b1",
+    "platform/collect/legacy-economic-schema.test.mjs": "d31bc092e84287caef27ae22e8c2deb2c586aefe3626be85dba87a8036eebcb7",
+    "platform/collect/legacy-relation-repository.test.mjs": "f8916d5bd2e190f4a31b7cd03ac5c5498b7d2236b47fdaa17457edc78b768d38",
+    "platform/recovery/v2-reconcile-economics.test.mjs": "cf774448abfe441d906c3a086c697027c5a3d199994cc1db63af1946ca0af140"
+  },
+  "productDependencies": {
+    "platform/collect/legacy-adoption-activation.mjs": "2207fb5ff6bc2c80e4b73af53c4d15d446df92b285bb6f9ed38e6cdc1a3c52a2",
+    "platform/collect/legacy-adoption-authority.mjs": "986b6fdf0b610ea4454fceddd5b77cc2a53b5587090fe467e2f629aac8dc7c6d",
+    "platform/storage/054-collection-legacy-adoption.sql": "5f82a5fafe536c65b9889ec05c6ea4986b1323db17067ceb99104f0a61a7620e"
+  },
+  "capacity": {
+    "actualStages": 32,
+    "actualAdmissions": 1000,
+    "fulfilled": 1000,
+    "rawBytes": 337079,
+    "rootBytes": 16912,
+    "graphBytes": 339598,
+    "fingerprintCalls": 85,
+    "relationCalls": 79,
+    "economicCalls": 6036,
+    "preparationCalls": 3069,
+    "objectCount": 2032,
+    "objectBytes": 1604564,
+    "levels": [
+      489,
+      256,
+      128,
+      64,
+      32,
+      16,
+      8,
+      4,
+      2,
+      1
+    ],
+    "maxEconomicOperations": 27,
+    "maxEconomicWorkingBytes": 338838,
+    "maxOperations": 50,
+    "maxWorkingBytes": 260663,
+    "maxSqlBatchBytes": 64386,
+    "elapsedMs": 1410201.2021,
+    "adoption": true,
+    "activationMetrics": [
+      {
+        "sql": 18,
+        "maxBatchBytes": 21790,
+        "maxParameters": 33,
+        "workingBytes": 137806
+      }
+    ],
+    "authorityReaderMetrics": {
+      "sql": 28,
+      "maxBatchBytes": 12443,
+      "maxParameters": 7,
+      "maxReturnedBytes": 22659,
+      "workingBytes": 161042
+    },
+    "financialExecution": false
+  },
+  "broadRun": {
+    "log": "work/b11-52-reference-final.log",
+    "passed": 807,
+    "failed": 5,
+    "tests": 812,
+    "durationMs": 1431924.3866,
+    "startingManifest": "work/b11-52-reference-manifest.json",
+    "note": "Concurrent51b dispatch edits were visible to later test processes; not an immutable single-commit suite claim. Four stale108counts and old phase expectation failed. Actual capacity final activation code passed."
+  },
+  "focusedCorrectionRun": {
+    "log": "work/b11-56-reference-corrections-final.log",
+    "passed": 24,
+    "failed": 0,
+    "durationMs": 48015.124,
+    "command": "node --test platform/collect/legacy-adoption-preparation-schema.test.mjs platform/collect/legacy-audit-repository.test.mjs platform/collect/legacy-economic-schema.test.mjs platform/collect/legacy-relation-repository.test.mjs platform/recovery/v2-reconcile-economics.test.mjs"
+  },
+  "additionalChecks": [
+    "TypeScript edge --noEmit passed",
+    "Contract generation --check passed",
+    "git diff --check passed"
+  ],
+  "limitations": [
+    "Capacity uses genuine synthetic reference fixtures in Node; actualD1 lifecycle separatelyverified53.",
+    "No complete adoption recovery or full B11 readiness claim.",
+    "First correction rerun accidentally reencoded a Unicode fixture and failed its byte bound; restored original UTF8 bytes before the final24passing run. No byte bounds relaxed."
+  ],
+  "financialExecution": false
+}
