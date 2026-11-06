@@ -1,0 +1,116 @@
+{
+  "task": "B12",
+  "slice": "B12-01",
+  "status": "verified-slice",
+  "baseCommit": "e4777ac",
+  "scope": [
+    "Local Node operator session authority with immutable explicit command permissions, two-hour expiry and revocation",
+    "Exact typed staffing/scope registry with preview digest and revision binding",
+    "Atomic guarded business, receipt and audit using existing repositories",
+    "Console replacement of legacy unaudited writes; final moderation temporarily unavailable",
+    "Final-review atomic audit + additive migration056; historical receipts replay unchanged and reference adoption explicitly labelled"
+  ],
+  "checks": {
+    "boundary": "28/28 PASS 3361.4239ms before final guard nesting change; isolated updated driver3/3PASS139.9638ms; updated console2/2PASS1135.058ms",
+    "transport": "5/5PASS1953.2469ms including receipt replay after reauthentication and scope revocation",
+    "contracts": "node platform/contracts/generate.mjs --check PASS",
+    "plan": "node platform/blueprint/validate-plan.mjs --next --self-check PASS",
+    "types": "Edge tsc PASS work/b12-types.log",
+    "browser": {
+      "slice": "B12 local operator session and staffing/scope preview UI",
+      "recordedAt": "2026-11-06T13:19:01.374122+00:00",
+      "sourceHashes": {
+        "platform/operator/session.mjs": "7313ad68a454630d7ebf3d48a2849005e88e4b21837b1c07647a9f41207c0fbd",
+        "platform/operator/session.test.mjs": "ea17e88522d85e3ae1348dc64206ea4e3a6fded570d10965e7cea5743a20d65b",
+        "platform/operator/ui.mjs": "c5063881be51944284654efc85edf5a20fc8b9123d313b0b3cea41731360fd66",
+        "platform/operator/index.html": "b89016aa3b38ab63aa19926e72b3e59867aff6f45dba62c2735ab18d1a7dac0d",
+        "platform/operator/ui.css": "82bbfbc54c2ce62980c27213be91bc1bd79fc33da7dd4e9f64894ef50e7af339",
+        "platform/operator/browser-qa.mjs": "a65990e92492bad6a204688e4ba900450aae6224480d8e2a37ee4351ab113822"
+      },
+      "browser": {
+        "passed": true,
+        "widths": [
+          360,
+          390,
+          768,
+          1440
+        ],
+        "realCommandExecutions": 10,
+        "auditEvents": 9,
+        "newAuditEvents": 8,
+        "baselineAuditEvents": 1,
+        "previewReadOnly": true,
+        "negativeResponseLoss": true,
+        "exactRetryAfterReload": true,
+        "expiredSessionReauthentication": true,
+        "stablePrincipalRetry": true,
+        "differentPrincipalIsolation": true,
+        "negativeStalePreview": true,
+        "readOnlySession": true,
+        "finalReviewUnavailable": true,
+        "keyboardFocus": true,
+        "logoutClearsPrivateState": true,
+        "financialExecution": false,
+        "screenshots": "work/b12-operator"
+      },
+      "checks": [
+        {
+          "command": "node --test platform/operator/session.test.mjs",
+          "passed": 6,
+          "log": "work/b12-session.log"
+        },
+        {
+          "command": "node --test platform/operator/session.test.mjs platform/operator/console.test.mjs platform/operator/command-transport.test.mjs",
+          "passed": 13,
+          "log": "work/b12-operator-final-focused.log"
+        },
+        {
+          "command": "installed Chromium / platform/operator/browser-qa.mjs",
+          "passed": true,
+          "log": "work/b12-operator-browser.log"
+        },
+        {
+          "command": "git diff --check and UTF8/LF validation of six owned files",
+          "passed": true
+        }
+      ],
+      "limits": [
+        "Node-only volatile operator authority, not hosted identity",
+        "No automatic database scopes or command permissions",
+        "No public/member operator route or financial execution",
+        "Final review visibly unavailable in this slice",
+        "Positive browser changes use actual APIs; response loss, stale configuration and different-principal retained journal are negative-only fixtures",
+        "Browser clock starts at noon UTC on the current date and advances to test expiry; no public request controls time"
+      ]
+    },
+    "focused": "47/47 PASS4735.0215ms work/b12-focused-final.log",
+    "D1": "6/6 PASS94174.1029ms work/b12-review-audit-d1.log; sandbox loopback denied initial run, successful authorized escalated local retry",
+    "recoveryNode": "Normal modern-pending fully restored with schema056, maxcheckpoint130834/131072bytes; work/b12-checkpoint-projection.json",
+    "recoveryD1": {
+      "pass": 1,
+      "durationMs": 97280.0396,
+      "profile": "modern-pending",
+      "tables": 112,
+      "maxOperations": 29,
+      "maxBatchBytes": 103346,
+      "maxCheckpointBytes": 130972,
+      "limit": 131072,
+      "log": "work/b12-recovery-d1.log"
+    },
+    "finalOperator": "13/13 PASS2089.4854ms after UI/session refinement; work/b12-operator-final-focused.log"
+  },
+  "limitations": [
+    "Local synchronous Node session guarantee only, not hosted/D1 identity",
+    "B12 remains incomplete; audited review/publication/governance commands follow",
+    "Financial execution disabled; no resource provisioning or deployment"
+  ],
+  "ci": {
+    "run": 42221767194,
+    "checkpoint": "b9efc0c",
+    "status": "in_progress",
+    "watchSession": 37792,
+    "log": "work/ci-42221767194.log"
+  },
+  "next": "Expose audited final-review command through typed registry, exact confirmation digest, transport and UI. Then remaining B12 collection/governance command audit.",
+  "formatNote": "Final coordinator files normalized to UTF8/LF after checks; SQL semantics unchanged, migration digest changes only with line endings."
+}

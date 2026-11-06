@@ -1,35 +1,30 @@
-# Current override: B11 local acceptance complete, B12 active
+# Current checkpoint — B12 scoped operator implementation
 
-B11 local verification complete:140/140 full Edge tests PASS3645430.4265ms, reference850 had849pass+one obsolete memoryfloor assertion resolved by targeted direct600611Bpolicy/partcoverage test. No product failure remains. B11 rollup platform/validation/runs/2026-11-06-overnight/B11.json. RUN_STATE marks verified-local via verified status; CI is explicitly NOT claimed passed.
+Continue authorized B work without milestone stops. User requests token efficiency: task-sized context, compact logs, reuse passed evidence, no duplicate broad runs. No deployment, remote resources, spending, signing, external messages or R-stage work. Financial execution remains disabled.
 
-Pushed b9efc0c; frozen integrated CI42221767194 running after prior9f87eff run timedout40min. Only CI allowance changed to120min; allchecks/pins unchanged. Follow CI inparallel with B12,resolveanyfailure. LocalEdge48594finished. B12 nowdependency-ready/current: firstslice typed volatile local operator session/allowed commands and audited staffing/pause; work/B12-boundary-plan.txt. No schema change needed for firstslice. Keepagentsidle unlessdistinctboundedwork useful; userrequests token efficiency.
+Branch: work/10x-prd-foundation. Last committed/pushed e4777ac (B11 local acceptance); runtime checkpoint b9efc0c. Preserve all newer edits. B00–B11 and B14 locally verified; B12 active; B20-core verified, skip B20 until full prerequisites pass.
 
-Earlier handoff detail follows; this override supersedes old pending-gate/current-task wording.
+## Tested B12-01 milestone (commit follows this record)
 
-# Current execution checkpoint
+B12-01: explicit immutable local operator session permissions/expiry/revocation; exact staffing/pause registry, revision-bound preview and confirmation; synchronous Node guard checks before SQL and commit and rejects outer transactions; bounded loopback transport. Console legacy unaudited writes disabled, no default grants. UI/browser acceptance passed across 360/390/768/1440px, including expiry after lost response and same-principal reauthentication/exact retry.
 
-Continue authorized B tasks without milestone stops. User resumed after usage interruption and requests token efficiency: small task context, compact output, reuse evidence, no duplicate reviews or unnecessary reruns. Two agents available but currently idle; use only for distinct useful work. Stale goal usageLimited is not a new user stop request.
+Next slice already implemented under coordinator ownership: atomic final-review audit child and additive migration056-final-review-audit.sql. No new tables. Existing committed receipt replay unchanged; reference adoption records current audit time honestly while preserving original review timestamp/digest. Final review remains unavailable in operator UI until registry integration.
 
-Branch work/10x-prd-foundation; pushed HEAD9f87eff9351f5d7333fc0297e8c8d733efb6d71f. All earlier queued tested commits are included. Schema055 installed; next056 unreserved;112 business tables. B00-B10/B14 verified. B11 remains current until final checks finish. B20-core verified atb18dec7/CI42125215062; skip B20 until full prerequisites pass.
+Schema056 is reserved/installed in current test databases; next057. Later schema changes must remeasure tight recovery checkpoint headroom. Do not raise acceptance limits.
 
-## Active checks
+## Exact validation and processes
 
-- Integrated CI42216368281 for9f87eff: watchsession86529, work/ci-42216368281.log. Previous6bbebac/CI42213197950 PASSED.
-- Complete local Edge suite: session48594, work/b11-final-edge-full.log, concurrency2. Manifest work/b11-final-edge-manifest.json. Still running; no failures reported at last inspection. Includes67 full recovery matrix again. Do not restart passed suites.
-- Reference suite completed850tests:849PASS,1obsolete lower-bound memory assertion. Test-only correction bb4ccc0 verifies actual600611Bpolicy/all5unique parts and preserves64ops/1MiB ceilings; targeted1PASS. Exact evidence B11-71-reference-regression.json. No product-code failure outstanding. Broad source manifest work/b11-69-reference-manifest.json; log work/b11-69-reference-full.log. Full32stage1000mint2032object capacity andall67profiles passed.
+- Focused Node set47/47 PASS4735.0215ms: work/b12-focused-final.log. Includes session/registry/transport/console/driver/operations/review/legacy/audit fault coverage.
+- Actual local D1 review/repository/legacy6/6 PASS94174.1029ms: work/b12-review-audit-d1.log. Initial sandbox blocked loopback; authorized local escalation passed.
+- Types PASS: work/b12-types.log. Contract drift and blueprint next/self-check PASS.
+- Normal Node modern-pending recovery with056 completed; maxcheckpoint130834/131072B: work/b12-checkpoint-projection.json. No new recovery runtime code.
+- Actual D1/R2 modern-pending normal recovery1/1PASS97280.0396ms: work/b12-recovery-d1.log;112tables,29maxoperations,103346Bmaxbatch,130972Bmaxcheckpoint (100Bheadroom).
+- Agent frontend_b09 completed UI/session/browser; final13operator testsPASS2089.4854ms and browserPASS7.37s. Evidence work/b12-session-ui-evidence.json incorporated in B12-01.json. Both agents now idle.
+- Agent snapshot_acceptance completed registry and final-review audit tests; idle.
+- Frozen B11 integrated CI42221767194 on b9efc0c still in progress at last query, watch session37792: work/ci-42221767194.log. Previous run42216368281 timed out40m; timeout alone increased120m. Do not claim current CI pass or cancel it with a new checkpoint yet.
 
-## Completed current boundary
+## Next executable step
 
-65 normal adoption stage->mint->economics->current->object->aggregate recovery;69 fixes stageSQLpage32 versus mintpage8.66/68 verify pre/post-adoption041 with durableCAS.67 allseven supported fullready profiles+held-proof fault pass Node/D1.70 exact pending mint replay afterfullrestore/pause/close/sourceloss passes Node/D1 with112business tables unchanged and1SQL replay. Evidence files B11-65/66/67/68/69/70/71 under platform/validation/runs/2026-11-06-overnight. Commits and earlier detailed evidence remain in git; do not reload whole history.
+Check commit/push outcome for B12-01. Then extend typed registry/transport/console to audited final-review command, preserving original request identity and accepted retry behavior. Review digests historically omit expected revisions, so bind the full confirmation separately without rewriting historical receipt digests. Continue collection/governance audit commands in B12.
 
-## Next actions
-
-1. Follow active Edge/CI to completion; fix actual failures without weaker acceptance. CurrentCI timeout40min may need adjustment only if actual timeout occurs.
-2. Finish acceptance rollup from work/B11-final-acceptance-draft.json; markB11verified only after required checks, then validator selectsB12.
-3. B12 read-only plan saved work/B12-boundary-plan.txt. First slice: typed local session/allowed commands, atomic staffing/pause via existing repositories, synchronous Node commit guards; no new table required. Later review/publication audit-linkage gap is real; never append audit afterbusinesscommit. No B12 code yet.
-
-Measured checkpoint peak130858/131072B (214Bmargin). Future schema changes need actual headroom checks. Read-only proposal work/B11-checkpoint-headroom-projection.md: tableOrder indices save2195B with old-name resume compatibility; no runtime change made.
-
-No deployment, remoteCloudflarewrites/provisioning, spending/funding/signing/broadcast/subscriptions/messages, main/devmerge,forcepush orRwork. Financialflagsfalse; Sydneyhours/laterpricesopen. Coordinatorowns schema/contracts/commits. Preserve unrelatedchanges; work/ stays untracked. Status/storypoints report in current chat outputs/10X-MEME-progress-and-estimates.txt: provisional411total/262implemented/149remaining,12verified/2partial/7notstarted; not a launch forecast.
-
-CI42216368281 stopped at40min timeout, not an observed assertion failure. B11-72 changes ONLY timeout40->120; allcommands/pins/permissions/tests unchanged. Push/follow rerun. LocalEdge48594continues; no failuresreported. Snapshotagent plan complete/idle.
+B11 rollup: platform/validation/runs/2026-11-06-overnight/B11.json. Full Edge140/140PASS; reference849 broad passes plus corrected obsolete memoryfloor test focusedPASS. Earlier detail remains in git history at e4777ac; no need to reload it for B12.

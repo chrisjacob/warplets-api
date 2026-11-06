@@ -1,3 +1,4 @@
+import {prepareConfigAudit,configAuditStatement} from './atomic-audit.mjs';
 import { pressureFromRows } from '../operations/portable-controls.mjs';
 import { createAtomicReceipts } from './atomic-receipts.mjs';
 import { canonicalJson, utf8 } from '../security/canonical.mjs';
@@ -81,27 +82,32 @@ export function createAtomicEarnRepository(driver,{crypto,ids,telemetry={record(
       requireValue(Number.isInteger(input.score)&&input.score>=0&&input.score<=10,'Invalid score.');
       if(command.businessIdentity!==input.submissionId||command.requestKey!==input.submissionId||command.requestDigest!==await crypto.sha256(reviewRequestBytes(command)))throw new TypeError('Invalid review digest.');
       const prior=await replay(command);if(prior)return prior;
-      const [versionsRows,posts,reviews,closed,grants]=await read([
+      const [versionsRows,posts,reviews,closed,grants,heads]=await read([
         sql('SELECT * FROM app_revisions ORDER BY name'),sql('SELECT * FROM earn_submissions WHERE id=?',input.submissionId),
         sql('SELECT * FROM earn_reviews WHERE submission_id=?',input.submissionId),
         sql('SELECT 1 FROM earn_boards WHERE epoch=(SELECT epoch FROM earn_submissions WHERE id=?) OR epoch=?',input.submissionId,Math.floor(nowMs/DAY_MS)),
         sql("SELECT enabled FROM app_operator_scopes WHERE operator=? AND scope='earn-review'",principal.id),
+        sql('SELECT seq,event_hash FROM ops_config_audit ORDER BY seq DESC LIMIT 1'),
       ]);
       if(!matchesExpectedRevisions(command.expectedRevisions,revisions(versionsRows)))return conflict('revision_conflict');
       if(!posts[0]||nowMs<posts[0].submitted_ms)return conflict('invalid_review_time');
+      const event={category:reviews.length?'final-review-adoption':'final-review',entity:input.submissionId,changeKey:command.requestKey,
+        atMs:nowMs,actor:principal.id,evidenceRef:input.sourceRef,payload:{score:input.score,reason:input.reason,
+          requestDigest:command.requestDigest,reviewedAtMs:reviews[0]?.reviewed_ms??nowMs,adoptedReference:reviews.length>0}};
+      const audit=await prepareConfigAudit(heads[0],event,crypto);
       if(reviews.length){
         const row=reviews[0];
         if(row.content_score!==input.score||row.reason!==input.reason||row.source_ref!==input.sourceRef||row.moderator!==principal.id)return conflict('final_review');
-        return execute({...command,nowMs:row.reviewed_ms},{businessKey:input.submissionId,input:{...input,moderator:principal.id,adoptedReference:true},
-          result:{recorded:true,replayed:true},resultRef:input.submissionId,version:revisions(versionsRows),child:()=>[]});
+        return execute({...command,nowMs:row.reviewed_ms},{businessKey:input.submissionId,input:{...input,moderator:principal.id,adoptedReference:true,audit},
+          result:{recorded:true,replayed:true},resultRef:input.submissionId,version:revisions(versionsRows),child:(gate,values)=>configAuditStatement(audit,event,gate,values)});
       }
       if(closed.length)return conflict('board_closed');
       if(!grants[0]?.enabled)return conflict('operator_scope_required');
-      return await execute(command,{businessKey:input.submissionId,input:{...input,moderator:principal.id},result:{recorded:true,replayed:false},
+      return await execute(command,{businessKey:input.submissionId,input:{...input,moderator:principal.id,audit},result:{recorded:true,replayed:false},
         resultRef:input.submissionId,version:revisions(versionsRows),
         authoritySql:"EXISTS(SELECT 1 FROM app_operator_scopes WHERE operator=? AND scope='earn-review' AND enabled=1)",authorityValues:[principal.id],
-        child:(gate,values)=>sql(`INSERT INTO earn_reviews SELECT ?,?,?,?,?,? WHERE ${gate}`,
-          input.submissionId,input.score,principal.id,input.reason,nowMs,input.sourceRef,...values)});
+        child:(gate,values)=>[sql(`INSERT INTO earn_reviews SELECT ?,?,?,?,?,? WHERE ${gate}`,
+          input.submissionId,input.score,principal.id,input.reason,nowMs,input.sourceRef,...values),configAuditStatement(audit,event,gate,values)]});
     },
     getBookmark(){return driver.getBookmark();},
   });

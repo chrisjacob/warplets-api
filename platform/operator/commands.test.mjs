@@ -1,0 +1,71 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {prepareOperatorCommand,dispatchOperatorCommand,LOCAL_OPERATOR_COMMANDS} from '../application/operator-commands.mjs';
+import {createOperationsCommand,OPERATIONS} from '../storage/atomic-operations.mjs';
+import {createNodeCrypto} from '../security/node-crypto.mjs';
+
+const crypto=createNodeCrypto(),nowMs=Date.parse('2026-11-07T04:00:00Z'),epoch=Math.floor(nowMs/86400000);
+const principal={kind:'operator',id:'synthetic-local-operator'};
+const revisions={earn:'0',source:'12',control:'3'};
+const staffing=()=>({operationKind:OPERATIONS.configureWorkload,requestKey:'synthetic-staffing',expectedRevisions:{...revisions},
+ input:{effectiveEpoch:epoch,staffedMinutes:5,secondsPerReview:45,admissionLimit:50,reason:'Synthetic staffed pilot'}});
+const pause=()=>({operationKind:OPERATIONS.changeScope,requestKey:'synthetic-pause',expectedRevisions:{...revisions},
+ input:{scope:'earn-admission',paused:true,previousRevision:null,reason:'Synthetic pause',evidenceRef:'synthetic:operator-preview'}});
+const prepare=request=>prepareOperatorCommand({principal,request,nowMs},crypto);
+const invalid=error=>error.code==='invalid_input';
+
+test('local operator registry rejects member authority, extra fields, unknown commands and incomplete revisions before hashing',async()=>{
+ let hashes=0;const counting={...crypto,async sha256(bytes){hashes++;return crypto.sha256(bytes);}};
+ const bad=[{...staffing(),actor:'injected'},{...staffing(),nowMs}, {...staffing(),operationKind:OPERATIONS.reserveOptionalCost},
+  {...staffing(),requestKey:'bad key'}, {...staffing(),expectedRevisions:{earn:'0',source:'12'}},
+  {...staffing(),expectedRevisions:{...revisions,other:'1'}}, {...staffing(),expectedRevisions:{...revisions,control:3}},
+  {...staffing(),expectedRevisions:{...revisions,control:'03'}}, {...staffing(),expectedRevisions:{...revisions,control:'9007199254740992'}},
+  {...staffing(),input:{...staffing().input,limit:99}}];
+ for(const request of bad)await assert.rejects(prepareOperatorCommand({principal,request,nowMs},counting),invalid);
+ for(const badPrincipal of [{kind:'wallet',wallet:'synthetic'}, {...principal,sessionToken:'not-command-data'}, {kind:'operator',id:' '}])
+  await assert.rejects(prepareOperatorCommand({principal:badPrincipal,request:staffing(),nowMs},counting),invalid);
+ await assert.rejects(prepareOperatorCommand({principal,request:staffing(),nowMs:NaN},counting),invalid);
+ assert.equal(hashes,0);assert.deepEqual(LOCAL_OPERATOR_COMMANDS,[OPERATIONS.configureWorkload,OPERATIONS.changeScope]);
+});
+
+test('preview validates economic and protected-scope bounds without inventing current authority',async()=>{
+ for(const input of [{...staffing().input,effectiveEpoch:-1},{...staffing().input,staffedMinutes:1441},
+  {...staffing().input,staffedMinutes:0.5},{...staffing().input,secondsPerReview:0}, {...staffing().input,secondsPerReview:3601},
+  {...staffing().input,admissionLimit:101},{...staffing().input,reason:' x '}])await assert.rejects(prepare({...staffing(),input}),invalid);
+ for(const input of [{...pause().input,scope:'operation-recovery'},{...pause().input,scope:'vault-claim'},
+  {...pause().input,paused:1},{...pause().input,previousRevision:''},{...pause().input,evidenceRef:''}])await assert.rejects(prepare({...pause(),input}),invalid);
+ const value=await prepare(staffing());assert.equal(value.preview.summary.calculatedCapacity,6);assert.equal(value.preview.financialExecution,false);
+ assert.deepEqual(value.preview.expectedRevisions,revisions);assert.equal(value.preview.requestDigest,value.command.requestDigest);
+ assert.equal(value.preview.summary.currentOrFutureEpoch,true);
+ assert.equal((await prepare({...staffing(),input:{...staffing().input,staffedMinutes:0}})).preview.summary.calculatedCapacity,0);
+ const p=await prepare(pause());assert.deepEqual(p.preview.summary,pause().input);assert.equal(p.preview.financialExecution,false);
+});
+
+test('command identity matches existing atomic operations and survives later retry time',async()=>{
+ const request=staffing(),first=await prepare(request),later=await prepareOperatorCommand({principal,request,nowMs:nowMs+2*86400000},crypto);
+ const existing=await createOperationsCommand(request.operationKind,{principal,requestKey:request.requestKey,input:request.input,expectedRevisions:request.expectedRevisions,nowMs},crypto);
+ assert.deepEqual(first.command,existing);assert.equal(first.command.requestDigest,later.command.requestDigest);
+ assert.equal(later.preview.summary.currentOrFutureEpoch,false);assert.notEqual(first.command.nowMs,later.command.nowMs);
+ for(const changed of [{...request,input:{...request.input,admissionLimit:49}}, {...request,expectedRevisions:{...revisions,control:'4'}}])
+  assert.notEqual((await prepare(changed)).command.requestDigest,first.command.requestDigest);
+});
+
+test('operator principal, revisions and input are captured before asynchronous hashing and the result is deeply immutable',async()=>{
+ let release,started;const gate=new Promise(resolve=>{release=resolve;}),entered=new Promise(resolve=>{started=resolve;});
+ const delayed={...crypto,async sha256(bytes){started();await gate;return crypto.sha256(bytes);}},p={...principal},request=staffing(),original=structuredClone(request);
+ const pending=prepareOperatorCommand({principal:p,request,nowMs},delayed);await entered;
+ p.id='different';request.input.staffedMinutes=1400;request.expectedRevisions.source='99';request.operationKind=OPERATIONS.changeScope;release();
+ const result=await pending,expected=await prepare(original);assert.deepEqual(result,expected);
+ for(const value of [result,result.command,result.command.input,result.command.principal,result.command.expectedRevisions,result.preview,result.preview.summary,result.preview.expectedRevisions])assert.equal(Object.isFrozen(value),true);
+ assert.throws(()=>{result.command.input.staffedMinutes=2;},TypeError);assert.throws(()=>{result.preview.financialExecution=true;},TypeError);
+});
+
+test('dispatch invokes only the named repository methods and preserves receipt/replay outcomes',async()=>{
+ const calls=[],accepted=Object.freeze({kind:'replayed',receipt:{operationId:'synthetic-existing'},value:{limit:6}}),repo={
+  configureWorkload(command){calls.push(['staffing',command]);return Promise.resolve(accepted);},
+  changeScope(command){calls.push(['scope',command]);return Promise.resolve({kind:'conflict',code:'revision_conflict'});}};
+ const old=await prepareOperatorCommand({principal,request:staffing(),nowMs:nowMs+86400000},crypto);
+ assert.equal(await dispatchOperatorCommand(repo,old),accepted);const scope=await prepare(pause());assert.deepEqual(await dispatchOperatorCommand(repo,scope),{kind:'conflict',code:'revision_conflict'});
+ assert.deepEqual(calls,[['staffing',old.command],['scope',scope.command]]);
+ assert.throws(()=>dispatchOperatorCommand(repo,{command:{operationKind:'arbitrary-sql'}}),invalid);assert.equal(calls.length,2);
+});

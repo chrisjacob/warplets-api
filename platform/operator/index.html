@@ -1,14 +1,19 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>10X · Operator</title><link rel="stylesheet" href="/operator.css"><script type="module" src="/operator.js"></script></head>
 <body><main><header><span>10X.MEME</span><h1>Operator console</h1></header>
-<p id="feedback" role="status" aria-live="polite"></p>
+<p>Local fixture controls. Financial execution is disabled.</p><p id="feedback" role="status" aria-live="polite" tabindex="-1"></p>
 <form id="login" hidden><h2>Open a local session</h2><label>Startup code<input type="password" name="code" required autocomplete="off"></label><button>Sign in</button></form>
 <section id="workspace" hidden>
 <div class="toolbar"><label>UTC board date<input type="date" id="day"></label><label>Queue<select id="state" aria-label="Queue"><option value="pending">Pending reviews</option><option value="reviewed">Final decisions</option></select></label><button id="logout">Sign out</button></div>
-<section><h2>Review capacity</h2><p id="capacity"></p>
-<details><summary>Change staffing</summary><form id="staff">
+<section><h2>Review capacity</h2><p id="capacity"></p><p id="staff-permission"></p>
+<details><summary>Change staffing</summary><form id="staff"><fieldset id="staff-fields"><legend>Staffing plan</legend>
 <label>Minutes available<input name="staffedMinutes" type="number" min="0" max="1440" required></label>
 <label>Seconds per review<input name="secondsPerReview" type="number" min="1" max="3600" value="180" required></label>
 <label>Admission limit<input name="admissionLimit" type="number" min="0" max="100" value="100" required></label>
-<label>Reason<input name="reason" maxlength="256" required></label><button>Apply staffing</button></form></details></section>
-<section><h2>Content reviews</h2><div id="queue"></div><button id="next" hidden>Next page</button></section>
+<label>Staffing reason<input name="reason" maxlength="256" required></label><button>Preview staffing</button></fieldset></form></details></section>
+<section><h2>Scoped pause</h2><p>Claims, principal and recovery remain protected.</p><p id="scope-permission"></p><p id="scope-current"></p>
+<form id="scope-form"><fieldset id="scope-fields"><legend>Application scope</legend>
+<label>Scope<select id="scope" name="scope" aria-label="Scope"></select></label><label>Action<select name="paused" aria-label="Action"><option value="true">Pause new work</option><option value="false">Resume new work</option></select></label>
+<label>Scope reason<input name="reason" maxlength="256" required></label><label>Evidence reference<input name="evidenceRef" maxlength="256" required></label><button>Preview scope change</button></fieldset></form></section>
+<section id="preview" hidden aria-labelledby="preview-title"><h2 id="preview-title" tabindex="-1">Review local change</h2><p id="preview-state"></p><dl id="preview-details"></dl><p>No spending or on-chain execution is authorized.</p><button id="confirm">Confirm local change</button> <button id="discard">Discard unsubmitted preview</button></section>
+<section><h2>Content reviews</h2><p>Final moderation is unavailable until its audited command is connected.</p><div id="queue"></div><button id="next" hidden>Next page</button></section>
 </section></main></body></html>
