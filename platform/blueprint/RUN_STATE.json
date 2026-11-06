@@ -5,7 +5,7 @@
   "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
   "currentTask": "B11",
-  "lastUpdatedAt": "2026-11-06T12:13:57.940323+00:00",
+  "lastUpdatedAt": "2026-11-06T12:58:29.411536+00:00",
   "migrationAllocation": {
     "next": 56,
     "reserved": [
@@ -295,8 +295,8 @@
       "status": "in_progress",
       "owner": "coordinator",
       "baseCommit": "96cdfa1fb6334fcb27deb831d786243227b9d1a8",
-      "implementationCommit": "02743123accfe0456e3ccc10af61968621626335",
-      "pushed": false,
+      "implementationCommit": "9f87eff9351f5d7333fc0297e8c8d733efb6d71f",
+      "pushed": true,
       "evidence": [
         "platform/validation/runs/2026-11-06-overnight/B11-1.json",
         "platform/validation/runs/2026-11-06-overnight/B11-2-intake.json",
@@ -369,9 +369,10 @@
         "platform/validation/runs/2026-11-06-overnight/B11-69-stage-page.json",
         "platform/validation/runs/2026-11-06-overnight/B11-67-full-recovery.json",
         "platform/validation/runs/2026-11-06-overnight/B11-70-ready-business-replay.json",
-        "platform/validation/runs/2026-11-06-overnight/B11-71-reference-regression.json"
+        "platform/validation/runs/2026-11-06-overnight/B11-71-reference-regression.json",
+        "platform/validation/runs/2026-11-06-overnight/B11-72-ci-runtime.json"
       ],
-      "nextAction": "Reference850 resolved as849broad passes+71correctedcasepass;67/70Node/D1pass. FullEdge48594active. AfterCI42213197950for6bbebacpasses,pushlatest coherent tested checkpoint includingallqueuedmilestones and69fix; newcheckpointtriggerrequestsfullcurrentCI. FollowCIwhilefinishinglocalEdge/rollup;B11notverifiedyet.",
+      "nextAction": "CI42216368281 timedout40min with no recordedassertionfailures;72 extends onlyjobtimeout120min andreruns unchangedchecks. FulllocalEdge48594stillactive/no reportedfailures. Completefinalgates thenB11rollup/B12.",
       "blocker": null
     },
     "B12": {

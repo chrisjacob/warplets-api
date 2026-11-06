@@ -1,0 +1,15 @@
+{
+  "task": "B11",
+  "checkpoint": "B11-72",
+  "change": "Increase existing complete validation job timeout from40 to120minutes. All steps,commands,pinned dependencies,permissions and assertions unchanged.",
+  "evidence": {
+    "run": 42216368281,
+    "head": "9f87eff9351f5d7333fc0297e8c8d733efb6d71f",
+    "outcome": "job exceeded maximum execution time40m0s;operation canceled",
+    "log": "work/ci-42216368281-full.log",
+    "observed": "No not-ok assertion in retained log; full-turnout recovery case passed at12:54:20UTC before cancellation12:56:30UTC. Reference run had not returned final totals."
+  },
+  "validation": "Exact single-value workflow diff; rerun complete test-only CI on pushed change.",
+  "acceptanceWeakened": false,
+  "productCodeChanged": false
+}
