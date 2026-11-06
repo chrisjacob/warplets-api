@@ -5,7 +5,7 @@
   "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
   "currentTask": "B13",
-  "lastUpdatedAt": "2026-11-06T16:39:13.395406+00:00",
+  "lastUpdatedAt": "2026-11-06T16:45:46.813549+00:00",
   "migrationAllocation": {
     "next": 65,
     "reserved": [
@@ -465,9 +465,11 @@
         "platform/validation/runs/2026-11-06-overnight/B13-06.json",
         "platform/validation/runs/2026-11-06-overnight/B13-07.json",
         "platform/validation/runs/2026-11-06-overnight/B13-08.json",
-        "platform/validation/runs/2026-11-06-overnight/B13-09.json"
+        "platform/validation/runs/2026-11-06-overnight/B13-09.json",
+        "platform/validation/runs/2026-11-06-overnight/B13-10.json",
+        "platform/validation/runs/2026-11-06-overnight/B13-acceptance.json"
       ],
-      "nextAction": "Retention/B03 delivery and reporting coverage verified. Finish actual runtime mutation-event emission/privacy checks, then final acceptance rollup. Follow CI42250589528 to completion.",
+      "nextAction": "All four final local acceptance gaps resolved and pushed through f870e19. Follow active CI42250589528, then trigger latest full test-only checkpoint; mark verified after pass.",
       "blocker": null
     },
     "B14": {
@@ -491,9 +493,11 @@
       "implementationCommit": "28d5ea91d1878e011630097fc0b0584fc6d29287",
       "pushed": true,
       "evidence": [
-        "platform/validation/runs/2026-11-06-overnight/B15-01.json"
+        "platform/validation/runs/2026-11-06-overnight/B15-01.json",
+        "platform/validation/runs/2026-11-06-overnight/B15-02.json",
+        "platform/validation/runs/2026-11-06-overnight/B15-03.json"
       ],
-      "nextAction": "Owner-only portable recovery reader verified on Node and local D1. Next: typed unsigned action vocabulary and evidence-derived preparation; no signing/broadcast or B15 completion claim.",
+      "nextAction": "Bounded owner request vocabulary and legacy preparation async snapshot fix pushed. Agent implementing evidence-derived swap preview with real B14 retained sources; no wire factory or preparation persistence yet.",
       "blocker": null
     },
     "B16": {

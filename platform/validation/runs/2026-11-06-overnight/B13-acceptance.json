@@ -1,0 +1,263 @@
+{
+  "task": "B13",
+  "audit": "Final local acceptance rollup; current-head full CI pending",
+  "observedHead": "f870e19",
+  "inputs": [
+    "platform/blueprint/tasks/B13.md",
+    "platform/blueprint/design/storage-earn.md#AE-09"
+  ],
+  "requirementMatrix": [
+    {
+      "requirement": "B13.1 owner consent, disabled default, terms/topics/channel, revision and scoped replay; revoke cancels leases/inbox; old enable never re-enables",
+      "status": "covered",
+      "code": [
+        "platform/notifications/consent.mjs",
+        "platform/storage/notification-consent.mjs",
+        "platform/storage/063-notification-consent.sql"
+      ],
+      "tests": [
+        "platform/notifications/consent.test.mjs",
+        "platform/storage/notification-consent.test.mjs",
+        "platform/edge/test/notification-consent.test.mjs"
+      ],
+      "evidence": [
+        "platform/validation/runs/2026-11-06-overnight/B13-01.json"
+      ],
+      "facts": "11 Node cases and23 paired D1 calls; mandatory children, races, lost acknowledgement, exact legacy hash/current preference replay."
+    },
+    {
+      "requirement": "B13.2 deterministic source enqueue, actual local launch/vote/reward evidence, daily3, TTL and source/consent fences",
+      "status": "covered",
+      "code": [
+        "platform/notifications/delivery-plan.mjs",
+        "platform/storage/notification-delivery.mjs",
+        "platform/storage/064-notification-delivery.sql"
+      ],
+      "tests": [
+        "platform/notifications/delivery-plan.test.mjs",
+        "platform/storage/notification-delivery.test.mjs",
+        "platform/edge/test/notification-delivery.test.mjs"
+      ],
+      "evidence": [
+        "platform/validation/runs/2026-11-06-overnight/B13-05.json"
+      ],
+      "facts": "11 Node cases and29 paired D1 calls; deterministic legacy identity/templates; source changes/clock/revoke races and daily cap; no public recipient/message input."
+    },
+    {
+      "requirement": "B13.3 local-only delivery, unknown/expired lease reconciliation, stale-worker fencing, exact irreversible receipt replay",
+      "status": "covered-except-B03-delivery-attachment",
+      "code": [
+        "platform/storage/notification-delivery.mjs",
+        "platform/notifications/cli.mjs"
+      ],
+      "tests": [
+        "platform/storage/notification-delivery.test.mjs",
+        "platform/edge/test/notification-delivery.test.mjs",
+        "platform/notifications/cli.test.mjs"
+      ],
+      "evidence": [
+        "platform/validation/runs/2026-11-06-overnight/B13-05.json",
+        "work/b13-retention-evidence.json"
+      ],
+      "facts": "Mandatory inbox+outbox effects; receipt survives inbox revocation and prevents redelivery. Lease max20,30 seconds, five real attempts. Reconciliation and mandatory cleanup remain available under optional pause. CLI has scoped manual drain; no B03 delivery adapter yet."
+    },
+    {
+      "requirement": "B13.4 actual Node/Worker routes, accurate capabilities, no-store, owner caches and runtime query gating",
+      "status": "covered",
+      "routes": [
+        "GET /api/v1/notifications/capabilities",
+        "GET /api/v1/notifications/subscriptions",
+        "POST /api/v1/notifications/subscriptions",
+        "GET /api/v1/notifications/inbox"
+      ],
+      "code": [
+        "platform/notifications/consent-http.mjs",
+        "platform/notifications/http.mjs",
+        "platform/edge/src/notifications.ts",
+        "platform/edge/src/worker.ts",
+        "platform/contracts/capabilities.mjs",
+        "platform/site/src/notifications.tsx"
+      ],
+      "tests": [
+        "platform/notifications/consent-http.test.mjs",
+        "platform/edge/test/notification-http.test.mjs",
+        "platform/contracts/capabilities.test.mjs",
+        "platform/site/tests/notifications-runtime-qa.mjs"
+      ],
+      "evidence": [
+        "platform/validation/runs/2026-11-06-overnight/B13-02.json",
+        "platform/validation/runs/2026-11-06-overnight/B13-06.json"
+      ],
+      "facts": "8 Node HTTP cases; actual main Worker HTTP with D1, real SQL clock, live synthetic sessions,25+1 owner pagination,TTL,revocation/no enqueue route; separate actual React+Node browser at4 widths,12 generated auth-message signatures and genuine guarded enqueue/delivery. Browser itself is not claimed D1."
+    },
+    {
+      "requirement": "B13.5/AE09 exact usage, staffing, jobs/evidence/publication/unknown outcomes and private readiness",
+      "status": "partially-covered",
+      "code": [
+        "platform/observability/metrics.mjs",
+        "platform/operations/readiness.mjs",
+        "platform/operator/console.mjs"
+      ],
+      "tests": [
+        "platform/observability/metrics.test.mjs",
+        "platform/operations/readiness.test.mjs",
+        "platform/edge/test/operational-metrics.test.mjs",
+        "platform/operator/console.test.mjs",
+        "platform/operator/readiness-browser-qa.mjs"
+      ],
+      "evidence": [
+        "platform/validation/runs/2026-11-06-overnight/B13-03.json",
+        "platform/validation/runs/2026-11-06-overnight/B13-04.json"
+      ],
+      "facts": "One atomic22-statement read, zero writes,256-row/64KiB read/16KiB output limits. Counts staffing, job states/attempts, quota admissions, commands/effects, evidence head status, publication gaps, retained catalog bytes. Private operator session/no-store. Missing costs and provider calls explicit unknown. Missing detailed counters listed below."
+    },
+    {
+      "requirement": "B13.5/AE09 structured bounded operational emission, sensitive-canary redaction at real logging boundary",
+      "status": "formatter-covered-instrumentation-missing",
+      "code": [
+        "platform/observability/events.mjs",
+        "platform/server/start.mjs",
+        "platform/edge/src/worker.ts"
+      ],
+      "tests": [
+        "platform/observability/events.test.mjs",
+        "platform/observability/metrics.test.mjs"
+      ],
+      "evidence": [
+        "platform/validation/runs/2026-11-06-overnight/B13-03.json"
+      ],
+      "facts": "Closed event labels/numeric fields and domain-hashed IDs have canary/mutation tests. createOperationalEvent has no production callers. Existing Node/Worker errors use fixed public messages and no request/body logger was found. Formatter safety alone is not emitted-service acceptance."
+    },
+    {
+      "requirement": "B13.6 bounded retention, permanent replay/financial data preserved, B03 handler attachment without a second notice lease engine",
+      "status": "frozen-covered",
+      "code": [
+        "platform/storage/notification-delivery.mjs",
+        "platform/jobs/notification-retention-handler.mjs",
+        "platform/notifications/retention-plan.mjs"
+      ],
+      "tests": [
+        "platform/storage/notification-retention.test.mjs",
+        "platform/jobs/notification-retention-handler.test.mjs",
+        "platform/edge/test/notification-retention.test.mjs"
+      ],
+      "evidence": [
+        "work/b13-retention-evidence.json"
+      ],
+      "facts": "At most100 outbox rows expired>=7 days; inbox FK cascade only. Counts RETURNING IDs, not D1 changes.101 boundary, paused cleanup, actual SQL clock/generation and exact B03 job/execution fences, lost ack. Actual Node+D1 registry/runTick contract two-page retry/completion. No periodic schedule or new schema. No transient event log store exists to purge."
+    },
+    {
+      "requirement": "AE09 readiness separate local/production evidence with timestamps, never launch approval",
+      "status": "covered",
+      "code": [
+        "platform/operations/readiness.mjs",
+        "platform/operator/ui.mjs"
+      ],
+      "tests": [
+        "platform/operations/readiness.test.mjs",
+        "platform/operator/readiness-browser-qa.mjs"
+      ],
+      "evidence": [
+        "platform/validation/runs/2026-11-06-overnight/B13-03.json",
+        "platform/validation/runs/2026-11-06-overnight/B13-04.json"
+      ],
+      "facts": "passed/pending/failed/not-applicable per check; observation times/fixed references; local parity/backup recency/provider/cost/custody/physical staff/wallet remain pending. isAuthorization and financialExecution false; no launch Boolean."
+    },
+    {
+      "requirement": "AE09 B02 monthly commitments, settlement-month charges,80% warnings/ceilings and protected recovery",
+      "status": "covered",
+      "code": [
+        "platform/operations/portable-controls.mjs",
+        "platform/storage/atomic-operations.mjs",
+        "platform/jobs/provider-attempt.mjs"
+      ],
+      "tests": [
+        "platform/operations/controls.test.mjs",
+        "platform/observability/metrics.test.mjs",
+        "platform/jobs/provider-attempt.test.mjs",
+        "platform/storage/notification-retention.test.mjs"
+      ],
+      "evidence": [
+        "platform/validation/runs/2026-11-06-overnight/B13-03.json",
+        "work/b13-retention-evidence.json"
+      ],
+      "facts": "Reserved prior-month liabilities continue reserving headroom; actual settlement charged in settlement month. Warning/limit reuse existing rules; claims/reconciliation protected. Quota admission before dispatch is not treated as proof of an external call. Failed read consumes quota; unknown checkpoint prevents redispatch."
+    },
+    {
+      "requirement": "B13 completion recovery, durable receipt retention, original ready times, session/lease invalidation and privacy",
+      "status": "frozen-covered-Node-private-V2",
+      "code": [
+        "platform/recovery/reconcile.mjs",
+        "platform/storage/notification-delivery.mjs"
+      ],
+      "tests": [
+        "platform/recovery/v2-notifications.test.mjs",
+        "platform/recovery/v2-notification-delivery.test.mjs"
+      ],
+      "evidence": [
+        "platform/validation/runs/2026-11-06-overnight/B13-01.json",
+        "work/b13-retention-evidence.json"
+      ],
+      "facts": "Normal fresh private V2 pipeline with actual3 guarded consent,4 enqueue,2 delivered receipts;1111 steps,max20 ops/104443B. Exact rows except documented leased->unknown/token clearing. Old live lease fenced, ready_ms retained; revoked old-enable/delivery replay cannot recreate inbox. This new guarded restore is Node, not a claim of full D1 recovery."
+    }
+  ],
+  "trueAttemptAccounting": {
+    "noticeLeaseAttempts": "Increment only successful current candidate claim; concurrency test and20expired+20fresh test preserve1 each. Five-attempt ceiling proven. Transient rows purged after retention; cannot imply all-time totals.",
+    "jobAttempts": "Durable app_job_attempts, separated from deduplicated command effects.",
+    "providerQuotaAdmissions": "app_provider_attempts charges before dispatch; interrupted dispatch can make actual call unknown, so global null is intentionally correct.",
+    "actualExternalCost": "Unknown, never inferred from free fixture accounting or quotas."
+  },
+  "loggingBoundaryReview": {
+    "productionRequestLogging": "No raw request logger found in inspected Node/Worker notification paths; fixed error responses.",
+    "operatorBootstrap": "Console intentionally prints a one-time human bootstrap secret; this is an explicit local bootstrap channel, not redacted operational telemetry, and should not be captured as a production event log.",
+    "privateCLI": "Lease JSON is explicit private worker output required to finish work; errors now fixed text. Do not confuse private command output with a safe general log sink.",
+    "sink": "Actual Node and main Worker exact mutation observers emit closed redacted events. B13-10 proves real consent and Earn outcomes; sink failure does not change response. Retained metrics explicitly exclude unrecorded historical requests."
+  },
+  "notAdditionalB13Work": [
+    "External notification provider/email/webhook, paid telemetry, remote deployment/scheduling, signing/broadcasting remain excluded.",
+    "No need to invent persistent log storage solely to satisfy retention; no such transient log table currently exists.",
+    "Unknown actual external calls/costs are truthful and must not be replaced with zero or quota admissions.",
+    "Actual React positive browser is Node plus separately proven mainWorker HTTP/D1; no whole-browser-on-D1 claim.",
+    "Published financial commitments remain permanent; no financial flags may change."
+  ],
+  "checkpointWork": [
+    "Follow active CI42250589528 to completion, then trigger full test-only checkpoint covering B13-07 through10 and B15 foundations. B13 remains in progress until checkpoint passes."
+  ],
+  "productEdits": false,
+  "testsRunForAudit": false,
+  "financialExecution": false,
+  "externalCalls": 0,
+  "localAcceptance": "passed",
+  "fullCi": "pending checkpoint through B13-10",
+  "updatedAt": "2026-11-06T16:45:46.811895+00:00",
+  "resolvedGaps": [
+    {
+      "id": "operational-event-emission",
+      "requirement": "B13 step5 and AE09 emit structured bounded events/service instrumentation",
+      "status": "resolved",
+      "evidence": "platform/validation/runs/2026-11-06-overnight/B13-10.json",
+      "originalObservation": "createOperationalEvent is referenced only by events.test.mjs; production paths never invoke it. No actual sink/observer canary assertion exists."
+    },
+    {
+      "id": "notification-B03-delivery",
+      "requirement": "B13 step3 conditional attachment when B03 runner exists",
+      "status": "resolved",
+      "evidence": "platform/validation/runs/2026-11-06-overnight/B13-08.json",
+      "originalObservation": "B03 retention-maintenance handler is implemented and run through the registry, but local inbox delivery is invoked by CLI/repository only. No registered delivery adapter calls existing notice-specific lease/finish/reconcile APIs."
+    },
+    {
+      "id": "observation-counter-coverage",
+      "requirement": "B13 step5 and AE09 accepted/refused/pending admissions, actual attempt separation, unresolved categories and oldest board/job holds",
+      "status": "resolved",
+      "evidence": "platform/validation/runs/2026-11-06-overnight/B13-09.json",
+      "originalObservation": "Metrics expose actual job attempts and quota admissions separately, correctly keep actualProviderCalls unknown; however notice_outbox.attempts is not reported, refusedAdmissions and pendingAdmissionAttempts are null, evidence is grouped only by head status and oldestHeldAge refers only to jobs. No durable refused/pending attempt source exists in this read model."
+    },
+    {
+      "id": "populated-claim-artifact-retention-assertion",
+      "requirement": "B13 acceptance TTL cleanup excludes published claim artifacts",
+      "status": "resolved",
+      "evidence": "platform/validation/runs/2026-11-06-overnight/B13-08.json",
+      "originalObservation": "Retention test compares all non-notice business tables, but those financial/artifact tables are empty in that fixture. Guarded restore fixture has populated golden claims/catalog but does not invoke purge. SQL only targets notice_outbox with inbox cascade, so no deletion defect was found; explicit populated acceptance is still missing."
+    }
+  ]
+}
