@@ -1,0 +1,19 @@
+{
+  "task": "B13",
+  "slice": "B13-02",
+  "status": "verified-slice",
+  "baseCommit": "6705396",
+  "scope": [
+    "Node public consent routes now use portable guarded service",
+    "Worker consent adapter tested with live owner sessions in isolated local runtime; not yet mounted in mainWorker"
+  ],
+  "checks": {
+    "node": "7PASS2020.3453ms work/b13-node-consent-integration.log",
+    "worker": "1PASS24392.4555ms (23514.814case),actualD1SQLclock/livefixture sessions/ownerisolation/revokedreplay/no delivery route;work/b13-consent-http-edge.log",
+    "types": "Edge project tscPASS",
+    "fixtureChange": "Historical HTTP fixture used invalid holder wallet/fixed past clock; now canonical fixture wallet and actualDate.now, no weakened SQL fence."
+  },
+  "externalTransport": false,
+  "financialExecution": false,
+  "remaining": "Inbox read parity and deterministic private source/delivery port before Worker mainroute/capability mount."
+}

@@ -1,0 +1,26 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {createHash} from 'node:crypto';
+import {encode58} from '../../server/base58.mjs';
+import {localRuntime} from './local-runtime.mjs';
+const origin='http://localhost',path=origin+'/api/v1/notifications',terms='10x-notice-local-inbox-v1';
+test('actual local D1 consent HTTP uses live owner sessions, no-store and exact revoked replay',async t=>{
+ const {mf,db}=await localRuntime(t,new URL('./fixtures/notification-http-worker.ts',import.meta.url)),wallets=[19,20].map(n=>encode58(new Uint8Array(32).fill(n))),tokens=['synthetic-alice','synthetic-bob'];
+ for(let i=0;i<2;i++)await db.prepare('INSERT INTO sessions VALUES(?,?,?,?)').bind(createHash('sha256').update(tokens[i]).digest('hex'),wallets[i],origin,Date.now()+60000).run();
+ const send=(suffix='/subscriptions',{body,key='synthetic-enable',owner=0,headers={},method=body?'POST':'GET'}={})=>mf.dispatchFetch(path+suffix,{method,headers:{origin,'content-type':'application/json','idempotency-key':key,...(owner===null?{}:{cookie:'tenx_edge_local_session='+tokens[owner]}),...headers},...(body?{body:JSON.stringify(body)}:{})});
+ const input={channel:'local-inbox',enabled:true,topics:['launch'],terms,expectedRevision:0};
+ assert.equal((await send('/subscriptions',{owner:null})).status,401);
+ assert.equal((await send('/subscriptions',{body:input,headers:{origin:'https://elsewhere.invalid'}})).status,403);
+ assert.equal((await send('/subscriptions',{body:{...input,wallet:wallets[1]}})).status,400);
+ const enabled=await send('/subscriptions',{body:input});assert.equal(enabled.status,200);assert.equal(enabled.headers.get('cache-control'),'no-store');assert.equal((await enabled.json()).appliedRevision,1);
+ assert.equal((await (await send('/subscriptions',{owner:1})).json()).enabled,false);
+ const revoked=await send('/subscriptions',{key:'synthetic-revoke',body:{...input,enabled:false,topics:[],expectedRevision:1}});assert.equal(revoked.status,200);
+ const replay=await (await send('/subscriptions',{body:input})).json();assert.equal(replay.replay,true);assert.equal(replay.appliedRevision,1);assert.equal(replay.preference.enabled,false);assert.equal(replay.preference.revision,2);
+ assert.equal(await db.prepare("SELECT COUNT(*) n FROM app_command_receipts WHERE operation_kind='notifications.set-consent.v1'").first('n'),2);
+ assert.equal((await send('/subscriptions',{body:{...input,topics:['voting']}})).status,409);
+ const caps=await (await send('/capabilities',{owner:null})).json();assert.equal(caps.externalTransport,false);assert.equal(caps.channel,'local-inbox');
+ await db.prepare('DELETE FROM sessions WHERE wallet=?').bind(wallets[0]).run();assert.equal((await send()).status,401);
+ assert.equal((await send('/enqueue',{body:{wallet:wallets[0],message:'untrusted'}})).status,404);
+ assert.equal(await db.prepare('SELECT COUNT(*) n FROM notice_outbox').first('n'),0);
+ t.diagnostic(JSON.stringify({source:'synthetic-local-notice-http',actualSqlClock:true,ownerIsolation:true,revokedReplay:true,noDeliveryRoute:true,externalTransport:false}));
+});

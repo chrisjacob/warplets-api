@@ -5,9 +5,9 @@
   "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
   "currentTask": "B13",
-  "lastUpdatedAt": "2026-11-06T15:46:19.708146+00:00",
+  "lastUpdatedAt": "2026-11-06T15:53:07.804543+00:00",
   "migrationAllocation": {
-    "next": 64,
+    "next": 65,
     "reserved": [
       {
         "version": 31,
@@ -173,6 +173,11 @@
         "version": 63,
         "task": "B13",
         "purpose": "guarded member consent mandatory effects, retained replay identities and indexed cancellation"
+      },
+      {
+        "version": 64,
+        "task": "B13",
+        "purpose": "private deterministic enqueue/local inbox delivery mandatory effects and immutable event content"
       }
     ],
     "historicalGap": 19
@@ -448,12 +453,13 @@
       "status": "in_progress",
       "owner": "coordinator",
       "baseCommit": "1979d9a",
-      "implementationCommit": null,
-      "pushed": false,
+      "implementationCommit": "6705396",
+      "pushed": true,
       "evidence": [
-        "platform/validation/runs/2026-11-06-overnight/B13-01.json"
+        "platform/validation/runs/2026-11-06-overnight/B13-01.json",
+        "platform/validation/runs/2026-11-06-overnight/B13-02.json"
       ],
-      "nextAction": "Commit/push B13-01 consent/retention recovery, then port deterministic notice enqueue/delivery/inbox and mount verified routes. Readonlymetrics agent active; backend planningdelivery. CI42242947709 on5aa1d4b pending.",
+      "nextAction": "Node consent integration and unmounted Worker adapter verified; continue private enqueue/delivery/inbox064, readonlymetrics/readiness. MainWorker mount/capabilities after fullread acceptance. CI42242947709 stillreference; usage38%.",
       "blocker": null
     },
     "B14": {

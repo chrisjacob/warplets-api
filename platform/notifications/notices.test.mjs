@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
+import {encode58} from '../server/base58.mjs';
 import { openDatabase } from '../storage/database.mjs';
 import { createApp } from '../server/application.mjs';
 import { changeScope } from '../operations/controls.mjs';
@@ -68,7 +69,7 @@ test('expired leases become unknown before reconciliation; transient retry uses 
   assert.equal(queue(db,1,{now:at+10*DAY_MS}).reason,'no-current-event');
 });
 test('session HTTP accepts only explicit wallet-owned consent and bounded JSON, and exposes no receiver token fields',async t=>{
-  const db=setup(t),token='test-session';
+  const db=setup(t),token='test-session',at=Date.now(),wallet=encode58(new Uint8Array(32).fill(11));
   db.prepare('INSERT INTO sessions VALUES(?,?,?,?)').run(createHash('sha256').update(token).digest('hex'),wallet,'http://localhost',at+DAY_MS);
   const app=createApp(db,{clock:()=>at});
   const path='http://localhost/api/v1/notifications/';

@@ -1,8 +1,13 @@
 import { consumeQuota, currentSession } from '../server/auth.mjs';
-import { boundedJson, BodyInputError } from '../server/body.mjs';
+import {handleNotificationConsent} from './consent-http.mjs';
+import {createNotificationConsentService} from './consent.mjs';
+import {createNotificationConsentRepository} from '../storage/notification-consent.mjs';
+import {createNodeAtomicDriver} from '../storage/node/atomic-driver.mjs';
+import {createNodeCrypto} from '../security/node-crypto.mjs';
+import {randomUUID} from 'node:crypto';
 import { failure, json } from '../server/api.mjs';
 import { EarnError } from '../earn/checks.mjs';
-import { inbox, noticeCapabilities, preferences, setConsent, TERMS } from './notices.mjs';
+import { inbox, TERMS } from './notices.mjs';
 
 const base='/api/v1/notifications';
 const response=description=>({description,content:{'application/json':{schema:{type:'object'}}}});
@@ -24,10 +29,11 @@ export const notificationPaths={
 export async function handleNotifications(db,request,peer,now) {
   const u=new URL(request.url),which=u.pathname.slice(base.length);
   if(!u.pathname.startsWith(base+'/')||!['/capabilities','/subscriptions','/inbox'].includes(which))return null;
-  const methods=which==='/subscriptions'?['GET','POST']:['GET'];
-  if(!methods.includes(request.method))return failure(405,'method_not_allowed','Unsupported method.',{allow:methods.join(', ')});
-  if(which==='/capabilities')return json(noticeCapabilities);
-  if(request.method==='POST'&&request.headers.get('origin')!==u.origin)return failure(403,'invalid_origin','Use the local origin.');
+  if(which!=='/inbox'){
+    const ports={crypto:createNodeCrypto(),ids:{next:randomUUID},clock:{nowMs:()=>now}},service=createNotificationConsentService({...ports,repository:createNotificationConsentRepository(createNodeAtomicDriver(db),ports)});
+    return handleNotificationConsent(request,{service,authenticate:async req=>{const session=currentSession(db,req,now);return session?{kind:'wallet',wallet:session.wallet}:null;},consumeQuota:async(bucket,limit)=>consumeQuota(db,bucket,now,limit)});
+  }
+  if(request.method!=='GET')return failure(405,'method_not_allowed','Unsupported method.',{allow:'GET'});
   const session=currentSession(db,request,now);if(!session)return failure(401,'authentication_required','Connect your wallet.');
   const quota=consumeQuota(db,'notice:'+request.method+':'+session.wallet,now,request.method==='POST'?10:60);if(quota)return quota;
   try {
@@ -37,17 +43,8 @@ export async function handleNotifications(db,request,peer,now) {
       if(cursor!=null&&!match)return failure(400,'invalid_cursor','Invalid inbox cursor.');
       return json(inbox(db,{wallet:session.wallet,now,...(match?{beforeMs:Number(match[1]),beforeId:match[2]}:{})}));
     }
-    if(request.method==='GET')return json(preferences(db,session.wallet));
-    if(request.headers.get('content-type')?.split(';')[0]!=='application/json')return failure(415,'unsupported_media_type','Use application/json.');
-    const b=await boundedJson(request,2048);
-    if(!b||Array.isArray(b)||typeof b!=='object'||Object.keys(b).length!==Object.keys(consentFields).length||
-        Object.keys(b).some(k=>!Object.hasOwn(consentFields,k)))return failure(400,'invalid_input','Supply only channel, enabled, topics, terms and expectedRevision.');
-    const key=request.headers.get('idempotency-key');
-    if(!key||!/^[A-Za-z0-9._:-]{1,128}$/.test(key))return failure(400,'invalid_input','Use a scoped Idempotency-Key.');
-    return json(setConsent(db,{wallet:session.wallet,channel:b.channel,enabled:b.enabled,selectedTopics:b.topics,
-      terms:b.terms,expectedRevision:b.expectedRevision,requestKey:key,now}));
   } catch(error) {
-    if(error instanceof EarnError||error instanceof BodyInputError)return failure(error.status,error.code,error.message);
+    if(error instanceof EarnError)return failure(error.status,error.code,error.message);
     throw error;
   }
 }
