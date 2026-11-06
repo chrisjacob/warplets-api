@@ -3,7 +3,7 @@
   "slice": "normalized-mint-admission",
   "migration": 45,
   "status": "locally-verified-admission-partial-B11",
-  "implementationCommit": null,
+  "implementationCommit": "39d7e3b4a57a03da5d10abb084a1dc28a12cd30b",
   "lastTestedBase": "e88dc378a713d1806d826df606d988f5a3f0a714",
   "source": "synthetic-local-fixture",
   "financialExecution": false,
@@ -102,5 +102,9 @@
     "command": "node work/b11-045-reference.mjs",
     "log": "work/b11-045-reference.log",
     "logSha256": "705f6d8145cceab8219fd093186d90e515039ae8a41fa362ed75709d148d037f"
+  },
+  "ci": {
+    "id": 42156326480,
+    "result": "success"
   }
 }

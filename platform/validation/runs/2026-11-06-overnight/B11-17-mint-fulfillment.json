@@ -1,0 +1,119 @@
+{
+  "task": "B11",
+  "checkpoint": "B11-17-normalized-mint-fulfillment",
+  "status": "locally-verified-fulfillment-partial-B11",
+  "implementationCommit": null,
+  "lastTestedBase": "8257b95db1db899e5e498123f8032b35b5cc85ce",
+  "fixtureLabels": [
+    "synthetic-local-operator-fixture",
+    "manual-fixture",
+    "configured-offline-beacon"
+  ],
+  "financialExecution": false,
+  "publicRouteMounted": false,
+  "installedMigration": 46,
+  "verification": [
+    {
+      "command": "node --test platform/collect/mint-fulfillment-evidence.test.mjs platform/collect/mint-fulfillment-repository.test.mjs platform/collect/mint-fulfillment-recovery.test.mjs platform/collect/mint-recovery.test.mjs",
+      "tests": 14,
+      "passed": 14,
+      "failed": 0,
+      "durationMs": 11308.2898,
+      "log": "work/b11-mint-fulfillment-node-final.log"
+    },
+    {
+      "command": "node --test platform/edge/test/collection-mint-fulfillment.test.mjs",
+      "tests": 3,
+      "passed": 3,
+      "failed": 0,
+      "durationMs": 119790.7758,
+      "log": "work/b11-mint-fulfillment-edge-final.log"
+    },
+    {
+      "command": "node platform/edge/node_modules/typescript/bin/tsc --project platform/edge/tsconfig.json --noEmit",
+      "result": "pass",
+      "log": "work/b11-mint-fulfillment-types.log"
+    },
+    {
+      "command": "git diff --check",
+      "result": "pass"
+    },
+    {
+      "command": "node work/b11-046-reference.mjs",
+      "tests": 552,
+      "passed": 552,
+      "failed": 0,
+      "durationMs": 271140.0464,
+      "log": "work/b11-046-reference-final.log",
+      "logSha256": "fc79e5b6b8518291e3ee12040d6b648ec6c9718770cb7b16120df86565637620"
+    }
+  ],
+  "bounds": {
+    "pairedCalls": 24,
+    "concurrentNodeCalls": 2,
+    "concurrentD1Calls": 2,
+    "maxSqlStatements": 30,
+    "maxBatchBytes": 13517,
+    "maxParameters": 52,
+    "maxObjectReads": 1
+  },
+  "recovery": {
+    "businessTables": 104,
+    "configuredFulfillments": 1,
+    "reservedIds": 1000,
+    "rawEvidenceRetained": true,
+    "exactReceiptReplayAfterRevocationAndObjectLoss": true,
+    "sessionAndLeaseFencing": "existing private restore semantics retained"
+  },
+  "clockSemantics": {
+    "retainedMintTime": "whole-second synthetic event time, configured beacon round time retained",
+    "processingTime": "fair_result settled_ms separately captures trusted server processing",
+    "historicalSnapshot": "actual activation at or after retained event blocks new binding",
+    "commitFreshnessMs": 30000
+  },
+  "coverage": [
+    "ordered ordinal settlement",
+    "Genesis and Season concealed Collect/Vault binding",
+    "fixed supply quota decrement",
+    "clamped original Season expiry",
+    "all mandatory data child omissions abort",
+    "coherent wrong slot/expiry mutations abort",
+    "raw artifact absence/corruption and source/head/scope changes",
+    "historical cut -1/equal/+1 and global reserved ID",
+    "lost committed response exact replay",
+    "actual pinned BLS Node/workerd deterministic parity",
+    "concurrent one accepted/one exact replay",
+    "changed-body loser conflict and no-receipt pending preserved",
+    "fixed slot/history/bind/fair-result immutability",
+    "populated private recovery"
+  ],
+  "limitations": [
+    "synthetic local transcript only; no chain mint/payment/finality claim",
+    "free-stage cut normalization not implemented by this checkpoint",
+    "no public mint route mounted",
+    "coordinator broader regression and CI pending"
+  ],
+  "sourceHashes": {
+    "platform/collect/mint-fulfillment-evidence.d.mts": "5d2ad694ef8724793542fa336cd9a5ccb773dd9bee06e8db5e48cd6f5f2df62a",
+    "platform/collect/mint-fulfillment-evidence.mjs": "63a865ff4025bc897fa336814744ee54a78a82ecef43f52ff4c38d36e51abf73",
+    "platform/collect/mint-fulfillment-evidence.test.mjs": "99255b6a8bb7506a3b6d1d144a8e1e9841e5cd4479a67c005f9fc8935ad742d3",
+    "platform/collect/mint-fulfillment-fixture.mjs": "645deb851b6def2e8616292b71d1cd06ba06522bb32eb5851894404fdd1e15e0",
+    "platform/collect/mint-fulfillment-recovery.test.mjs": "4e32323e1cb08cd237f54e372861fbe27f9c0d953acbabe9421a014421164ea6",
+    "platform/collect/mint-fulfillment-repository.d.mts": "e66f117ea82bc6ca4b573a45123cc584ae80244caf7cce7f28ea43ae2c3c43f4",
+    "platform/collect/mint-fulfillment-repository.mjs": "da1371158c4053d76a516ddda78fc84f5f859171b353212cc34d9e4fd6be80f2",
+    "platform/collect/mint-fulfillment-repository.test.mjs": "d6b1a6fa75bafa8d4d056aeddffc31e56668e5f420361c7fbe5c8a380f051849",
+    "platform/collect/mint-fulfillment-service.d.mts": "621ac9fa2eb8b50de6eed85d356a53c678bf24329d6d52294b8c3541710cc9c9",
+    "platform/collect/mint-fulfillment-service.mjs": "7e2d723440fcdf300292e75edac2cd753a24ad85d807e586be9073f1a4e949ca",
+    "platform/collect/mint-fulfillment-test-harness.mjs": "7eb29f10f0fef3e73fb24bb5472ab191514616c18da0deec3f9fc126a42f9393",
+    "platform/collect/mint-plan.mjs": "cdd46bfe0938c06a1f8416e078733dd852f67d056217a7f41dfece49c574574a",
+    "platform/collect/mint-repository.test.mjs": "6b021aa720ec0cb58345ed5801db7af840f3bbac0677963ea84790d0494bb556",
+    "platform/collect/mint-recovery.test.mjs": "6c3a5fe3a15cd58be8e4bba6b7c1b1c99698e7d58d149b612627a554b4c5cbe6",
+    "platform/edge/test/collection-mint-fulfillment.test.mjs": "f4feafaf7af59205090dfaee0fb34b28604c8d41084c17a5639c387cc3b47742",
+    "platform/edge/test/fixtures/collection-mint-fulfillment-worker.ts": "80a5ad0b9bf8d60742b297eab9454ae8b0f257a166fa9c207ef80d571fa422ed",
+    "platform/storage/046-collection-mint-fulfillments.sql": "79b563fc6a0024c6a210769414b1c17d244f74d5cc06896810515f83cb83c423",
+    "platform/evidence/decoders.mjs": "33a680e313e1ace47965952329729656d8c06b3136f09be7c96ee9cb34d70cfc",
+    "platform/evidence/envelope.mjs": "0ec9109329f09321920d251a2d49967178dbfb706239fb1a6cbeead4ab90edb3",
+    "platform/recovery/schema.mjs": "97f30c0a3a38bd298ac70ef3cf186dcfaa7aac79190e54c7cba3075afc7d92e2"
+  },
+  "priorBroadFailure": "Old admission rejection message assertion changed to exact installed046 message; initial549/550 then final552/552 pass. No acceptance criteria relaxed."
+}

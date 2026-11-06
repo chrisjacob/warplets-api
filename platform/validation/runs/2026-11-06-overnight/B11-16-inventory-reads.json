@@ -3,7 +3,7 @@
   "slice": "B11.16 bounded inventory read projections",
   "status": "partial",
   "baseCommit": "39d7e3b4a57a03da5d10abb084a1dc28a12cd30b",
-  "implementationCommit": null,
+  "implementationCommit": "8257b95db1db899e5e498123f8032b35b5cc85ce",
   "recordedAt": "2026-11-06T03:12:45.666291+00:00",
   "sourceHashes": {
     "platform/collect/inventory-read-model.mjs": "48dfc352fcfdf0e3102fcc149d3d20662c402d6b45a3378e51a2cad983ba09fb",
@@ -88,7 +88,10 @@
     "Legacy aggregate oversized rows held"
   ],
   "outstanding": [
-    "CI",
     "Normalized mint HTTP composition remains separate"
-  ]
+  ],
+  "ci": {
+    "id": 42157017126,
+    "result": "success"
+  }
 }
