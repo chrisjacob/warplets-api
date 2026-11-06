@@ -1,3 +1,9 @@
+# Latest prerequisite checkpoint — B12-03 recovery order compaction
+
+B12-02 committed/pushed ecde28f. Recovery compaction verified: Node4PASS59452.4438ms, actualD1/R2 modern-pending1PASS96214.7474ms, maxcheckpoint129153/131072B, exact112tables/61rows. Legacy name arrays resume via guarded CAS; malformed orders hold; no bounds raised. Evidence B12-03.json. Fixture includes pending coordinator stage audit row; no057 migration yet.
+
+Commit/push prerequisite outcome follows this record. Preserve pending stage files: stage-service/repository/declarations/tests (reviewed revisions, read-only preview, audit child), operator registry/declarations/tests (whitelist-only), transport (derived preview/named stage dispatch), console config.nowMs, and frontend stage form/browser work. New057 draft is work/057-stage-audit.sql, NOT installed yet. Next install057/reserve allocation, test mandatory audit faults and publication context changes, run separate stage browser. Agent snapshot_acceptance owns focused D1 stage tests/fixture; frontend_b09 owns stage UI/browser. Continue after each checkpoint.
+
 # Latest override — B12-02 audited final moderation tested
 
 B12-01 committed/pushed4bed3c1. B12-02 registry/transport/UI tested23focusedPASS2621.8748ms and browserPASS8.39s at4widths. Evidence B12-02.json. Exact confirmation covers revisions without changing historical receipt digests. Legacy saved commands resolve through read-only receipt lookup; missing receipts stay held. Final moderation now available with explicit session permission and earn-review database grant. Financial execution remains disabled.

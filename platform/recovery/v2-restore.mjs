@@ -9,6 +9,7 @@ import {fenceRow,readPinnedPublication} from './reconcile.mjs';
 import {createRecoveryV2Reconciler} from './v2-reconcile.mjs';
 import {createRecoveryV2FragmentCodec} from './v2-fragments.mjs';
 import {createRecoveryV2FragmentRestore} from './v2-fragment-restore.mjs';
+import {recoveryTableOrderIndices,recoveryTableOrderPosition} from './v2-table-order.mjs';
 const clone=v=>JSON.parse(canonicalJson(v)),same=(a,b)=>canonicalJson(a)===canonicalJson(b);
 function need(c,message){if(!c)throw new TypeError(message);}
 const conflict=code=>({kind:'conflict',code});
@@ -53,7 +54,7 @@ export function createRecoveryV2Restore({driver,artifacts,sourceArtifacts=artifa
   if(result.kind==='done'){
    need(c.tables.length===BUSINESS_TABLES.length&&c.tables.length===c.root.tables.count,'Private v2 table inventory incomplete.');const remaining=new Map(parents.map((dependencies,index)=>[BUSINESS_TABLES[index],new Set(dependencies.map(parent=>BUSINESS_TABLES[parent]))]));remaining.get('app_epoch_freezes').add('earn_submissions');remaining.get('earn_admission_counts').add('earn_submissions');
    const order=[];while(remaining.size){const ready=[...remaining].filter(([,deps])=>[...deps].every(name=>order.includes(name))).map(([name])=>name).sort();need(ready.length>0,'Private v2 table dependency cycle.');for(const name of ready){order.push(name);remaining.delete(name);}}
-   Object.assign(delta,{phase:'objects',tableOrder:order,parents:null,objectCursor:null,tableCursor:null});
+   Object.assign(delta,{phase:'objects',tableOrder:recoveryTableOrderIndices(order,c.descriptor.tableNames),parents:null,objectCursor:null,tableCursor:null});
   }
   return repository.advance(loaded,{delta,records});
  }
@@ -68,7 +69,13 @@ export function createRecoveryV2Restore({driver,artifacts,sourceArtifacts=artifa
   return repository.advance(loaded,{delta,records});
  }
  async function tables(loaded,c){
-  const name=c.tableOrder[c.tableIndex];if(!name)return repository.advance(loaded,{delta:{phase:'fences',tableOrder:null}});const table=c.tables.find(t=>t.name===name);need(table,'Missing private v2 table descriptor.');
+  const {indices,name}=recoveryTableOrderPosition(c.tableOrder,c.descriptor.tableNames,c.tableIndex);
+  need(Array.isArray(c.tables)&&c.tables.length===indices.length&&c.root.tables.count===indices.length&&c.tables.every((table,index)=>table?.name===c.descriptor.tableNames[index]),'Private v2 import table inventory incomplete.');
+  if(c.tableIndex===indices.length)return repository.advance(loaded,{delta:{phase:'fences',tableOrder:null}});
+  // Old name arrays are compacted by their own ordinary checkpoint CAS before
+  // resuming import, including fragmented rows. No row cursor is changed.
+  if(typeof c.tableOrder[0]==='string')return repository.advance(loaded,{delta:{tableOrder:indices}});
+  const table=c.tables[indices[c.tableIndex]];need(table&&table.name===name,'Missing private v2 table descriptor.');
   if(c.activePage){
    const entry=c.activePage,object=await verifyObject(artifacts,entry.identity,crypto);if(object.kind!=='verified')throw new MissingObject(object.reason);
    if(JSON.parse(new TextDecoder().decode(object.bytes)).format==='10x.local.recovery.fragmented-row.v2')return fragments.importPage(loaded,c,table,await fragmentCodec.verifyRowDescriptor(object.bytes,entry.identity));

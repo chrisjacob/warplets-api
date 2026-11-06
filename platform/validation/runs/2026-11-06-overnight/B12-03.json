@@ -1,0 +1,24 @@
+{
+  "task": "B12",
+  "slice": "B12-03",
+  "status": "verified-slice",
+  "change": "Store dependency-preserving indices instead of repeated table names in private restore checkpoints. Legacy names convert through their own CAS before import. Exact schema inventory, permutation and cursor validation; no raised bounds.",
+  "checks": {
+    "node": "4PASS59452.4438ms work/b12-table-order-final.log; full modern-pending+legacy resume;12negative corruption holds",
+    "D1": "1PASS96214.7474ms work/b12-table-order-d1.log; full modern-pending actual D1/R2 ready;112tables/61rows/3originals",
+    "types": "Edge tscPASS",
+    "orderBytes": {
+      "before": 2534,
+      "after": 339,
+      "saved": 2195
+    },
+    "D1bounds": {
+      "maxCheckpointBytes": 129153,
+      "limit": 131072,
+      "maxOperations": 29,
+      "maxBatchBytes": 103346
+    }
+  },
+  "provenance": "Working-tree fixture includes coordinator stage-audit preparation (one additional audit row) not yet committed. Assertions compare exact restored source tables. No migration057 during these runs.",
+  "next": "Install057 stage-audit guard, complete audited whitelist publication preview/confirmation and focused Node/D1/browser acceptance."
+}
