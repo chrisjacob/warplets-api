@@ -5,9 +5,9 @@
   "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
   "currentTask": "B11",
-  "lastUpdatedAt": "2026-11-05T23:53:15.546963+00:00",
+  "lastUpdatedAt": "2026-11-06T00:10:14.624354+00:00",
   "migrationAllocation": {
-    "next": 36,
+    "next": 37,
     "reserved": [
       {
         "version": 31,
@@ -33,6 +33,11 @@
         "version": 35,
         "task": "B11",
         "purpose": "private immutable collection source records, eligibility list seals and bounded root closure seals; no active publication"
+      },
+      {
+        "version": 36,
+        "task": "B11",
+        "purpose": "frozen advisory governance identities, source revisions and guarded wallet vote effects"
       }
     ],
     "historicalGap": 19
@@ -193,12 +198,15 @@
     },
     "B11": {
       "status": "in_progress",
-      "owner": "frontend_b09",
+      "owner": "coordinator",
       "baseCommit": "96cdfa1fb6334fcb27deb831d786243227b9d1a8",
-      "implementationCommit": null,
+      "implementationCommit": "3cfdf5488dd4dfaabdb9509deffb41162443f081",
       "pushed": false,
-      "evidence": [],
-      "nextAction": "Finish bounded immutable source intake with migration035 and Node/D1 atomic receipts; preserve source codec/mint-planning foundation and governance pure planning. Closure seals remain private staging, not publication authority.",
+      "evidence": [
+        "platform/validation/runs/2026-11-06-overnight/B11-1.json",
+        "platform/validation/runs/2026-11-06-overnight/B11-2-intake.json"
+      ],
+      "nextAction": "B11.3: install036 frozen governance/guarded vote predicates, integrate and verify shared Node/Worker ballot reads/votes; parallel bounded fresh asset context prepares stored progression quotes/reservation. Source intake is private closure only; B11 remains partial.",
       "blocker": null
     },
     "B12": {
@@ -226,7 +234,7 @@
       "owner": "coordinator",
       "baseCommit": "b18dec7c9cca695db06d6f7d9fea90deb0c6667c",
       "implementationCommit": "88eb0dd01c84a89cec0ca493221b31875d85a370",
-      "pushed": false,
+      "pushed": true,
       "evidence": [
         "platform/validation/runs/2026-11-06-overnight/B14-1-comparison.json",
         "platform/validation/runs/2026-11-06-overnight/B14-2.json",

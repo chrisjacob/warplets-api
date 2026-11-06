@@ -4,7 +4,7 @@
   "status": "partial",
   "classification": "portable source codec, named immutable commands and pure mint/governance/progression planning; no collection storage or HTTP authority",
   "lastTestedBaseCommit": "2b5dbde07f3b78793e37b890af241922da9e7c35",
-  "implementationCommit": null,
+  "implementationCommit": "3cfdf5488dd4dfaabdb9509deffb41162443f081",
   "commands": [
     {
       "command": "node --test platform/application/collection-quotes.test.mjs platform/application/collection-governance.test.mjs platform/application/collection-planning.test.mjs platform/collect/state-codec.test.mjs platform/domain/collections/*.test.mjs platform/collect/collect.test.mjs",
@@ -45,7 +45,7 @@
     "Content-addressed canonical source root/list/page records, complete offline reference reconstruction and bounded individual-record verification",
     "Shared prepareMintAdmission rule used by legacy full-state reducer and sufficient-fact planner, with1000-admission full-history parity",
     "Frozen union electorate pages, exact legacy ballot snapshot hash, selected-wallet vote parity and replay, immutable founder decision timing",
-    "Pure immutable progression quote derivation and acceptance planning for every upgrade Level1–9 and visual rerolls"
+    "Pure immutable progression quote derivation and acceptance planning for every upgrade Level1\u00e2\u20ac\u201c9 and visual rerolls"
   ],
   "bounds": {
     "rootBytes": 131072,

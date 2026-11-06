@@ -4,7 +4,7 @@
   "status": "verified-local-substep",
   "classification": "Private immutable collection source records and bounded record-closure seals only; no authoritative inventory, publication, member write or financial execution",
   "lastTestedBaseCommit": "2b5dbde07f3b78793e37b890af241922da9e7c35",
-  "implementationCommit": null,
+  "implementationCommit": "3cfdf5488dd4dfaabdb9509deffb41162443f081",
   "commands": [
     {
       "command": "node --test platform/collect/source-intake.test.mjs",
