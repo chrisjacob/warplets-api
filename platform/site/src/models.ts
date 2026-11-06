@@ -27,7 +27,7 @@ export const stageModel=z.object({
   allocation:count,available:count,walletLimit:count,eligible:z.boolean().nullable(),
   walletReservations:count.nullable(),openingHold:text.nullable(),publishedAt:date.optional(),termsDigest:text.optional(),
   eligibility:z.object({status:z.enum(['eligible','ineligible','unknown']),reason:text,cutoffAt:nullableDate}).optional(),
-  reservationStatus:z.object({status:z.enum(['available','unavailable','unknown']),reason:z.enum(['eligible','not-signed-in','opening-hold','stage-scheduled','stage-closed','sold-out','snapshot-pending','not-on-list','wallet-limit','operator-only']),
+  reservationStatus:z.object({status:z.enum(['available','unavailable','unknown']),reason:z.enum(['eligible','not-signed-in','opening-hold','stage-scheduled','stage-closed','sold-out','snapshot-pending','not-on-list','wallet-limit','operator-only','admission-unavailable']),
     snapshotId:text.nullable(),used:count.nullable(),remaining:count.nullable(),stageStatus:text,asOf:date,source:z.literal('local-fixture'),executable:z.literal(false)}).optional(),
 });
 export const inventoryModel=z.object({

@@ -63,8 +63,8 @@ export async function checkCollectionEdges({browser}){
    assert.ok(BigInt(afterRevision)>BigInt(beforeRevision));assert.notEqual(afterSnapshot,beforeSnapshot);
    assert.deepEqual(afterAccounting,beforeAccounting);
    assert.equal(await target.getByText('Awaiting committed draw evidence.',{exact:true}).count(),0);await target.getByText('Historical allocations retain their original vesting clock after expiry, transfer or progression.',{exact:true}).waitFor();
-   await target.getByRole('link',{name:'Vault allocations Ã¢â€ â€”',exact:true}).click();await page.getByRole('heading',{name:'Allocations for synthetic-season-000',exact:true}).waitFor();
-   await page.getByText('Original allocation vesting clocks',{exact:true}).click();await page.goBack();await target.getByRole('link',{name:'Vault allocations Ã¢â€ â€”',exact:true}).waitFor();
+   await target.getByRole('link',{name:'Vault allocations ↗',exact:true}).click();await page.getByRole('heading',{name:'Allocations for synthetic-season-000',exact:true}).waitFor();
+   await page.getByText('Original allocation vesting clocks',{exact:true}).click();await page.goBack();await target.getByRole('link',{name:'Vault allocations ↗',exact:true}).waitFor();
    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);assert.deepEqual(errors,[]);
    if(process.env.SCREENSHOT_DIR){await mkdir(process.env.SCREENSHOT_DIR,{recursive:true});await target.scrollIntoViewIfNeeded();await page.screenshot({path:join(process.env.SCREENSHOT_DIR,'collection-edges-'+width+'.png')});}
    const staleForm=page.locator('form[data-upgrade="synthetic-season-002"]');await staleForm.getByLabel('Same-Level material NFT ID').waitFor();

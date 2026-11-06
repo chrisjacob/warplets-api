@@ -5110,7 +5110,7 @@
       "parameters": [],
       "get": {
         "operationId": "listMyCollectionAssets",
-        "summary": "See the signed-in walletâ€™s assets.",
+        "summary": "See the signed-in wallet’s assets.",
         "responses": {
           "200": {
             "description": "Local collection response",
@@ -5289,7 +5289,7 @@
       ],
       "get": {
         "operationId": "readMyCollectionOperation",
-        "summary": "Inspect one of the signed-in walletâ€™s operations.",
+        "summary": "Inspect one of the signed-in wallet’s operations.",
         "responses": {
           "200": {
             "description": "Local collection response",
@@ -7462,7 +7462,8 @@
               "snapshot-pending",
               "not-on-list",
               "wallet-limit",
-              "operator-only"
+              "operator-only",
+              "admission-unavailable"
             ]
           },
           "snapshotId": {

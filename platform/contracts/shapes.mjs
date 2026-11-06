@@ -20,7 +20,7 @@ export const shapes={
  MemberVaultSummary:{anyOf:[object({source:{const:'local-fixture'},asOf:iso,status:{const:'complete'},reason:{type:'null'},assetCount:integer,items:array(ref('VaultAllocation'))}),object({source:{const:'local-fixture'},asOf:iso,status:{const:'unavailable'},reason:{enum:['asset-bound','manifest-bound','concealed-metadata','claim-bound','future-accounting','invalid-accounting']},assetCount:{type:'null'},items:{type:'array',maxItems:0}})]},
  Profile:object({wallet:str,chain:{const:'solana'}}),
  Challenge:object({nonce:str,message:str,expiresAt:iso}),
- StageReservationStatus:object({status:{enum:['available','unavailable','unknown']},reason:{enum:['eligible','not-signed-in','opening-hold','stage-scheduled','stage-closed','sold-out','snapshot-pending','not-on-list','wallet-limit','operator-only']},
+ StageReservationStatus:object({status:{enum:['available','unavailable','unknown']},reason:{enum:['eligible','not-signed-in','opening-hold','stage-scheduled','stage-closed','sold-out','snapshot-pending','not-on-list','wallet-limit','operator-only','admission-unavailable']},
    snapshotId:nullable(str),used:nullable(integer),remaining:nullable(integer),stageStatus:str,asOf:iso,source:{const:'local-fixture'},executable:{const:false}}),
  Stage:object({id:str,type:str,status:str,opensAt:iso,closesAt:iso,publishedAt:iso,priceLamports:units,costLamports:units,
    allocation:integer,available:integer,walletLimit:integer,eligible:nullable(bool),eligibility:object({status:{enum:['eligible','ineligible','unknown']},reason:str,cutoffAt:nullable(iso)}),walletReservations:nullable(integer),termsDigest:str,openingHold:nullable(str),reservationStatus:ref('StageReservationStatus')},

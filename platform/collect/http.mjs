@@ -1,3 +1,5 @@
+import {createInventoryReadRepository} from './inventory-read-model.mjs';
+import {handleInventoryReads} from './inventory-read-http.mjs';
 import {createNodeAtomicDriver} from '../storage/node/atomic-driver.mjs';
 import {createCollectionReadRepository} from './read-model.mjs';
 import {handleCollectionReads} from './read-http.mjs';
@@ -6,7 +8,7 @@ import {handleProgression} from './progression-http.mjs';
 import { CollectionPolicyError } from '../domain/collections/policy.mjs';
 import { currentSession, consumeQuota } from '../server/auth.mjs';
 import { json, failure } from '../server/api.mjs';
-import { CollectError, id, listInventories, need, readInventory, reserveMint } from './store.mjs';
+import { CollectError, id, need, reserveMint } from './store.mjs';
 
 const base='/api/v1/collect';
 const patterns={
@@ -26,16 +28,12 @@ async function bodyOf(request) {
   need(input && typeof input==='object' && !Array.isArray(input),'invalid_input','Expected an object.');
   return input;
 }
-function validCursor(url) {
-  need([...url.searchParams.keys()].every(k=>k==='cursor') && url.searchParams.getAll('cursor').length<=1,
-    'invalid_cursor','Only a single cursor is accepted.');
-  const cursor=url.searchParams.get('cursor')??'';
-  if(cursor) id(cursor);
-  return cursor;
-}
 export async function handleCollect(db,request,peer,now) {
   const url=new URL(request.url),path=url.pathname;
   if(path!==base && !path.startsWith(base+'/')) return null;
+  if(patterns.inventory.test(path)||path===base+'/inventories')return handleInventoryReads(request,{reads:createInventoryReadRepository(createNodeAtomicDriver(db)),clock:{nowMs:()=>now},
+    authenticate:async req=>{const session=currentSession(db,req,now);return session?{kind:'wallet',wallet:session.wallet}:null;},
+    consumeQuota:async(bucket,limit)=>consumeQuota(db,bucket,now,limit)});
   if(patterns.progress.test(path))return handleProgression(request,{...createNodeProgressionServices(db,{clock:{nowMs:()=>now}}),
     authenticate:async req=>{const session=currentSession(db,req,now);return session?{kind:'wallet',wallet:session.wallet}:null;},
     consumeQuota:async(bucket,limit)=>consumeQuota(db,bucket,now,limit)});
@@ -43,21 +41,11 @@ export async function handleCollect(db,request,peer,now) {
     authenticate:async req=>{const session=currentSession(db,req,now);return session?{kind:'wallet',wallet:session.wallet}:null;},
     consumeQuota:async(bucket,limit)=>consumeQuota(db,bucket,now,limit)});
   try {
-    const inventory=patterns.inventory.exec(path),mint=patterns.reserve.exec(path);
-    const list=path===base+'/inventories';
-    if(!list&&!inventory&&!mint) {
-      return failure(404,'not_found','Unknown collection resource.');
-    }
-    const write=Boolean(mint);
-    if(request.method!==(write?'POST':'GET')) return failure(405,'method_not_allowed','Unsupported method.',{allow:write?'POST':'GET'});
+    const mint=patterns.reserve.exec(path);
+    if(!mint)return failure(404,'not_found','Unknown collection resource.');
+    if(request.method!=='POST')return failure(405,'method_not_allowed','Unsupported method.',{allow:'POST'});
     const session=currentSession(db,request,now);
-    if(write&&!session) return failure(401,'authentication_required','Sign in to access this resource.');
-    if(!write) {
-      const cursor=validCursor(url);
-      if(inventory) need(!cursor,'invalid_cursor','This resource does not accept a cursor.');
-      if(list) return json(listInventories(db,{now,after:cursor,wallet:session?.wallet??null}));
-      if(inventory) return json(readInventory(db,inventory[1],now,session?.wallet??null));
-    }
+    if(!session)return failure(401,'authentication_required','Sign in to access this resource.');
     need(!url.search,'invalid_query','Operation requests do not accept query parameters.');
     need(request.headers.get('origin')===url.origin,'invalid_origin','Use the configured local origin.',403);
     const rate=consumeQuota(db,'collect-write:'+session.wallet,now,15);
@@ -90,9 +78,9 @@ export const collectPaths={
   '/collect/inventories':read('listLocalInventories','See published local collections and stages.'),
   '/collect/inventories/{id}':read('readLocalInventory','See inventory and published stages.',['id']),
   '/collect/assets/{id}':read('readLocalAsset','See local ownership and publicly revealed metadata.',['id']),
-  '/collect/me/assets':read('listMyCollectionAssets','See the signed-in walletâ€™s assets.'),
+  '/collect/me/assets':read('listMyCollectionAssets','See the signed-in wallet’s assets.'),
   '/collect/me/operations':read('listMyCollectionOperations','Recover pending or fulfilled local operations.'),
-  '/collect/me/operations/{id}':read('readMyCollectionOperation','Inspect one of the signed-in walletâ€™s operations.',['id']),
+  '/collect/me/operations/{id}':read('readMyCollectionOperation','Inspect one of the signed-in wallet’s operations.',['id']),
   '/collect/inventories/{id}/stages/{stage}/reservations':write('reserveLocalMint','Reserve one local fixture slot.',['id','stage']),
   '/collect/inventories/{id}/progression':write('reserveLocalProgression','Reserve local Season assets for a progression fixture.',['id']),
   '/collect/inventories/{id}/progression/quote':{parameters:[parameter('id')],post:{...operation('quoteLocalProgression','Store immutable local cost and outcome terms before reviewing progression.'),parameters:[{name:'Idempotency-Key',in:'header',required:true,schema:{type:'string'}}]}},

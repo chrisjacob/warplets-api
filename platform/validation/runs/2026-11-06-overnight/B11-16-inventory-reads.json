@@ -1,0 +1,94 @@
+{
+  "task": "B11",
+  "slice": "B11.16 bounded inventory read projections",
+  "status": "partial",
+  "baseCommit": "39d7e3b4a57a03da5d10abb084a1dc28a12cd30b",
+  "implementationCommit": null,
+  "recordedAt": "2026-11-06T03:12:45.666291+00:00",
+  "sourceHashes": {
+    "platform/collect/inventory-read-model.mjs": "48dfc352fcfdf0e3102fcc149d3d20662c402d6b45a3378e51a2cad983ba09fb",
+    "platform/collect/inventory-read-model.d.mts": "cc42e7372d53fe794b223797ac100420501a1690163bceb823421256b09e42aa",
+    "platform/collect/inventory-read-model.test.mjs": "9ee9535cbd01ab2d18e3ebbbb8d9cd946e6cd2aaa1a73f240306f41e38070469",
+    "platform/collect/inventory-read-http.mjs": "f686800655d0f9c208f8691c0ea9f557f3b3f7ab5a2aaf1a3eb68185990081d6",
+    "platform/collect/inventory-read-http.d.mts": "1d6991bc392196374bd1abc4a0788be18b05270077c17cc102f3735cc912feef",
+    "platform/collect/http.mjs": "e6ff61483ec004af6b8a5620d78c090b4da3b967b0864981c3a7410928f8aed7",
+    "platform/contracts/capabilities.mjs": "fbe00a0ef821a01dd8b89cc5c75459b5935cfa2184d1cab7e8882024550964f7",
+    "platform/contracts/shapes.mjs": "32a7f1c4098d2904c9633e699d2243065680fa16c930bd157e2f2da328695668",
+    "platform/contracts/client.d.mts": "f8397129ee182cd8710cb87b9cc5319db113259f71fb21e7c7f02a8dcde5cf0c",
+    "platform/contracts/openapi.json": "b33b55d95a33187da41953b182459060074cc24ef14010c6ef9cf88411e8918b",
+    "platform/edge/src/collection-reads.ts": "460c95a7e9e66dead4569b2a8b3748ddaad654563516e5c8635d0237c93c9b89",
+    "platform/edge/src/worker.ts": "d019b09e9a2ce6bad0aa1f179ddc807a525cd93c516f4929da9bfede9cde1c45",
+    "platform/edge/test/collection-reads.test.mjs": "73cb4380c952d9cbe48f2c83b88702816195ba70be13c0cf4c8ff1ac5f2ad472",
+    "platform/edge/test/fixtures/inventory-read-worker.ts": "41f01f727d56fca063b17fa2b913b9c6e571d1d66b3fc42482a51a448dcec4a0",
+    "platform/edge/test/inventory-reads.test.mjs": "d14a5afaec92d243235dab5f8223d5f233e1cb20c935a54e8f51f54bdcb5ee54",
+    "platform/site/src/models.ts": "a77e9e6ae83949d197b6ae3193988f1dd13606f4c884d28b26b159d08e831e92",
+    "platform/site/src/collection-details.tsx": "b152a48e74c5ea2f6fe3bda2073fb941a919bcc7b63f08e00be3853304f87a8f",
+    "platform/site/tests/capabilities.spec.mjs": "0e8e8af2c7506626594fc80ac1af52d41519677d716264fcf5299682fbf31dcc",
+    "platform/site/tests/collection-edges-qa.mjs": "c2caa4f10f892ac71cfbe5bfdd14314a7d7aae2e053dc65844eb6ce3996d2710"
+  },
+  "checks": [
+    {
+      "result": "PASS",
+      "tests": 5,
+      "durationMs": 6928.2946,
+      "log": "work/b11-inventory-read-node-complete.log",
+      "logSha256": "d1c0a71f61a457035df3d0846e6eae2f87f57b8dff6ff79f3a5aba18d766da61"
+    },
+    {
+      "result": "PASS",
+      "tests": 1,
+      "durationMs": 44443.4177,
+      "log": "work/b11-inventory-read-edge-final.log",
+      "logSha256": "c36084ec7af786bda94f06375e18f35c69604646c704288172761fe112f0f57d"
+    },
+    {
+      "result": "PASS",
+      "tests": 25,
+      "durationMs": 7074.6939,
+      "log": "work/b11-inventory-site.log",
+      "logSha256": "6cb09745820fafe7727adf03f77ebc2b82b19f7927043888cdb0a6914e0841b0"
+    },
+    {
+      "result": "PASS",
+      "tests": null,
+      "durationMs": null,
+      "log": "work/b11-inventory-browser-final.log",
+      "logSha256": "ab41ef49f62672cfe3fd3d4b5169e34de5f849ecb028ddafab5b60d16434475f"
+    },
+    {
+      "result": "PASS",
+      "tests": null,
+      "durationMs": null,
+      "log": "work/b11-inventory-site-build.log",
+      "logSha256": "6e771a21dcc0cfa0f97aa364b1e115aa42b22fde74258144894f2bf1392f2ebe"
+    },
+    {
+      "result": "PASS",
+      "tests": 3,
+      "durationMs": 1159.6102,
+      "log": "work/b11-inventory-http-final.log",
+      "logSha256": "091a7f6e2cab743eaa5c3578ddd49e91d097f5aa8dd9b0a2b7f6e0ec501e4c9f"
+    },
+    {
+      "result": "PASS",
+      "command": "Edge and site TypeScript; generated contracts check"
+    },
+    {
+      "result": "PASS",
+      "tests": 534,
+      "durationMs": 212397.9457,
+      "log": "work/b11-045-reference.log",
+      "scope": "Tracked reference tests with inventory transport integration present; five new inventory tests run separately."
+    }
+  ],
+  "boundary": [
+    "Financial execution false",
+    "Normalized admission unavailable until guarded HTTP composition",
+    "No private wallet arrays or concealed assets returned",
+    "Legacy aggregate oversized rows held"
+  ],
+  "outstanding": [
+    "CI",
+    "Normalized mint HTTP composition remains separate"
+  ]
+}

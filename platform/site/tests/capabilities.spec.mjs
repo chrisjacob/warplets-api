@@ -17,12 +17,12 @@ function setup(runtime='workerd-local') {
  return {calls,transport,client:createClient({fetchImpl:transport.fetch}),
    advance:()=>{time+=30001;},breakDiscovery:()=>{broken=true;}};
 }
-test('Worker blocks unsupported reads and writes before issuing a request',async()=>{
+test('Worker allows mounted inventory reads and blocks unsupported mint writes and transaction reads',async()=>{
  const {calls,client}=setup();
- await assert.rejects(client.listLocalInventories(),/unavailable/);
+ await client.listLocalInventories();
  await assert.rejects(client.reserveLocalMint({path:{id:'a',stage:'b'},body:{}}),/unavailable/);
  await assert.rejects(client.getTransaction({path:{id:'unknown'}}),/unavailable/);
- assert.deepEqual(calls,[['/api/v1/capabilities','GET']]);
+ assert.deepEqual(calls,[['/api/v1/capabilities','GET'],['/api/v1/collect/inventories','GET']]);
 });
 test('Node routes remain usable and concurrent discovery is deduplicated',async()=>{
  const {calls,client}=setup('node-reference');
@@ -79,12 +79,14 @@ test('React boundaries omit unsupported child components and preserve supported 
   const cache=new QueryClient();
   cache.setQueryData(['runtime-capabilities','/api/v1',1],makeCapabilities(runtime));
   const html=renderToStaticMarkup(createElement(QueryClientProvider,{client:cache},
-   createElement(Capability,{path:'/api/v1/collect/inventories'},createElement(Child))));
+   createElement(Capability,{path:'/api/v1/transactions/synthetic-operation'},createElement(Child))));
   assert.equal(html.includes('Supported empty result'),expected);
   assert.equal(html.includes('unavailable in the connected runtime'),!expected);
   cache.clear();
  }
  assert.equal(mounts,1,'unsupported components must not mount their hooks');
+ for(const runtime of ['workerd-local','node-reference']){const cache=new QueryClient();cache.setQueryData(['runtime-capabilities','/api/v1',1],makeCapabilities(runtime));const html=renderToStaticMarkup(createElement(QueryClientProvider,{client:cache},createElement(Capability,{path:'/api/v1/collect/inventories'},createElement(Child))));assert.ok(html.includes('Supported empty result'));cache.clear();}
+ assert.equal(mounts,3,'inventory children mount in both implemented runtimes');
  assert.deepEqual(principalKey('wallet-a','inventories'),['private','wallet-a','solana','inventories']);
  assert.deepEqual(principalKey(null,'inventories'),['public','solana','inventories']);
 });

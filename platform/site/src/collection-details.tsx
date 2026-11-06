@@ -2,7 +2,7 @@ import type { Inventory, Stage, Asset } from './models';
 import { Facts, utc } from './common';
 export function StageEvidence({stage:s}:{stage:Stage}){
   const eligibility=s.eligibility?.status??(s.status==='awaiting-snapshot'||s.eligible===null?'unknown':s.eligible?'eligible':'ineligible');
-  const reasons={'eligible':'Eligible for a local reservation','not-signed-in':'Sign in to check the wallet limit','opening-hold':'Opening is held for the published dependency','stage-scheduled':'The stage has not opened','stage-closed':'The stage has closed','sold-out':'No stage or shared inventory remains','snapshot-pending':'Complete opening-cut evidence is pending','not-on-list':'Wallet is absent from the fixed eligibility list','wallet-limit':'The per-stage wallet limit has been used','operator-only':'Founder allocations require the separate operator command'};
+  const reasons={'eligible':'Eligible for a local reservation','not-signed-in':'Sign in to check the wallet limit','opening-hold':'Opening is held for the published dependency','stage-scheduled':'The stage has not opened','stage-closed':'The stage has closed','sold-out':'No stage or shared inventory remains','snapshot-pending':'Complete opening-cut evidence is pending','not-on-list':'Wallet is absent from the fixed eligibility list','wallet-limit':'The per-stage wallet limit has been used','operator-only':'Founder allocations require the separate operator command','admission-unavailable':'Reservations are not yet available for this collection'};
   return <><Facts items={[
     ['Published',s.publishedAt?utc(s.publishedAt):'Unavailable'],['Terms digest',s.termsDigest??'Unavailable'],
     ['Eligibility',eligibility],['Evidence reason',s.eligibility?.reason??'No detailed evidence supplied'],
