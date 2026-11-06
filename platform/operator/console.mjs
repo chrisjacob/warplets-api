@@ -1,3 +1,4 @@
+import {createWhitelistDraftTransport} from './whitelist-draft-transport.mjs';
 import {nodeArtifactStore} from '../artifacts/node.mjs';
 import {createOperatorUploadTransport} from './upload-transport.mjs';
 import {randomBytes} from 'node:crypto';
@@ -14,7 +15,7 @@ import {LOCAL_OPERATOR_COMMANDS} from '../application/operator-commands.mjs';
 import {controlledScopes} from '../operations/portable-controls.mjs';
 import {DAY_MS} from '../domain/earn/index.mjs';
 
-const assets=new Map([['/',['index.html','text/html']],['/operator.js',['ui.mjs','text/javascript']],['/approval-packet.js',['approval-packet.mjs','text/javascript']],['/operator.css',['ui.css','text/css']]]);
+const assets=new Map([['/',['index.html','text/html']],['/operator.js',['ui.mjs','text/javascript']],['/approval-packet.js',['approval-packet.mjs','text/javascript']],['/whitelist-draft-packet.js',['whitelist-draft-packet.mjs','text/javascript']],['/operator.css',['ui.css','text/css']]]);
 const iso=n=>new Date(n).toISOString();
 function parseDate(value){
  if(!/^\d{4}-\d\d-\d\d$/.test(value))throw new EarnError(400,'invalid_epoch','Select a valid UTC board date.');
@@ -24,7 +25,7 @@ function parseDate(value){
 }
 export function createOperatorApp(db,{bootToken,clock=Date.now,operatorId='local-founder',allowedKinds=[],artifacts}){
  const sessions=createOperatorSessionAuthority({bootCode:bootToken,operatorId,allowedKinds,clock});
- const commands=createOperatorCommandTransport(db,{sessions,clock,artifacts}),uploads=createOperatorUploadTransport(db,{sessions,clock});
+ const commands=createOperatorCommandTransport(db,{sessions,clock,artifacts}),uploads=createOperatorUploadTransport(db,{sessions,clock}),drafts=createWhitelistDraftTransport(db,{sessions,clock});
  return async request=>{
   const {origin,hostname,pathname,searchParams}=new URL(request.url),now=clock();
   if(!['localhost','127.0.0.1'].includes(hostname))return failure(403,'local_only','Use the local operator origin.');
@@ -45,6 +46,7 @@ export function createOperatorApp(db,{bootToken,clock=Date.now,operatorId='local
    }
    if(pathname.startsWith('/ops/commands/'))return commands(request);
    if(pathname.startsWith('/ops/uploads/'))return uploads(request);
+   if(pathname==='/ops/drafts/whitelist')return drafts(request);
    const raw=request.headers.get('authorization')?.match(/^Bearer ([A-Za-z0-9_-]{43})$/)?.[1];
    const authorization=sessions.authenticate(raw);
    if(pathname==='/ops/logout'&&request.method==='POST'){sessions.revoke();return json({revoked:true});}

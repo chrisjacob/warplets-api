@@ -1,0 +1,175 @@
+{
+  "task": "B12",
+  "slice": "B12-12",
+  "status": "verified-slice",
+  "baseCommit": "62b9d77",
+  "scope": [
+    "Authenticated read-only curated whitelist draft with 512KiB/10000 entry limits",
+    "Canonical codec list identity, sanitized bounded diagnostics and safe export",
+    "No records, receipts or database writes; explicit list-ID copy leaves prices/schedules unchanged"
+  ],
+  "checks": {
+    "backend": "6PASS5128.4673ms work/b12-whitelist-draft-transport.log;10000 entries470137B,595B response,zero writes;session/grant/revision races",
+    "registry": "21PASS255.6536ms work/b12-draft-registry.log",
+    "boundary": "29PASS1490.0143ms work/b12-draft-boundary.log",
+    "browser": {
+      "task": "B12 read-only curated whitelist draft UI",
+      "createdAt": "2026-11-06T15:20:58.239567+00:00",
+      "sourceHashes": {
+        "platform/operator/ui.mjs": "6837addaf1927c739a5adc4290570629b3181341abd03033d076efc705fbc35f",
+        "platform/operator/index.html": "0f0ca5aa517e423b78ab2219c70f4a7d7d5415fb3b368d22808089626e49e489",
+        "platform/operator/whitelist-draft-packet.mjs": "7d93c06e19881102214b95b2ddceab937bab6a64c893fe5e607e5d739de299fe",
+        "platform/operator/whitelist-draft-packet.test.mjs": "7ffb5092a553f08b65a632eb36ed6c4963e3226d66dfb10d52eff74400286299",
+        "platform/operator/draft-browser-qa.mjs": "1397ff382236ed299379a47088f1d81d0050f28a183fa3d250687f4abad37fb0"
+      },
+      "checks": [
+        {
+          "command": "node --test platform/operator/whitelist-draft-packet.test.mjs",
+          "passed": 3,
+          "failed": 0,
+          "durationMs": 129.2711,
+          "log": "work/b12-draft-packet.log"
+        },
+        {
+          "command": "node platform/operator/draft-browser-qa.mjs",
+          "passed": true,
+          "log": "work/b12-draft-final-draft-browser-qa.log"
+        },
+        {
+          "command": "node platform/operator/stage-browser-qa.mjs",
+          "passed": true,
+          "log": "work/b12-draft-final-stage-browser-qa.log"
+        },
+        {
+          "command": "node platform/operator/browser-qa.mjs",
+          "passed": true,
+          "log": "work/b12-draft-final-browser-qa.log"
+        },
+        {
+          "command": "node --check ui.mjs, whitelist-draft-packet.mjs and draft-browser-qa.mjs",
+          "passed": true
+        },
+        {
+          "command": "git diff --check -- five owned source paths",
+          "passed": true
+        }
+      ],
+      "browserResults": {
+        "work/b12-draft-final-draft-browser-qa.log": {
+          "passed": true,
+          "widths": [
+            360,
+            390,
+            768,
+            1440
+          ],
+          "source": "synthetic-local-operator-fixture",
+          "duplicateAndInvalidCorrection": true,
+          "codecListIdentityExact": true,
+          "safeSummaryWithoutAddresses": true,
+          "editingInvalidatesResultAndMatchingCopiedId": true,
+          "unrelatedManualListPreserved": true,
+          "pricesSchedulesUnchanged": true,
+          "missingSealedListHeld": true,
+          "zeroDraftDatabaseWrites": true,
+          "noCommandJournal": true,
+          "revokedScopeRejected": true,
+          "expiredSessionClearsEntries": true,
+          "reloadLogoutClearEntries": true,
+          "explicitPermissionRequired": true,
+          "financialExecution": false,
+          "staged": false,
+          "isAuthorization": false,
+          "screenshots": "work/b12-draft-operator"
+        },
+        "work/b12-draft-final-stage-browser-qa.log": {
+          "passed": true,
+          "widths": [
+            360,
+            390,
+            768,
+            1440
+          ],
+          "clock": "actual Date.now with database execution-time fence",
+          "source": "synthetic-local-operator-fixture",
+          "missingListHold": "Preview held: electorate-seal-missing. No publication has been confirmed.",
+          "missingTrancheHeld": true,
+          "noLaunchDefaults": true,
+          "exactUtcTimes": true,
+          "derivedTerms": true,
+          "eligibilityCount": 3,
+          "previewReadOnly": true,
+          "staleConfirmationRejected": true,
+          "negativeLostResponse": true,
+          "negativeResponseIdentity": true,
+          "exactReplayAfterScopeRevocation": true,
+          "immutablePublishedTerms": true,
+          "auditEvents": 6,
+          "expandedStageTypes": [
+            "free",
+            "public",
+            "founder"
+          ],
+          "missingPaidPhasesHeld": true,
+          "explicitFounderApproval": true,
+          "missingFounderScopeRejected": true,
+          "freeEligibilityPending": true,
+          "expandedPacketDownloads": true,
+          "readOnlyPermission": true,
+          "financialExecution": false,
+          "screenshots": "work/b12-stage-operator"
+        },
+        "work/b12-draft-final-browser-qa.log": {
+          "passed": true,
+          "widths": [
+            360,
+            390,
+            768,
+            1440
+          ],
+          "realCommandExecutions": 14,
+          "auditEvents": 10,
+          "newAuditEvents": 9,
+          "baselineAuditEvents": 1,
+          "previewReadOnly": true,
+          "localReviewPacketDownload": true,
+          "packetNoAuthorityOrPrivateData": true,
+          "packetDisabledAfterAttempt": true,
+          "negativeResponseLoss": true,
+          "exactRetryAfterReload": true,
+          "expiredSessionReauthentication": true,
+          "stablePrincipalRetry": true,
+          "differentPrincipalIsolation": true,
+          "negativeStalePreview": true,
+          "readOnlySession": true,
+          "auditedFinalReview": true,
+          "immutableReviewConflict": true,
+          "reviewExactReplay": true,
+          "confirmationRevisionBinding": true,
+          "negativePreviewMismatch": true,
+          "legacyReceiptReadOnly": true,
+          "missingLegacyReceiptHeld": true,
+          "keyboardFocus": true,
+          "logoutClearsPrivateState": true,
+          "financialExecution": false,
+          "screenshots": "work/b12-operator"
+        }
+      },
+      "scope": [
+        "Authenticated read-only whitelist validation, no record import/seal/publication or command receipt.",
+        "Packet is separately labeled 10x.local.whitelist-draft.v1/local-fixture/local-whitelist-v1, contains safe counts/errors/identities and false financialExecution/staged/isAuthorization; no address arrays/raw request bytes.",
+        "Inputs remain in page memory and editable textarea only; reload, explicit logout and expiry clear them. Each draft input change invalidates result/export and matching copied list ID, preserving a manually replaced list ID.",
+        "Use list ID requires publication permission and whitelist/founder selection, populates inventory/stage/list ID only; actual stage preview still holds absent sealed records. Prices and schedule fields remain unchanged.",
+        "Browser compares actual codec manifest identity and checks SQLite total_changes, recovery watermark and receipt/audit/record/stage counts around each request. Scope changes are explicit negative test fixture mutations only.",
+        "Initial harness table/button name typos corrected before final runs; no product acceptance relaxed."
+      ],
+      "visualInspection": "draft-360.png inspected; no horizontal overflow and keyboard focus assertions at360/390/768/1440.",
+      "financialExecution": false,
+      "staged": false,
+      "isAuthorization": false,
+      "completion": "Owned slice frozen; coordinator owns B12 completion/commit."
+    }
+  },
+  "financialExecution": false,
+  "remaining": "Explicit later-tranche ballot/override publication fields and final B12 acceptance matrix."
+}

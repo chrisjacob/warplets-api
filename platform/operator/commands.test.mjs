@@ -4,7 +4,7 @@ import {MATERIALIZE_ELIGIBILITY_PAGE} from '../collect/eligibility-index-service
 import {CONFIGURE_ACTION} from '../earn/action-policy-service.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {prepareOperatorCommand,dispatchOperatorCommand,LOCAL_OPERATOR_UPLOADS,LOCAL_OPERATOR_COMMANDS,LOCAL_OPERATOR_SCOPES,operatorCommandScope} from '../application/operator-commands.mjs';
+import {prepareOperatorCommand,dispatchOperatorCommand,LOCAL_OPERATOR_DRAFTS,LOCAL_OPERATOR_UPLOADS,LOCAL_OPERATOR_COMMANDS,LOCAL_OPERATOR_SCOPES,operatorCommandScope} from '../application/operator-commands.mjs';
 import {createOperationsCommand,OPERATIONS} from '../storage/atomic-operations.mjs';
 import {createNodeCrypto} from '../security/node-crypto.mjs';
 import {FINAL_REVIEW,reviewRequestBytes} from '../application/commands.mjs';
@@ -44,7 +44,7 @@ test('local operator registry rejects member authority, extra fields, unknown co
  for(const badPrincipal of [{kind:'wallet',wallet:'synthetic'}, {...principal,sessionToken:'not-command-data'}, {kind:'operator',id:' '}])
   await assert.rejects(prepareOperatorCommand({principal:badPrincipal,request:staffing(),nowMs},counting),invalid);
  await assert.rejects(prepareOperatorCommand({principal,request:staffing(),nowMs:NaN},counting),invalid);
- assert.equal(hashes,0);assert.deepEqual(LOCAL_OPERATOR_COMMANDS,[OBSERVE_COLLECTION_ASSET,...LOCAL_OPERATOR_UPLOADS,SEAL_COLLECTION_LIST,SEAL_COLLECTION_SOURCE,MATERIALIZE_ELIGIBILITY_PAGE,CONFIGURE_ACTION,OPERATIONS.configureWorkload,OPERATIONS.changeScope,FINAL_REVIEW,PUBLISH_COLLECTION_STAGE,PUBLISH_BALLOT,RECORD_DECISION,BEGIN_COLLECTION_FREE_CUT,VALIDATE_COLLECTION_CUT_PAGE,SEAL_COLLECTION_FREE_CUT]);
+ assert.equal(hashes,0);assert.deepEqual(LOCAL_OPERATOR_COMMANDS,[...LOCAL_OPERATOR_DRAFTS,OBSERVE_COLLECTION_ASSET,...LOCAL_OPERATOR_UPLOADS,SEAL_COLLECTION_LIST,SEAL_COLLECTION_SOURCE,MATERIALIZE_ELIGIBILITY_PAGE,CONFIGURE_ACTION,OPERATIONS.configureWorkload,OPERATIONS.changeScope,FINAL_REVIEW,PUBLISH_COLLECTION_STAGE,PUBLISH_BALLOT,RECORD_DECISION,BEGIN_COLLECTION_FREE_CUT,VALIDATE_COLLECTION_CUT_PAGE,SEAL_COLLECTION_FREE_CUT]);
 });
 
 test('final moderation keeps historical receipt identity while confirmation binds explicit revisions',async()=>{
@@ -275,4 +275,8 @@ test('action policy registry binds exact future configuration and keeps accepted
 test('record upload kinds cannot bypass the separate bounded route',async()=>{
  for(const operationKind of LOCAL_OPERATOR_UPLOADS)assert.throws(()=>dispatchOperatorCommand({changeScope(){throw Error('must not dispatch');}},{command:{operationKind}}),/bounded private upload dispatcher/);
  for(const operationKind of LOCAL_OPERATOR_UPLOADS)await assert.rejects(prepareOperatorCommand({principal:{kind:'operator',id:'synthetic-upload'},request:{operationKind,requestKey:'synthetic-upload',input:{id:'a'.repeat(64)},expectedRevisions:{earn:'0',source:'0',control:'0'}},nowMs:1},createNodeCrypto()),/bounded private upload route/);
+});
+
+test('readonly draft kinds cannot enter the mutation dispatcher',async()=>{
+ for(const operationKind of LOCAL_OPERATOR_DRAFTS){const request={operationKind,requestKey:'synthetic-draft',input:{},expectedRevisions:{earn:'0',source:'0',control:'0'}};await assert.rejects(prepareOperatorCommand({principal:{kind:'operator',id:'synthetic-draft'},request,nowMs:1},createNodeCrypto()),/read-only whitelist draft route/);assert.throws(()=>dispatchOperatorCommand({},{command:{operationKind}}),/read-only whitelist draft route/);}
 });

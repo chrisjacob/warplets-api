@@ -9,9 +9,10 @@ import type {CollectionCutCommand,CollectionCutRepository} from '../collect/free
 import type {RecordGenesisDecisionCommand} from './collections';
 import type {OperationInputs,OperationsCommand,AtomicOperationsRepository} from '../storage/atomic-operations.mjs';
 type LocalSourceKind='collection.seal-list.v1'|'collection.seal-source.v1'|'collection.materialize-eligibility-page.v1';
+export type LocalDraftKind='collection.validate-whitelist.v1';
 export type LocalUploadKind='collection.stage-record.v1'|'collection.stage-cut-record.v1';
-export type LocalOperatorKind='collection.observe-asset.v1'|LocalUploadKind|LocalSourceKind|'earn.configure-action.v1'|'ops.configure-workload.v1'|'ops.change-scope.v1'|'earn.final-review.v1'|'collection.publish-stage.v1'|'governance.publish-ballot.v1'|'governance.record-decision.v1'|LocalCutKind;
-type LocalCommandKind=Exclude<LocalOperatorKind,LocalUploadKind>;
+export type LocalOperatorKind=LocalDraftKind|'collection.observe-asset.v1'|LocalUploadKind|LocalSourceKind|'earn.configure-action.v1'|'ops.configure-workload.v1'|'ops.change-scope.v1'|'earn.final-review.v1'|'collection.publish-stage.v1'|'governance.publish-ballot.v1'|'governance.record-decision.v1'|LocalCutKind;
+type LocalCommandKind=Exclude<LocalOperatorKind,LocalUploadKind|LocalDraftKind>;
 export type OperatorRevisions=Readonly<{earn:string;source:string;control:string}>;
 type DeepReadonly<T>=T extends object?{readonly [K in keyof T]:DeepReadonly<T[K]>}:T;
 type CutInputs={'collection.begin-free-cut.v1':{rootId:string};'collection.validate-cut-page.v1':{attemptId:string;pageIndex:number};'collection.seal-free-cut.v1':{attemptId:string}};
@@ -32,9 +33,11 @@ export type PreparedOperatorCommand<K extends LocalCommandKind=LocalCommandKind>
  [P in K]:Readonly<{command:DeepReadonly<Command<P>>;preview:OperatorPreview<P>}>
 }[K];
 export type OperatorCommandRepository=Partial<Pick<CollectionObservationRepository,'observe'>>&Partial<{sealList(command:CollectionIntakeCommand):Promise<CollectionIntakeResult>;sealSource(command:CollectionIntakeCommand):Promise<CollectionIntakeResult>}>&Partial<Pick<EligibilityIndexRepository,'materializePage'>>&Partial<Pick<ActionPolicyRepository,'configureAction'>>&Pick<AtomicOperationsRepository,'configureWorkload'|'changeScope'>&Partial<Pick<GuardedAdmissionRepository,'recordFinalReview'>>&Partial<Pick<StagePublicationRepository,'publishStage'>>&Partial<Pick<GovernanceOperatorRepository,'publishBallot'|'recordDecision'>>&Partial<Pick<CollectionCutRepository,'beginCut'|'validatePage'|'sealCut'>>;
+export const VALIDATE_WHITELIST_DRAFT:'collection.validate-whitelist.v1';
+export const LOCAL_OPERATOR_DRAFTS:readonly LocalDraftKind[];
 export const LOCAL_OPERATOR_UPLOADS:readonly LocalUploadKind[];
 export const LOCAL_OPERATOR_COMMANDS:readonly LocalOperatorKind[];
-export const LOCAL_OPERATOR_SCOPES:Readonly<Record<LocalSourceKind,'collection-import'>&{'collection.observe-asset.v1':'collection-evidence';'collection.stage-record.v1':'collection-import';'collection.stage-cut-record.v1':'collection-evidence';'earn.configure-action.v1':'earn-action-policy';'ops.configure-workload.v1':'operations';'ops.change-scope.v1':'operations';'earn.final-review.v1':'earn-review';'collection.publish-stage.v1':'collection-publication';'governance.publish-ballot.v1':'governance-publication';'governance.record-decision.v1':'governance-decision';'collection.begin-free-cut.v1':'collection-evidence';'collection.validate-cut-page.v1':'collection-evidence';'collection.seal-free-cut.v1':'collection-evidence'}>;
+export const LOCAL_OPERATOR_SCOPES:Readonly<Record<LocalSourceKind|LocalDraftKind,'collection-import'>&{'collection.observe-asset.v1':'collection-evidence';'collection.stage-record.v1':'collection-import';'collection.stage-cut-record.v1':'collection-evidence';'earn.configure-action.v1':'earn-action-policy';'ops.configure-workload.v1':'operations';'ops.change-scope.v1':'operations';'earn.final-review.v1':'earn-review';'collection.publish-stage.v1':'collection-publication';'governance.publish-ballot.v1':'governance-publication';'governance.record-decision.v1':'governance-decision';'collection.begin-free-cut.v1':'collection-evidence';'collection.validate-cut-page.v1':'collection-evidence';'collection.seal-free-cut.v1':'collection-evidence'}>;
 export function operatorCommandScope<K extends LocalOperatorKind>(kind:K):typeof LOCAL_OPERATOR_SCOPES[K];
 export function prepareOperatorCommand<K extends LocalCommandKind>(args:{principal:OperatorPrincipal;request:LocalOperatorRequest<K>;nowMs:number},crypto:CanonicalCrypto):Promise<PreparedOperatorCommand<K>>;
 export function dispatchOperatorCommand(repository:OperatorCommandRepository,prepared:PreparedOperatorCommand<'ops.configure-workload.v1'>):ReturnType<AtomicOperationsRepository['configureWorkload']>;

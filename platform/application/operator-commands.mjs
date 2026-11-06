@@ -12,9 +12,11 @@ import {normalizeStagePublication} from '../collect/stage-plan.mjs';
 import {STAGE_COLLECTION_CUT_RECORD,buildCollectionCutCommand,BEGIN_COLLECTION_FREE_CUT,VALIDATE_COLLECTION_CUT_PAGE,SEAL_COLLECTION_FREE_CUT} from '../collect/free-cut-service.mjs';
 import {prepareGovernanceOperatorCommand,PUBLISH_BALLOT,RECORD_DECISION} from '../governance/operator-service.mjs';
 
+export const VALIDATE_WHITELIST_DRAFT='collection.validate-whitelist.v1';
+export const LOCAL_OPERATOR_DRAFTS=Object.freeze([VALIDATE_WHITELIST_DRAFT]);
 export const LOCAL_OPERATOR_UPLOADS=Object.freeze([STAGE_COLLECTION_RECORD,STAGE_COLLECTION_CUT_RECORD]);
-export const LOCAL_OPERATOR_COMMANDS=Object.freeze([OBSERVE_COLLECTION_ASSET,...LOCAL_OPERATOR_UPLOADS,SEAL_COLLECTION_LIST,SEAL_COLLECTION_SOURCE,MATERIALIZE_ELIGIBILITY_PAGE,CONFIGURE_ACTION,OPERATIONS.configureWorkload,OPERATIONS.changeScope,FINAL_REVIEW,PUBLISH_COLLECTION_STAGE,PUBLISH_BALLOT,RECORD_DECISION,BEGIN_COLLECTION_FREE_CUT,VALIDATE_COLLECTION_CUT_PAGE,SEAL_COLLECTION_FREE_CUT]);
-export const LOCAL_OPERATOR_SCOPES=Object.freeze({[OBSERVE_COLLECTION_ASSET]:'collection-evidence',[STAGE_COLLECTION_RECORD]:'collection-import',[STAGE_COLLECTION_CUT_RECORD]:'collection-evidence',[SEAL_COLLECTION_LIST]:'collection-import',[SEAL_COLLECTION_SOURCE]:'collection-import',[MATERIALIZE_ELIGIBILITY_PAGE]:'collection-import',[CONFIGURE_ACTION]:'earn-action-policy',[OPERATIONS.configureWorkload]:'operations',[OPERATIONS.changeScope]:'operations',[FINAL_REVIEW]:'earn-review',[PUBLISH_COLLECTION_STAGE]:'collection-publication',[PUBLISH_BALLOT]:'governance-publication',[RECORD_DECISION]:'governance-decision',[BEGIN_COLLECTION_FREE_CUT]:'collection-evidence',[VALIDATE_COLLECTION_CUT_PAGE]:'collection-evidence',[SEAL_COLLECTION_FREE_CUT]:'collection-evidence'});
+export const LOCAL_OPERATOR_COMMANDS=Object.freeze([...LOCAL_OPERATOR_DRAFTS,OBSERVE_COLLECTION_ASSET,...LOCAL_OPERATOR_UPLOADS,SEAL_COLLECTION_LIST,SEAL_COLLECTION_SOURCE,MATERIALIZE_ELIGIBILITY_PAGE,CONFIGURE_ACTION,OPERATIONS.configureWorkload,OPERATIONS.changeScope,FINAL_REVIEW,PUBLISH_COLLECTION_STAGE,PUBLISH_BALLOT,RECORD_DECISION,BEGIN_COLLECTION_FREE_CUT,VALIDATE_COLLECTION_CUT_PAGE,SEAL_COLLECTION_FREE_CUT]);
+export const LOCAL_OPERATOR_SCOPES=Object.freeze({[VALIDATE_WHITELIST_DRAFT]:'collection-import',[OBSERVE_COLLECTION_ASSET]:'collection-evidence',[STAGE_COLLECTION_RECORD]:'collection-import',[STAGE_COLLECTION_CUT_RECORD]:'collection-evidence',[SEAL_COLLECTION_LIST]:'collection-import',[SEAL_COLLECTION_SOURCE]:'collection-import',[MATERIALIZE_ELIGIBILITY_PAGE]:'collection-import',[CONFIGURE_ACTION]:'earn-action-policy',[OPERATIONS.configureWorkload]:'operations',[OPERATIONS.changeScope]:'operations',[FINAL_REVIEW]:'earn-review',[PUBLISH_COLLECTION_STAGE]:'collection-publication',[PUBLISH_BALLOT]:'governance-publication',[RECORD_DECISION]:'governance-decision',[BEGIN_COLLECTION_FREE_CUT]:'collection-evidence',[VALIDATE_COLLECTION_CUT_PAGE]:'collection-evidence',[SEAL_COLLECTION_FREE_CUT]:'collection-evidence'});
 export function operatorCommandScope(kind){requireValue(LOCAL_OPERATOR_COMMANDS.includes(kind),'This operator command is unavailable.');return LOCAL_OPERATOR_SCOPES[kind];}
 const exact=(value,keys)=>value&&typeof value==='object'&&!Array.isArray(value)
  &&Object.keys(value).length===keys.length&&keys.every(key=>Object.hasOwn(value,key));
@@ -35,6 +37,7 @@ export async function prepareOperatorCommand({principal,request,nowMs},crypto){
  requireValue(exact(r,['operationKind','requestKey','input','expectedRevisions']),'Supply the exact operator command fields.');
  requireValue(LOCAL_OPERATOR_COMMANDS.includes(r.operationKind),'This operator command is unavailable.');
  requireValue(!LOCAL_OPERATOR_UPLOADS.includes(r.operationKind),'Use the bounded private upload route for record bytes.');
+ requireValue(!LOCAL_OPERATOR_DRAFTS.includes(r.operationKind),'Use the read-only whitelist draft route.');
  requireValue(typeof r.requestKey==='string'&&/^[A-Za-z0-9._:-]{1,128}$/.test(r.requestKey),'Invalid request key.');
  requireValue(exact(r.expectedRevisions,['earn','source','control'])&&Object.values(r.expectedRevisions).every(value=>
   typeof value==='string'&&/^(0|[1-9][0-9]*)$/.test(value)&&Number.isSafeInteger(Number(value))),'Supply all three exact safe revision strings.');
@@ -84,6 +87,7 @@ export function dispatchOperatorCommand(repository,prepared){
  const command=prepared?.command;
  requireValue(command&&LOCAL_OPERATOR_COMMANDS.includes(command.operationKind),'This operator command is unavailable.');
  requireValue(!LOCAL_OPERATOR_UPLOADS.includes(command.operationKind),'Use the bounded private upload dispatcher.');
+ requireValue(!LOCAL_OPERATOR_DRAFTS.includes(command.operationKind),'Use the read-only whitelist draft route.');
  if(command.operationKind===OBSERVE_COLLECTION_ASSET){requireValue(typeof repository.observe==='function','Fixture observation is unavailable.');return repository.observe(command);}
  if(command.operationKind===SEAL_COLLECTION_LIST){requireValue(typeof repository.sealList==='function','List seal is unavailable.');return repository.sealList(command);}
  if(command.operationKind===SEAL_COLLECTION_SOURCE){requireValue(typeof repository.sealSource==='function','Source seal is unavailable.');return repository.sealSource(command);}
