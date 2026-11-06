@@ -1,0 +1,49 @@
+{
+  "task": "B13",
+  "slice": "B13-05",
+  "status": "verified-slice",
+  "baseCommit": "9d3392d",
+  "scope": [
+    "Deterministic private named-source enqueue, existing notice-specific leases, guarded local delivery and owner inbox reads",
+    "064mandatory enqueue/delivery effects with immutable guarded content and legacy bypass protection",
+    "Replay never redelivers after revocation; missing retained history held"
+  ],
+  "evidence": {
+    "files": {
+      "platform/notifications/delivery-plan.mjs": "ddea9e2dc31122d43d1638e61f77f703d18ebd47ee1d49bc9e570b7ad5566dec",
+      "platform/notifications/delivery-plan.d.mts": "a01f21392399912507d5b4c7dd34da008bccabbc90ffbb1b323d4a934c09c704",
+      "platform/notifications/delivery-plan.test.mjs": "38713b17e4b9d9a5c07a6f0233a6d645927b5a83d2b4e58f558b81784bb4fd92",
+      "platform/storage/notification-delivery.mjs": "2bffdd499dc9467c81a0703c34bf0b9a564b2792d43cc5f5eb703df131d77f81",
+      "platform/storage/notification-delivery.d.mts": "76400c8218044469c9492e89fde75a4487473dda172ab11fafb1a53ebb9e45f8",
+      "platform/storage/notification-delivery.test.mjs": "a20cf7106dcdf9ebd3830cce1d599f0e51bed4aaf39981ed8dd125fc2e980f20",
+      "platform/edge/test/notification-delivery.test.mjs": "06b67e17f00eb95630aa3e939e28b9242ec08354c23d651c1565593739eafac8",
+      "platform/edge/test/fixtures/notification-delivery-worker.ts": "9d8eec4daa4735ced63a594ab2b2291643a2c038e4121244da5319aaa1b8f3ca"
+    },
+    "checks": {
+      "Node": "11PASS6640.7687ms work/b13-delivery-node-final.log",
+      "D1": "29pairedcallsPASS34337.2006ms work/b13-delivery-edge-final.log",
+      "types": "PASS work/b13-delivery-types-final.log",
+      "diff": "PASS"
+    },
+    "bounds": {
+      "D1": {
+        "sql": 16,
+        "batchBytes": 7633,
+        "parameters": 41,
+        "resultBytes": 1140
+      },
+      "NodeTwentyExpiredTwentyFresh": {
+        "sql": 29,
+        "batchBytes": 49861,
+        "parameters": 16
+      }
+    },
+    "externalTransport": false,
+    "publicEnqueueRoute": false
+  },
+  "migration": "064-notification-delivery.sql",
+  "businessTables": 112,
+  "externalTransport": false,
+  "financialExecution": false,
+  "remaining": "Runtime/member browser checkpoint, bounded retention/B03 maintenance, guarded populated recovery and final B13acceptance."
+}

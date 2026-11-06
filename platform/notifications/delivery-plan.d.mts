@@ -1,0 +1,11 @@
+import type {CanonicalCrypto,OperatorPrincipal} from '../application/ports';
+import type {EnqueueNoticeInput,EnqueueNoticeCommand,DeliverNoticeInput,DeliverNoticeCommand} from '../application/notifications';
+export const ENQUEUE_NOTICE:'notifications.enqueue.v1';
+export const DELIVER_NOTICE:'notifications.deliver.v1';
+export function noticeWorkerPrincipal(value:unknown):OperatorPrincipal;
+export function normalizeEnqueueNoticeInput(value:unknown):EnqueueNoticeInput;
+export function noticeSourceKey(input:EnqueueNoticeInput):string;
+export function buildEnqueueNoticeCommand(value:{principal:OperatorPrincipal;requestKey:string;input:EnqueueNoticeInput;nowMs:number},crypto:CanonicalCrypto):Promise<EnqueueNoticeCommand>;
+export type NoticeSourceFacts=Readonly<{body:string}>|Readonly<{id:string;opensMs:number;closesMs:number}>|Readonly<{amount:string;epoch:number;vestsFromMs:number;vestsThroughMs:number}>|null;
+export function prepareNoticeSource(input:EnqueueNoticeInput,facts:NoticeSourceFacts,nowMs:number,crypto:CanonicalCrypto):Promise<Readonly<{kind:'skipped';reason:'no-current-event'}>|Readonly<{kind:'ready';sourceKey:string;sourceDigest:string;title:string;message:string;target:string;expiresMs:number}>>;
+export function buildDeliverNoticeCommand(value:{principal:OperatorPrincipal;input:DeliverNoticeInput},crypto:CanonicalCrypto):Promise<DeliverNoticeCommand>;
