@@ -1,0 +1,94 @@
+{
+  "task": "B11",
+  "slice": "B11.53 genuine imported collection lifecycle acceptance",
+  "status": "verified-local-integration; B11 remains partial",
+  "baseCommit": "02743123accfe0456e3ccc10af61968621626335",
+  "implementationCommit": null,
+  "recordedAt": "2026-11-06T10:02:58.095597+00:00",
+  "sourceHashes": {
+    "platform/collect/imported-lifecycle-test-harness.mjs": "76a71cb8f05cf3ead012f767d07d423d5990818db3b706e6510554d05f39292b",
+    "platform/collect/IMPORTED_LIFECYCLE.md": "92acdaa0c8e728c2fc76d87559bfcb2c40e392e6726a880ed25eb0c29e8117f5",
+    "platform/collect/legacy-economic-repository.fixtures.mjs": "47c69bc6d932e0338011562abce64faa0157f559d09d6c0c2cccb765208a76b6",
+    "platform/edge/test/imported-lifecycle.test.mjs": "062306a4a33cc786406a8c0cf8e0ac9e8a372a52d063c2d5676ee745da90c83e",
+    "platform/edge/test/fixtures/imported-lifecycle-worker.ts": "b1c5dfa90b37bade57c0cf81d2ed2c964a893d084bd202fc35a3c8e23e8020bd"
+  },
+  "sharedDependencies": {
+    "platform/edge/test/fixtures/legacy-adoption-activation-worker.ts": "17de63c50a1728fbb0395d82a18848ce6457cdbd8652d43bb3d19a0d644d8d1c",
+    "platform/collect/legacy-adoption-activation.mjs": "2207fb5ff6bc2c80e4b73af53c4d15d446df92b285bb6f9ed38e6cdc1a3c52a2",
+    "platform/collect/mint-repository.mjs": "76dce58d669b5a4a4c04431dda3d791617f025381f0c45e298bd0930d9a8a63b",
+    "platform/collect/mint-fulfillment-test-harness.mjs": "7eb29f10f0fef3e73fb24bb5472ab191514616c18da0deec3f9fc126a42f9393",
+    "platform/collect/mint-fulfillment-repository.mjs": "da1371158c4053d76a516ddda78fc84f5f859171b353212cc34d9e4fd6be80f2",
+    "platform/storage/055-collection-imported-admission.sql": "0ed9b1b39bed9efee13bc739a48cdd7748d9dd1726e3869ae6f5dbbbf504b750"
+  },
+  "installedSchema": {
+    "last": "055-collection-imported-admission.sql",
+    "migrationFiles": 54
+  },
+  "checks": [
+    {
+      "command": "node --test platform/edge/test/imported-lifecycle.test.mjs",
+      "passed": 1,
+      "failed": 0,
+      "durationMs": 62995.3423,
+      "caseDurationMs": 58025.3836,
+      "log": "work/b11-53-imported-lifecycle-verified.log",
+      "runtime": "installed local Miniflare/workerd D1 and R2; loopback only"
+    },
+    {
+      "command": "node --test --test-name-pattern='private durable phases' platform/collect/legacy-economic-repository.test.mjs",
+      "passed": 1,
+      "failed": 0,
+      "durationMs": 27931.6122,
+      "profiles": [
+        "mixed",
+        "public",
+        "founder",
+        "empty",
+        "unadmitted"
+      ],
+      "log": "work/b11-53-default-fixture.log",
+      "note": "Default publication bytes remain unchanged after optional paidWalletLimit fixture parameter."
+    },
+    {
+      "command": "node platform/edge/node_modules/typescript/bin/tsc -p platform/edge/tsconfig.json --noEmit",
+      "status": "passed"
+    },
+    {
+      "command": "git diff --check",
+      "status": "passed"
+    }
+  ],
+  "measurements": {
+    "pairedPostActivationCalls": 11,
+    "preparationSteps": 9,
+    "maximumOperations": 50,
+    "maximumBatchBytes": 12442,
+    "maximumWorkingBytes": 143503,
+    "bounds": {
+      "operations": 64,
+      "sqlBatchBytes": 262144,
+      "workingBytes": 1048576
+    },
+    "note": "New fixture DB proxy meters every inherited audit SQL transport, including direct schema reads; core callbacks retain working data measurements."
+  },
+  "pipeline": [
+    "Original synthetic reference/source facts and raw private originals only are seeded before fingerprinting; no normalized authority, adoption certificate, new admission/fulfillment or recovery-ready row is copied.",
+    "Genuine Node and D1 fingerprints, exact source relation, historical economics, private preparation and atomic adoption activation produce identical committed certificate outputs.",
+    "Real new mint enters the still-open imported original stage at ordinal1. One historical reservation plus one fresh reservation exhaust walletLimit2; another key is held with stage_wallet_limit.",
+    "Actual B04 recorded mint evidence is registered/ingested into private R2 and consumed by guarded046 fulfillment.",
+    "Omitted fulfillment linkage aborts all effects. Lost post-commit acknowledgement reconciles to accepted replay; subsequent replay is stable.",
+    "Owner operation shows fulfilled, another owner receives missing, concealed asset lists omit level/traits and inventory contains exactly2admitted/2fulfilled with0pending.",
+    "Exact Collect operations/assets, Vault bindings/observations, initial history, current authority, new admissions and new fulfillment rows match Node/D1.",
+    "No financial intents, public import route, remote mutation or deployment."
+  ],
+  "limitations": [
+    "Synthetic original provenance and new manual fixture evidence are explicit; no original operator authentication, payment proof or chain completeness is inferred.",
+    "This acceptance covers the manual-fixture post-import mint path. Genuine configured historical activation is separately tested in B11.52; not every large configured legacy policy is claimed eligible for a future mint.",
+    "Historical founder BigInt counters retain B11.45 coverage; this integrated case specifically adds the historical wallet-limit boundary.",
+    "Verified imported recovery remains a separate prerequisite; this test does not declare B11 complete."
+  ],
+  "fixtureFailuresResolved": [
+    "Preparation and activation allocated identities were initially incomparable; test-only deterministic distinct identities now match Node/workerd without altering production generators.",
+    "Fingerprint callback has no SQL count; actual fixture DB transport metering added rather than treating missing metrics as zero."
+  ]
+}
