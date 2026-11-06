@@ -1,6 +1,6 @@
 # Current checkpoint - B15 recorded lifecycle locally verified
 
-Budget last measured 68% weekly (baseline 15%). Stop starting tasks around 75%; reserve final checks, push and manual-review report below 80%. No reset or spending. Continue through checkpoints until an authorized stopping condition.
+Budget last measured 70% weekly (baseline 15%). Stop starting tasks around 75%; reserve final checks, push and manual-review report below 80%. No reset or spending. Continue through checkpoints until an authorized stopping condition.
 
 Branch work/10x-prd-foundation. Pushed product d16a154 includes schema068,117 business tables; next069 unreserved. B00-B14 verified; B15 partial pending final acceptance audit and CI; B20-core passed. Financial execution/signing/broadcast remain false. No deployment, remote resource mutation, funds, external messages, merges or R-stage. Sydney hours and later prices remain open.
 
@@ -19,3 +19,5 @@ Evidence platform/validation/runs/2026-11-06-overnight/B15-01.json through B15-1
 Finish read-only finalB15 audit (snapshot_acceptance writing work/b15-acceptance-audit-final.json). Follow activeCI, then trigger full checkpoint including067/068 and acceptance evidence; resolve failures and follow tocompletion. B15 stays partial until mandatory acceptance closes. B16 is next only after B15 passes and budget allows. B20full waits allB00-B19; do not repeat core.
 
 frontend_b09 refreshing interim currentchat outputs/10x-progress-and-manual-review.md with411-point denominator. Final budget handoff must refresh usage, commit, CI, completed/remaining estimates and manual review steps. Stage explicit paths only; untracked work/ is scratch. UTF8 explicit reads and LF writes. Agent implementation paths are frozen.
+
+CI42263505164 completed failure:1071/1080 reference tests passed; later stages skipped. Four stale exact table counts updated117 (23focused passes); four packed-checkpoint/phase compatibility tests fixed (6focused passes); one obsolete reserve assertion alreadyfixed. Found real malformed checkpoint decode escaping held boundary: decode now inside existing try; original corruption rejection tests retained. New full checkpoint triggered by this commit; follow tocompletion.

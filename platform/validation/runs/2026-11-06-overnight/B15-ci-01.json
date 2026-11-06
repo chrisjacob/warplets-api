@@ -1,0 +1,23 @@
+{
+  "runId": 42263505164,
+  "url": "https://github.com/chrisjacob/warplets-api/actions/runs/42263505164",
+  "head": "3679e0541e9b4cb2614a53c3eb39f3b748c7a8e9",
+  "conclusion": "failure",
+  "referenceTests": 1080,
+  "passed": 1071,
+  "failed": 9,
+  "laterStages": "skipped",
+  "failures": {
+    "schemaInventory": 4,
+    "rawCheckpointRepresentation": 3,
+    "newReconciliationPhase": 1,
+    "historicalFixtureSpareCapacity": 1
+  },
+  "fixes": {
+    "schemaInventory": "Exact current117-table assertions;23focused tests passed55564.2389ms",
+    "historicalFixtureSpareCapacity": "Already corrected ina165dea; retains unchanged131072-byte cap;117-table golden126931 passed",
+    "checkpointAndPhase": "Six affected recovery tests passed75448.7ms; original malformed descriptor/order/retirement held assertions retained. Parse moved inside existing held error boundary; no validation removal. Types passed."
+  },
+  "financialExecution": false,
+  "followup": "Full current067/068 test-only checkpoint required"
+}

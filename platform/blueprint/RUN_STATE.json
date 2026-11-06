@@ -5,7 +5,7 @@
   "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
   "currentTask": "B15",
-  "lastUpdatedAt": "2026-11-06T17:57:35.391180+00:00",
+  "lastUpdatedAt": "2026-11-06T18:21:08.581996+00:00",
   "migrationAllocation": {
     "next": 69,
     "reserved": [
@@ -527,9 +527,10 @@
         "platform/validation/runs/2026-11-06-overnight/B15-11.json",
         "platform/validation/runs/2026-11-06-overnight/B15-12.json",
         "platform/validation/runs/2026-11-06-overnight/B15-13.json",
-        "platform/validation/runs/2026-11-06-overnight/B15-acceptance.json"
+        "platform/validation/runs/2026-11-06-overnight/B15-acceptance.json",
+        "platform/validation/runs/2026-11-06-overnight/B15-ci-01.json"
       ],
-      "nextAction": "Final read-only acceptance audit found no additional mandatory local implementation gap. Follow CI42263505164, then trigger final067/068 full test-only checkpoint; B15 remains pending those gates. B16 next if budget permits.",
+      "nextAction": "CI42263505164 failed9/1080; current fixes pass23schema +6recovery focused tests and types. Follow new full067/068 checkpoint tocompletion; B16 only after gates pass and budget allows.",
       "blocker": null
     },
     "B16": {

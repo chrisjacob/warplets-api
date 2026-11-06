@@ -1,3 +1,4 @@
+import {parseRecoveryV2Checkpoint} from './v2-checkpoint.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {recoveryTableOrderIndices,recoveryTableOrderPosition} from './v2-table-order.mjs';
@@ -7,8 +8,11 @@ import {fullAdoptionSource,fullAdoptionTarget,assertFullAdoptionReady} from './v
 import {canonicalJson,utf8} from '../security/canonical.mjs';
 const bytes=value=>utf8(canonicalJson(value)).length;
 const clone=value=>JSON.parse(canonicalJson(value));
+const expanded=target=>parseRecoveryV2Checkpoint(canonicalJson(target.checkpoint()));
 const numbers=BUSINESS_TABLES.map((_,index)=>index);
-function save(target,c){target.db.prepare("UPDATE app_recovery_runs SET checkpoint_json=?,state='restoring',report_json=NULL WHERE id=?").run(JSON.stringify(c),target.input.pinnedDigest);target.db.prepare("UPDATE app_recovery_state SET status='restoring' WHERE active_restore_id=?").run(target.input.pinnedDigest);}
+// Malformed descriptors must reach the runtime guard, not a test encoder guard.
+function storageMutation(c){return Array.isArray(c.tables)?{...c,tables:null,tablesPackedV1:c.tables.map(t=>['name','columns','primaryKey','hasRowid','rowCount','pages','tableDigest'].map(k=>t[k]))}:c;}
+function save(target,c){target.db.prepare("UPDATE app_recovery_runs SET checkpoint_json=?,state='restoring',report_json=NULL WHERE id=?").run(JSON.stringify(storageMutation(c)),target.input.pinnedDigest);target.db.prepare("UPDATE app_recovery_state SET status='restoring' WHERE active_restore_id=?").run(target.input.pinnedDigest);}
 
 test('table-order indices preserve exact order including zero and reject incomplete or mixed inventories',()=>{
  const names=[...BUSINESS_TABLES];assert.deepEqual(recoveryTableOrderIndices(names,names),numbers);assert.deepEqual(recoveryTableOrderIndices([...names].reverse(),names),[...numbers].reverse());
@@ -20,7 +24,7 @@ test('table-order indices preserve exact order including zero and reject incompl
 });
 
 test('real restore refuses invalid table orders and cursors without importing or advancing to fences',async t=>{
- const f=await v2RestoreSource(t,{jobs:false}),target=v2RestoreTarget(t,f);assert.equal((await target.drive({stopPhase:'tables'})).phase,'tables');const original=target.checkpoint(),watermark=target.db.prepare('SELECT revision FROM app_recovery_watermark WHERE id=1').get().revision;
+ const f=await v2RestoreSource(t,{jobs:false}),target=v2RestoreTarget(t,f);assert.equal((await target.drive({stopPhase:'tables'})).phase,'tables');const original=expanded(target),watermark=target.db.prepare('SELECT revision FROM app_recovery_watermark WHERE id=1').get().revision;
  assert.ok(original.tableOrder.every(Number.isSafeInteger));assert.equal(original.tableIndex,0);
  const cases=[['missing',c=>{c.tableOrder.pop();}],['duplicate',c=>{c.tableOrder[0]=c.tableOrder[1];}],['negative-entry',c=>{c.tableOrder[0]=-1;}],['mixed',c=>{c.tableOrder[0]=BUSINESS_TABLES[c.tableOrder[0]];}],['unknown-legacy',c=>{c.tableOrder=c.tableOrder.map(i=>BUSINESS_TABLES[i]);c.tableOrder[0]='unknown';}],['fractional-index',c=>{c.tableIndex=0.5;}],['negative-index',c=>{c.tableIndex=-1;}],['past-end-index',c=>{c.tableIndex=c.tableOrder.length+1;}],['null-index',c=>{c.tableIndex=null;}],['missing-descriptor',c=>{c.tables.pop();}],['duplicate-descriptor',c=>{c.tables[0]=c.tables[1];}],['wrong-count',c=>{c.root.tables.count--;}]];
  for(const [name,mutate] of cases){const c=clone(original);mutate(c);save(target,c);
