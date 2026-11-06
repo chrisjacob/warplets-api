@@ -1,0 +1,84 @@
+{
+  "format": "10x.local.implementation-evidence.v1",
+  "task": "B15",
+  "slice": "owner-only portable legacy intent recovery reads",
+  "baseCommit": "24d2b4266ead2bab6f1338f5a33013b62557a57e",
+  "implementationCommit": null,
+  "sourceHashes": {
+    "platform/transactions/recovery-reads.mjs": "39a8807d20a35787438701f1256e341b792454587ddeae9a5bf17deb66854c6a",
+    "platform/transactions/recovery-reads.d.mts": "12a587b32bd0c850138470756eb1fedf995aa98a7dae713751586f8d78599cbe",
+    "platform/transactions/recovery-reads.test.mjs": "d24f311ebe789f056acd793d4769425892166b6b8bb871a57ad1d0717266d4fe",
+    "platform/transactions/recovery-read.fixtures.mjs": "ec59b6a3ba3e30be06254853b54802adc515efe08eb5a0fd3afe60c2843a89b4",
+    "platform/edge/test/action-recovery.test.mjs": "49e9d9b728c4f328576f0fb36084a85d201a2f1d3ea11ecdbfba383f854e7d61",
+    "platform/edge/test/fixtures/action-recovery-worker.ts": "cbf6b53d5f65cbfc860622361b10302af32bdd383142f22a30eb38e197ef4b7a"
+  },
+  "sharedContractDependency": {
+    "path": "platform/application/action-recovery.ts",
+    "sha256": "279a84a76638b76d1d8856c419bc0edb7fd84ca350784c5901745413cc4f3966",
+    "owner": "coordinator"
+  },
+  "checks": [
+    {
+      "command": "node --test platform/transactions/recovery-reads.test.mjs",
+      "passed": 6,
+      "failed": 0,
+      "durationMs": 8474.1894,
+      "log": "work/b15-recovery-reads-node.log"
+    },
+    {
+      "command": "node --test platform/edge/test/action-recovery.test.mjs",
+      "passed": 1,
+      "failed": 0,
+      "durationMs": 33006.1254,
+      "profiles": 4,
+      "log": "work/b15-recovery-reads-d1.log"
+    },
+    {
+      "command": "pnpm --dir platform/edge exec tsc --noEmit",
+      "exitCode": 0,
+      "log": "work/b15-recovery-reads-types.log"
+    },
+    {
+      "command": "git diff --check",
+      "exitCode": 0
+    }
+  ],
+  "measurements": {
+    "statementsPerReadyRead": 8,
+    "batches": 2,
+    "maxBatchBytes": 2187,
+    "maxParameters": 2,
+    "maxD1ResultBytes": 45752,
+    "maxD1Rows": 86,
+    "writeChanges": 0,
+    "attemptBoundary": 16,
+    "receiptBoundary": 64
+  },
+  "bounds": {
+    "planBytes": 65536,
+    "packetBytes": 32768,
+    "receiptObservationBytes": 2048,
+    "totalResultBytes": 262144,
+    "outputBytes": 32768,
+    "excess": "explicit pending, no truncated readiness"
+  },
+  "acceptance": [
+    "All eight documented legacy intent states; owner-only lookup and exact retained intent/attempt/receipt event identities.",
+    "Canonical legacy plan hash and supported shape, local genesis, exact unsigned packet decode/signers/account privileges/instruction bytes/lifetime and complete contiguous attempt history.",
+    "Recorded signature presence and observation linkage/state/revision checks only; no cryptographic authenticity or external provenance claim. No signature, packet, accounts, raw observations or simulation reference returned.",
+    "Unknown/submitted/confirmed permit reconciliation guidance only even after wall-clock expiry. Replacement eligible only explicit expired never-signed attempt under unexpired unfulfilled intent.",
+    "16-attempt and64-receipt ready boundaries;17/65, oversized rows and total-result limit hold. Invalid packet/linkage/revision/state histories hold.",
+    "Initial/end snapshot watermark and recovery state, then post-crypto generation/watermark fence. Actual D1 source mutation during hash holds. Injected generation/restoring state and driver failures hold without private error text.",
+    "No database writes from reader; principal/query captured before await. Immutable returned DTO is guidance, not execution authority."
+  ],
+  "fixtureClassification": "Unsigned packets use fixed public bytes. Submitted/signature/receipt rows are explicitly synthetic retained history labels created without signing, simulation, RPC or broadcast; they do not attest actual network events. Node/localD1 compare exact copied rows including receipt rowids.",
+  "limitations": [
+    "No public route, migration, write/transition repository or action factory introduced.",
+    "Extra legacy plan/instruction fields outside the supported bounded read shape hold; no silently inferred semantics.",
+    "Private V2 restore itself is not run by this slice; rowid/identity-preserving copied-history parity is tested. Existing restoration inventory retains these tables.",
+    "B15 remains partial: typed action factories, independently sourced plan preparation, atomic attempt transitions and provenance-aware observations remain coordinator-planned work."
+  ],
+  "financialExecution": false,
+  "serverSigning": false,
+  "broadcast": false
+}

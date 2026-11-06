@@ -5,7 +5,7 @@
   "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
   "currentTask": "B13",
-  "lastUpdatedAt": "2026-11-06T16:14:55.174288+00:00",
+  "lastUpdatedAt": "2026-11-06T16:37:23.858817+00:00",
   "migrationAllocation": {
     "next": 65,
     "reserved": [
@@ -482,13 +482,15 @@
       "blocker": null
     },
     "B15": {
-      "status": "not_started",
-      "owner": null,
-      "baseCommit": null,
+      "status": "in_progress",
+      "owner": "frontend_b09",
+      "baseCommit": "24d2b4266ead2bab6f1338f5a33013b62557a57e",
       "implementationCommit": null,
       "pushed": false,
-      "evidence": [],
-      "nextAction": null,
+      "evidence": [
+        "platform/validation/runs/2026-11-06-overnight/B15-01.json"
+      ],
+      "nextAction": "Owner-only portable recovery reader verified on Node and local D1. Next: typed unsigned action vocabulary and evidence-derived preparation; no signing/broadcast or B15 completion claim.",
       "blocker": null
     },
     "B16": {
