@@ -1,0 +1,71 @@
+{
+  "milestone": "B17 private R2 checkpoint acceptance",
+  "status": "partial-verified",
+  "baseCommit": "8ff516fe2fec959e98312fb7681c14aeac033b35",
+  "implementationCommit": null,
+  "files": [
+    "platform/edge/test/refresh-checkpoint.test.mjs",
+    "platform/edge/test/fixtures/refresh-checkpoint-worker.ts"
+  ],
+  "reviewedWithoutChanges": [
+    "platform/nfts/refresh-checkpoint.mjs",
+    "platform/nfts/refresh-checkpoint.d.mts",
+    "platform/nfts/refresh-checkpoint.test.mjs"
+  ],
+  "sourceHashes": {
+    "platform/edge/test/refresh-checkpoint.test.mjs": "f0b131dceb129924d23fbf819e32751f53273f816af6d1d184801b9cc1f5102c",
+    "platform/edge/test/fixtures/refresh-checkpoint-worker.ts": "a04b8010ffbd8c2067f5caa3bf3d178c0d94d874263ba53922231af77c52c82f",
+    "platform/nfts/refresh-checkpoint.mjs": "3d10f3b8bb35dcd977fcafb8bfb5ce58e2e900d99246e811f7c78c798e0aa3f8",
+    "platform/nfts/refresh-checkpoint.d.mts": "d533c512e157feb13736c3c5588267c2ba45859fd377e5a927db85b928d29ce9",
+    "platform/nfts/refresh-checkpoint.test.mjs": "7584f4c65d086b71b225dff9f775f91433527bd0fcfcded9047a44866739dcc6"
+  },
+  "checks": [
+    {
+      "command": "node --test platform/edge/test/refresh-checkpoint.test.mjs",
+      "passed": 1,
+      "calls": 13,
+      "durationMs": 2213.4206,
+      "log": "work/b17-refresh-checkpoint-edge.log"
+    },
+    {
+      "command": "platform/edge tsc --noEmit",
+      "passed": true
+    }
+  ],
+  "metrics": {
+    "maxObjectReads": 2,
+    "maxObjectWrites": 1,
+    "maxOutputBytes": 3015,
+    "checkpointBytes": 2425,
+    "browserBundleBytes": 40252
+  },
+  "covered": [
+    "Private R2 exact canonical state bytes independently SHA-verified",
+    "Host-retained independent pin and restarted service restore exact history",
+    "Unknown PUT absent returns pending with same pin; retry saves exact identity",
+    "Unknown PUT after creation reconciles exact readback; repeated save deduplicates",
+    "Original event replay after restored checkpoint does not apply metadata",
+    "Pin mutation during await cannot replace captured identity",
+    "Wrong pin, public identity, lying verified store, fabricated history and corrupted R2 bytes reject",
+    "Corrupted object cannot be overwritten through immutable ArtifactStore"
+  ],
+  "limitations": [
+    "Archive only, not authenticated event ledger or latest-state authority",
+    "Owner contexts and actors in pure transcript remain unverified until repository adapter",
+    "No DB schema, mutation route, provider/AI action, signing or financial execution"
+  ],
+  "isAuthorization": false,
+  "financialExecution": false,
+  "nodeCheck": {
+    "command": "node --test platform/nfts/refresh-checkpoint.test.mjs",
+    "passed": 4,
+    "durationMs": 313.234,
+    "log": "work/b17-refresh-checkpoint.log",
+    "initialSandboxRun": "Temporary hard-link writes unavailable; returned pending correctly. Authorized escalated local run passed."
+  },
+  "checkpointSourceHashes": {
+    "platform/nfts/refresh-checkpoint.d.mts": "d533c512e157feb13736c3c5588267c2ba45859fd377e5a927db85b928d29ce9",
+    "platform/nfts/refresh-checkpoint.mjs": "3d10f3b8bb35dcd977fcafb8bfb5ce58e2e900d99246e811f7c78c798e0aa3f8",
+    "platform/nfts/refresh-checkpoint.test.mjs": "7584f4c65d086b71b225dff9f775f91433527bd0fcfcded9047a44866739dcc6"
+  }
+}

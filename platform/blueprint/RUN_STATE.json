@@ -5,7 +5,7 @@
   "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
   "currentTask": "B16",
-  "lastUpdatedAt": "2026-11-06T21:54:23.304932+00:00",
+  "lastUpdatedAt": "2026-11-06T21:58:23.078136+00:00",
   "migrationAllocation": {
     "next": 69,
     "reserved": [
@@ -556,16 +556,18 @@
     },
     "B17": {
       "status": "in_progress",
-      "owner": "snapshot_acceptance",
+      "owner": "coordinator",
       "baseCommit": "a1d1d78",
-      "implementationCommit": "2e9e458",
+      "implementationCommit": "8ff516f",
       "pushed": true,
       "evidence": [
         "platform/validation/runs/2026-11-06-overnight/B17-01.json",
         "platform/validation/runs/2026-11-06-overnight/B17-02.json",
-        "platform/validation/runs/2026-11-06-overnight/B17-03.json"
+        "platform/validation/runs/2026-11-06-overnight/B17-03.json",
+        "platform/validation/runs/2026-11-06-overnight/B17-04.json",
+        "platform/validation/runs/2026-11-06-overnight/B17-05.json"
       ],
-      "nextAction": "Pure refresh/projection tested; actual Worker parity, private checkpoint restore and normalized mint evidence reader underway. Durable authenticated workflow/API/UI remain unfinished.",
+      "nextAction": "Pure foundations pass 20 Worker calls; private checkpoint passes 4 Node tests and 13 actual R2 calls. Finish normalized fairness reader, then authenticated refresh revision repository and collection UI. Full B17 remains partial.",
       "blocker": null
     },
     "B18": {

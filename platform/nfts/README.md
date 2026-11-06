@@ -15,3 +15,33 @@ The permission/recovery dossier records unresolved external-burn, burn-veto remo
 All inputs are bounded data-only structures (32 KiB outer input, 16 KiB asset JSON, 4 KiB slot JSON). Getters, unknown fields, duplicate JSON properties, sparse arrays and malformed identities are rejected. Financial state is always `not-applicable-local`; signing, broadcast and financial execution are unavailable.
 
 This is B17 step4/6 groundwork only. Fairness disclosure projection and the recoverable refresh proposal workflow remain separate work. No provider, custody configuration or metadata mutation route is selected.
+
+
+## Refresh rehearsal and recovery
+
+The refresh reducer retains `draft -> reference-validated -> moderation-pending -> preview-ready -> owner-approved -> fulfillment-pending -> fulfilled`, with rejected, failed and owner-changed outcomes. `fulfilled` is possible only for an explicitly recorded synthetic rehearsal: `metadataApplied:false`, `receiptAuthenticity:unverified`, and `isAuthorization:false`. An unselected provider stays unavailable. No image generation, payment or asset update occurs.
+
+Each retained event includes its actor, original input, observed owner/version, event digest and outcome. Restoration replays the complete history. An event ID with the same input returns its original outcome; different input conflicts. Failed provider retries retain the original job identity and preview binding. Sixteen events and 32 KiB bound a rehearsal; reaching that bound holds further progress rather than dropping history.
+
+Ownership or version changes before approval invalidate the proposal. Changes after approval permanently hold fulfillment, even if ownership later returns. Reference, preview and quote substitution fails. These are structural rules; authentication and fresh database observations belong in the repository boundary.
+
+The private checkpoint adapter writes the exact canonical state through the existing immutable ArtifactStore, then verifies readback and replays it. Retain the returned exact-byte/request/state pin independently. Unknown writes retry the same identity; missing or corrupt objects never produce a restored state. A checkpoint preserves historical rehearsal data, not an authenticated latest-state pointer or current ownership claim. It cannot be published as public metadata.
+
+## Fairness disclosure boundary
+
+The collection fairness projector returns only an opaque domain-separated commitment and separate request/evidence/financial states while sealed. It withholds the raw commitment, request context, proof, round, order and outcome. A revealed transcript requires irreversible assignment, the selected asset's permitted reveal and complete reveal coverage for the earlier mint prefix (or every progression participant). Unit-supplied gate flags are not authorization: the repository must establish their retained evidence lineage.
+
+After those gates, replay uses the original recorded round, commitment and existing draw algorithm. Verification covers that recorded draw only. Full reserved-map policy closure, real paid admission order and custody remain separate requirements. The future asset map is never included. Missing proof, verifier or replay inputs stays sealed; conflicting evidence holds the result. No redraw, selective cancellation or refund route exists.
+
+## Permission and recovery matrix
+
+| Surface | Locally checked rule | Remaining authority requirement |
+|---|---|---|
+| Genesis image proposal | Reference/preview/quote and owner/version binding; no economic fields | Authenticated moderation/owner approval, verified media artifacts and selected update custody |
+| Season progression | Existing domain replay; original start, derived expiry and lifetime rerolls | Authenticated committed effect lineage and accepted entropy |
+| Transfer | Immutable identity/economics and preserved counters/cooldown | Accepted owner observation and current version fence |
+| Fairness transcript | Same recorded draw, reveal gates and sealed field allowlist | Trusted assignment/reveal history; no production order/custody claim |
+| Private refresh checkpoint | Independent byte pin, canonical encoding and full event replay | Authenticated durable revision pointer and current asset observation |
+| Historical Vault claims | No metadata mutation channel | Permanent claim/custody design and financial review |
+
+On interruption, retain the same operation, commitment, provider job and every history revision. Pause new proposals if evidence is unavailable. Do not clear a lock or replace a draw to make a hold disappear. Existing external-burn, update-authority and permanent-delegate incompatibilities stay unresolved; an unsigned transaction plan grants no authority.

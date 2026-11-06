@@ -1,0 +1,54 @@
+{
+  "milestone": "B17 actual Worker pure foundations parity",
+  "status": "partial-verified",
+  "baseCommit": "8ff516fe2fec959e98312fb7681c14aeac033b35",
+  "implementationCommit": null,
+  "files": [
+    "platform/edge/test/nft-foundations.test.mjs",
+    "platform/edge/test/fixtures/nft-foundations-worker.ts"
+  ],
+  "sourceHashes": {
+    "platform/edge/test/nft-foundations.test.mjs": "ea559e5be62084d5a282c884c39c98d0bbf465c28e3b7e9ec008169ea282fcec",
+    "platform/edge/test/fixtures/nft-foundations-worker.ts": "d35bcd7efc2f611c94ac4360b1123f3836b7a35f22d8464ed3a9cc38da0251b6",
+    "platform/nfts/metadata-schema.mjs": "7338c1b2042e940d4dc77c5ca0a9dbe08f7e69abdeb036f0e8625053ff8ea4a8",
+    "platform/nfts/permissions.mjs": "cac90053191dfe489c73a38f93944a3e88bdc873009db8c8d90e057e4a40aaa1",
+    "platform/nfts/refresh-workflow.mjs": "25b5ca4085d652d6db864b4a383b2e548d273ce15bb77dbee9796d4ea4c3718f"
+  },
+  "checks": [
+    {
+      "command": "node --test platform/edge/test/nft-foundations.test.mjs",
+      "passed": 1,
+      "fixtureCalls": 20,
+      "durationMs": 1800.5785,
+      "log": "work/b17-foundations-edge.log"
+    },
+    {
+      "command": "platform/edge tsc --noEmit",
+      "passed": true
+    }
+  ],
+  "metrics": {
+    "calls": 20,
+    "maxInputBytesIncludingRejectedOversizeCase": 33618,
+    "maxOutputBytes": 8490,
+    "maxHashesPerCall": 16,
+    "browserBundleBytes": 33445,
+    "storageCalls": 0
+  },
+  "runtime": "pinned local workerd, browser ESM bundle, no nodejs_compat/storage bindings/provider calls",
+  "covered": [
+    "Exact Node/Worker private metadata and dossier equality",
+    "Recorded refresh lifecycle/restart/replay same state and hashes",
+    "Owner transfer holds fulfillment; immutable economic input channel",
+    "Provider unselected remains unavailable; all fixture-only/non-authority flags retained",
+    "Async capture mutation, accessor rejection and oversized input rejection",
+    "Preview substitution and changed history rejected"
+  ],
+  "limitations": [
+    "Pure structural fixture only, no durable authoritative repository or actor/owner/receipt authenticity",
+    "No B17 completion claim; fairness/UI/durable workflow and authority review remain separate",
+    "No metadata application, financial execution, AI/provider enrollment, signing or broadcast"
+  ],
+  "financialExecution": false,
+  "metadataApplied": false
+}
