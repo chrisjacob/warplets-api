@@ -45,6 +45,8 @@ export async function encodeCollectionCut(value,crypto){
 function attempt(a,rootId){fail(exact(a,['id','rootId','sourceRevision'])&&digest(a.id)&&a.rootId===rootId&&revision(a.sourceRevision),'cut-attempt');}
 export async function collectionCutAttemptId(rootId,sourceRevision,crypto){fail(digest(rootId)&&revision(sourceRevision),'cut-attempt');return hash(crypto,['collection-cut-attempt-v1',rootId,sourceRevision]);}
 const summaryPreimage=s=>['collection-cut-page-closure-v1',s.attemptId,s.rootId,s.sourceRevision,s.pageId,s.pageIndex,s.holdingCount,s.trackedCount,s.firstAsset,s.lastAsset,s.eligibleWallets];
+/** Exact retained commitment only; callers still verify the complete summary. */
+export function collectionCutPageClosureDigest(value,crypto){return hash(crypto,summaryPreimage(copy(value)));}
 /** Named repository reads must supply every tracked Genesis in this interval,
  * plus each locally known supplied ID. Bounds and closure are checked here;
  * repository source-revision CAS proves those reads still describe the cut. */
@@ -65,7 +67,7 @@ export async function prepareCollectionCutPage(value,crypto){
  for(const row of v.tracked)fail(seen.has(row.id),'cut-known-closure');
  const eligibleWallets=[...snapshotSeasonFreeWallets({at:root.body.atMs,holdings}).wallets];eligibleWallets.forEach(wallet);
  const summary={attemptId:v.attempt.id,rootId:root.id,sourceRevision:v.attempt.sourceRevision,pageId:page.id,pageIndex:page.body.index,holdingCount:holdings.length,trackedCount:v.tracked.length,firstAsset:descriptor.firstAsset,lastAsset:descriptor.lastAsset,eligibleWallets};
- return freeze({...summary,closureDigest:await hash(crypto,summaryPreimage(summary))});
+ return freeze({...summary,closureDigest:await collectionCutPageClosureDigest(summary,crypto)});
 }
 export async function prepareCollectionCutSeal(value,crypto){
  const rootRecord=captureCollectionCutRecord(value.rootRecord);
@@ -74,7 +76,7 @@ export async function prepareCollectionCutSeal(value,crypto){
  const b=root.body,s=v.stage;fail(exact(s,['inventoryId','stageId','kind','type','opensAtMs','termsDigest'])&&s.kind==='season'&&s.type==='free'&&s.inventoryId===b.inventoryId&&s.stageId===b.stageId&&s.opensAtMs===b.atMs&&s.termsDigest===b.termsDigest&&time(v.nowMs)&&v.nowMs>=b.atMs,'cut-stage-binding');
  fail(v.pages.length===b.pages.length,'cut-page-closure');const all=[];
  for(let n=0;n<v.pages.length;n++){const p=v.pages[n],d=b.pages[n];fail(exact(p,['attemptId','rootId','sourceRevision','pageId','pageIndex','holdingCount','trackedCount','firstAsset','lastAsset','eligibleWallets','closureDigest'])&&p.attemptId===v.attempt.id&&p.rootId===root.id&&p.sourceRevision===v.attempt.sourceRevision&&p.pageId===d.id&&p.pageIndex===n&&p.holdingCount===d.count&&p.firstAsset===d.firstAsset&&p.lastAsset===d.lastAsset&&nat(p.trackedCount,p.holdingCount)&&Array.isArray(p.eligibleWallets)&&p.eligibleWallets.length<=p.holdingCount&&digest(p.closureDigest),'cut-summary-binding');
-  p.eligibleWallets.forEach((w,i)=>{wallet(w);fail(i===0||p.eligibleWallets[i-1]<w,'cut-wallet-order');});fail(p.closureDigest===await hash(crypto,summaryPreimage(p)),'cut-summary-digest');all.push(...p.eligibleWallets);
+  p.eligibleWallets.forEach((w,i)=>{wallet(w);fail(i===0||p.eligibleWallets[i-1]<w,'cut-wallet-order');});fail(p.closureDigest===await collectionCutPageClosureDigest(p,crypto),'cut-summary-digest');all.push(...p.eligibleWallets);
  }
  const wallets=[...new Set(all)].sort(),walletsDigest=await hash(crypto,wallets),l=v.list;fail(exact(l,['id','count','walletsDigest','indexedCount'])&&l.id===b.eligibilityListId&&l.count===wallets.length&&l.indexedCount===l.count&&l.walletsDigest===walletsDigest,'cut-eligibility-list');
  return freeze({inventoryId:b.inventoryId,stageId:b.stageId,atMs:b.atMs,rootId:root.id,attemptId:v.attempt.id,eligibilityListId:b.eligibilityListId,eligibleWallets:wallets.length,walletsDigest,sourceRef:b.sourceRef,sourceRevision:v.attempt.sourceRevision,commitmentKind:'paged-fixed-cut-v1',source:'local-fixture',executable:false});

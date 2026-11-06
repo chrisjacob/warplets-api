@@ -1,0 +1,265 @@
+{
+  "checkpoint": "B11-22",
+  "title": "Private historical free-cut recovery with bounded streaming wallet commitments",
+  "status": "partial-pending-coordinator-broader-validation-and-CI",
+  "lastTestedBaseCommit": "250e07f73f7dd7d6194b1408274f094da80dfb0c",
+  "implementationCommit": null,
+  "source": "synthetic-local-fixture",
+  "financialExecution": false,
+  "publicActivation": false,
+  "scope": [
+    "Original047 record and command request/output digests, captured source revisions, page closure and exact sorted eligibility",
+    "Original free-stage publication input/result and legacy terms preimage",
+    "035 source/list closure and038 exact indexed-page receipts",
+    "049 free-admission to cut/list membership check supplied by coordinator",
+    "Privatev2 phase dispatch before publications; Node/workerd injected native SHA256 streaming factory",
+    "Fresh108-table target preserves later owner while verifying historical cut"
+  ],
+  "checks": [
+    {
+      "command": "node --test platform/recovery/v2-reconcile-free-cuts.test.mjs platform/recovery/v2-reconcile-collections.test.mjs platform/recovery/v2-restore.test.mjs",
+      "passed": 14,
+      "durationMs": 82785.6116,
+      "log": "work/b11-free-cut-reconcile-integrated.log"
+    },
+    {
+      "command": "node --test --test-name-pattern=\"empty exact cut\" platform/recovery/v2-reconcile-free-cuts.test.mjs",
+      "passed": 1,
+      "durationMs": 891.4794,
+      "log": "work/b11-free-cut-reconcile-empty.log"
+    },
+    {
+      "command": "node --test platform/collect/free-cut-codec.test.mjs platform/collect/source-intake.test.mjs",
+      "passed": 14,
+      "durationMs": 30393.6094,
+      "log": "work/b11-free-cut-reconcile-helpers.log"
+    },
+    {
+      "command": "node --test platform/edge/test/recovery-free-cut.test.mjs",
+      "passed": 1,
+      "durationMs": 88638.8234,
+      "log": "work/b11-free-cut-reconcile-edge.log",
+      "note": "Full312step10kcase; run preceded additive empty-cut test/fallback and equivalent robust DigestStream rejection-key check."
+    },
+    {
+      "command": "node --test --test-name-pattern=\"empty exact cut\" platform/edge/test/recovery-free-cut.test.mjs",
+      "passed": 1,
+      "durationMs": 24407.1706,
+      "log": "work/b11-free-cut-reconcile-edge-empty.log",
+      "note": "Final code empty branch, zero native-stream writes."
+    },
+    {
+      "command": "node platform/edge/node_modules/typescript/bin/tsc --project platform/edge/tsconfig.json --noEmit",
+      "result": "pass",
+      "log": "work/b11-free-cut-reconcile-types.log"
+    },
+    {
+      "command": "git diff --check -- owned paths",
+      "result": "pass"
+    }
+  ],
+  "distinctFocusedNodeTests": 29,
+  "distinctFocusedD1Tests": 2,
+  "metrics": {
+    "work/b11-free-cut-reconcile-integrated.log": [
+      {
+        "configuredMint": 1,
+        "syntheticVerifier": true,
+        "retainedRawEvidence": true,
+        "currentOwnerDiffersFromMint": true,
+        "revokedOperator": true,
+        "acceptedEvidenceHeadAbsent": true,
+        "tables": 108
+      },
+      {
+        "policyBytes": 311075,
+        "traitContinuations": 3,
+        "maxReturnedBytes": 106142,
+        "maxCheckpointBytes": 1493,
+        "syntheticVerifier": true,
+        "captureLargeRowAcceptance": false
+      },
+      {
+        "steps": 15,
+        "maxSql": 10,
+        "maxWorkingBytes": 38931
+      },
+      {
+        "holdings": 10000,
+        "knownGenesis": 100,
+        "pages": 100,
+        "steps": 312,
+        "maxOperations": 13,
+        "maxWorkingBytes": 482347,
+        "digestSteps": [
+          {
+            "operations": 13,
+            "sqlBytes": 5131,
+            "readBytes": 490643,
+            "contextBytes": 250928,
+            "workingBytes": 462496,
+            "hashedBytes": 470001,
+            "scope": "list-digest:07862da00389dc981a91ec09a0df4005945b7cc773305b378a7e4dad95fd7d1e"
+          },
+          {
+            "operations": 13,
+            "sqlBytes": 4434,
+            "readBytes": 490643,
+            "contextBytes": 251232,
+            "workingBytes": 462103,
+            "hashedBytes": 470001,
+            "scope": "binding-digest:4b367809217196cfedf709f789037eef08be21b6de9caec5b2a704fcb911f8d1"
+          }
+        ]
+      },
+      {
+        "tables": 108,
+        "steps": 1020,
+        "maxSql": 26,
+        "maxBatchBytes": 88256,
+        "originalCutRestored": true,
+        "laterOwnerPreserved": true
+      },
+      {
+        "steps": 1012,
+        "checkpointBytes": 118614,
+        "maxSqlStatements": 13,
+        "maxBatchBytes": 88527,
+        "objects": 163,
+        "reconciliationComplete": true
+      }
+    ],
+    "work/b11-free-cut-reconcile-empty.log": [],
+    "work/b11-free-cut-reconcile-helpers.log": [
+      {
+        "holdings": 10000,
+        "pages": 100,
+        "maxPageBytes": 24759,
+        "rootBytes": 36180,
+        "finalSummaryBytes": 536491,
+        "legacyEligibilityMatched": true,
+        "legacyFlatDigestClaimed": false
+      },
+      {
+        "records": 3245,
+        "totalRawBytes": 16299312,
+        "maxListReadBytes": 484346,
+        "maxListReadRecords": 101,
+        "sourceReadBytes": 1027025,
+        "rootSealBytes": 11273,
+        "rootMetadataRecords": 45,
+        "admissionPages": 12
+      }
+    ],
+    "work/b11-free-cut-reconcile-edge.log": [
+      {
+        "steps": 312,
+        "holdings": 10000,
+        "actualKnownGenesisPage": 100,
+        "sourceProvenance": "retained-synthetic-local-fixture",
+        "nodeWorkerdExactHashes": true,
+        "interruptedStreamRestarted": true,
+        "maxOperations": 13,
+        "maxWorkingBytes": 482345,
+        "hashSteps": [
+          {
+            "operations": 13,
+            "sqlBytes": 5131,
+            "readBytes": 490642,
+            "contextBytes": 250926,
+            "workingBytes": 462494,
+            "hashedBytes": 470001,
+            "scope": "list-digest:07862da00389dc981a91ec09a0df4005945b7cc773305b378a7e4dad95fd7d1e"
+          },
+          {
+            "operations": 13,
+            "sqlBytes": 4434,
+            "readBytes": 490642,
+            "contextBytes": 251230,
+            "workingBytes": 462101,
+            "hashedBytes": 470001,
+            "scope": "binding-digest:4b367809217196cfedf709f789037eef08be21b6de9caec5b2a704fcb911f8d1"
+          }
+        ],
+        "financialExecution": false
+      }
+    ],
+    "work/b11-free-cut-reconcile-edge-empty.log": [],
+    "work/b11-free-cut-reconcile-types.log": []
+  },
+  "bounds": {
+    "maxHoldings": 10000,
+    "holdingsPerPage": 100,
+    "walletsPerDigestChunk": 1000,
+    "hashChunksAtMaximum": 10,
+    "canonicalHashBytesAtMaximum": 470001,
+    "maxSemanticReadSql": 13,
+    "maxNodeMeasuredWorkingBytes": 482347,
+    "maxD1MeasuredWorkingBytes": 482345,
+    "measurement": "serialized active payload includes125KiBcheckpoint and retained checkpoint JSON, bounded encoded chunk/hash buffer and SQL; not a native heap claim",
+    "maxFullFreshRestoreSql": 26,
+    "maxFullFreshRestoreBatchBytes": 88256,
+    "fullFreshRestoreTables": 108,
+    "fullFreshRestoreSteps": 1020,
+    "operationLimit": 64,
+    "sqlBatchByteLimit": 262144,
+    "workingByteLimit": 1048576
+  },
+  "faults": [
+    "Changed raw record bytes",
+    "Changed closure digest",
+    "Changed indexed source page",
+    "Changed original command digest",
+    "Changed original stage opening",
+    "Interrupted stream discards partial state and retries from beginning",
+    "Target watermark changed during hash rejects without checkpoint",
+    "Incomplete historical attempts remain unsealed",
+    "Later owner/currentsource/operatorrevocation do not rewrite historical receipts"
+  ],
+  "limitations": [
+    "Original known-Genesis coverage is retained through committed historical validation receipt, not recomputed from later owners or claimed as independent chain coverage",
+    "No deployment, provider calls, chain mint, financial execution or public recovery endpoint",
+    "Native streaming state remains per-invocation; no persisted stream state",
+    "Large actualD1 semantic replay imports exact accepted Node command rows for fixture setup; fresh entire108-table restore acceptance is Node in this milestone"
+  ],
+  "legacyAdoptionProbe": {
+    "files": [
+      "work/B11-legacy-adoption-design.md",
+      "work/B11-legacy-hash-probe.md",
+      "work/legacy-hash-probe-summary.json"
+    ],
+    "recommendation": "Do not activate32MiB/512read single-invocation adoption audit; exceeds64operation continuation budget. Original-source/componentpreimages and resumable library-state/source binding still require separate validation.",
+    "runtimeActivation": false
+  },
+  "sourceHashes": {
+    "platform/collect/free-cut-codec.mjs": "fb2ef03587c789473d84fec6687195da947925b86e07054c17d7690df2339001",
+    "platform/collect/free-cut-codec.d.mts": "60f8fb780d500530ae2e5721d0432546a68ae0c941686be501831d8e59d7ee3d",
+    "platform/collect/source-intake.mjs": "5419ffe877846e5b269b2038b9f37ada87c7de12b98870b7f1d8ce88f85b0229",
+    "platform/collect/source-intake.d.mts": "7a1fd0792d41abf140b82fcb3f7fff5b151103df6cf1585488fc34b5b170dc02",
+    "platform/recovery/v2-reconcile-free-cuts.mjs": "a9a118fdccd1ce039bd6c96d8f684c4999ae609845f3901d148219407ad34421",
+    "platform/recovery/v2-reconcile-free-cuts.d.mts": "300a6491130d1a64450973b4aa71a5a4370420829196ea5c18a1eb14027e26b1",
+    "platform/recovery/v2-reconcile-free-cuts.test.mjs": "424b9274692ec23063b7506668b9c648858acfe0d0601b600793c5895652c2ba",
+    "platform/recovery/v2-node-digest.mjs": "36f67367aafa4875e2c7b06b20ae58a07878d223320035c567331b8621c50467",
+    "platform/recovery/v2-node-digest.d.mts": "7503d817c4786a75724a9767347c64bde3c6dbae8b33bfa12a256849ac7a8bf3",
+    "platform/recovery/v2-worker-digest.mjs": "decf73c5c67dd2005e74550f6fe1b5811242b45a993f1375d6315bb59321c60c",
+    "platform/recovery/v2-worker-digest.d.mts": "03cb52d35a3097563b42397bcb19e4cbe67ebeab1564c56403782891adbb4699",
+    "platform/recovery/v2-reconcile.mjs": "6624fc00b00d2e5d5a53e4b5da0dd7f6849e3e6adc40a47115ea6ad269cc6193",
+    "platform/recovery/v2-reconcile-collections.mjs": "a5a96e6e32ac2595b96820f374078612eff0c81113d421eb1bc1ef6caedb7246",
+    "platform/recovery/v2-reconcile-collections.test.mjs": "3eaa2d464bb179c9c0a3b8a49f77b0eca52a1ed0d393856dc59ad92482a11874",
+    "platform/recovery/v2-restore.mjs": "eb00dd4aac85c6cafeae420540ed0856e533c5067706717d706ad883b1738ffe",
+    "platform/recovery/v2-restore.d.mts": "28f21fbcf53f902f1363b467bb4ac03faeaf867d06721d4318b7da77d936f499",
+    "platform/recovery/v2-restore-fixtures.mjs": "5f516964da2558402324eb033b2df355c630d8973149b308a4ec682d60a37d07",
+    "platform/recovery/v2-free-cuts.README.md": "90ef62e21796a3f5e642546ef75924a9558dd7b786130110d96425cf3796847e",
+    "platform/edge/test/fixtures/recovery-v2-restore-worker.ts": "44788d1532811c189bdb3eb31f7ff5aeed80091c8806999f23019ce128cabb05",
+    "platform/edge/test/fixtures/recovery-free-cut-worker.ts": "d76caa5e02fa4857cdcb5444c8fceae94647ab67d0506720d3764cb34f695be6",
+    "platform/edge/test/recovery-free-cut.test.mjs": "f7a82028fb92b68b210ab6faf88f3e49da980ca8a2c69fa62bf9ba328093871b"
+  },
+  "logHashes": {
+    "work/b11-free-cut-reconcile-integrated.log": "956753cbd983ef421365ce68f5306cd574c67bb24bba0b4e331b84971c8cd8b3",
+    "work/b11-free-cut-reconcile-empty.log": "5a5da77e5fc5322d2303e1dcbf85e399ce6c417f6de5ec02e534fafae8c6f779",
+    "work/b11-free-cut-reconcile-helpers.log": "ddcae85edcb68449ab108a62fa65967a62c20bfcc53ec51e85b80c21d05bc6f2",
+    "work/b11-free-cut-reconcile-edge.log": "2d1a82cda181e9ac66813915a6b695a41de8d1daae5ba7586ce9d5c059812215",
+    "work/b11-free-cut-reconcile-edge-empty.log": "04f2593ce515466f1d3c0551fcbf926f93ee56d6f03794dc7dacbb43e75855f8",
+    "work/b11-free-cut-reconcile-types.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+}

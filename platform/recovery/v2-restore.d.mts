@@ -1,9 +1,11 @@
+import type {RecoveryDigest} from './v2-node-digest.mjs';
 import type {RecoveryV2Ports,RecoveryV2Input} from './v2-contracts';
 import type {RecoveryReport} from './types';
 import type {PinnedBeaconVerifier} from '../beacon/portable.mjs';
 export type ContinuedRecoveryPhase='metadata'|'objects'|'publications'|'tables'|'fences'|'pin-target'
  |'reconcile-objects'|'reconcile-table-metadata'|'reconcile-tables'|'reconcile-audit'|'reconcile-economics'
  |'reconcile-collection-authorities'|'reconcile-collection-admissions'|'reconcile-collection-traits'|'reconcile-collection-fulfillments'
+ |'reconcile-free-cut-records'|'reconcile-free-cut-attempts'|'reconcile-free-cut-validations'|'reconcile-free-cut-lists'|'reconcile-free-cut-list-pages'|'reconcile-free-cut-list-digest'|'reconcile-free-cut-bindings'|'reconcile-free-cut-binding-digest'
  |'reconcile-publications'|'reconcile-checkpoints'|'reconcile-final'|'final-ready';
 export type ContinuedRecoveryOutcome={kind:'started'|'progress'|'replayed';restoreId:string;revision:number;phase:ContinuedRecoveryPhase}
  |{kind:'restored';restoreId:string;report:RecoveryReport}
@@ -17,4 +19,4 @@ export interface ContinuedPrivateRecovery {
 /** Private local operator service. Fresh targets remain mutation-disabled until
  * exact rows, artifacts, economic checks and the final watermark are verified.
  * The optional verifier is a trusted offline adapter, never request data. */
-export function createRecoveryV2Restore(ports:RecoveryV2Ports&{beaconVerifier?:PinnedBeaconVerifier}):ContinuedPrivateRecovery;
+export function createRecoveryV2Restore(ports:RecoveryV2Ports&{beaconVerifier?:PinnedBeaconVerifier;createDigest?:()=>RecoveryDigest}):ContinuedPrivateRecovery;

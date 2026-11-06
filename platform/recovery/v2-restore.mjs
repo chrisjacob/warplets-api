@@ -15,8 +15,8 @@ const conflict=code=>({kind:'conflict',code});
 class MissingObject extends Error {}
 /** Private continued importer and reconciler. No public runtime route or
  * financial execution capability is implied by this local composition. */
-export function createRecoveryV2Restore({driver,artifacts,sourceArtifacts=artifacts,crypto,clock,ids,schema,v2Codec,codec,beaconVerifier}){
- schema=clone(schema);const repository=createRecoveryV2RestoreDatabase({driver,clock,ids}),reader=createRecoveryV2IndexReader({artifacts:sourceArtifacts,crypto,v2Codec}),reconciler=createRecoveryV2Reconciler({driver,artifacts,crypto,v2Codec,codec,repository,beaconVerifier});
+export function createRecoveryV2Restore({driver,artifacts,sourceArtifacts=artifacts,crypto,clock,ids,schema,v2Codec,codec,beaconVerifier,createDigest}){
+ schema=clone(schema);const repository=createRecoveryV2RestoreDatabase({driver,clock,ids}),reader=createRecoveryV2IndexReader({artifacts:sourceArtifacts,crypto,v2Codec}),reconciler=createRecoveryV2Reconciler({driver,artifacts,crypto,v2Codec,codec,repository,beaconVerifier,createDigest});
  const fragmentCodec=createRecoveryV2FragmentCodec({crypto}),fragments=createRecoveryV2FragmentRestore({driver,artifacts,crypto,repository});
  const read=async statements=>(await driver.batch(statements)).map(r=>r.rows);
  async function input(value){const captured=clone(value),bytes=utf8(canonicalJson(captured.root)),root=await v2Codec.verifyRoot(bytes,captured.pinnedDigest);need(same(root.schema,schema),'Private v2 schema differs from installed migrations.');return {root,id:captured.pinnedDigest,expectedRevision:captured.expectedRevision};}

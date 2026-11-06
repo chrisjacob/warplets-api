@@ -4,6 +4,7 @@ import {AUTH_TABLES,quote,objectRow} from './schema.mjs';
 import {hashJson,verifyObject} from './inventory.mjs';
 import {createRecoveryV2IndexReader} from './v2-traversal.mjs';
 import {fenceRow,readPinnedPublication} from './reconcile.mjs';
+import {createRecoveryV2FreeCutReconciler} from './v2-reconcile-free-cuts.mjs';
 import {createRecoveryV2CollectionReconciler} from './v2-reconcile-collections.mjs';
 import {createRecoveryV2FragmentCodec} from './v2-fragments.mjs';
 import {createRecoveryV2FragmentRestore} from './v2-fragment-restore.mjs';
@@ -13,8 +14,9 @@ class MissingObject extends Error {}
 /** One original page or bounded semantic unit per invocation. Every check is
  * committed only against the target watermark pinned after all imports/fences.
  * No source artifacts or live provider reads participate in reconciliation. */
-export function createRecoveryV2Reconciler({driver,artifacts,crypto,v2Codec,codec,repository,beaconVerifier}){
- const collection=createRecoveryV2CollectionReconciler({driver,artifacts,crypto,beaconVerifier,repository});
+export function createRecoveryV2Reconciler({driver,artifacts,crypto,v2Codec,codec,repository,beaconVerifier,createDigest}){
+ const collection=createRecoveryV2CollectionReconciler({driver,artifacts,crypto,beaconVerifier,repository,nextPhase:'reconcile-free-cut-records'});
+ const freeCuts=createRecoveryV2FreeCutReconciler({driver,crypto,repository,createDigest});
  const fragmentCodec=createRecoveryV2FragmentCodec({crypto}),fragments=createRecoveryV2FragmentRestore({driver,artifacts,crypto,repository});
  const reader=createRecoveryV2IndexReader({artifacts,crypto,v2Codec}),read=async statements=>(await driver.batch(statements)).map(r=>r.rows);
  async function walk(kind,pointer,cursor){const r=await reader.step({kind,pointer,cursor});if(r.kind==='pending')throw new MissingObject(r.reason);return r;}
@@ -83,6 +85,7 @@ export function createRecoveryV2Reconciler({driver,artifacts,crypto,v2Codec,code
   return checked(loaded,c,{phase:'final-ready',finalDigest:digest,finalReport:report},{phase:'final',scope:'target',ordinal:0,resultDigest:digest,itemCount:c.root.totals.rows});
  }
  async function step(loaded){const c=JSON.parse(loaded.run.checkpoint_json);try{
+  if(c.phase.startsWith('reconcile-free-cut-'))return await freeCuts.step(loaded,c);
   if(c.phase.startsWith('reconcile-collection-'))return await collection.step(loaded,c);
   if(c.phase==='reconcile-objects')return await object(loaded,c);if(c.phase==='reconcile-table-metadata')return await metadata(loaded,c);if(c.phase==='reconcile-tables')return await table(loaded,c);
   if(c.phase==='reconcile-audit')return await checked(loaded,c,{phase:'reconcile-economics',boardCursor:-9007199254740991,checkedBoards:0},{phase:'audit',scope:'config',ordinal:0,resultDigest:await hashJson(crypto,['v2-reconciled-audit',c.auditSequence,c.auditHash]),itemCount:c.auditSequence});

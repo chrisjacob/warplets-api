@@ -1,3 +1,4 @@
+import {createWorkerRecoveryDigest} from '../../../recovery/v2-worker-digest.mjs';
 // Private local restore harness with physically separate source/target buckets.
 import {createD1AtomicDriver} from '../../../storage/d1/atomic-driver';
 import {createWebCrypto} from '../../../security/web-crypto.mjs';
@@ -23,6 +24,6 @@ export default {async fetch(request:Request,env:Env&{RECOVERY_SOURCE:R2Bucket}){
  }};
  const store=(bucket:R2Bucket)=>{const backing=r2ArtifactStore(bucket);return {async getVerified(identity:any){metrics.objectReads++;const result=await backing.getVerified(identity);if(result.status==='verified')metrics.objectBytes+=result.bytes.length;return result;},async putIfAbsent(identity:any,bytes:Uint8Array){metrics.objectWrites++;metrics.objectBytes+=bytes.length;return backing.putIfAbsent(identity,bytes);}};};
  const ports={driver,artifacts:store(env.MANIFESTS),sourceArtifacts:store(env.RECOVERY_SOURCE),crypto,clock:{nowMs:()=>body.nowMs},ids:{next:()=>globalThis.crypto.randomUUID()},schema:body.schema,v2Codec:createRecoveryV2Codec({crypto}),codec:createManifestCodec({crypto})};
- const result=body.method==='old-lease'?await createJobRepository(driver,{...ports,principal:body.principal}).finish(body.lease,{state:'completed',result:{synthetic:true}}):await (createRecoveryV2Restore({...ports,beaconVerifier:createNobleBeaconVerifier()}) as any)[body.method](body.input);
+ const result=body.method==='old-lease'?await createJobRepository(driver,{...ports,principal:body.principal}).finish(body.lease,{state:'completed',result:{synthetic:true}}):await (createRecoveryV2Restore({...ports,createDigest:createWorkerRecoveryDigest,beaconVerifier:createNobleBeaconVerifier()}) as any)[body.method](body.input);
  return Response.json({result,metrics,faulted});
 }};

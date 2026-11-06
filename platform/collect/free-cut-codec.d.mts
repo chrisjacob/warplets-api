@@ -20,3 +20,5 @@ export function encodeCollectionCut(value:Readonly<{inventoryId:string;stageId:s
 export function collectionCutAttemptId(rootId:string,sourceRevision:string,crypto:CanonicalCrypto):Promise<string>;
 export function prepareCollectionCutPage(value:Readonly<{rootRecord:CollectionCutRecord;pageRecord:CollectionCutRecord;attempt:CollectionCutAttempt;tracked:readonly TrackedCollectionCutAsset[];suppliedKnown:readonly KnownCollectionCutAsset[];nowMs:number}>,crypto:CanonicalCrypto):Promise<CollectionCutPageSummary>;
 export function prepareCollectionCutSeal(value:Readonly<{rootRecord:CollectionCutRecord;attempt:CollectionCutAttempt;pages:readonly CollectionCutPageSummary[];list:CollectionCutList;stage:CollectionCutStage;nowMs:number}>,crypto:CanonicalCrypto):Promise<CollectionCutSeal>;
+
+export function collectionCutPageClosureDigest(value:Omit<CollectionCutPageSummary,'closureDigest'>|CollectionCutPageSummary,crypto:CanonicalCrypto):Promise<string>;

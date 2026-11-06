@@ -5,7 +5,7 @@
   "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
   "currentTask": "B11",
-  "lastUpdatedAt": "2026-11-06T04:30:41.859443+00:00",
+  "lastUpdatedAt": "2026-11-06T04:46:09.866027+00:00",
   "migrationAllocation": {
     "next": 50,
     "reserved": [
@@ -265,8 +265,8 @@
       "status": "in_progress",
       "owner": "coordinator",
       "baseCommit": "96cdfa1fb6334fcb27deb831d786243227b9d1a8",
-      "implementationCommit": "4c7ad2caeafb4a8c38d3b181f1d7af6442e2cd63",
-      "pushed": true,
+      "implementationCommit": "250e07f",
+      "pushed": false,
       "evidence": [
         "platform/validation/runs/2026-11-06-overnight/B11-1.json",
         "platform/validation/runs/2026-11-06-overnight/B11-2-intake.json",
@@ -288,9 +288,10 @@
         "platform/validation/runs/2026-11-06-overnight/B11-17-mint-fulfillment.json",
         "platform/validation/runs/2026-11-06-overnight/B11-18-free-cut.json",
         "platform/validation/runs/2026-11-06-overnight/B11-20-recovery-fragments.json",
-        "platform/validation/runs/2026-11-06-overnight/B11-21-free-mint.json"
+        "platform/validation/runs/2026-11-06-overnight/B11-21-free-mint.json",
+        "platform/validation/runs/2026-11-06-overnight/B11-22-free-cut-recovery.json"
       ],
-      "nextAction": "048 committed5b9d121 awaits push after4c7ad2c CI42161666921;049 private free-cut admission/read verified and ready for its own checkpoint. Continue free-cut semantic recovery and normalized reviewed-term member HTTP/UI acceptance. Push each exact checkpoint in order and follow test-only CI; no financial/release activation.",
+      "nextAction": "0485b9d121 passedCI42163265213;049250e07f pushed, identify/follow exactCI. Historical free-cut recoveryB11-22 verified and committing locally. Continue B11-23memberHTTP/UI final browser smoke, fullreference session55494, then trusted resumable legacy hash adapter/preimage audits; no migration50 allocated.",
       "blocker": null
     },
     "B12": {

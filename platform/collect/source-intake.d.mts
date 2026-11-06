@@ -33,3 +33,5 @@ export function prepareCollectionList(input:{manifest:CollectionSourceRecord;pag
 export function prepareCollectionSource(input:{root:CollectionSourceRecord;lists:readonly CollectionListSeal[];admissionPages:readonly CollectionSourceRecord[]},crypto:CanonicalCrypto):Promise<CollectionSourceSeal>;
 export function collectionIntakeCommandBytes(command:Omit<CollectionIntakeCommand,'requestDigest'>):Uint8Array;
 export function createCollectionSourceIntake(ports:{repository:CollectionSourceIntakeRepository;crypto:CanonicalCrypto;clock:{nowMs():number}}):CollectionSourceIntakeService;
+
+export function collectionListClosureDigest(value:Omit<CollectionListSeal,'closureDigest'>|CollectionListSeal,crypto:CanonicalCrypto):Promise<string>;

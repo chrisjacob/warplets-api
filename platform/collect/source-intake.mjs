@@ -67,6 +67,8 @@ export async function prepareCollectionRecord(value,crypto){
  return frozen({id:record.id,size:record.size,format:body.format,kind:body.format==='collection-page-v1'?body.kind:null,pageIndex:body.format==='collection-page-v1'?body.index:null,bodyBase64:base64(record.bytes)});
 }
 const listPayload=s=>['collection-list-closure-v1',s.id,s.count,s.pageIds,s.walletsDigest,s.firstWallet,s.lastWallet];
+/** Shared historical verification; does not approve a caller-supplied list. */
+export function collectionListClosureDigest(value,crypto){return hash(crypto,listPayload(clone(value)));}
 function captureListSeals(values){
  fail(Array.isArray(values)&&values.length<=32,'Sealed-list count exceeds bound.');
  for(const s of values)fail(exact(s,['id','count','pageIds','walletsDigest','closureDigest','firstWallet','lastWallet'])&&digest(s.id)&&nat(s.count,10000)&&Array.isArray(s.pageIds)&&s.pageIds.length<=100&&s.pageIds.every(digest)&&digest(s.walletsDigest)&&digest(s.closureDigest)&&(s.firstWallet===null||typeof s.firstWallet==='string'&&s.firstWallet.length<=44)&&(s.lastWallet===null||typeof s.lastWallet==='string'&&s.lastWallet.length<=44),'Invalid sealed list metadata.');
@@ -75,7 +77,7 @@ function captureListSeals(values){
 async function checkedListSeal(value,crypto){
  const s=clone(value);fail(exact(s,['id','count','pageIds','walletsDigest','closureDigest','firstWallet','lastWallet'])&&digest(s.id)&&nat(s.count,10000)&&Array.isArray(s.pageIds)&&s.pageIds.length===Math.max(1,Math.ceil(s.count/100))&&s.pageIds.every(digest)&&new Set(s.pageIds).size===s.pageIds.length&&digest(s.walletsDigest)&&digest(s.closureDigest),'Invalid sealed list metadata.');
  if(s.count===0)fail(s.firstWallet===null&&s.lastWallet===null,'Invalid empty list boundaries.');else{wallet(s.firstWallet);wallet(s.lastWallet);fail(s.firstWallet<=s.lastWallet,'Invalid list boundaries.');}
- fail(await hash(crypto,listPayload(s))===s.closureDigest,'Changed list seal metadata.');return s;
+ fail(await collectionListClosureDigest(s,crypto)===s.closureDigest,'Changed list seal metadata.');return s;
 }
 export async function prepareCollectionList(value,crypto){
  fail(exact(value,['manifest','pages']),'Supply list manifest and named pages only.');const manifest=captureRecord(value.manifest),pages=captureRecords(value.pages,100,524288-manifest.size);
@@ -87,7 +89,7 @@ export async function prepareCollectionList(value,crypto){
  }
  fail(wallets.length===body.count&&await hash(crypto,wallets)===body.walletsDigest,'Eligibility count or complete-list digest mismatch.');
  const seal={id:manifest.id,count:body.count,pageIds:[...body.pageIds],walletsDigest:body.walletsDigest,firstWallet:wallets[0]??null,lastWallet:wallets.at(-1)??null};
- return frozen({...seal,closureDigest:await hash(crypto,listPayload(seal))});
+ return frozen({...seal,closureDigest:await collectionListClosureDigest(seal,crypto)});
 }
 export async function prepareCollectionSource(value,crypto){
  fail(exact(value,['root','lists','admissionPages'])&&Array.isArray(value.lists)&&value.lists.length<=32,'Supply bounded root, sealed lists and admission pages only.');
