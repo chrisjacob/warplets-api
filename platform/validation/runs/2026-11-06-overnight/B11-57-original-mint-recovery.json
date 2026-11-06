@@ -1,0 +1,222 @@
+{
+  "checkpoint": "B11-57",
+  "title": "Retained original mint semantic recovery with bounded private draw prefix",
+  "status": "verified-partial-unmounted-recovery-held",
+  "lastConfirmedBaseCommit": "1699cbe728a8984cfe4a73b234bf972363825e0c",
+  "implementationCommit": null,
+  "schemaThrough": 55,
+  "businessTables": 112,
+  "source": "synthetic-genuine035050051052053054activation-fresh-private-Node-and-D1-R2-targets",
+  "financialExecution": false,
+  "applicationActivationByRecovery": false,
+  "mainDispatchChanged": false,
+  "remainingSemanticsReady": false,
+  "limits": {
+    "checkpointBytes": 131072,
+    "phaseContextBytes": 16384,
+    "operationsPerStep": 64,
+    "batchBytes": 262144,
+    "workingBytes": 1048576,
+    "policyPartReads": 25,
+    "canonicalNameHashes": 1536
+  },
+  "checks": [
+    {
+      "command": "node --test platform/collect/legacy-mint-audit.test.mjs platform/collect/legacy-mint-source.test.mjs platform/collect/legacy-mint-source-audit.test.mjs platform/recovery/v2-reconcile-legacy-mints.test.mjs",
+      "passed": 21,
+      "failed": 0,
+      "durationMs": 66081.3772,
+      "log": "work/b11-57-canonical-node.log"
+    },
+    {
+      "command": "node --test platform/collect/legacy-mint-audit.test.mjs",
+      "scope": "final canonical-name hashing instrumentation; nine cases already counted in21",
+      "passed": 9,
+      "failed": 0,
+      "durationMs": 19209.6631,
+      "log": "work/b11-57-canonical-names.log"
+    },
+    {
+      "command": "node --test platform/edge/test/recovery-legacy-mint.test.mjs",
+      "passed": 2,
+      "failed": 0,
+      "durationMs": 245834.0706,
+      "log": "work/b11-57-canonical-edge.log"
+    },
+    {
+      "command": "node platform/edge/node_modules/typescript/bin/tsc --noEmit --project platform/edge/tsconfig.json",
+      "result": "pass",
+      "log": "work/b11-57-types.log"
+    },
+    {
+      "command": "scoped git diff --check and all10files UTF8/LF/noBOM/no trailing whitespace",
+      "result": "pass"
+    }
+  ],
+  "distinctNodeCases": 21,
+  "finalActualD1Cases": 2,
+  "compatibilityEvidenceBeforeFinalCanonicalNameEncoding": {
+    "scope": "existing27/39 real pinned beacon and source composition plus exploratory new recovery; final new recovery rerun is listed above",
+    "command": "node --test platform/edge/test/recovery-legacy-mint.test.mjs platform/edge/test/legacy-mint-audit.test.mjs platform/edge/test/legacy-mint-source-audit.test.mjs",
+    "passed": 4,
+    "failed": 0,
+    "durationMs": 247872.5262,
+    "log": "work/b11-57-edge-final.log"
+  },
+  "metrics": {
+    "node": [
+      {
+        "sourceBytes": 1344,
+        "contextBytes": 7382,
+        "partReads": 25,
+        "partBytes": 1248116,
+        "maxPartBytes": 50049,
+        "workingBytes": 508506,
+        "baseWorking": 41662,
+        "namesBytes": 0,
+        "assetsBytes": 0,
+        "nameHashes": 1536,
+        "fullLegacyPolicyBytes": 600611,
+        "syntheticInjectedBeaconVerifier": true,
+        "activation": false
+      },
+      {
+        "kind": "genesis",
+        "sql": 21,
+        "objectReads": 1,
+        "operations": 22,
+        "maxBatchBytes": 3206,
+        "maxReturnedBytes": 1456,
+        "maxWorkingBytes": 49559,
+        "maxObjectBytes": 300,
+        "sourceWorkingBytes": 40795,
+        "auditWorkingBytes": 29766
+      },
+      {
+        "kind": "season",
+        "sql": 21,
+        "objectReads": 1,
+        "operations": 22,
+        "maxBatchBytes": 3203,
+        "maxReturnedBytes": 1679,
+        "maxWorkingBytes": 50040,
+        "maxObjectBytes": 300,
+        "sourceWorkingBytes": 42046,
+        "auditWorkingBytes": 30303
+      },
+      {
+        "configured": true,
+        "sql": 21,
+        "objectReads": 26,
+        "operations": 47,
+        "maxBatchBytes": 3252,
+        "maxReturnedBytes": 6280,
+        "maxWorkingBytes": 645204,
+        "maxObjectBytes": 50049,
+        "sourceWorkingBytes": 67729,
+        "auditWorkingBytes": 508506
+      },
+      {
+        "kind": "genesis",
+        "sql": 18,
+        "maxBatchBytes": 3206,
+        "maxReturnedBytes": 1456,
+        "workingBytes": 40795
+      },
+      {
+        "kind": "season",
+        "sql": 18,
+        "maxBatchBytes": 3203,
+        "maxReturnedBytes": 1679,
+        "workingBytes": 42046
+      },
+      {
+        "genuineSourceAndTarget": true,
+        "originalMintProof": true,
+        "remainingSemanticsHeld": true,
+        "maxWorkingBytes": 368088,
+        "maxOperations": 30,
+        "maxBatchBytes": 3468
+      }
+    ],
+    "actualD1": [
+      {
+        "configured": false,
+        "realPinnedBls": false,
+        "sourceObjects": 172,
+        "remainingSemanticsHeld": true,
+        "maxOperations": 30,
+        "maxWorkingBytes": 368850,
+        "maxBatchBytes": 103223
+      },
+      {
+        "configured": true,
+        "realPinnedBls": true,
+        "sourceObjects": 286,
+        "remainingSemanticsHeld": true,
+        "maxOperations": 56,
+        "maxWorkingBytes": 969257,
+        "maxBatchBytes": 103228
+      }
+    ],
+    "legacyFullPolicyBytes": 600611,
+    "priorPurePolicyWorkingBytes": 773082,
+    "boundedPolicyWorkingBytes": 508506
+  },
+  "faults": [
+    "wrong certificate prerequisite",
+    "wrong preparation chain",
+    "wrong indexed anchor asset",
+    "wrong original operation owner/proof",
+    "wrong immutable Vault slot",
+    "wrong retained object identity",
+    "missing original object",
+    "corrupt original bytes",
+    "invalid pinned beacon proof",
+    "omitted semantic proof child rolls back cursor",
+    "lost committed proof acknowledgement retains exact result",
+    "target watermark mutation during artifact await holds"
+  ],
+  "semantics": {
+    "originalMutableOwnerNotSubstituted": true,
+    "genuineLaterTransferPreservesOriginalWallet": true,
+    "originalOutcomeExactlyMatchesAnchor": true,
+    "proofPhase": "legacy-adoption-mint",
+    "proofScope": "adoptionId",
+    "proofPreimage": [
+      "v2-legacy-original-mint",
+      "adoptionId",
+      "ordinal",
+      "anchor.body_digest",
+      "anchor.originalOutcome"
+    ],
+    "privateMintPrefixDistinctFromEconomicPrefix": true,
+    "configuredPolicyTranscriptAndLegacyEvidenceDigestUnchanged": true,
+    "canonicalNameHashCollisionConservativelyRejects": true
+  },
+  "notEstablished": [
+    "complete adopted-inventory recovery readiness",
+    "full current graph and historical admission economics",
+    "complete retained object-chain closure",
+    "simultaneous maximum128KiBsourceRoot plus64KiBadmissionPage with maximum configured policy",
+    "maximum32stage1000mint recovery profile",
+    "original operator authentication, payment or chain truth"
+  ],
+  "nextExecutableStep": "Coordinator integrates original mint phase only when remaining economic/current/object closure phases are complete; retain default incomplete hold until then.",
+  "sourceHashes": {
+    "platform/collect/legacy-mint-audit.mjs": "59d1ecc66eb7a3f87888f38964f8e88ffff6fdbb1c69f9486db3bb140bd2fb0e",
+    "platform/collect/legacy-mint-audit.d.mts": "a4b920966031c3495c10460295d6c2979eb59c0a36af6e802a41c7b551950bd6",
+    "platform/collect/legacy-mint-audit.test.mjs": "d1a8588281d0528264c4714d48a89e528c2998fa913fed3e3e817d3ee2858cab",
+    "platform/recovery/v2-legacy-mint-source.mjs": "8f7807a4f9c6d3f9c0593cb8819f139f30eb563b02223e084ac11b4b95d4a7e2",
+    "platform/recovery/v2-reconcile-legacy-mints.mjs": "7076fb28178966f5a165369a2bb5ad9b40d0c3012a716eb9a7d024d1a782c904",
+    "platform/recovery/v2-legacy-mint-fixtures.mjs": "6040842fc95ccf48023f7e2879d84cf58029d6af80301784a822c75cb5e72b48",
+    "platform/recovery/v2-reconcile-legacy-mints.test.mjs": "21dceddd4c37e54ebe341481d4f60d6757797bd11a8feb14719884c435945ec6",
+    "platform/recovery/LEGACY_ORIGINAL_MINT_RECOVERY.md": "c31d9429769b3311bf77fa3d9e3385007831d99e65eeccdd8fade11fc3c8e00f",
+    "platform/edge/test/recovery-legacy-mint.test.mjs": "672b00e0084faa5f39874d32acaa2576c25bece808199ccc9f26a4e10ee2ed34",
+    "platform/edge/test/fixtures/recovery-legacy-mint-worker.ts": "3b2be548fa1f6bc56194718eedfe6dd2a0141bbdcfa18fe51284b11edcc272c4"
+  },
+  "schemaHashes": {
+    "platform/storage/054-collection-legacy-adoption.sql": "5f82a5fafe536c65b9889ec05c6ea4986b1323db17067ceb99104f0a61a7620e",
+    "platform/storage/055-collection-imported-admission.sql": "0ed9b1b39bed9efee13bc739a48cdd7748d9dd1726e3869ae6f5dbbbf504b750"
+  }
+}

@@ -39,7 +39,10 @@ async function originalPart(ref,ports,max){need(exact(ref,['byteDigest','size'])
 async function traitPages(descriptor,ports,visit){
  need(exact(descriptor,['count','pages'])&&nat(descriptor.count)&&descriptor.count>=1&&descriptor.count<=256&&Array.isArray(descriptor.pages)&&descriptor.pages.length===Math.ceil(descriptor.count/64),'legacy-mint-policy-trait-descriptor');
  const names=new Set();let totalWeight=0;
- for(let n=0;n<descriptor.pages.length;n++){const raw=await originalPart(descriptor.pages[n],ports,65536),choices=validateTraitField(raw);need(choices.length===Math.min(64,descriptor.count-n*64)&&same(raw,choices),'legacy-mint-policy-trait-page');for(const choice of choices){need(!names.has(choice.name),'legacy-mint-policy-duplicate-trait');names.add(choice.name);totalWeight+=choice.weight;}ports.meter.namesBytes=2*utf8(canonicalJson([...names])).length;measured(ports.meter,ports.meter.baseWorking+ports.meter.assetsBytes+ports.meter.namesBytes+4*descriptor.pages[n].size);await visit(choices,n);}
+ // Retain bounded name identities, not the full escaped strings from earlier
+ // pages. Equal names always reject; a SHA collision conservatively rejects.
+ // The original strings still feed the unchanged policy transcript and draw.
+ for(let n=0;n<descriptor.pages.length;n++){const raw=await originalPart(descriptor.pages[n],ports,65536),choices=validateTraitField(raw);need(choices.length===Math.min(64,descriptor.count-n*64)&&same(raw,choices),'legacy-mint-policy-trait-page');for(const choice of choices){need(++ports.meter.nameHashes<=1536,'legacy-mint-name-hash-bound');const identity=await ports.crypto.sha256(utf8(canonicalJson(choice.name)));need(hash(identity)&&!names.has(identity),'legacy-mint-policy-duplicate-trait');names.add(identity);totalWeight+=choice.weight;}ports.meter.namesBytes=2*utf8(canonicalJson([...names])).length;measured(ports.meter,ports.meter.baseWorking+ports.meter.assetsBytes+ports.meter.namesBytes+4*descriptor.pages[n].size);await visit(choices,n);}
  ports.meter.namesBytes=0;return totalWeight;
 }
 async function configuredDraw(f,ports,operation,slotIndex,remainingTotal){
@@ -58,7 +61,7 @@ async function configuredDraw(f,ports,operation,slotIndex,remainingTotal){
 /** One historical settled mint. A valid result is a private audit fact, never
  * adoption/mint authority. The prefix must come from prior guarded audit steps;
  * this pure function cannot prove that caller-provided counters are reachable. */
-function initialMeter(f){const {sourceRoot,admissionPage,...context}=f;return {sourceBytes:sourceRoot.size+admissionPage.size,contextBytes:utf8(canonicalJson(context)).length,partReads:0,partBytes:0,maxPartBytes:0,workingBytes:0,baseWorking:0,namesBytes:0,assetsBytes:0};}
+function initialMeter(f){const {sourceRoot,admissionPage,...context}=f;return {sourceBytes:sourceRoot.size+admissionPage.size,contextBytes:utf8(canonicalJson(context)).length,partReads:0,partBytes:0,maxPartBytes:0,workingBytes:0,baseWorking:0,namesBytes:0,assetsBytes:0,nameHashes:0};}
 export async function auditLegacyMint(value,ports){const f=capture(value);value=null;const meter=initialMeter(f);Object.defineProperty(meter,'observeWorkingBytes',{value:ports.onWorkingBytes});measured(meter,4*meter.sourceBytes+3*meter.contextBytes+16384);
  try{return await auditCaptured(f,{...ports,meter});}finally{ports.onMeasure?.({...meter});}
 }

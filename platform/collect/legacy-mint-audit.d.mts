@@ -21,7 +21,7 @@ export type LegacyMintAuditInput=Readonly<{
   result:null|Readonly<{operationId:string;proofId:string;signedRoundJson:string;fixtureJson:string;settledMs:number}>;
  }>;
 }>;
-export interface LegacyMintAuditMeasurement {sourceBytes:number;contextBytes:number;partReads:number;partBytes:number;maxPartBytes:number;workingBytes:number;baseWorking:number;namesBytes:number;assetsBytes:number}
+export interface LegacyMintAuditMeasurement {sourceBytes:number;contextBytes:number;partReads:number;partBytes:number;maxPartBytes:number;workingBytes:number;baseWorking:number;namesBytes:number;assetsBytes:number;nameHashes:number}
 export type LegacyMintAuditResult=Readonly<{kind:'held';reason:'original-mint-preimage-missing'|'original-configured-result-missing'|'original-configured-request-missing'|'original-policy-preimage-missing'}>|Readonly<{kind:'audited';summary:Readonly<{rootId:string;admissionPageId:string;ordinal:number;inventoryId:string;operationId:string;assetId:string;originalWallet:string;initialLevel:number;initialExpiryMs:number|null;slot:Readonly<{kind:'genesis';tranche:number;level:number;ordinal:number}>|Readonly<{kind:'season';seasonId:string;slotIndex:number}>;legacyEvidenceDigest:string;provenance:'manual-fixture'|'configured-offline-beacon';source:'local-fixture';executable:false}>;nextPrefix:LegacyMintPrefix}>;
 /** The prefix and retained fact mapping must be supplied by a private guarded
  * audit repository. This pure component has no source/adoption authority. */
