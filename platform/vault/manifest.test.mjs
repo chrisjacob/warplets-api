@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {canonicalJson,utf8} from '../security/canonical.mjs';
 import {createNodeCrypto} from '../security/node-crypto.mjs';
-import {createVaultLiabilityManifest,verifyVaultLiabilityManifest,projectVaultReserve} from './manifest.mjs';
+import {createVaultLiabilityManifest,verifyVaultLiabilityManifest,projectVaultReserve,publicVaultLiabilityCommitment} from './manifest.mjs';
 const crypto=createNodeCrypto(),activatedMs=Date.UTC(2026,10,1),hour=3600000;
 const input=()=>({marketId:'synthetic-launch',activatedMs,originalUnits:'402600000',inventoryCommitment:'a'.repeat(64),seasons:[]});
 const create=value=>createVaultLiabilityManifest(utf8(canonicalJson(value)),{crypto});
@@ -36,4 +36,13 @@ test('tampered and internally inconsistent manifests and incomplete inventories 
  await assert.rejects(create({...input(),seasons:[{id:'bad',startsMs:activatedMs,levels:[1]}]}));
  await assert.rejects(create({...input(),originalUnits:'201'}));
  await assert.rejects(create({...input(),extra:true}));
+});
+
+test('public commitment exposes budgets and pins without private Season levels or reserve assignments',async()=>{
+ const value=input();value.seasons=[{id:'synthetic-private-season',startsMs:activatedMs,levels:Array(1000).fill(3)}];
+ const r=await create(value),pub=await publicVaultLiabilityCommitment(r.bytes,r.sha256,{crypto});
+ assert.equal(pub.genesisReservedSlots,10000);assert.equal(pub.seasonReservedSlots,1000);assert.equal(pub.liabilityDigest,r.sha256);
+ assert.equal(BigInt(pub.genesisBudgetUnits)+BigInt(pub.seasonBudgetUnits),BigInt(value.originalUnits)/20n);
+ assert.equal(pub.claimFormat,'not-a-program-merkle-proof');assert.equal(pub.isAuthorization,false);
+ assert.doesNotMatch(JSON.stringify(pub),/synthetic-private-season|levels|snapshots|owner|ordinal/);
 });

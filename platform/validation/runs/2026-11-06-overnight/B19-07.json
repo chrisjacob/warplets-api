@@ -1,0 +1,48 @@
+{
+  "milestone": "B19 complete private Vault restore acceptance and public commitment separation",
+  "baseCommit": "16d584d",
+  "status": "vault-local-acceptance-passed",
+  "checks": [
+    {
+      "command": "node --test platform/vault/recovery.test.mjs",
+      "passed": 1,
+      "failed": 0,
+      "durationMs": 51623.3782,
+      "log": "work/b19-vault-recovery.log"
+    },
+    {
+      "command": "node --test platform/vault/manifest.test.mjs platform/vault/archive.test.mjs platform/vault/manifest-from-recovery.test.mjs",
+      "passed": 8,
+      "failed": 0,
+      "durationMs": 221.0488
+    },
+    {
+      "command": "node platform/contracts/generate.mjs --check",
+      "result": "passed"
+    }
+  ],
+  "metrics": {
+    "restoreSteps": 1149,
+    "objects": 185,
+    "peakCheckpointBytes": 129652,
+    "checkpointLimit": 131072
+  },
+  "assertions": [
+    "Actual independently pinned v2 capture and empty-database restore",
+    "Exact manifest, asset, observation and cumulative-claim rows",
+    "Original activation, unminted accrual without claim authority, partial claims through transfer and expired Season history retained",
+    "Duplicate binding, former-owner claims and overspending rejected; old claim event replays without spending twice",
+    "Public commitment excludes private reserve maps and Levels; SHA archive proof is not program Merkle proof"
+  ],
+  "sourceHashes": {
+    "platform/vault/manifest.mjs": "18fd92ee0259dcd5d85831fa9c38f4732cf9868b0e51d39d8a7fb59a59639ede",
+    "platform/vault/manifest.test.mjs": "844997fbe59949f08890c2ccff70e4876a5ceebc148d8cfd7fca4496ece0030e",
+    "platform/vault/recovery.test.mjs": "8dbc13dd2f823074038019ea8d02dca94edc16d79331fcfa245ea33dbce501f9",
+    "platform/vault/README.md": "e95178eb9e00235528e817978583530a23025db274f4555b1d09d40297c89970"
+  },
+  "financialExecution": false,
+  "remaining": [
+    "Program codecs and custody/farm dossiers underway",
+    "Final integration checks and CI required before B19 verified"
+  ]
+}

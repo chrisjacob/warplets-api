@@ -1,3 +1,7 @@
+# Reset continuation: Vault full restore accepted
+
+User reset limits;0% verified at resume, new stop cap50%. Detailed role-based screenshot guide requested when complete; guide agent preparing PDF. B19 Vault full private v2 restore passes:185objects,1149steps,peak129652/131072bytes, exact four Vault tables, historical partial claims through transfer and Season expiry, no unminted claim authority. Eight component tests and contracts pass. B19-07 evidence. Source changes include public digest/budget-only commitment and Vault README. Agent b19_dossiers owns claims/readiness/dossiers; coordinator owns schema/state/commits. No migration. B17CI42308923046 still active, follow to final before B18. Next integrate remaining B19, then B18 and full B20 when prerequisites verified.
+
 # Account100% checkpoint: pinned v2 Vault liability reader
 
 Product f66dc6a pushed. Final direct GitHub query confirms B17 run42308923046 remains in_progress at e80941ef56adf46af01b5d9be46fcb4029e7ec35; no conclusion yet.

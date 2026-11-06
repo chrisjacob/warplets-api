@@ -1,0 +1,48 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {recoveryFixture,memoryArtifacts} from '../recovery/fixtures.mjs';
+import {createRecoveryV2Codec} from '../recovery/v2-codec.mjs';
+import {createRecoveryV2Capture} from '../recovery/v2-capture.mjs';
+import {createRecoveryV2Restore} from '../recovery/v2-restore.mjs';
+import {createNodeRecoveryDigest} from '../recovery/v2-node-digest.mjs';
+import {openDatabase} from '../storage/database.mjs';
+import {createNodeAtomicDriver} from '../storage/node/atomic-driver.mjs';
+import {importMarket} from '../markets/catalog.mjs';
+import {encode58} from '../server/base58.mjs';
+import {recordVaultManifest,observeAsset,readAsset} from './ledger.mjs';
+import {vaultLiabilityFromRecoveryPage} from './manifest-from-recovery.mjs';
+import {projectVaultReserve} from './manifest.mjs';
+const base=Date.UTC(2026,10,1),hour=3600000,key=n=>encode58(Buffer.alloc(32,n)),at=h=>new Date(base+h*hour).toISOString();
+
+test('independently pinned full restore preserves unminted liability and spent claims through transfer and Season expiry',async t=>{
+ const f=await recoveryFixture();t.after(()=>f.db.close());
+ const owner=key(1),buyer=key(2),marketId='synthetic-vault-recovery';
+ importMarket(f.db,{id:marketId,symbol:'SYNTH',ogSymbol:'SYNTHOG',activatedAt:at(0),attMint:key(3),ogMint:key(4),poolAddress:key(5)});
+ recordVaultManifest(f.db,{marketId,originalUnits:'805200000',seasons:[{id:'synthetic-season',startsAt:at(0),levels:Array(1000).fill(1)}]});
+ const slot={kind:'genesis',tranche:1,level:1,ordinal:0},observe=e=>observeAsset(f.db,e,base+1000*hour);
+ observe({eventId:'synthetic-bind',assetId:'synthetic-genesis',kind:'bind',at:at(36),owner,slot});
+ const claim={eventId:'synthetic-claim-1',assetId:'synthetic-genesis',kind:'claim',at:at(36),owner,marketId,units:'300'};observe(claim);
+ observe({eventId:'synthetic-transfer',assetId:claim.assetId,kind:'transfer',at:at(48),from:owner,to:buyer});
+ observe({...claim,eventId:'synthetic-claim-2',owner:buyer,at:at(49),units:'200'});
+ observe({eventId:'synthetic-season-bind',assetId:'synthetic-season-asset',kind:'bind',at:at(36),owner,slot:{kind:'season',seasonId:'synthetic-season',slotIndex:0}});
+ observe({eventId:'synthetic-season-claim',assetId:'synthetic-season-asset',kind:'claim',at:at(960),owner,marketId,units:'10000'});
+ assert.throws(()=>observe({eventId:'synthetic-duplicate-slot',assetId:'other',kind:'bind',at:at(50),owner,slot}));
+ const codec=createRecoveryV2Codec(f),capture=createRecoveryV2Capture({...f,v2Codec:codec,artifacts:f.store});let captured=await capture.start({captureId:'synthetic-vault-recovery',sourceCommit:'a'.repeat(40)});
+ for(let n=0;n<3000&&captured.kind!=='captured';n++){assert.ok(['started','progress','replayed'].includes(captured.kind),JSON.stringify(captured));captured=await capture.step({captureId:captured.captureId,expectedRevision:captured.revision});}
+ assert.equal(captured.kind,'captured');
+ const encoded=await codec.encodeRoot(captured.value),liability=await vaultLiabilityFromRecoveryPage({rootBytes:encoded.bytes,rootDigest:captured.digest,marketId,pageIndex:0},{crypto:f.crypto,store:f.store});
+ const unminted=projectVaultReserve(liability.manifest,{...slot,ordinal:1},base+36*hour);assert.equal(unminted.vestedUnits,'500');assert.equal(unminted.claimAuthority,false);
+ const db=openDatabase();t.after(()=>db.close());const store=memoryArtifacts(),restore=createRecoveryV2Restore({...f,driver:createNodeAtomicDriver(db),artifacts:store,sourceArtifacts:f.store,v2Codec:codec,createDigest:createNodeRecoveryDigest}),input={root:captured.value,pinnedDigest:captured.digest};
+ await assert.rejects(restore.start({...input,pinnedDigest:'b'.repeat(64)}));
+ let result=await restore.start(input),steps=0,peak=0;
+ for(;steps<3000&&result.kind!=='restored';steps++){assert.ok(['started','progress','replayed'].includes(result.kind),JSON.stringify(result));result=await restore.step({...input,expectedRevision:result.revision});peak=Math.max(peak,Buffer.byteLength(db.prepare('SELECT checkpoint_json FROM app_recovery_runs').get().checkpoint_json));}
+ assert.equal(result.kind,'restored',JSON.stringify(result));assert.ok(peak<=131072);
+ for(const table of ['vault_manifests','vault_assets','vault_observations','vault_claim_totals'])assert.deepEqual(db.prepare('SELECT * FROM '+table).all(),f.db.prepare('SELECT * FROM '+table).all());
+ const genesis=readAsset(db,claim.assetId,base+1000*hour).items.find(r=>r.marketId===marketId);assert.deepEqual([genesis.allocated,genesis.claimed,genesis.claimable],['1000','500','500']);
+ const season=readAsset(db,'synthetic-season-asset',base+1000*hour).items.find(r=>r.marketId===marketId);assert.deepEqual([season.allocated,season.claimed,season.claimable],['20130','10000','10130']);
+ assert.equal(observeAsset(db,claim,base+1000*hour).replayed,true);
+ assert.throws(()=>observeAsset(db,{...claim,eventId:'synthetic-former-owner',at:at(1000)},base+1000*hour),/owner/);
+ assert.throws(()=>observeAsset(db,{...claim,eventId:'synthetic-overclaim',owner:buyer,units:'501',at:at(1000)},base+1000*hour),/exceeds/);
+ assert.equal(readAsset(db,'unminted',base+1000*hour),null);
+ t.diagnostic(JSON.stringify({steps,peakCheckpointBytes:peak,objects:store.objects.size,financialExecution:false,fixture:'synthetic local recorded ledger'}));
+});

@@ -48,6 +48,16 @@ export async function verifyVaultLiabilityManifest(bytes,pinnedDigest,{crypto}){
  need(canonicalJson(expected)===canonicalJson(value),'derived liabilities mismatch');
  return freeze(expected);
 }
+/** Public commitment excludes reserve-to-asset maps, Season Levels and owners.
+ * This is a verification index, not a Rewards-program Merkle root or claim. */
+export async function publicVaultLiabilityCommitment(bytes,pinnedDigest,{crypto}){
+ const m=await verifyVaultLiabilityManifest(bytes,pinnedDigest,{crypto});
+ return freeze({format:'10x.local.vault.commitment.v1',mode:'local-fixture',marketId:m.marketId,activatedMs:m.activatedMs,
+  originalUnits:m.originalUnits,genesisBudgetUnits:m.genesis.budgetUnits,seasonBudgetUnits:m.season.budgetUnits,
+  genesisReservedSlots:10000,seasonReservedSlots:m.season.snapshots.length*1000,
+  liabilityDigest:pinnedDigest,inventoryCommitment:m.inventoryCommitment,commitmentAlgorithm:'sha256-canonical-json',
+  claimFormat:'not-a-program-merkle-proof',financialExecution:false,isAuthorization:false});
+}
 /** Reserve accounting, never an owner claim quote. Use only a verified manifest. */
 export function projectVaultReserve(manifest,coords,atMs){
  const activatedAt=time(manifest.activatedMs),at=time(atMs);let allocation;
