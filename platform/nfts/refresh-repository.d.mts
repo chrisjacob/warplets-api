@@ -11,4 +11,4 @@ export type RefreshReadOutcome=Readonly<{kind:'found';value:Readonly<{reference:
 export interface RefreshRepository {execute(command:RefreshCommand):Promise<RefreshRevisionOutcome>;read(principal:Principal|OperatorPrincipal,input:{requestId:string}):Promise<RefreshReadOutcome>}
 /** Capture server time once and retain the private command for exact unknown-write retry. */
 export function prepareRefreshCommand(principal:Principal|OperatorPrincipal,value:{requestKey:string;input:RefreshCommandInput},crypto:CanonicalCrypto,clock:{nowMs():number}):Promise<RefreshCommand>;
-export function createRefreshRepository(driver:AtomicDriver,ports:{crypto:CanonicalCrypto;clock:{nowMs():number};ids:{next():string};artifacts:ArtifactStore}):RefreshRepository;
+export function createRefreshRepository(driver:AtomicDriver,ports:{crypto:CanonicalCrypto;clock:{nowMs():number};ids:{next():string};artifacts:ArtifactStore;/** Trusted composition-only SQL fence, never HTTP input. */authoritySnapshot?:()=>{sql:string;values:readonly(string|number|null)[]}|null}):RefreshRepository;

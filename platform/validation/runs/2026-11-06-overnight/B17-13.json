@@ -1,0 +1,36 @@
+{
+  "milestone": "B17 historical evidence reader and session composition fence",
+  "status": "focused-verified",
+  "checks": [
+    {
+      "command": "node --test platform/nfts/refresh-repository.test.mjs",
+      "passed": 8,
+      "durationMs": 6276.2126,
+      "log": "work/b17-refresh-evidence-extraction.log"
+    },
+    {
+      "command": "node --test platform/nfts/refresh-evidence-reader.test.mjs",
+      "passed": 2,
+      "durationMs": 1408.5154,
+      "log": "work/b17-refresh-evidence-reader.log"
+    },
+    {
+      "command": "edge TypeScript noEmit",
+      "passed": true
+    }
+  ],
+  "assertions": [
+    "Shared original/event evidence reader for live repository and historical recovery",
+    "Private-reference receipt input/business/result/time and request/output digests verified",
+    "Original reference/quote/media must predate original request, not current review time",
+    "Trusted composition-only SQL authority closes session revocation between observation and actual receipt claim",
+    "No arbitrary SQL or command authority accepted from HTTP input"
+  ],
+  "sourceHashes": {
+    "platform/nfts/refresh-evidence-reader.mjs": "437f90a7fcb65c525d5369199e3e08e481421b0032630059a24328fe27f65779",
+    "platform/nfts/refresh-evidence-reader.test.mjs": "a4057d3029dae8eeb50dd9c75a533a85238524a70d63777a49cc57d80e298297",
+    "platform/nfts/refresh-repository.mjs": "ae43607fbb0a1ecaca0555cb0316a6ad0b29af6bbaf5d6d582465f562dced4a4",
+    "platform/nfts/refresh-repository.d.mts": "fdfee1da0afa1700b7e19e4d3a7a133bfc966c2fa12d9f60a7370e7c7802ac2d"
+  },
+  "financialExecution": false
+}

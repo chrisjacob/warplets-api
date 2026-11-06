@@ -1,0 +1,101 @@
+{
+  "milestone": "B17 actual D1/R2 durable refresh and populated private restore",
+  "status": "focused-verified; parent independent recovery semantic integration pending",
+  "nodeRepository": {
+    "node": {
+      "passed": 8,
+      "durationMs": 6371.311,
+      "log": "work/b17-refresh-repository-node.log"
+    },
+    "edgeTypes": "passed",
+    "directDeclarations": "passed"
+  },
+  "edge": {
+    "passed": 1,
+    "calls": 22,
+    "durationMs": 27736.349,
+    "log": "work/b17-refresh-repository-edge.log",
+    "metrics": {
+      "calls": 22,
+      "maxOperations": 30,
+      "maxBatchBytes": 6428,
+      "maxParameters": 46,
+      "maxResultBytes": 3006,
+      "revisions": 8,
+      "receipts": 8,
+      "checkpoints": 8,
+      "financialExecution": false,
+      "metadataApplied": false
+    }
+  },
+  "populatedNodeRecovery": {
+    "passed": 1,
+    "durationMs": 40577.5613,
+    "log": "work/b17-refresh-populated-recovery.log",
+    "metrics": {
+      "revisions": 7,
+      "objects": 13,
+      "steps": 1074,
+      "checkpointPeak": 126329,
+      "phases": {
+        "metadata": 126323,
+        "objects": 126091,
+        "publications": 125069,
+        "tables": 126329,
+        "fences": 125015,
+        "pin-target": 124929,
+        "reconcile-objects": 126286,
+        "reconcile-table-metadata": 126243,
+        "reconcile-tables": 125624,
+        "reconcile-audit": 92921,
+        "reconcile-action-policies": 92996,
+        "reconcile-economics": 93424,
+        "reconcile-economic-preparations": 93130,
+        "reconcile-recorded-outcomes": 93208,
+        "reconcile-recorded-expiries": 93297,
+        "reconcile-recorded-preparations": 93400,
+        "reconcile-legacy-adoptions": 93499,
+        "reconcile-collection-authorities": 93606,
+        "reconcile-collection-admissions": 93651,
+        "reconcile-collection-fulfillments": 93701,
+        "reconcile-free-cut-records": 93744,
+        "reconcile-free-cut-attempts": 93782,
+        "reconcile-free-cut-validations": 93825,
+        "reconcile-free-cut-lists": 93838,
+        "reconcile-free-cut-bindings": 93878,
+        "reconcile-publications": 93873,
+        "reconcile-checkpoints": 93952,
+        "reconcile-final": 93946,
+        "final-ready": 94213
+      },
+      "maxOperations": 30,
+      "maxBatchBytes": 111848,
+      "fullHistoryReplay": true,
+      "independentRefreshSemanticPhase": false,
+      "financialExecution": false
+    }
+  },
+  "types": "Edge and direct declarations pass",
+  "scope": {
+    "source": "actual local legacy Genesis reference mint and reveal",
+    "privateEvidence": "genuine committed private-reference receipts",
+    "fixtureProvider": "recorded-synthetic-fixture",
+    "fullWorkflowHistoryAndJobReplay": true,
+    "financialExecution": false,
+    "metadataApplied": false,
+    "independentRefreshSemanticPhase": false,
+    "actualD1FullRecovery": false
+  },
+  "repositorySourcesTested": {
+    "platform/nfts/refresh-repository.mjs": "192f76a7e8d0922fbdda1951200480567b44976666b01988967305b5b48cb9f5",
+    "platform/nfts/refresh-repository.d.mts": "3012869ddf00bfd6c7c3308a11a370322b75a429b6a4875746d5d18f0bda7a0f",
+    "platform/nfts/refresh-repository.fixtures.mjs": "d500ba836a4983249cdeec5ca7fef8200ec232900a81b1d029b7635890159399",
+    "platform/nfts/refresh-repository.test.mjs": "dc4bcf5e655366315a211698dee78a6d6985178f5bff92f44788aa67624dcfaa"
+  },
+  "sources": {
+    "platform/nfts/refresh-acceptance.fixtures.mjs": "326911b4717f2e4a2d26536027aed7fca1e0719a3518cb822ca0634b816eae25",
+    "platform/recovery/v2-nft-refresh.test.mjs": "3bff7e703435778a80e393db19a447a60bdea5caf3019f9e6078ad1480fe923a",
+    "platform/edge/test/refresh-repository.test.mjs": "6bf945f084ef2d942b97cc03560e4e3be5b4cedbbd351094ee32d0c7d88295e6",
+    "platform/edge/test/fixtures/refresh-repository-worker.ts": "27ca160bec7179d8996d6cf89ec3f83eb6487e4ff812e38288923bfdc6e5e9e2"
+  }
+}

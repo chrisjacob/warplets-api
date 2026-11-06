@@ -1,0 +1,45 @@
+{
+  "milestone": "B17 progression fairness HTTP and browser acceptance",
+  "base": "7ca35adf55e48634448dee6d594b27a990feb012",
+  "status": "passed",
+  "implementationCommit": null,
+  "sourceHashes": {
+    "platform/collect/fairness-progression-http.test.mjs": "0feb26aad5712fda17e3f3a23d88ebcb9c08cb7e32e4cbe208655e23c3f44cf5",
+    "platform/site/tests/fairness-progression-runtime-qa.mjs": "f57d6f36a9fd660ac7299516a923da350c992afb1ae93543a3a559167ec76b5e"
+  },
+  "checks": [
+    {
+      "command": "node --test platform/collect/fairness-progression-http.test.mjs",
+      "passed": 1,
+      "profiles": [
+        "upgrade",
+        "visual"
+      ],
+      "durationMs": 2548.7307,
+      "log": "work/b17-progression-fairness-http.log"
+    },
+    {
+      "command": "node platform/site/tests/fairness-progression-runtime-qa.mjs",
+      "status": "passed",
+      "width": 390,
+      "profiles": [
+        "upgrade",
+        "visual"
+      ],
+      "log": "work/b17-progression-fairness-browser.log"
+    }
+  ],
+  "coverage": [
+    "Actual retained 040/042 plus B04 and pinned BLS through production Node owner route",
+    "Generated client and closed schema validation for nullable quota/level/policy fields",
+    "Reject extra hidden transcript fields and sealed transcript non-null drift",
+    "Explicit user-triggered request, pending sealed state then assigned transcript, reload clears",
+    "Real compiled React, no positive API mocks, no viewport overflow"
+  ],
+  "fixtureAuthority": "canonical synthetic sessions and synthetic local collection state; genuine retained guarded effects and recorded pinned beacon verifier",
+  "screenshots": "work/b17-progression-fairness-browser",
+  "productChanges": [],
+  "financialExecution": false,
+  "serverSigning": false,
+  "broadcast": false
+}
