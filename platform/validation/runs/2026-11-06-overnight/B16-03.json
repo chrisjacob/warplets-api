@@ -1,0 +1,51 @@
+{
+  "task": "B16",
+  "status": "partial-comparisons-cashflow-projection",
+  "baseCommit": "6b8bdd9",
+  "checks": [
+    {
+      "command": "node --test platform/costs/comparisons.test.mjs platform/costs/costs.test.mjs platform/costs/packet-service.test.mjs",
+      "passed": 13,
+      "durationMs": 314.3046
+    },
+    {
+      "command": "node --test platform/costs/scenario-cashflow.test.mjs platform/costs/comparisons.test.mjs platform/costs/cashflow.test.mjs",
+      "passed": 15,
+      "durationMs": 351.4576
+    },
+    {
+      "command": "node --test platform/edge/test/cost-comparisons.test.mjs",
+      "passed": 1,
+      "calls": 18,
+      "durationMs": 1909.6192
+    },
+    {
+      "command": "node platform/edge/node_modules/typescript/bin/tsc --noEmit -p platform/edge/tsconfig.json",
+      "status": "passed"
+    }
+  ],
+  "acceptance": [
+    "FirstATT includes collection reserve setup before lazy mint",
+    "Pending board selects neither root nor burn; declared recorded empty branch requires separate burn fee/retry quotes and retains later roots",
+    "One claimant and one mint keep missing fulfillment amounts visible",
+    "Cashflow rents prepare before execution; possible refund quote does not establish closure",
+    "No inferred shared account identity; receipts never reduce upfront funding",
+    "Original14scenario calculator output hashes unchanged"
+  ],
+  "limitations": [
+    "Pure caller planning assumptions only; source-bound readiness service follows",
+    "No recorded proof of closure inferred",
+    "No signing,broadcast,financial execution"
+  ],
+  "sourceHashes": {
+    "platform/costs/packet-core.mjs": "c3a79f83d9993f3d952c1166dbaed368493b4e7300be38b66af6c7ee26cbc607",
+    "platform/costs/packet-core.d.mts": "f7df58d51cd1e59907092e30fa8712469087c568e9f9ea8c57402a7d30ceedff",
+    "platform/costs/scenarios.mjs": "5dde8274166d6d42baa41a185f6f1fe160be23ed2e4fc8985c8cfcc239593b63",
+    "platform/costs/comparisons.test.mjs": "b0708349e1e93d0e2767b20876e067c029d539298c0b7a97b27f741114094091",
+    "platform/costs/scenario-cashflow.mjs": "0f419bf765913a56adb14d646028ec6031ca512e4b3204615fc0dcd22de0115f",
+    "platform/costs/scenario-cashflow.d.mts": "ed338a87d3948e0a1813bda62b16f3df2ce53bed0616cffedb492d597663d6c0",
+    "platform/costs/scenario-cashflow.test.mjs": "22c87743dce7a5264a4b33510ebde0fb66646081106c288c6766c8b4383258c6",
+    "platform/edge/test/cost-comparisons.test.mjs": "cb76a44839da9e102c07decf3eea6e362e05760b0a3e6c0f1378029164a9738b",
+    "platform/edge/test/fixtures/cost-comparison-worker.ts": "c1c3bd67fecbdeab3f8e43857a729fe228a9fb4768e09e7bb42348289b7e55a9"
+  }
+}

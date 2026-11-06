@@ -19,7 +19,7 @@ function coreMints(count,payer) {
     line('mintRetry','Mint retry and failed fulfillment allowance',count,'lamport',payer),
   ];
 }
-function claims(count,p,includeVault=true) {
+export function claimCostLines(count,p,includeVault=true) {
   const vaultCount=includeVault?multiply(count,p.vaultClaimsPerUser):0;
   return [
     rent('classicAtaRent','New token accounts',multiply(count,p.freshAtasPerUser),'claimant'),
@@ -33,6 +33,7 @@ function claims(count,p,includeVault=true) {
       includeVault?p.vaultLookupSetups:0),
   ];
 }
+const claims=claimCostLines;
 export function scenarioCatalog(p) {
   const manual=[
     rent('mintRent','ATT mint account'),rent('poolPositionRent','Pool and locked LP-position accounts'),

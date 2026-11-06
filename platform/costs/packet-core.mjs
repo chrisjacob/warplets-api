@@ -1,7 +1,7 @@
 // Pure legacy calculator core. contextId is supplied only by the local crypto
 // wrappers; this internal arithmetic function does not verify source authority.
 import { assessPilotBudget, assessRecurring } from './budget.mjs';
-import { scenarioCatalog } from './scenarios.mjs';
+import { scenarioCatalog, claimCostLines } from './scenarios.mjs';
 
 const LAMPORTS=1_000_000_000n;
 const integer=(value,label)=>{
@@ -180,4 +180,40 @@ export function calculateCostPacket(input,contextId) {
     executionContextId:contextId,quoteContext:input.context??null,
     conversionSources:{sol:input.fx?.sol?.sourceRef??null,og:input.fx?.og?.sourceRef??null},
     scenarios,firstAtt:buildScenario(single,normalized,gaps,cash,contextId)};
+}
+
+/** Additive planning comparisons. A branch label is a supplied assumption,
+ * not verification of a board, burn or transaction. Repository callers must
+ * derive it from retained evidence; pending never chooses either branch. */
+export function calculateCostComparisons(input,contextId,options={firstBoard:{kind:'pending'},boardQuotes:{}}) {
+  const packet=calculateCostPacket(input,contextId),p=packet.parameters,catalog=scenarioCatalog(p);
+  if(!options||Object.keys(options).sort().join(',')!=='boardQuotes,firstBoard')throw new TypeError('Invalid comparison options');
+  const board=options.firstBoard;
+  if(!board||!['pending','empty-recorded','recipients-recorded'].includes(board.kind)||
+    Object.keys(board).sort().join(',')!==(board.kind==='pending'?'kind':'evidenceDigest,kind')||
+    (board.kind!=='pending'&&!/^[a-f0-9]{64}$/.test(board.evidenceDigest)))throw new TypeError('Invalid first board assumption');
+  const boardQuotes=options.boardQuotes;
+  if(!boardQuotes||typeof boardQuotes!=='object'||Array.isArray(boardQuotes)||Object.keys(boardQuotes).some(k=>!['earnBurnNetwork','earnBurnRetry'].includes(k)))throw new TypeError('Invalid burn cost quotes');
+  const normalized={...input,parameters:p,quotes:{...input.quotes,...boardQuotes}},gaps=packet.contextGaps;
+  const cash=input.availableCashUsdMicros==null?null:integer(input.availableCashUsdMicros,'available cash');
+  const price=(id,name,scope,lines)=>buildScenario({id,name,scope,lines},normalized,gaps,cash,contextId);
+  // Collection reserve/draw setup precedes the first ATT even with lazy public
+  // minting. These lines are disjoint from ATT mint/pool/farm/Vault setup.
+  const common=[...catalog[0].lines,...catalog[1].lines.filter(l=>l.payer==='founder'),...catalog[4].lines,
+    ...catalog[8].lines.filter(l=>['collectionSetup','collectionNetwork'].includes(l.id))];
+  const root=catalog[3].lines.filter(l=>l.id.startsWith('earn')).map(l=>({...l,quantity:1}));
+  const burn=[{id:'earnBurnNetwork',label:'First empty-board allocation burn network cost',quantity:1,unit:'lamport',payer:'founder',kind:'fee'},
+    {id:'earnBurnRetry',label:'First empty-board allocation burn retry allowance',quantity:1,unit:'lamport',payer:'founder',kind:'fee'},
+    ...root.filter(l=>l.id==='earnManifestHost')];
+  const scope='Includes all launch/farm/Vault and Genesis reserve setup before first ATT; no issued NFT or token supply is a cash receipt.';
+  const alternatives={recipientRoot:price('first-att-root','First ATT with recipient root',scope,[...common,...root]),
+    emptyBurn:price('first-att-empty','First ATT with recorded empty-board burn',scope,[...common,...burn])};
+  const selected=board.kind==='pending'?null:alternatives[board.kind==='empty-recorded'?'emptyBurn':'recipientRoot'];
+  return {format:'10x.cost-comparisons.v1',mode:'planning-only',assumptions:'caller-supplied-unverified',financialExecution:false,isAuthorization:false,
+    firstAtt:{firstBoard:{...board},status:selected?.status??'incomplete',selected,alternatives,
+      unresolved:board.kind==='pending'?['first-board-evidence-pending']:[],
+      laterMandatoryRoot:price('later-earn-root','Later mandatory recipient-root costs','Not waived by an empty first board.',root),
+      supplyAccounting:{farmGrossSupplyBps:500,emptyFirstBoardSupplyBps:100,genesisIncludesUnminted:true,tokenSupplyIsFounderCashCost:false}},
+    oneClaim:price('one-claim','One claimant batch','One claimant; Vault bundles and account counts must be explicit.',claimCostLines(1,p)),
+    oneMint:packet.scenarios.find(s=>s.id===9),monthly:packet.scenarios.find(s=>s.id===14)};
 }

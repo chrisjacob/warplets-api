@@ -1,4 +1,7 @@
-import type {CostContext,CostPacketInput,CostPacket} from './packet-types.mjs';
+import type {CostContext,CostPacketInput,CostPacket,CostScenario,CostQuote} from './packet-types.mjs';
 export function executionContextPreimage(context?:CostContext):string;
 /** Internal arithmetic boundary. Use the Node wrapper or portable service. */
 export function calculateCostPacket(input:CostPacketInput,computedContextId:string):CostPacket;
+export type FirstBoardAssumption=Readonly<{kind:'pending'}>|Readonly<{kind:'empty-recorded'|'recipients-recorded';evidenceDigest:string}>;
+export interface CostComparisons {readonly format:'10x.cost-comparisons.v1';readonly mode:'planning-only';readonly assumptions:'caller-supplied-unverified';readonly financialExecution:false;readonly isAuthorization:false;readonly firstAtt:Readonly<{firstBoard:FirstBoardAssumption;status:'incomplete'|'quoted';selected:CostScenario|null;alternatives:Readonly<{recipientRoot:CostScenario;emptyBurn:CostScenario}>;unresolved:readonly string[];laterMandatoryRoot:CostScenario;supplyAccounting:Readonly<{farmGrossSupplyBps:500;emptyFirstBoardSupplyBps:100;genesisIncludesUnminted:true;tokenSupplyIsFounderCashCost:false}>}>;readonly oneClaim:CostScenario;readonly oneMint:CostScenario;readonly monthly:CostScenario}
+export function calculateCostComparisons(input:CostPacketInput,computedContextId:string,options?:Readonly<{firstBoard:FirstBoardAssumption;boardQuotes:Readonly<Partial<Record<'earnBurnNetwork'|'earnBurnRetry',CostQuote>>>}>):CostComparisons;
