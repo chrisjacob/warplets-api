@@ -49,3 +49,6 @@ The synchronous session guard is specific to the local Node transaction driver: 
 ## Acceptance
 
 Run `node --test platform/operator/*.test.mjs` for the private boundary. Browser scripts require installed `PLAYWRIGHT_MODULE` and `BROWSER_EXE`; each uses disposable fixtures and closes browser/server afterward. `browser-qa.mjs` covers shared session, keyboard, confirmation and recovery behavior. The stage, governance, cut, source, upload, observation, action and draft browser scripts cover their named journeys at360/390/768/1440px. Detailed observed results, limits and source hashes are retained in `platform/validation/runs/2026-11-06-overnight/B12-*.json`; passing local checks do not establish production readiness.
+
+
+The authenticated `GET /ops/readiness` panel is read-only and available to a local read-only session. It returns one bounded usage snapshot plus individual readiness checks. Charged attempt admissions and deduplicated effects are separate; unknown provider calls/costs remain unknown. Queued/held work stays visible, and production custody, physical-device and other unverified release checks remain pending. Refresh timestamps and evidence references do not grant launch authority. The panel clears private observations on logout, expiry and principal changes.

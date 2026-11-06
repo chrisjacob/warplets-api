@@ -1,0 +1,76 @@
+{
+  "format": "10x.local.implementation-evidence.v1",
+  "task": "B13",
+  "slice": "retained notice attempts and explicit observation coverage",
+  "baseCommit": "24d2b4266ead2bab6f1338f5a33013b62557a57e",
+  "implementationCommit": null,
+  "sourceHashes": {
+    "platform/observability/metrics.mjs": "933c1e9af61d17e6d9cb91b0d2bea166809fd1670c3db6cf2d7f9d123655400e",
+    "platform/observability/metrics.test.mjs": "a1b2992dc51ebcea905417e5a45859d124b47e2ca5602d72337d27fcfed2845b",
+    "platform/edge/test/operational-metrics.test.mjs": "97d2004f09d5e2733e78e928ba405129c853a5fd6e76e3545694ab4b3effd477",
+    "platform/operator/ui.mjs": "3e47b6696e0f0559ee55ddf53ebb3a23414b055eb4dd13f8abded72fe2910776",
+    "platform/operator/readiness-browser-qa.mjs": "c835592d1b6399c69346ae844287f855311c06967e42a2347ff10c8c7c2baf9d"
+  },
+  "checks": [
+    {
+      "command": "node --test platform/observability/metrics.test.mjs platform/operations/readiness.test.mjs",
+      "passed": 7,
+      "failed": 0,
+      "durationMs": 2105.3759,
+      "log": "work/b13-observability-attempts-node.log"
+    },
+    {
+      "command": "node --test platform/edge/test/operational-metrics.test.mjs",
+      "passed": 1,
+      "failed": 0,
+      "durationMs": 25506.9046,
+      "log": "work/b13-observability-attempts-d1.log"
+    },
+    {
+      "command": "node platform/operator/readiness-browser-qa.mjs",
+      "exitCode": 0,
+      "widths": [
+        360,
+        390,
+        768,
+        1440
+      ],
+      "log": "work/b13-observability-attempts-browser.log"
+    },
+    {
+      "command": "pnpm --dir platform/edge exec tsc --noEmit",
+      "exitCode": 0,
+      "log": "work/b13-observability-attempts-types.log"
+    },
+    {
+      "command": "git diff --check",
+      "exitCode": 0
+    }
+  ],
+  "actualD1Metrics": {
+    "batches": 1,
+    "statements": 22,
+    "maxParameters": 3,
+    "maxSqlBytes": 635,
+    "batchBytes": 4667,
+    "resultRows": 19,
+    "resultBytes": 1446,
+    "changes": 0
+  },
+  "newCoverage": [
+    "noticeLeaseClaims sums exact retained notice_outbox.attempts, independent of deduplicated delivered inbox effects. Both counts state their retained-row coverage.",
+    "Guarded actual Node consent/enqueue/lease/finish sequence proves3 claims vs1 effect after retry and unknown outcomes. Delivery replay does not increment. Purge removes ephemeral rows, yielding0 retained counts while lifetime coverage remains unknown; durable consent keys remain.",
+    "Actual D1 counter fixtures are explicitly synthetic rows and match Node; ages are4000ms since unknown notice creation and5000ms since current evidence receipt recording. They are not unknown-state duration or source observation age.",
+    "Invalid negative attempts and future recording clocks hold. Privacy canaries remain absent and read snapshots do not mutate data.",
+    "Historical refused/pending admission attempts remain null with explicit unknown-no-durable-attempt-history status; observed submission/review coverage is current epoch retained rows only.",
+    "UI displays retained attempt/effect coverage and the unavailable age/history fields without creating an all-green or launch-ready aggregate."
+  ],
+  "remainingUnknowns": [
+    "Global actual provider calls and verified external costs.",
+    "Purged lifetime notice attempts and cleared/purged inbox effects.",
+    "Notice held/unknown transition timestamps; oldest held duration cannot be reconstructed from creation time.",
+    "Source observation age beyond the timestamp of current evidence receipt recording.",
+    "Complete historical refused/pending admission attempts; coordinator event instrumentation covers future observed requests only."
+  ],
+  "scope": "No migration, counter table, remote service, external delivery, financial execution or full-history inference. Five owned files only."
+}
