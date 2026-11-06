@@ -8,7 +8,14 @@ export type MintReservationCommand=CollectionCommand<'collection.reserve-operati
 export type ProgressionReservationInput=Readonly<{kind:'upgrade'|'visual';inventoryId:string;targetId:string;materialId:string|null;expectedTargetVersion:number;expectedMaterialVersion:number|null;quoteId:string;bindingDigest:string;policyVersion:string;reviewedFeeLamports:string;reviewedMaxTotalLamports:string;quoteExpiresMs:number}>;
 export type ProgressionReservationCommand=CollectionCommand<'collection.reserve-operation.v1',ProgressionReservationInput,Principal>;
 /** Operator DTOs name immutable staged evidence; a boolean cannot seal coverage. */
-export type PublishCollectionStageCommand=CollectionCommand<'collection.publish-stage.v1',{inventoryId:string;stageId:string;termsDigest:string;sourceId:string;expectedInventoryRevision:string},OperatorPrincipal>;
+export interface StagePublicationInput {
+ readonly inventoryId:string;readonly stageId:string;readonly type:'whitelist'|'public'|'free'|'founder';
+ readonly publishedAt:number;readonly opensAt:number;readonly closesAt:number;
+ readonly priceLamports:string;readonly costLamports:string;readonly allocation:number;readonly walletLimit:number|null;
+ readonly founderApproved:boolean;readonly approvedSpendLamports:string|null;readonly ballotId:string|null;
+ readonly inventoryOverrideReason:string|null;readonly eligibilityListId:string|null;readonly sourceKind:'synthetic-local-operator-fixture';
+}
+export type PublishCollectionStageCommand=CollectionCommand<'collection.publish-stage.v1',StagePublicationInput,OperatorPrincipal>;
 export type FreezeCollectionEligibilityCommand=CollectionCommand<'collection.freeze-eligibility.v1',{inventoryId:string;stageId:string;publishedOpeningMs:number;sourceId:string;sourceDigest:string;expectedInventoryRevision:string},OperatorPrincipal>;
 export type FulfillCollectionOperationCommand=CollectionCommand<'collection.fulfill-operation.v1',{operationId:string;evidenceReceiptId:string;evidenceDigest:string},OperatorPrincipal>;
 export type ObserveCollectionAssetCommand=CollectionCommand<'collection.observe-asset.v1',{assetId:string;kind:'reveal'|'transfer';from:string|null;to:string|null;observedMs:number;evidenceReceiptId:string;evidenceDigest:string;expectedAssetVersion:number},OperatorPrincipal>;

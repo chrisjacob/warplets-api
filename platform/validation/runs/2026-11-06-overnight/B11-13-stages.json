@@ -1,0 +1,107 @@
+{
+  "taskId": "B11",
+  "substep": "B11.13-normalized-private-stage-publication",
+  "status": "partial",
+  "classification": "Private synthetic local stage authority; no mint admission, public publication route or chain authority",
+  "lastTestedBaseCommit": "4fc655a8538d6d5735a8afcfbaf462ff670f95ed",
+  "implementationCommit": null,
+  "commands": [
+    {
+      "command": "node --test platform/collect/stage-plan.test.mjs platform/collect/stage-repository.test.mjs",
+      "log": "work/b11-stage-installed-node.log",
+      "exitCode": 0,
+      "tests": 10,
+      "failed": 0,
+      "durationMs": 6985.7648
+    },
+    {
+      "command": "node --test platform/edge/test/collection-stages.test.mjs",
+      "log": "work/b11-stage-installed-edge.log",
+      "exitCode": 0,
+      "tests": 1,
+      "failed": 0,
+      "durationMs": 42053.0901
+    },
+    {
+      "command": "node --test platform/collect/stage-recovery.test.mjs platform/collect/fulfillment-recovery.test.mjs platform/collect/observation-recovery.test.mjs platform/governance/operator-recovery.test.mjs",
+      "log": "work/b11-stage-recovery.log",
+      "exitCode": 0,
+      "tests": 4,
+      "failed": 0,
+      "durationMs": 1328.2889
+    },
+    {
+      "command": "node work/b11-043-reference.mjs",
+      "scope": "Tracked reference plus checkpoint-added stage tests; excludes uncommitted recovery-v2 and mint lanes",
+      "log": "work/b11-stage-final-reference.log",
+      "exitCode": 0,
+      "tests": 486,
+      "failed": 0,
+      "skipped": 0,
+      "durationMs": 45450.0935
+    },
+    {
+      "command": "node platform/edge/node_modules/typescript/bin/tsc --noEmit -p platform/edge/tsconfig.json",
+      "exitCode": 0
+    },
+    {
+      "command": "node platform/contracts/generate.mjs --check",
+      "exitCode": 0
+    }
+  ],
+  "sourceHashes": {
+    "platform/application/collections.ts": "60f8ef4fd5622fa0c823f10d7d2466f492ef1afe7d0314ea97190f685df657fd",
+    "platform/recovery/schema.mjs": "0786f27621e0a39de3ecd92ed7ae4eb698ab907245d387711dbf679d5f05b0c9",
+    "platform/storage/043-collection-stages.sql": "76e50dfb733cb5c47446546d9d58bc7633caad4d2c2cdfc45e5278395e02f6b3",
+    "platform/collect/stage-plan.d.mts": "d8891be0c80c5d94b645b9272c30876e1a504c85c58e1836ed534fb6eee5270d",
+    "platform/collect/stage-plan.mjs": "44e11669bd07c2af6282cf13bd16f670916db34ba8954d579773088fc4dca70d",
+    "platform/collect/stage-plan.test.mjs": "3d3dd663563aca77d4dd64913282d51ba884e201950f0e72dcda32de7f4f5322",
+    "platform/collect/stage-recovery.test.mjs": "826a875d94813ad06241c4fc873007ddbde80eded399dee7fb5fe0376fa9e744",
+    "platform/collect/stage-repository.d.mts": "81f226478425d4363ff2c941589232897a3406f73a9002572b1b9a81aab2e493",
+    "platform/collect/stage-repository.mjs": "3b69900404ba6f5a9820c79b0c417117a1720436bf56e4ffa93507091783eefc",
+    "platform/collect/stage-repository.test.mjs": "a31399d86a9d417797b9bb36dd04cf65edd3e31e679750ee26247fdf8ca30e74",
+    "platform/collect/stage-service.d.mts": "ed64829439347c9e479d7a121de24f7600cff22b2302cff9b4cba4b632033c33",
+    "platform/collect/stage-service.mjs": "15f488d6e86677b3d47ac0a89540663050f67742abb2e9e31d804f5e99731bc0",
+    "platform/edge/test/collection-stages.test.mjs": "f08afff45690023406b7aca0a1ef600059f035ea1ac3f30f00d8d3b0e831e6f4",
+    "platform/edge/test/fixtures/collection-stage-worker.ts": "1d0acd9ff20829760b3e7300bb2cd7f125f5c200c8a23068882fed78647008e0"
+  },
+  "measurements": {
+    "listMembers": 10000,
+    "sqlStatementsPerFullListPublication": 20,
+    "mutationStatements": 5,
+    "maxBatchBytes": 7119,
+    "maxParameters": 34,
+    "stageTermsBytesLessThan": 2048,
+    "inventoryAggregateHydrated": false,
+    "initialEmptyHeaderByteLimit": 4096,
+    "stageLimit": 32
+  },
+  "acceptance": [
+    "Exact legacy terms digest and immutable compact stage fields preserve economics",
+    "Current indexed source list independently reverified; caller cannot substitute wallet membership",
+    "Separate founder scope required for founder/public approval and explicit inventory override",
+    "Missing authority/revision/stage child aborts receipt and all writes",
+    "Revoked grant and concurrent source revision prevent stale publication",
+    "Lost acknowledgement and duplicate contenders recover one original receipt",
+    "Paid Season/free schedule and original one-per-wallet rules preserved; free eligibility remains pending",
+    "Only exactly empty reference inventory can activate; populated legacy is explicitly held",
+    "102-table small-population recovery retains published stage, immutable terms, list index and exact replay after grant revocation",
+    "All previous global mandatory receipt guards retained byte-for-byte except the new operation allowlist entry"
+  ],
+  "boundaries": {
+    "financialExecution": false,
+    "publicPublicationRoute": false,
+    "normalizedMintAdmission": false,
+    "populatedLegacyAdoption": false,
+    "freeCutCompleteness": false,
+    "largeRecoveryV1Coverage": false,
+    "chainAuthority": false
+  },
+  "remaining": [
+    "Commit/push and follow exact test-only CI",
+    "Guarded normalized mint admission and fulfillment; safe populated legacy adoption",
+    "Exact-opening complete free eligibility source binding",
+    "Consistent bounded inventory and stage read projections",
+    "Bounded v2 recovery for legal maximum source graph and10000-voter turnout"
+  ]
+}

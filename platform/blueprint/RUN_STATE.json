@@ -5,9 +5,9 @@
   "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
   "currentTask": "B11",
-  "lastUpdatedAt": "2026-11-06T01:58:54.813999+00:00",
+  "lastUpdatedAt": "2026-11-06T02:06:32.086717+00:00",
   "migrationAllocation": {
-    "next": 45,
+    "next": 46,
     "reserved": [
       {
         "version": 31,
@@ -78,6 +78,11 @@
         "version": 44,
         "task": "B11",
         "purpose": "bounded durable v2 recovery capture/reconciliation control state and whole-business mutation watermark"
+      },
+      {
+        "version": 45,
+        "task": "B11",
+        "purpose": "guarded normalized mint admission and fulfillment with bounded authority effects"
       }
     ],
     "historicalGap": 19
@@ -240,7 +245,7 @@
       "status": "in_progress",
       "owner": "coordinator",
       "baseCommit": "96cdfa1fb6334fcb27deb831d786243227b9d1a8",
-      "implementationCommit": "66ce5b37e0466635013e238a57068ee30805c29f",
+      "implementationCommit": "6aae0e22ce54cc8e8a8d8fd2d16ef71f66804530",
       "pushed": true,
       "evidence": [
         "platform/validation/runs/2026-11-06-overnight/B11-1.json",
@@ -255,9 +260,10 @@
         "platform/validation/runs/2026-11-06-overnight/B11-9-browser.json",
         "platform/validation/runs/2026-11-06-overnight/B11-10-observations.json",
         "platform/validation/runs/2026-11-06-overnight/B11-11-reads.json",
-        "platform/validation/runs/2026-11-06-overnight/B11-12-fulfillment.json"
+        "platform/validation/runs/2026-11-06-overnight/B11-12-fulfillment.json",
+        "platform/validation/runs/2026-11-06-overnight/B11-13-stages.json"
       ],
-      "nextAction": "B11.12 installed042 fulfillment final475reference+21focused+51affected+42pairedD1 pass; commit/push and followCI. Then install draft043 normalized stage (6Node+10000wallet actualD1 pass), add102-table populated recovery. Agent builds044durable recovery-v2 against exactdraft; second agent derives normalizedmintplans. B11 remains partial; preserve separate work.",
+      "nextAction": "CI42147963849 tests dependency-order repair6aae0e2 over042fulfillment4fc655a.043 normalizedstage installed and tested486reference+10Node+10000wallet actualD1+4recovery cases; readycheckpoint afterrepairCI.044durablecapture agent active;045normalizedmint plans/design agent active. B11notcomplete.",
       "blocker": null
     },
     "B12": {

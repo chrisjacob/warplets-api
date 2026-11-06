@@ -1,0 +1,32 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {openDatabase} from '../storage/database.mjs';
+import {createNodeAtomicDriver} from '../storage/node/atomic-driver.mjs';
+import {governanceOperatorFixture} from '../governance/operator-test-fixture.mjs';
+import {createCollection,publishCollectionStage} from './store.mjs';
+import {createStagePublicationRepository} from './stage-repository.mjs';
+import {createStagePublicationService} from './stage-service.mjs';
+import {memoryArtifacts} from '../application/fixtures/memory-artifacts.mjs';
+import {createManifestCodec} from '../artifacts/manifest-codec.mjs';
+import {readInstalledRecoverySchema} from '../recovery/node-schema.mjs';
+import {createRecoveryExporter} from '../recovery/export.mjs';
+import {createPrivateRecovery} from '../recovery/restore.mjs';
+import {canonicalJson} from '../security/canonical.mjs';
+
+test('private recovery preserves normalized stage authority, list bindings and exact accepted replay',async t=>{
+ const f=await governanceOperatorFixture(t),target=openDatabase();t.after(()=>target.close());
+ const principal={kind:'operator',id:'synthetic-stage-recovery'},inventoryId='synthetic-recovery-inventory';
+ f.db.prepare('INSERT INTO app_operator_scopes VALUES(?,?,0,1)').run(principal.id,'collection-publication');createCollection(f.db,{id:inventoryId,kind:'genesis',tranche:1});
+ const input={inventoryId,stageId:'synthetic-recovery-whitelist',type:'whitelist',publishedAt:f.getNow(),opensAt:f.getNow()+172800000,closesAt:f.getNow()+259200000,priceLamports:'100000000',costLamports:'500000',allocation:1000,walletLimit:null,founderApproved:false,approvedSpendLamports:null,ballotId:null,inventoryOverrideReason:null,eligibilityListId:f.groups[0].manifest.id,sourceKind:'synthetic-local-operator-fixture'},request={input,requestKey:'synthetic-publication'};
+ const service=createStagePublicationService({...f.ports,repository:createStagePublicationRepository(f.base,f.ports)}),accepted=await service.publishStage(principal,request);assert.equal(accepted.kind,'committed');
+ const sourceArtifacts=memoryArtifacts(),targetArtifacts=memoryArtifacts(),driver=createNodeAtomicDriver(target),ports={...f.ports,schema:await readInstalledRecoverySchema(f.ports.crypto),codec:createManifestCodec({crypto:f.ports.crypto})};
+ const capture=await createRecoveryExporter({...ports,driver:f.base,artifacts:sourceArtifacts,sourceCommit:'0'.repeat(40)}).capturePrivate();assert.equal(capture.kind,'captured',JSON.stringify(capture));
+ const recovered=await createPrivateRecovery({...ports,driver,artifacts:targetArtifacts,sourceArtifacts}).restore({inventory:structuredClone(capture.inventory),pinnedDigest:capture.digest});assert.equal(recovered.kind,'restored',JSON.stringify(recovered));
+ for(const table of ['app_collection_authorities','app_collection_stages','app_collection_list_seals','app_collection_eligibility_pages','app_collection_records','collect_inventories','app_command_receipts'])assert.equal(canonicalJson(target.prepare('SELECT * FROM '+table+' ORDER BY rowid').all()),canonicalJson(f.db.prepare('SELECT * FROM '+table+' ORDER BY rowid').all()),table);
+ target.prepare('UPDATE app_operator_scopes SET enabled=0 WHERE operator=?').run(principal.id);
+ const replay=await createStagePublicationService({...f.ports,repository:createStagePublicationRepository(driver,f.ports)}).publishStage(principal,request);assert.equal(replay.kind,'replayed');assert.deepEqual(replay.value,accepted.value);assert.deepEqual(replay.receipt,accepted.receipt);
+ assert.throws(()=>target.prepare('DELETE FROM app_collection_stages').run(),/Retain published/);assert.throws(()=>target.prepare('UPDATE collect_inventories SET state=state WHERE id=?').run(inventoryId),/Normalized collection authority/);
+ const {eligibilityListId,sourceKind,stageId,...terms}=input;assert.throws(()=>publishCollectionStage(target,{inventoryId,stage:{...terms,id:'synthetic-legacy-bypass',wallets:f.holders}},f.getNow()),/Normalized collection authority/);
+ assert.equal(target.prepare('SELECT COUNT(*) n FROM collect_operations').get().n,0);assert.equal(target.prepare('SELECT COUNT(*) n FROM tx_intents').get().n,0);
+ t.diagnostic(JSON.stringify({businessTables:capture.inventory.tables.length,publishedStages:1,listMembers:f.holders.length,exactTermsAndReplay:true,normalizedLegacyBypassBlocked:true,financialExecution:false}));
+});

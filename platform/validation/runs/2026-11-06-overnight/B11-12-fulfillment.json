@@ -4,7 +4,7 @@
   "status": "partial",
   "classification": "Locally verified guarded progression and retained synthetic/real pinned beacon evidence; no chain custody or financial execution",
   "lastTestedBaseCommit": "66ce5b37e0466635013e238a57068ee30805c29f",
-  "implementationCommit": null,
+  "implementationCommit": "4fc655a8538d6d5735a8afcfbaf462ff670f95ed",
   "commands": [
     {
       "command": "node --test platform/collect/fulfillment-evidence.test.mjs platform/collect/fulfillment-plan.test.mjs platform/collect/fulfillment-repository.test.mjs platform/collect/fulfillment-recovery.test.mjs platform/beacon/portable.test.mjs",
@@ -191,5 +191,14 @@
     "configuredEntropyTime": "original pinned beacon round time",
     "intentionalPrdCorrection": "Legacy configured adapter backdated completion to the beacon round. Guarded fulfillment separates entropy publication from successful local completion.",
     "safeOverflowGuard": true
+  },
+  "ci": {
+    "initialRun": 42147382760,
+    "initialConclusion": "failure",
+    "cause": "Worker test imported pinned beacon adapter before beacon package dependencies were installed",
+    "repairCommit": "6aae0e22ce54cc8e8a8d8fd2d16ef71f66804530",
+    "repairRun": 42147963849,
+    "repairConclusion": "in_progress",
+    "acceptanceCriteriaChanged": false
   }
 }
