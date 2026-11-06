@@ -1,0 +1,93 @@
+{
+  "task": "B11",
+  "slice": "B11-62 durable original admission economics",
+  "status": "verified-private-continuation; normal dispatcher integration pending",
+  "recordedAt": "2026-11-06T11:17:43.021039+00:00",
+  "sourceHashes": {
+    "platform/recovery/v2-reconcile-legacy-economics.mjs": "e0f7aa904eeeff9f7ad323a1779a276ae45cfaf89428e5b1a9af8a9fcdf391e8",
+    "platform/recovery/v2-reconcile-legacy-economics.test.mjs": "d9820fd2a4620e5cb1df43266ae8fa79c8c867ebc12087ef54f9a3b4e5da8df8",
+    "platform/edge/test/recovery-legacy-economics.test.mjs": "053ad5dc6e420383459d00071184038a750537d17b770562cefe76695d14aa6c",
+    "platform/edge/test/fixtures/recovery-legacy-economics-worker.ts": "3d66dcb02bd809ab0e8c757c84ea299b0ad26bed8cda5dd8bd46159327d68012",
+    "platform/recovery/LEGACY_ECONOMIC_RECOVERY.md": "0243c52371c5b0a40ba475271e998f79d7e609fe7f1340a05c340c6570d74a8d",
+    "platform/recovery/v2-legacy-admission-controls.mjs": "15479e803f0c35449439ce0b2c2abc02502f3f284a10931a5ce98b897411b1c4",
+    "platform/recovery/v2-legacy-admission-controls.test.mjs": "341be2d2a0887cb67cd023409f3e0c4db194d6f1caa8bbad4a1a3c2849a68c98",
+    "platform/edge/test/recovery-legacy-controls.test.mjs": "e24eca4647d4282cd9161db1a7d6102e8385c1da996ab42e9eaaf50f2f318449",
+    "platform/recovery/v2-reconcile-legacy-current.mjs": "17d2de427e69bd33abe9e2034098a519ca44b8f4c567947d1f9b530aaa7e8f0f",
+    "platform/collect/legacy-economic-repository.fixtures.mjs": "046a6b30cb14b715560b374f86d702c8b3aed2ccf3308cc12402de1419d7a61d"
+  },
+  "checks": [
+    {
+      "command": "node --test platform/recovery/v2-reconcile-legacy-economics.test.mjs",
+      "passed": 2,
+      "failed": 0,
+      "profiles": [
+        "mixed",
+        "public",
+        "founder",
+        "empty",
+        "unadmitted"
+      ],
+      "durationMs": 260735.1734,
+      "log": "work/b11-62-control-proof-final-node.log"
+    },
+    {
+      "command": "node --test platform/edge/test/recovery-legacy-economics.test.mjs",
+      "passed": 1,
+      "failed": 0,
+      "profiles": [
+        "mixed",
+        "founder"
+      ],
+      "durationMs": 220389.9874,
+      "log": "work/b11-62-control-proof-final-edge.log"
+    },
+    {
+      "command": "node --test platform/recovery/v2-legacy-admission-controls.test.mjs",
+      "passed": 1,
+      "durationMs": 38836.9283,
+      "log": "work/b11-59-large-control-node.log"
+    },
+    {
+      "command": "node --test platform/edge/test/recovery-legacy-controls.test.mjs",
+      "passed": 1,
+      "durationMs": 84513.1503,
+      "log": "work/b11-59-large-control-edge.log"
+    },
+    {
+      "command": "edge TypeScript --noEmit",
+      "status": "passed"
+    }
+  ],
+  "measurements": {
+    "economicMaxNodeAllowance": 27,
+    "economicMaxD1ActualOperations": 25,
+    "economicMaxD1WorkingBytes": 428829,
+    "largeControl": {
+      "selectionBytes": 84370,
+      "usageRows": 100,
+      "spendRows": 100,
+      "sql": 8,
+      "objects": 1,
+      "maxBatchBytes": 2340,
+      "maxReturnedBytes": 89561,
+      "workingBytes": 914376,
+      "outerCheckpointReserve": 267264
+    }
+  },
+  "verified": [
+    "Genuine certificate/stage/original-mint proofs; no synthetic prerequisite proofs in62 acceptance",
+    "Exact original prepare/control/membership/advance commitments and final economic aggregate",
+    "Atomic control proof, economic prefix/proof chain and aggregate completion",
+    "Omitted control/admission/completion proof rollback; lost acknowledgement exact replay",
+    "Node allfive profiles and D1 mixed/founder continue through current history to pending object closure",
+    "Original Genesis bind slot JSON order preserved",
+    "Optional settleAll fixture uses original admission ordinal, not random operation-id order",
+    "Large control verification releases intermediate buffers before history comparison; unchanged byte limits"
+  ],
+  "limitations": [
+    "Final adoption aggregation and normal pipeline dispatch not yet mounted.",
+    "Free-cut/later-Genesis and unsupported current progression/claims remain explicit pending prerequisites.",
+    "Large combined maximum dimensions remain subject to measured conservative bound holds."
+  ],
+  "financialExecution": false
+}

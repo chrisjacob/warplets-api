@@ -5,7 +5,7 @@
   "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
   "currentTask": "B11",
-  "lastUpdatedAt": "2026-11-06T11:10:19.363538+00:00",
+  "lastUpdatedAt": "2026-11-06T11:17:43.123850+00:00",
   "migrationAllocation": {
     "next": 56,
     "reserved": [
@@ -360,9 +360,10 @@
         "platform/validation/runs/2026-11-06-overnight/B11-58-current-observations.json",
         "platform/validation/runs/2026-11-06-overnight/B11-61-economic-admission-mapping.json",
         "platform/validation/runs/2026-11-06-overnight/B11-57-original-mint-recovery.json",
-        "platform/validation/runs/2026-11-06-overnight/B11-64-imported-authority-recovery.json"
+        "platform/validation/runs/2026-11-06-overnight/B11-64-imported-authority-recovery.json",
+        "platform/validation/runs/2026-11-06-overnight/B11-62-economic-recovery.json"
       ],
-      "nextAction": "64mixedauthority finalNode+D1pass, synthetic65gateisolated.62economics/current fiveprofilesNode+D1passed afterGenesiskeyorderfix; addingcontrolproof and59explicitbufferrelease for84KiBhistory, finaltestsnext.63objectclosurelargecontrolgate active;65aggregate drafted/stageProofChain+mainwiring pending.66agent pre-cut041design. CI7944d3bnewrunidpending,next81cef38.",
+      "nextAction": "62final2Node/fiveprofiles+1D1/twoprofilespass; large84KiBcontrolsNode+D1pass.63frozen readycheckpoint.65stageProofChain+aggregate+normaldispatch next;67agent fullpipelineacceptance preparing.66precut041helper active. CI42206476286for7944d3b running,next81cef38.",
       "blocker": null
     },
     "B12": {

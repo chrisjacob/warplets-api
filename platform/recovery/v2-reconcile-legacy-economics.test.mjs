@@ -1,0 +1,37 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {randomUUID} from 'node:crypto';
+import {recoveryLegacyAdoptionSource} from './v2-legacy-adoption-fixtures.mjs';
+import {v2RestoreTarget} from './v2-restore-fixtures.mjs';
+import {createRecoveryV2RestoreDatabase} from './v2-restore-db.mjs';
+import {createRecoveryV2LegacyMintReconciler} from './v2-reconcile-legacy-mints.mjs';
+import {createRecoveryV2LegacyEconomicsReconciler} from './v2-reconcile-legacy-economics.mjs';
+import {createRecoveryV2LegacyCurrentReconciler} from './v2-reconcile-legacy-current.mjs';
+import {createNodeRecoveryDigest} from './v2-node-digest.mjs';
+import {canonicalJson} from '../security/canonical.mjs';
+
+async function fixture(t,options={}){
+ const f=await recoveryLegacyAdoptionSource(t,{settleAll:true,...options}),target=v2RestoreTarget(t,{...f.ports,store:f.artifacts,captured:f.captured,now:f.now});assert.equal((await target.drive({stopPhase:'reconcile-legacy-adoption-stages'})).phase,'reconcile-legacy-adoption-stages');
+ const certificate=target.db.prepare('SELECT * FROM app_collection_legacy_adoptions').get();while(target.checkpoint().legacyAdoption.stageIndex<certificate.stage_count)assert.equal((await target.call('step')).kind,'progress');
+ const fault={kind:null},metrics=[],driver={...target.driver,async batch(statements){let selected=statements;if(['omit-control-proof','omit-economic-proof','omit-complete-proof'].includes(fault.kind))selected=statements.filter(s=>!(s.sql.startsWith('INSERT INTO app_recovery_reconcile_checks')&&s.values[1]===(fault.kind==='omit-control-proof'?'legacy-adoption-control':fault.kind==='omit-economic-proof'?'legacy-adoption-economics':'legacy-adoption-economics-complete')));const result=await target.driver.batch(selected);if(fault.kind==='lost-ack'&&selected.some(s=>s.sql.startsWith('INSERT INTO app_recovery_reconcile_checks')&&s.values[1]==='legacy-adoption-economics'))throw Error('Synthetic lost economic proof acknowledgement');if(fault.kind==='missing-mint-proof')for(let n=0;n<selected.length;n++)if(selected[n].sql.includes("phase='legacy-adoption-mint'"))result[n]={...result[n],rows:[]};return result;}},repository=createRecoveryV2RestoreDatabase({driver,clock:{nowMs:()=>f.now},ids:{next:randomUUID}}),ports={driver,crypto:f.crypto,artifacts:target.store,repository,createDigest:createNodeRecoveryDigest};
+ const phase=async name=>{const loaded=await repository.load(f.captured.digest),c=JSON.parse(loaded.run.checkpoint_json);assert.equal((await repository.advance(loaded,{delta:{phase:name},targetWatermark:c.targetWatermark})).kind,'progress');};
+ await phase('reconcile-legacy-adoption-mints');const mints=createRecoveryV2LegacyMintReconciler(ports);for(let n=0;n<20;n++){const c=target.checkpoint();if(c.legacyAdoption.mintPrefix?.ordinal===certificate.admitted)break;const result=await mints.step(await repository.load(f.captured.digest));assert.equal(result.kind,'progress',JSON.stringify(result));}assert.equal(target.checkpoint().legacyAdoption.mintPrefix.ordinal,certificate.admitted);await phase('reconcile-legacy-adoption-economics');
+ const service=createRecoveryV2LegacyEconomicsReconciler({...ports,onMeasure:m=>metrics.push(m)}),call=async()=>service.step(await repository.load(f.captured.digest));return {f,target,repository,ports,call,metrics,fault,certificate};
+}
+function reset(f,c){f.target.db.prepare("UPDATE app_recovery_runs SET state='restoring',checkpoint_json=?,report_json=NULL WHERE id=?").run(canonicalJson(c),f.f.captured.digest);f.target.db.prepare("UPDATE app_recovery_state SET status='restoring',write_nonce=NULL WHERE active_restore_id=?").run(f.f.captured.digest);}
+
+test('durable original economics follows genuine stage/mint proofs and atomically produces the accepted aggregate',async t=>{
+ const f=await fixture(t);let result=await f.call();assert.equal(result.kind,'progress',JSON.stringify(result));const initial=f.target.checkpoint();
+ f.fault.kind='missing-mint-proof';assert.equal((await f.call()).kind,'held');f.fault.kind=null;reset(f,initial);
+ f.fault.kind='omit-control-proof';assert.equal((await f.call()).kind,'conflict');assert.deepEqual(f.target.checkpoint(),initial);f.fault.kind=null;
+ result=await f.call();assert.equal(result.kind,'progress',JSON.stringify(result));assert.equal(f.target.checkpoint().legacyAdoption.economicPhase,'stage');result=await f.call();assert.equal(result.kind,'progress',JSON.stringify(result));const advance=f.target.checkpoint();assert.equal(advance.legacyAdoption.economicPhase,'advance');
+ f.fault.kind='omit-economic-proof';assert.equal((await f.call()).kind,'conflict');assert.deepEqual(f.target.checkpoint(),advance);assert.equal(f.target.db.prepare("SELECT COUNT(*) n FROM app_recovery_reconcile_checks WHERE phase='legacy-adoption-economics'").get().n,0);
+ f.fault.kind='lost-ack';result=await f.call();assert.equal(result.kind,'replayed',JSON.stringify(result));assert.equal(f.target.checkpoint().legacyAdoption.economicPrefix.ordinal,1);const finish=f.target.checkpoint();f.fault.kind='omit-complete-proof';assert.equal((await f.call()).kind,'conflict');assert.deepEqual(f.target.checkpoint(),finish);f.fault.kind=null;result=await f.call();assert.equal(result.kind,'progress',JSON.stringify(result));assert.equal(result.phase,'reconcile-legacy-adoption-current');
+ assert.equal(f.target.db.prepare("SELECT COUNT(*) n FROM app_recovery_reconcile_checks WHERE phase='legacy-adoption-economics-complete'").get().n,1);
+ const current=createRecoveryV2LegacyCurrentReconciler(f.ports);for(let n=0;n<3&&f.target.checkpoint().phase!=='reconcile-legacy-adoption-closure';n++){result=await current.step(await f.repository.load(f.f.captured.digest));assert.equal(result.kind,'progress',JSON.stringify(result));}assert.equal(f.target.checkpoint().phase,'reconcile-legacy-adoption-closure');assert.equal(f.target.db.prepare('SELECT status FROM app_recovery_state').get().status,'restoring');
+ assert.ok(f.metrics.every(m=>m.workingBytes<=1048576&&m.operationAllowance<=64));t.diagnostic(JSON.stringify({genuineUpstreamProofs:true,syntheticPrerequisiteProof:false,remainingObjectClosure:true,maxWorkingBytes:Math.max(...f.metrics.map(m=>m.workingBytes)),maxOperations:Math.max(...f.metrics.map(m=>m.operationAllowance))}));
+});
+
+test('economic and current continuations preserve public founder and empty aggregate profiles',async t=>{
+ for(const profile of ['public','founder','empty','unadmitted']){const f=await fixture(t,{profile});let result;for(let n=0;n<30;n++){result=await f.call();assert.equal(result.kind,'progress',JSON.stringify({profile,result}));if(result.phase==='reconcile-legacy-adoption-current')break;}assert.equal(result.phase,'reconcile-legacy-adoption-current');assert.equal(f.target.db.prepare("SELECT item_count FROM app_recovery_reconcile_checks WHERE phase='legacy-adoption-economics-complete'").get().item_count,f.certificate.admitted);const current=createRecoveryV2LegacyCurrentReconciler(f.ports);for(let n=0;n<=f.certificate.admitted;n++){const checked=await current.step(await f.repository.load(f.f.captured.digest));assert.equal(checked.kind,'progress',JSON.stringify({profile,checked}));}assert.equal(f.target.checkpoint().phase,'reconcile-legacy-adoption-closure');assert.ok(f.metrics.every(m=>m.workingBytes<=1048576&&m.operationAllowance<=64));t.diagnostic(JSON.stringify({profile,admitted:f.certificate.admitted,maxWorkingBytes:Math.max(...f.metrics.map(m=>m.workingBytes))}));}
+});
