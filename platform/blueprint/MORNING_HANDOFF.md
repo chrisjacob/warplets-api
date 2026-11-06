@@ -1,10 +1,10 @@
 # Current checkpoint â€” B12 free cuts, recovery and review packets
 
-User budget: latest account meter18% weekly used (baseline15%). Check each checkpoint and before larger tasks. Stop starting work around75%, reserve verification/commit/push/report margin before80%; then hand over for manual review. Account usage is shared. Do not spend or consume reset credits.
+User budget: latest account meter20% weekly used (baseline15%). Check each checkpoint and before larger tasks. Stop starting work around75%, reserve verification/commit/push/report margin before80%; then hand over for manual review. Account usage is shared. Do not spend or consume reset credits.
 
 Continue ready B work between checkpoints. No deployment, remote resource mutation, signing, spending, messages, merges or R-stage work. Financial capabilities remain disabled. Sydney launch hours/later mint prices remain open.
 
-Branch work/10x-prd-foundation; last pushed/product92a3855 (B12-07). B12-08 future action policy tested and ready for commit/push. B00â€“B11 and B14 locally verified; B12 partial; B20-core verified, skip until full prerequisites. Schema060 installed, next061 unreserved;112business tables.
+Branch work/10x-prd-foundation; last pushed/product e3130a0 (B12-08). Consolidated test-only CI checkpoint follows. B00â€“B11 and B14 locally verified; B12 partial; B20-core verified, skip until full prerequisites. Schema060 installed, next061 unreserved;112business tables.
 
 ## Evidence
 
@@ -14,7 +14,7 @@ Recovery now verifies exact additive audit metadata, original ordered event hash
 
 ## Integrated CI
 
-B11 run42221767194 onb9efc0c SUCCESS,1h0m41s. B12 run42230198456 on71cfb80 FAILED:890/899reference tests passed. Eight failures are stage audit metadata compatibility fixed in a0665d6. Ninth is capacity exactrowcount30661 vs30662 due mandatory058governance audit; focused correction running (session70027,work/b12-ci-capacity-fix.log). Frozen run covers through0269b2f/schema058, not current059/reader fix. After corrected capacity check passes, commit its exactcount+explicit auditrow assertion and start consolidated tested checkpoint. Keep all resource bounds/assertions.
+B11 run42221767194 onb9efc0c SUCCESS,1h0m41s. B12 run42230198456 on71cfb80 FAILED:890/899reference tests passed. Eight failures are stage audit metadata compatibility fixed in a0665d6. Ninth is capacity exactrowcount30661 vs30662 due mandatory058governance audit; focused correction PASS1test208011ms (work/b12-ci-capacity-fix.log),30662rows and1audit,max24operations960101Bworking. Frozen run covers through0269b2f/schema058, not current059/reader fix. Capacity correction passed; push exactcount+explicit auditrow assertion with consolidated tested checkpoint and follow CI to completion. Keep all resource bounds/assertions.
 
 ## Next executable work
 

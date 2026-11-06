@@ -1,0 +1,37 @@
+{
+  "run": 42230198456,
+  "head": "71cfb80",
+  "status": "failed",
+  "reference": {
+    "tests": 899,
+    "passed": 890,
+    "failed": 9
+  },
+  "resolutions": [
+    {
+      "failures": 8,
+      "reason": "Audited stage receipt metadata not understood by free-cut reader",
+      "fix": "a0665d6",
+      "verification": "11Node and2D1 recovery tests pass, B12-06.json"
+    },
+    {
+      "failures": 1,
+      "reason": "Capacity fixture totals omitted the new mandatory governance publication audit row",
+      "fix": "Exact total30662 and explicit ops_config_audit count1 assertion",
+      "verification": "1PASS208011.0248ms work/b12-ci-capacity-fix.log",
+      "metrics": {
+        "calls": 1153,
+        "rows": 30662,
+        "objects": 512,
+        "bytes": 13999118,
+        "rootBytes": 7976,
+        "maxOperations": 24,
+        "maxBatchBytes": 89578,
+        "maxSerializedWorkingBytes": 960101,
+        "restoreAcceptanceOutstanding": true
+      },
+      "note": "Final source retains object-byte>13MiB/root<16KiB assertions; these two checks also explicitly verified from this captured diagnostic after comment line normalization."
+    }
+  ],
+  "next": "Consolidated test-only checkpoint through e3130a0 and exact fixture correction; previous skipped steps require new CI run."
+}
