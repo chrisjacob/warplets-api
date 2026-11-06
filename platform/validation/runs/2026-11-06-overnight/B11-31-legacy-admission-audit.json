@@ -1,0 +1,103 @@
+{
+  "checkpoint": "B11-31",
+  "title": "Bounded original legacy admission and economic prefix audit",
+  "status": "partial-private-prerequisite-no-adoption-authority",
+  "lastConfirmedBaseCommit": "c92aa9033a034b71b2244b265f5eb4d96cc3b896",
+  "implementationCommit": null,
+  "source": "synthetic-local-legacy-store-admissions-with-explicit-private-historical-prerequisites",
+  "financialExecution": false,
+  "applicationActivation": false,
+  "schemaChanges": false,
+  "sharedServiceChanges": false,
+  "packageChanges": false,
+  "checks": [
+    {
+      "command": "node --test platform/collect/legacy-admission-audit.test.mjs",
+      "passed": 10,
+      "failed": 0,
+      "durationMs": 26656.6688,
+      "log": "work/b11-legacy-admission-audit-node.log"
+    },
+    {
+      "command": "node --test platform/edge/test/legacy-admission-audit.test.mjs",
+      "passed": 1,
+      "failed": 0,
+      "durationMs": 26293.7324,
+      "log": "work/b11-legacy-admission-audit-edge.log"
+    },
+    {
+      "command": "node platform/edge/node_modules/typescript/bin/tsc --project platform/edge/tsconfig.json --noEmit",
+      "result": "pass",
+      "log": "work/b11-legacy-admission-audit-types.log"
+    },
+    {
+      "command": "all7ownedfiles explicit LF/trailing-whitespace check",
+      "result": "pass"
+    }
+  ],
+  "metrics": {
+    "node": {
+      "actualLegacyAdmissions": 1000,
+      "sourcePages": 10,
+      "maxWorkingBytes": 149545,
+      "peakContextBytes": 3091,
+      "financialExecution": false
+    },
+    "workerD1": {
+      "originalLegacyOperations": 3,
+      "settled": 1,
+      "pending": 2,
+      "maxSqlStatementsPerAudit": 1,
+      "maxWorkingBytes": 36891,
+      "fixtureHistoricalPrerequisites": true,
+      "normalizedReceiptsFabricated": 0,
+      "applicationActivation": false
+    }
+  },
+  "bounds": {
+    "sourceRootBytes": 131072,
+    "admissionPageBytes": 65536,
+    "membershipPageBytes": 8192,
+    "contextBytes": 32768,
+    "workingPayloadBytes": 1048576,
+    "stages": 32,
+    "admissions": 1000
+  },
+  "verified": [
+    "Reuses original prepareMintAdmission reducer unchanged; no normalized quote or receipt invented",
+    "Pending and settled original request digest/key/owner/commitment/time/price/local-cost consistency",
+    "Exact stage allocation, per-wallet quantity, founder pending-spend budget and total slot count",
+    "Exact all1000admission continuation across10source pages; final admitted/fulfilled/pending/remaining and category aggregates",
+    "Original publication scalar digest and named canonical membership page/list closure; missing original free-cut holds",
+    "Original historical control shape, warning allowed, pause/limit rejected, later pause irrelevant",
+    "First later-tranche original approval and prior-supply fact binding; missing decision holds",
+    "Independent27settled-mint summary/prefix/originalreceipt binding; pending carries no settlement artifacts",
+    "Duplicate-index/private-prefix fact binding; source/cursor corruption and caller async mutation rejection",
+    "Actual D1 original-operation reads match Node audit/results/holds/errors; zero045/046rows and no public route"
+  ],
+  "limitations": [
+    "Private prior-prefix reachability, original fact selection and global duplicate indices must be independently supplied by a future guarded frozen-source repository.",
+    "Control/cut source digests are bindings, not arbitrary caller authorization or source-completeness proofs; missing original inputs hold.",
+    "Old founder operation rows lack authenticated operator identity; founder lane/budget consistency does not certify missing authentication provenance.",
+    "Later-tranche boundary case uses explicitly synthetic private prior-decision facts, not a new governance provenance verifier.",
+    "Worker D1 metric measures one named original-operation read only; other historical prerequisites remain fixture-supplied, not a completed production historical-index port.",
+    "No payment, chain ownership, normalized admission/fulfillment receipt fabrication, active inventory adoption or current financial authority.",
+    "Resource/035format bounds are explicit; no stricter normalized economic behavior replaces historically valid legacy rules."
+  ],
+  "sourceHashes": {
+    "platform/collect/legacy-admission-audit.mjs": "19185d748049918553312f7c0f97da98800da3bc5450b0c0fa5951fa5ac036f5",
+    "platform/collect/legacy-admission-audit.d.mts": "336d63ba1210703914a0ce997afd2294f455e638462c18ee3b44238e7730931b",
+    "platform/collect/legacy-admission-audit.fixtures.mjs": "219a6b0107ab444b56260770b28bbcf965604f9c9834d18f69542a5709f2bf76",
+    "platform/collect/legacy-admission-audit.test.mjs": "724bc9ba441eb07beabdd8c52fd57c9ca5b0c4541f11283f0306e7ca7deea846",
+    "platform/collect/LEGACY_ADMISSION_AUDIT.md": "64549fa3aee590e1c1f27f22144c8ed473777839b4d0617d521425d2de728e20",
+    "platform/edge/test/legacy-admission-audit.test.mjs": "34e9d43dfb3891f9312e28d1aeb671751b99183b0b8b873e1ecbbaa3a948cd0c",
+    "platform/edge/test/fixtures/legacy-admission-audit-worker.ts": "41205be00bd5ddc7dbf04dadefcbc97905081b3d72503dda8e161c7b31a5cb15"
+  },
+  "reusedDependencyHashes": {
+    "platform/domain/collections/inventory.mjs": "d5ba5a152b09afdeaa823b770cbb3014bff2cf71c706131433a985b3883643a6",
+    "platform/collect/legacy-stage-audit.mjs": "5b9a9da840603dcd2985a84d3aa6f6b5436c3ffdac41397f53375ce80f0b87b6",
+    "platform/collect/legacy-mint-audit.mjs": "e84484a90fae035d10c484d32072e8ff1ac31be00cba3e5be09943c7cd467f7c",
+    "platform/collect/source-intake.mjs": "7d1b975db02032bacba704742c2416a2dad7d1761f4da89c656ead556cf15a3c",
+    "platform/operations/controls.mjs": "366d6e83d6fa6067ccf2fb25f31e3678b88e35b6cb077d20f79c85f032e135a6"
+  }
+}
