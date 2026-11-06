@@ -1,0 +1,106 @@
+{
+  "checkpoint": "B11-70",
+  "title": "Accepted pending business replay after full normal V2 recovery",
+  "status": "verified-scoped",
+  "lastConfirmedBaseCommit": "5224279173832409faed6a5f7782853b2412720c",
+  "implementationCommit": null,
+  "schemaThrough": 55,
+  "businessTables": 112,
+  "source": "synthetic-genuine-historical-adoption-plus-new-normalized-pending-mint",
+  "normalPipeline": true,
+  "syntheticPrerequisiteProof": false,
+  "fullRecoveryReadiness": true,
+  "financialExecution": false,
+  "productCodeChanged": false,
+  "checks": [
+    {
+      "command": "node --test platform/recovery/v2-ready-business-replay.test.mjs",
+      "passed": 1,
+      "failed": 0,
+      "durationMs": 111651.3299,
+      "log": "work/b11-70-node-final.log"
+    },
+    {
+      "command": "node --test platform/edge/test/recovery-ready-business-replay.test.mjs",
+      "passed": 1,
+      "failed": 0,
+      "durationMs": 202328.1015,
+      "log": "work/b11-70-edge-final.log"
+    },
+    {
+      "command": "node platform/edge/node_modules/typescript/bin/tsc --noEmit -p platform/edge/tsconfig.json",
+      "result": "pass",
+      "log": "work/b11-70-types.log"
+    },
+    {
+      "command": "five source LF/noBOM/trailing-whitespace checks and scoped git diff --check",
+      "result": "pass"
+    }
+  ],
+  "measurements": {
+    "node": {
+      "normalReady": true,
+      "syntheticPrerequisiteProof": false,
+      "acceptedReplayExact": true,
+      "sourceLost": true,
+      "afterPauseAndClose": true,
+      "scopesRevoked": true,
+      "businessTablesUnchanged": 112,
+      "pendingCommitmentUnchanged": true,
+      "financialExecution": false,
+      "calls": 1144,
+      "maxRecoveryOperations": 29,
+      "replaySql": 1,
+      "freshReason": "operator-pause"
+    },
+    "d1": {
+      "actualD1": true,
+      "actualR2": true,
+      "normalReady": true,
+      "syntheticPrerequisiteProof": false,
+      "acceptedNodeD1ReplayParity": true,
+      "sourceLost": true,
+      "afterPauseAndClose": true,
+      "scopesRevoked": true,
+      "businessTablesUnchanged": 112,
+      "pendingCommitmentUnchanged": true,
+      "financialExecution": false,
+      "calls": 1143,
+      "maxRecoveryOperations": 29,
+      "replaySql": 1,
+      "freshReason": "operator-pause"
+    }
+  },
+  "acceptance": [
+    "Normal fresh Node and actual D1/R2 start/step/finish reach ready without injected proof or checkpoint edits",
+    "Original pending mint returns byte-equivalent semantic receipt/result after all stages close, collection-mint pause, operator scope revocation and source artifact loss",
+    "Same-key changed terms conflicts; new key is denied specifically with operator-pause",
+    "All112 business tables unchanged across business calls after pause installation",
+    "Original pending commitment retained and transaction intents remain absent",
+    "Actual D1 result equals original Node accepted receipt"
+  ],
+  "limitations": [
+    "Wallet mint does not rely on operator grants; revocation is extra denial context, while pause is the effective new-command gate",
+    "Source capture objects are absent but independently restored target artifacts remain available",
+    "Pending progression retains separate focused existing coverage; this test does not expand unsupported pre-adoption progression histories"
+  ],
+  "sourceHashes": {
+    "platform/recovery/v2-ready-business-replay.fixtures.mjs": "8ef4ac7165c771dd87b8f3cc2dc05c1d6595441c76a2ab23d80271ee3a180913",
+    "platform/recovery/v2-ready-business-replay.test.mjs": "b287078b77f9ee8c4fc318a3d18d4af21862709d58dabfff1fd10531e30c063a",
+    "platform/edge/test/recovery-ready-business-replay.test.mjs": "e2dab68bff5569ca5b2fe39e89f642ae2932e9f2696b1c041be3c130be0b4da5",
+    "platform/edge/test/fixtures/recovery-ready-business-replay-worker.ts": "09c3d725066ad488ee1dd8949455dbfdc4c3f0c9b7c6e6e047b941cc4c1385ac",
+    "platform/recovery/READY_BUSINESS_REPLAY.md": "9a4681bfb563d8eb4b521539a4a8989db7e4f06a876adb1f805a3dcd0594ed6d"
+  },
+  "reusedSourceHashes": {
+    "platform/recovery/v2-adoption-full.fixtures.mjs": "883cd8b463d18b6af88faffde747e8b6dd1b745dd96b164ee457613b5b13bdbb",
+    "platform/edge/test/fixtures/recovery-adoption-full-worker.ts": "5ca7578ebde1a9c6c507f06c35f61b017bd98639ebbaa2bd06e589ddfedf0964",
+    "platform/recovery/v2-imported-authority-fixtures.mjs": "8e1aea77e607a81529babec380e15470d6dabcc05777bd3f5e48d91c8d62ddbf",
+    "platform/collect/mint-service.mjs": "8d78d5db2527f40c37fe295b169f4bdfb9849a77adb139aac140b7f9117781fd",
+    "platform/collect/mint-repository.mjs": "76dce58d669b5a4a4c04431dda3d791617f025381f0c45e298bd0930d9a8a63b",
+    "platform/storage/atomic-receipts.mjs": "1066b574963204a97442d2eb61f0ded90e7f0f849af76dc2d9d56d62eaf32491"
+  },
+  "schemaHashes": {
+    "platform/storage/054-collection-legacy-adoption.sql": "5f82a5fafe536c65b9889ec05c6ea4986b1323db17067ceb99104f0a61a7620e",
+    "platform/storage/055-collection-imported-admission.sql": "0ed9b1b39bed9efee13bc739a48cdd7748d9dd1726e3869ae6f5dbbbf504b750"
+  }
+}
