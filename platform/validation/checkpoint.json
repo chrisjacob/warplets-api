@@ -1,5 +1,5 @@
 {
   "policy": "prd-1.2",
   "scope": "local",
-  "checkpoint": "blueprint-b11-durable-historical-economics"
+  "checkpoint": "blueprint-b11-adoption-recovery"
 }
