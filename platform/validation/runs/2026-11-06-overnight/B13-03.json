@@ -1,0 +1,85 @@
+{
+  "task": "B13",
+  "slice": "B13-03",
+  "status": "verified-slice",
+  "baseCommit": "e6a75cd",
+  "scope": "Bounded private usage/readiness projections and closed-field structured event redaction; no route yet",
+  "evidence": {
+    "format": "10x.local.implementation-evidence.v1",
+    "task": "B13",
+    "slice": "privacy-safe local operational observations and readiness",
+    "implementationCommit": null,
+    "baseCommit": "e6a75cd6cda40af257fc69a9e82ba3e9b45f5da4",
+    "sourceHashes": {
+      "platform/observability/events.mjs": "1f5de905a29d960292b2e31358060c259ee7c6574c96cec18face6ad58aab533",
+      "platform/observability/events.test.mjs": "35485525827b19455000c33b34cd5c66ad1fa493c6bdf596e7faa5f4a1c146b9",
+      "platform/observability/metrics.mjs": "6791a4bf96ac9d1021355cd9cb3566f877e9528adea42f0e642bc3f23b0570e6",
+      "platform/observability/metrics.test.mjs": "da13abba0973fca88c46e2bf6d96745825549e310714fcbd57c7efda8aa91993",
+      "platform/operations/readiness.mjs": "ba64cd3af038cb0b115d713dae832464cece6a8a77c6cd920995955e7029fc83",
+      "platform/operations/readiness.test.mjs": "07b4a3e381c59c516369b9459f89a82db57750590864a8f06187a352243305a3",
+      "platform/edge/test/operational-metrics.test.mjs": "c001aa9f5a17144e82d6c598b90df8380d6a9842a708ed45aa01ddbe9b631f4c",
+      "platform/edge/test/fixtures/operational-metrics-worker.ts": "dc5f15fe4b66f90e5bb041756f84390a0597bbc90b8fa26b6bb6e11e75fb835d"
+    },
+    "checks": [
+      {
+        "command": "node --test platform/observability/events.test.mjs platform/observability/metrics.test.mjs platform/operations/readiness.test.mjs platform/jobs/provider-attempt.test.mjs",
+        "passed": 11,
+        "failed": 0,
+        "durationMs": 1578.4414,
+        "log": "work/b13-observability-node.log"
+      },
+      {
+        "command": "node --test platform/edge/test/operational-metrics.test.mjs",
+        "passed": 1,
+        "failed": 0,
+        "durationMs": 25592.1859,
+        "log": "work/b13-observability-d1.log"
+      },
+      {
+        "command": "pnpm --dir platform/edge exec tsc --noEmit",
+        "exitCode": 0,
+        "log": "work/b13-observability-types.log"
+      },
+      {
+        "command": "git diff --check",
+        "exitCode": 0
+      }
+    ],
+    "actualD1Metrics": {
+      "batches": 1,
+      "statements": 22,
+      "maxParameters": 3,
+      "maxSqlBytes": 635,
+      "batchBytes": 4483,
+      "resultRows": 19,
+      "resultBytes": 1360,
+      "changes": 0
+    },
+    "limits": {
+      "statements": 24,
+      "resultRows": 256,
+      "resultBytes": 65536,
+      "outputBytes": 16384,
+      "eventBytes": 4096
+    },
+    "acceptance": [
+      "Node and actual local workerd/D1 equal empty and populated bounded snapshots; no mutations.",
+      "Fixed-schema event labels/numbers and domain-hashed captured correlation IDs exclude sensitive canaries, arbitrary nested data, URLs, cookies, signatures and tokens.",
+      "Actual Node quota admission/accepted replay and job attempts are counted separately from committed commands and delivered inbox effects; existing provider-attempt tests prove failed dispatch consumes quota and replay cannot redispatch.",
+      "Global actual provider calls remain unknown because charged admission can precede a crash without known dispatch. No provider calls are made.",
+      "Prior-month reserved cost remains committed; actual settlement amount belongs settlement month; 101-row pressure inputs hold, protected recovery stays allowed and optional work holds. Missing cost/usage records stay unknown rather than measured zero.",
+      "Unknown states, oversized results, watermark drift and transport faults produce fixed pending output without leaking errors.",
+      "Readiness queued notices are pending; public ready runs cannot satisfy private recovery. Fixed observation references do not attest to passed tests, custody, physical-device operation or launch approval."
+    ],
+    "scope": [
+      "Pure local reporting modules and private acceptance Worker only; no production routes, logging sinks or instrumentation mounted.",
+      "Synthetic D1 counter rows are explicitly labelled, not accepted command/evidence or financial attestations.",
+      "Storage totals are retained catalog bytes, not billed storage; publication gaps cover guarded receipts only and do not infer absent legacy bundles.",
+      "No retention mutation, migration, external delivery, provider invocation, spending, transaction or financial capability change.",
+      "B13 remains partial pending coordinator integration and task-wide acceptance."
+    ]
+  },
+  "externalTransport": false,
+  "financialExecution": false,
+  "remaining": "Mount readonly operator detail, finish deterministic delivery and member runtime/browser acceptance."
+}

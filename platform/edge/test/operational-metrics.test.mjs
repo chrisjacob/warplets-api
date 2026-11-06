@@ -1,0 +1,32 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {localRuntime} from './local-runtime.mjs';
+import {openDatabase} from '../../storage/database.mjs';
+import {createNodeAtomicDriver} from '../../storage/node/atomic-driver.mjs';
+import {createOperationalMetrics} from '../../observability/metrics.mjs';
+import {readinessFromMetrics} from '../../operations/readiness.mjs';
+const now=Date.parse('2026-02-01T00:01:00Z'),epoch=Math.floor(now/86400000),old=Date.parse('2026-01-31T23:59:00Z'),secret='PRIVATE-D1-CANARY',hash='a'.repeat(64);
+test('actual D1 metrics/readiness match Node bounded snapshots and hide private source payloads',async t=>{
+ const {mf,db}=await localRuntime(t,new URL('./fixtures/operational-metrics-worker.ts',import.meta.url)),node=openDatabase();t.after(()=>node.close());const readNode=()=>createOperationalMetrics({driver:createNodeAtomicDriver(node),clock:{nowMs:()=>now}}).read(),read=async()=>{const response=await mf.dispatchFetch('http://localhost/',{method:'POST',body:JSON.stringify({nowMs:now})});assert.equal(response.status,200,await response.clone().text());return response.json();},apply=async(sql,values=[])=>{node.prepare(sql).run(...values);await db.prepare(sql).bind(...values).run();};
+ let result=await read();assert.deepEqual(result.metrics,await readNode());assert.equal(result.metrics.budget.costEvidenceAvailable,false);assert.equal(result.metrics.budget.recordedCommitmentUsdMicros,null);
+ // Explicit synthetic counter rows, not accepted effects, valid provider evidence,
+ // historical admissions or financial settlement attestations.
+ await apply('INSERT INTO earn_workload_policies VALUES(?,?,?,?,?,?,?,?)',['synthetic-staff',epoch,now,30,180,50,secret,secret]);
+ await apply('INSERT INTO ops_usage VALUES(?,?,?,?,?,?,?,?)',['synthetic-usage',secret,'daily-provider-units','2026-02-01',now,'2','100',secret]);
+ // Use the exact eight-column table shape; no API dispatch is performed.
+ await apply('INSERT INTO app_provider_attempts VALUES(?,?,?,?,?,?,?,?)',['synthetic-attempt',secret,'2','100',now,secret,secret,'synthetic-usage']);
+ await apply('INSERT INTO ops_optional_spend VALUES(?,?,?,?,?,?,?,?,?,?,?)',['synthetic-reserved','optional-refresh','2026-01',old,'3000000',secret,secret,'reserved',null,null,null]);
+ await apply('INSERT INTO app_jobs(id,business_key,type,payload_json,payload_digest,principal,request_key,request_digest,expected_revisions,source_key,state,max_attempts,created_ms) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)',['synthetic-job','synthetic-job','retention-maintenance',JSON.stringify({secret}),hash,secret,'synthetic-key',hash,'{}','synthetic-source','held',5,now-1000]);
+ await apply('INSERT INTO app_job_attempts VALUES(?,?,?,?,?,?)',['synthetic-job',1,secret,now-1000,now,'failed']);
+ await apply('INSERT INTO app_command_receipts VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)',['synthetic-staging','operator:fixture','synthetic-counter-only','synthetic-business','synthetic-request',hash,'{}','synthetic-nonce','staging',JSON.stringify({secret}),JSON.stringify({secret}),hash,'synthetic-ref',now]);
+ await apply('INSERT INTO app_private_artifacts VALUES(?,?,?,?,?,?,?)',['private/'+hash+'.json',hash,20,null,'application/json',now,'synthetic-staging']);
+ await apply('INSERT INTO app_evidence_sources VALUES(?,?,?,?,?,?)',['synthetic-source','synthetic-v1',hash,JSON.stringify({secret}),now,'synthetic-staging']);
+ await apply('INSERT INTO app_evidence_receipts VALUES(?,?,?,?,?,?,?,?,?,?,?,?)',[hash,'synthetic-evidence','synthetic-stream','synthetic-source','synthetic-v1','private/'+hash+'.json',JSON.stringify({secret}),JSON.stringify({secret}),'pending',null,now,'synthetic-staging']);
+ await apply('INSERT INTO app_evidence_heads VALUES(?,?)',['synthetic-stream',hash]);
+ await apply('INSERT INTO earn_boards VALUES(?,?,?,?,?)',[epoch,'[]',now,hash,'synthetic-board']);
+ await apply('INSERT INTO notice_outbox VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',['synthetic-notice',secret,'local-inbox',1,'launch',secret,secret,secret,'/private/'+secret,now,now+86400000,'unknown',1,now,null,null]);
+ await apply('INSERT INTO app_recovery_runs VALUES(?,?,?,?,?,?,?,?,?,?)',['synthetic-public-run','public','b'.repeat(64),null,null,'ready',now,now,'{}','{}']);
+ result=await read();const expected=await readNode();assert.deepEqual(result.metrics,expected);assert.deepEqual(result.readiness,readinessFromMetrics(expected));assert.equal(result.metrics.recovery.runs.ready,0);assert.equal(result.readiness.checks.find(c=>c.id==='private-recovery').status,'pending');assert.equal(result.metrics.jobs.held,1);assert.equal(result.metrics.attempts.startedJobAttempts,1);assert.equal(result.metrics.attempts.quotaAdmissions,1);assert.equal(result.metrics.attempts.actualProviderCalls,null);assert.equal(result.metrics.effects.committedCommands,0);assert.equal(result.metrics.effects.unresolvedCommands,1);assert.equal(result.metrics.evidence.pending,1);assert.equal(result.metrics.notices.unknown,1);assert.equal(result.metrics.publications.finalizedBoardsWithoutPublicationReceipt,1);assert.equal(result.metrics.budget.recordedCommitmentUsdMicros,'3000000');assert.equal(result.metrics.storage.privateBytes,20);assert.doesNotMatch(JSON.stringify(result),/PRIVATE-D1-CANARY|\/private\//);assert.match(result.event.jobDigest,/^[a-f0-9]{64}$/);assert.equal(result.measurement.changes,0);assert.equal(result.measurement.batches,1);assert.equal(result.measurement.measures[0].statements,22);assert.ok(result.measurement.rows<=256);assert.ok(result.measurement.bytes<65536);
+ await apply("UPDATE ops_optional_spend SET status='settled',actual_usd_micros='4500000',settlement_ref=?,settled_ms=? WHERE request_key='synthetic-reserved'",[secret,now]);result=await read();assert.deepEqual(result.metrics,await readNode());assert.equal(result.metrics.budget.level,'warning');assert.equal(result.metrics.budget.recordedCommitmentUsdMicros,'4500000');assert.equal(result.metrics.budget.actualExternalCostUsdMicros,null);
+ t.diagnostic(JSON.stringify(result.measurement));
+});
