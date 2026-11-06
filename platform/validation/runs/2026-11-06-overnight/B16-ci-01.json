@@ -1,0 +1,23 @@
+{
+  "runId": 42282361317,
+  "url": "https://github.com/chrisjacob/warplets-api/actions/runs/42282361317",
+  "head": "c8d9de6c5037326366d801120abed0938114999a",
+  "status": "completed",
+  "conclusion": "success",
+  "tests": {
+    "reference": 1112,
+    "viewer": 30,
+    "beacon": 3,
+    "workersD1R2": 160,
+    "total": 1305,
+    "failures": 0
+  },
+  "additionalChecks": [
+    "viewer build",
+    "Worker types",
+    "generated contracts",
+    "Earn recovery drill"
+  ],
+  "scope": "B16 cashflow and portable calculator foundation; B16 full integration incomplete",
+  "financialExecution": false
+}

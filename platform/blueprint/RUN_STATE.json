@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
   "runId": "2026-11-05-overnight",
-  "phase": "executing",
+  "phase": "manual_review_handoff",
   "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
   "currentTask": "B16",
-  "lastUpdatedAt": "2026-11-06T19:46:43.006215+00:00",
+  "lastUpdatedAt": "2026-11-06T21:01:11.655673+00:00",
   "migrationAllocation": {
     "next": 69,
     "reserved": [
@@ -542,9 +542,10 @@
       "pushed": true,
       "evidence": [
         "platform/validation/runs/2026-11-06-overnight/B16-01.json",
-        "platform/validation/runs/2026-11-06-overnight/B16-02.json"
+        "platform/validation/runs/2026-11-06-overnight/B16-02.json",
+        "platform/validation/runs/2026-11-06-overnight/B16-ci-01.json"
       ],
-      "nextAction": "Cashflow and portable14-scenario calculator verified locally (19cashflow/cost/launch;14portable/cost/launch;7actualWorker calls;types). Next bind stored B15 plans and B13 usage/quota to immutable readiness report; integrate graph/scenario comparisons and read-only operator view. B16 not complete.",
+      "nextAction": "User budget handoff at75% (<80%). FullCI42282361317 passed1305tests on c8d9de6. On resume: bind stored B15 plans and B13 usage/quota to immutable cost readiness; integrate cashflow/14scenario comparisons, read-only operator view and Node/D1 parity. B16 remains partial.",
       "blocker": null
     },
     "B17": {
@@ -623,6 +624,11 @@
     }
   },
   "unrelatedChanges": [],
-  "decisions": [],
+  "decisions": [
+    {
+      "at": "2026-11-06T21:01:11.655673+00:00",
+      "decision": "Stopped new implementation for user-requested manual review at75% account usage, preserving margin below80%. No reset or spending. Product c8d9de6 fullyCIpassed; B16partial."
+    }
+  ],
   "handoff": "MORNING_HANDOFF.md"
 }

@@ -1,6 +1,6 @@
 # Review checkpoint - B15 verified; B16 foundation partial
 
-Product c8d9de6 pushed on work/10x-prd-foundation. Account usage last measured73%; no new implementation slice while finalCI and manual-review handoff finish. Keep safely below80%; no reset/spending. User wants manual review before reevaluating next path.
+Product c8d9de6 pushed on work/10x-prd-foundation. Account usage measured75%. Implementation stopped for the user-requested manual review, safely below80%; no reset/spending. FullCI42282361317 succeeded on c8d9de6. No active tests or implementation agents remain.
 
 B00-B15 verified. B16 in progress; B17-B19 not started. B20-core passed; do not rerun core or start full until all prerequisites pass. Schema068,117 business tables,next069 unreserved. Financial execution/signing/broadcast remain false. No deployment, remote resource mutation/provisioning, spending/funding, subscriptions, external messages, main/dev merge, forcepush orRstage. Sydney hours/later mint prices remainopen.
 
@@ -14,10 +14,10 @@ B16-01 cashflow foundation commita7efb8f: pure caller-supplied planning assumpti
 
 B16-02 portable calculator commitc8d9de6: original synchronous Node API/context preimage/output retained; bounded async input capture plus injected SHA for Workers. Six historical output hashes preserve14scenarios/firstATT across reference,complete,stale,changedcontext,unknown,zero.14Node tests+7actualWorker calls+types passed. Worker no DB/nodejscompat; NOT D1 readinessintegration. scenarios/budget/reference unchanged.
 
-## Active CI and next executable step
+## Final CI and next executable step
 
-CI42282361317 atc8d9de6 is ACTIVE; watch session60448 logs work/ci-42282361317.log. Follow tocompletion, resolve failures without weakening acceptance, save exactresult. Do not trigger another fullrun whileactive. B16 stays partial regardless this foundationCI result.
+CI42282361317 atc8d9de6 SUCCESS:1112reference+30viewer+3beacon+160WorkerD1R2=1305tests,zero failures; build/types/contracts/recovery drill passed. Evidence B16-ci-01.json. B16 remains partial; a foundationCI pass does not close remaining integration.
 
 Next implementation: B16 immutable plan-bound readiness. Join original storedB15 plan and B13 usage/quota snapshot; bind source/plan/context/time, integrate disjoint graph/14scenario costs and firstATT/claim/mint/monthly comparisons, expose scenario completeness vs spendreview vs protocolreadiness, add operator readonly view and actualNode/D1 parity. Never manufacture wire/codec/funding/simulation/FX/closure or renew oldreference timestamps. B17 is also ready butnotstarted. RemainingB18/B19/B20full followqueue.
 
-Currentchat outputs/10x-progress-and-manual-review.md holds detailed411-point table and manualtesting:342implemented69remaining; strict330verified,16tasks; B16=4/13 and B20=8/21 provisional. Refresh usage and finalCI status beforebudgethandoff. No persistent manualreview servers launched. Stage explicit files only, untracked work/ scratch preserved. UseUTF8 explicit reads/LF writes. Agents frozen with no outstanding implementation.
+Currentchat outputs/10x-progress-and-manual-review.md holds detailed411-point table and manualtesting:342implemented69remaining; strict330verified,16tasks; B16=4/13 and B20=8/21 provisional. Final usage75%, CI recorded. No persistent manualreview servers launched. Stage explicit files only, untracked work/ scratch preserved. UseUTF8 explicit reads/LF writes. Agents frozen with no outstanding implementation.
