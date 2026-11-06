@@ -13,6 +13,13 @@ import {createQuoteService} from '../quotes/service.mjs';
 import {createFinancialVaultRepository} from '../storage/financial-vault.mjs';
 import {createFinancialFarmRepository} from '../storage/financial-farms.mjs';
 import {createFinancialReadService} from '../financial/service.mjs';
+import {createGovernanceRepository} from '../governance/repository.mjs';
+import {createGovernanceReadModel} from '../governance/read-model.mjs';
+import {createGovernanceService} from './governance-service.mjs';
+export function createNodeGovernanceService(db,{clock={nowMs:Date.now},ids={next:randomUUID}}={}){
+ const driver=createNodeAtomicDriver(db),crypto=createNodeCrypto();
+ return createGovernanceService({repository:createGovernanceRepository(driver,{crypto,ids}),reads:createGovernanceReadModel(driver),crypto,clock});
+}
 export function createNodeFinancialReadService(db,{clock={nowMs:Date.now}}={}){
  const driver=createNodeAtomicDriver(db);return createFinancialReadService({vaultRepository:createFinancialVaultRepository(driver),farmRepository:createFinancialFarmRepository(driver),crypto:createNodeCrypto(),clock});
 }

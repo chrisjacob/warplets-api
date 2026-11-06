@@ -1,10 +1,10 @@
 import {createHash} from 'node:crypto';
-import {openBallot,castVote,earliestTrancheOpening,BALLOT_CHOICES} from '../domain/collections/ballot.mjs';
-import {CollectionPolicyError} from '../domain/collections/policy.mjs';
+import {openBallot,earliestTrancheOpening,BALLOT_CHOICES} from '../domain/collections/ballot.mjs';
 import {currentSession,consumeQuota} from '../server/auth.mjs';
 import {decode58} from '../server/base58.mjs';
 import {transaction} from '../storage/database.mjs';
-import {json,failure} from '../server/api.mjs';
+import {createNodeGovernanceService} from '../application/node-context.mjs';
+import {handleInteractiveGovernance} from './interactive-http.mjs';
 
 const date=n=>new Date(n).toISOString();
 const rowFor=(db,id)=>db.prepare('SELECT * FROM genesis_ballots WHERE id=?').get(id);
@@ -42,50 +42,11 @@ export function recordDecision(db,{id,choice,decidedAt,noticeAt,rationale},now=D
     return {id,choice,rationale,decidedAt:date(decidedAt),earliestOpening:date(earliest)};
   });
 }
-function summary(db,row,now) {
-  const closed=now>=row.closes_ms;
-  const count=db.prepare('SELECT COUNT(*) AS total FROM genesis_votes WHERE ballot_id=?').get(row.id).total;
-  const counts=closed?Object.fromEntries(BALLOT_CHOICES.map(c=>[c,0])):null;
-  if(closed)for(const entry of db.prepare('SELECT choice,COUNT(*) AS n FROM genesis_votes WHERE ballot_id=? GROUP BY choice').all(row.id))counts[entry.choice]=entry.n;
-  const d=db.prepare('SELECT * FROM genesis_decisions WHERE ballot_id=?').get(row.id);
-  return {id:row.id,source:'local-fixture',status:closed?'closed':now<row.opens_ms?'scheduled':'open',opensAt:date(row.opens_ms),
-    closesAt:date(row.closes_ms),choices:BALLOT_CHOICES,eligibleWallets:row.eligible_count,votesCast:count,counts,
-    decision:d?{choice:d.choice,rationale:d.rationale,earliestOpening:date(d.earliest_ms)}:null};
-}
 export async function handleBallots(db,request,peer,now) {
-  const {pathname,origin}=new URL(request.url),base='/api/v1/genesis/ballots';
-  if(pathname!==base&&!pathname.startsWith(base+'/'))return null;
-  if(pathname===base&&request.method==='GET') {
-    const rows=db.prepare('SELECT * FROM genesis_ballots ORDER BY opens_ms DESC,id LIMIT 10').all();
-    return json({items:rows.map(row=>summary(db,row,now)),nextCursor:null,asOf:date(now)});
-  }
-  const match=pathname.match(/^\/api\/v1\/genesis\/ballots\/([a-z0-9-]{1,64})(\/votes)?$/);
-  if(!match)return failure(404,'not_found','Unknown ballot resource.');
-  const row=rowFor(db,match[1]);if(!row)return failure(404,'ballot_not_found','Unknown ballot.');
-  if(!match[2]&&request.method==='GET')return json(summary(db,row,now));
-  if(!match[2]||request.method!=='POST')return failure(405,'method_not_allowed','Unsupported method.',{allow:match[2]?'POST':'GET'});
-  if(request.headers.get('origin')!==origin)return failure(403,'invalid_origin','Use the local origin.');
-  const session=currentSession(db,request,now);if(!session)return failure(401,'authentication_required','Connect your wallet.');
-  const quota=consumeQuota(db,'votes:'+session.wallet,now,12);if(quota)return quota;
-  if(request.headers.get('content-type')?.split(';')[0]!=='application/json')return failure(415,'unsupported_media_type','Use application/json.');
-  let choice;try{({choice}=await request.json());}catch{return failure(400,'invalid_input','Expected a ballot choice.');}
-  try {
-    const result=transaction(db,()=>{
-      const existing=db.prepare('SELECT choice FROM genesis_votes WHERE ballot_id=? AND wallet=?').get(row.id,session.wallet);
-      if(existing){
-        if(existing.choice!==choice)throw new CollectionPolicyError('wallet_already_voted');
-        return {choice,replayed:true};
-      }
-      const eligible=db.prepare('SELECT 1 FROM genesis_voters WHERE ballot_id=? AND wallet=?').get(row.id,session.wallet);
-      castVote({...domain(row),voters:eligible?[session.wallet]:[],votes:[]},{wallet:session.wallet,choice,at:now});
-      db.prepare('INSERT INTO genesis_votes VALUES(?,?,?,?)').run(row.id,session.wallet,choice,now);
-      return {choice,replayed:false};
-    });
-    return json(result,result.replayed?200:201);
-  } catch(err) {
-    if(!(err instanceof CollectionPolicyError))throw err;
-    return failure(err.code==='voter_ineligible'?403:err.code==='invalid_choice'?422:409,err.code,'Vote could not be recorded.');
-  }
+  const service=createNodeGovernanceService(db,{clock:{nowMs:()=>now}});
+  return handleInteractiveGovernance(request,{service,peer,
+    authenticate:async req=>{const session=currentSession(db,req,now);return session?{kind:'wallet',wallet:session.wallet}:null;},
+    consumeQuota:async(bucket,limit)=>consumeQuota(db,bucket,now,limit)});
 }
 export const ballotPaths={
   '/genesis/ballots':{get:{operationId:'listGenesisBallots',responses:{200:{description:'Recent local advisory ballots'}}}},

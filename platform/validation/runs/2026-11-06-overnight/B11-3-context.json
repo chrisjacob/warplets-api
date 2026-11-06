@@ -1,0 +1,89 @@
+{
+  "taskId": "B11",
+  "substep": "B11.3-context",
+  "status": "verified-local-substep",
+  "classification": "Bounded current participant reads for future stored progression quotes; no quote issuance or reservation authority/public route",
+  "lastTestedBaseCommit": "2e5f68cd2c5fc77f30570753049adeca4c7a56f6",
+  "implementationCommit": null,
+  "commands": [
+    {
+      "command": "node --test platform/storage/collection-context.test.mjs",
+      "tests": 4,
+      "failed": 0,
+      "skipped": 0,
+      "exitCode": 0,
+      "durationMs": 695.1378,
+      "log": "work/b11-collection-context.log"
+    },
+    {
+      "command": "node --test platform/edge/test/collection-context.test.mjs",
+      "tests": 1,
+      "failed": 0,
+      "skipped": 0,
+      "exitCode": 0,
+      "durationMs": 17884.1661,
+      "log": "work/b11-collection-context-edge.log"
+    },
+    {
+      "command": "node platform/edge/node_modules/typescript/bin/tsc --noEmit -p platform/edge/tsconfig.json",
+      "exitCode": 0
+    },
+    {
+      "command": "git diff --check",
+      "exitCode": 0
+    },
+    {
+      "command": "node platform/scripts/test-reference.mjs",
+      "tests": 387,
+      "failed": 0,
+      "skipped": 0,
+      "exitCode": 0,
+      "durationMs": 35146.4968,
+      "log": "work/b11-governance-reference-final.log",
+      "note": "Includes parallel unstaged pure quote/index tests; these are separate from this checkpoint."
+    }
+  ],
+  "sourceHashes": {
+    "platform/storage/collection-context.mjs": "d18459aacb488e6c893df982bc6f47f213fc0f1d46b86dc56890c72da6501662",
+    "platform/storage/collection-context.d.mts": "3ddd206d06b2108360ff5a54a217fe1fdc3a678b097fb8a278fc7e0556296ffc",
+    "platform/storage/collection-context.test.mjs": "f04b6fa1d4accb47e18736880095f23e5f86019638dc810de29098fb0b68e68b",
+    "platform/application/fixtures/collection-context.mjs": "2e9fb06424a475f8ec9c2c473a887c631051f60c08864f66a8f8cfb2cdab6fbd",
+    "platform/application/fixtures/collection-context-dispatch.mjs": "8032d4e4a843a8fb2e73c047b759ac4d8d13b7c7b190e02c4ae291bff70e7faa",
+    "platform/edge/test/collection-context.test.mjs": "2cd021bc2b73b6f0678233bdea81be0ae8c363fcba14ea616308e6da9ddee4d3",
+    "platform/edge/test/fixtures/collection-context-worker.ts": "7a10bb6719dab88005697f2fb613cc518a39012d2eef488e2a195481c28d0b8a"
+  },
+  "measurements": {
+    "pairedNodeD1Reads": 24,
+    "sqlStatementsPerRead": 3,
+    "atomicBatchesPerRead": 1,
+    "maxResultBytes": 949,
+    "participantLimit": 2,
+    "assetByteLimit": 16384,
+    "contextByteLimit": 65536
+  },
+  "checks": [
+    "AllLevels1\u00e2\u20ac\u201c9 upgrade andLevel10 visual quote parity with unchanged legacy preview",
+    "ExpiredLevel1 and fulfilled/reactivatedLevel2 contexts preserve original Season expiry and owner observation clock",
+    "One atomic snapshot contains all three source/earn/control revisions and inventory revision",
+    "No aggregate inventory.state selected even with1MB synthetic state",
+    "Concealed or other-owner asset JSON and bind coordinates never returned",
+    "Actual latest bind/transfer evidence is selected without time filtering; future latest evidence cannot reveal older valid state",
+    "Current row and latest observation identity/owner/time must agree",
+    "Missing ownership evidence, stale versions, pending participants, mismatched IDs, wrong expiry and oversized JSON hold without partial context",
+    "Duplicate JSON keys rejected to avoid JavaScript-last-key versus SQLite-first-key disagreement",
+    "Caller mutation across database await cannot replace principal, participant IDs or time",
+    "No collect_operations, transaction intents or attempts written"
+  ],
+  "authority": {
+    "source": "local-fixture",
+    "quoteAuthority": false,
+    "reservationAuthority": false,
+    "financialExecution": false,
+    "publicRoutesAdded": false
+  },
+  "pending": [
+    "Coordinator broader checks and tested checkpoint",
+    "Stored immutable progression quote issuance and retrieval prerequisite",
+    "Atomic quote-required reservation before public issuer wiring"
+  ]
+}

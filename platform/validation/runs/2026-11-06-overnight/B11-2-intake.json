@@ -188,8 +188,13 @@
     "result": "No additional authority, replay or atomicity defect found in current repository and035 review."
   },
   "pending": [
-    "Test-only CI for the checkpoint must be followed.",
     "Authoritative collection publication/reservation/observation and stored progression quotes remain unimplemented.",
     "Governance vote storage/public composition is the next separate substep; B11 is not complete."
-  ]
+  ],
+  "ci": {
+    "runId": 42134854897,
+    "head": "2e5f68cd2c5fc77f30570753049adeca4c7a56f6",
+    "status": "success",
+    "url": "https://github.com/chrisjacob/warplets-api/actions/runs/42134854897"
+  }
 }

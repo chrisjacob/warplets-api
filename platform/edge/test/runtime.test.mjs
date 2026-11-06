@@ -59,7 +59,7 @@ test('real workerd verifies a D1 wallet proof once and protects R2 public artifa
  assert.equal((await (await get('/me',{cookie})).json()).wallet,wallet);
  const time=Date.now();
  await db.batch([
-  db.prepare('INSERT INTO genesis_ballots VALUES(?,?,?,?,?,?)').bind('next',time-1000,time+86400000,time-86400000,'digest',1),
+  db.prepare('INSERT INTO genesis_ballots VALUES(?,?,?,?,?,?)').bind('next',time-1000,time-1000+2*86400000,time-86400000,createHash('sha256').update(JSON.stringify(['next',time-1000,time-86400000,[wallet]])).digest('hex'),1),
   db.prepare('INSERT INTO genesis_voters VALUES(?,?)').bind('next',wallet)
  ]);
  const votes=await Promise.all([post('/genesis/ballots/next/votes',{choice:'ASAP'},{cookie}),post('/genesis/ballots/next/votes',{choice:'ASAP'},{cookie})]);

@@ -8,7 +8,7 @@ const day=86400000;
 test('frozen electorate, duplicate/replay, privacy and founder rationale survive retries',async t=>{
  const db=openDatabase();t.after(()=>db.close());
  const wallet=encode58(Buffer.alloc(32,1)),other=encode58(Buffer.alloc(32,2));
- const at=Date.parse('2026-11-05T00:00:00Z'),origin='http://127.0.0.1:4173';
+ const at=Date.now(),origin='http://127.0.0.1:4173';
  const input={id:'tranche-2',opensAt:at,currentTrancheOpenedAt:at,holders:[wallet],nextWhitelist:[wallet]};
  const digest=seedBallot(db,input);assert.equal(seedBallot(db,input),digest);
  assert.throws(()=>seedBallot(db,{...input,nextWhitelist:[other]}),/frozen/);

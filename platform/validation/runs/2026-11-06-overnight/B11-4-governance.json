@@ -1,0 +1,107 @@
+{
+  "task": "B11",
+  "slice": "B11.4 guarded advisory vote and portable public reads",
+  "status": "verified-local-substep",
+  "baseCommit": "2e5f68c",
+  "implementationCommit": null,
+  "recordedAt": "2026-11-06T00:20:19.932Z",
+  "sourceHashes": {
+    "platform/application/governance-service.mjs": "9169809261c295eefd01d9188122b769a44ffa0d4e64e254b2a681a0126e788d",
+    "platform/application/governance-service.d.mts": "2e51b930aa41b25dd75cf8408bf577da47807976360e8b516ab4e625aeefbd19",
+    "platform/application/node-context.mjs": "94cb9b62c7ceef10e94b10308480b34734b7d61102938cb1251cc88ff71575ca",
+    "platform/server/application.mjs": "050c54b4c25c5b64d331a501b5bd7c85d9e5a26de4e7d0e6d9d4dfc29cd6a4cd",
+    "platform/governance/repository.mjs": "f2c11cbe3124c5db3a08f7ea4077712b988ca5c9458aa218aa352a0082a97cb0",
+    "platform/governance/repository.d.mts": "21b8dd80cf7a530d9c0fdcb596e1362e9f133d9af471a59689563bec3cdf3c8b",
+    "platform/governance/repository.test.mjs": "fd41e404018d853e1f06af412d13131a0cd0cf162f54ed3d92ff5cc756600d9c",
+    "platform/governance/read-model.mjs": "438f6b9cd58952468a8a1d78d8fb84b03f1e0da3e233571eb4555ac864188b29",
+    "platform/governance/read-model.d.mts": "929204bb951ec58bf047a880486337f14af764eca0fc9847eb485f52ffa9d04c",
+    "platform/governance/interactive-http.mjs": "fda26c99201833008de8322b3d0860d3b18237f7069c98109d35ded983143eda",
+    "platform/governance/interactive-http.d.mts": "f17cb94acea627207367e4c429c82d536a7493de177dfca6e376c8568e75d4a3",
+    "platform/governance/validation.mjs": "b5d6659936a57378dacf641d2fa8f123ea2b8cce01935946d7a5c8ec1c2c8d3d",
+    "platform/governance/ballots.mjs": "15f78bde0bf1795f3164285a5a70a03d23e947e609bb000b5cc063ce0b666767",
+    "platform/governance/ballots.test.mjs": "9d19d3a3ed46cb91d3bf347e9b957cde9aa2831952fe0bafe6de6ff654d7aff0",
+    "platform/governance/GUARDED_VOTES.md": "680c115e2a1de6052ab9eb3cb4596029e8cbf9b67b56647caeba0d1440cc6812",
+    "platform/edge/src/governance.ts": "b2fd0000f993112c8376f8beb008a4b0d229c3cf4213bb8e41a36c13d7b3495d",
+    "platform/edge/src/worker.ts": "053bee6eda732bd2ff73654ebf68570b4cdabdfdb1ce88dcfb4609415a0670af",
+    "platform/edge/test/governance.test.mjs": "e8a54b77b49379c4b916c672981f32adb00b6e66ef2bbb5dab0495c516c7ae5e",
+    "platform/edge/test/fixtures/governance-worker.ts": "c985381b4c7fcd746a47c3344280edfae1a08f1ca90414c243cc4d516ad7db7c",
+    "platform/edge/test/runtime.test.mjs": "1641c36f22b56799a22b6374c331b0024c0dee2051fd45b7580423f4193ef552",
+    "platform/storage/036-guarded-governance.sql": "48100cb7e386fc540692e5b6b08363818cd2013c9b2121c8d59f6da5dae3653f"
+  },
+  "deletedFiles": [
+    "platform/edge/src/pillars.ts"
+  ],
+  "checks": [
+    {
+      "command": "node --test platform/governance/*.test.mjs platform/application/collection-governance.test.mjs",
+      "result": "PASS",
+      "tests": 14,
+      "durationMs": 3885.1092,
+      "log": "work/b11-governance-node.log"
+    },
+    {
+      "command": "node --test platform/edge/test/governance.test.mjs platform/edge/test/runtime.test.mjs",
+      "result": "PASS",
+      "tests": 3,
+      "durationMs": 27417.6597,
+      "log": "work/b11-governance-edge.log"
+    },
+    {
+      "command": "node platform/edge/node_modules/typescript/bin/tsc --noEmit -p platform/edge",
+      "result": "PASS"
+    },
+    {
+      "command": "node platform/contracts/generate.mjs --check",
+      "result": "PASS"
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS"
+    },
+    {
+      "command": "node platform/scripts/test-reference.mjs",
+      "tests": 387,
+      "failed": 0,
+      "skipped": 0,
+      "exitCode": 0,
+      "durationMs": 35146.4968,
+      "log": "work/b11-governance-reference-final.log",
+      "note": "Includes parallel unstaged pure quote/index tests; these are separate from this checkpoint."
+    }
+  ],
+  "sqlMetrics": {
+    "fixture": "10000-member frozen electorate",
+    "maxRowsReturnedPerQuery": 3,
+    "mutation": {
+      "statements": 3,
+      "maxParameters": 28,
+      "maxSqlBytes": 1135,
+      "batchBytes": 2864
+    }
+  },
+  "coverage": [
+    "same-wallet simultaneous identical and conflicting choices",
+    "immutable ballot/electorate/vote/decision rows",
+    "accepted identical receipt replay after closure and stale revisions",
+    "legacy vote adoption retains original timestamp",
+    "missing child causes complete rollback",
+    "lost acknowledgement reconciles accepted receipt",
+    "SQL-time closing race denies late commit",
+    "immutable command capture across hashing await",
+    "one bounded revision retry, persistent change holds",
+    "malformed retained ballot and incomplete electorate unavailable",
+    "10000-wallet aggregate facts without voter hydration",
+    "Node/workerd generated-client ordinary and enveloped DTO parity",
+    "genuine Ed25519 wallet challenge authentication",
+    "zero turnout and founder rationale read parity",
+    "no per-choice counts before closure; no individual vote wallets",
+    "strict body/origin/session/method/query/media/size/rate guards"
+  ],
+  "limitations": [
+    "Local synthetic ballots and authenticated fixture wallets only; no remote APIs or deployment.",
+    "Governance publication and founder decisions still command-only reference helpers; guarded portable implementation remains outstanding.",
+    "Collection reservation, immutable quote acceptance and atomic observation/Vault history work remain unfinished.",
+    "No financial execution or public operator route.",
+    "B11 remains in progress."
+  ]
+}
