@@ -1,0 +1,128 @@
+{
+  "task": "B16",
+  "status": "partial-frozen-pure-cashflow-only",
+  "implementationCommit": null,
+  "scope": "Pure bounded arithmetic on caller-supplied planning assumptions; no evidence verification or financial authority",
+  "files": [
+    "platform/costs/cashflow.mjs",
+    "platform/costs/cashflow.d.mts",
+    "platform/costs/cashflow.test.mjs"
+  ],
+  "limits": {
+    "operations": 16,
+    "charges": 64,
+    "inputBytes": 65536,
+    "count": 10000,
+    "amountDigits": 80
+  },
+  "checks": [
+    {
+      "command": "node --test platform/costs/cashflow.test.mjs platform/costs/costs.test.mjs platform/launch/launch.test.mjs",
+      "passed": 19,
+      "durationMs": 668.4762,
+      "focusedCashflowCases": 8,
+      "log": "work/b16-cashflow-final.log"
+    }
+  ],
+  "acceptance": [
+    "Strict16-operation/64-charge/65536-byte bounded DAG, exact fields and dense data arrays; cycle/unknown/duplicate dependency rejection",
+    "Shared setup charged once only when every economics/payer/unit/count/closure/setup-operation field matches; conflicts reject",
+    "Worst funding across all dependency-valid completed prefixes and ready operations, not cheapest topological order; upfront precedes same-operation refund",
+    "Independent operations require concurrent rent funding; sequential reuse only with explicit established closure dependency",
+    "Separate payer/unit gross upfront, peak, consumed and expected refundable capital, with known subtotals distinct from unknown totals",
+    "Interrupted open rent retains held float and account cleanup count; additional cleanup cost remains unquoted",
+    "Zero count is explicitzero even when amount unknown; unknown count multiplied byzero remains unknown",
+    "Maximum16 independent operations/64charges exercised65536 prefixes; no input mutation or Node/runtime imports in pure module"
+  ],
+  "sample": {
+    "classification": "synthetic arithmetic only; closure is not verified chain evidence",
+    "input": {
+      "format": "10x.cashflow.v1",
+      "operations": [
+        {
+          "id": "prepare",
+          "dependsOn": []
+        },
+        {
+          "id": "payout",
+          "dependsOn": [
+            "prepare"
+          ]
+        }
+      ],
+      "charges": [
+        {
+          "id": "temporary-account",
+          "operationId": "prepare",
+          "sharedAccount": null,
+          "payer": "claimant",
+          "unit": "lamport",
+          "kind": "rent",
+          "count": 1,
+          "unitAmount": "100",
+          "expectedRefundableUnitAmount": "90",
+          "closure": {
+            "operationId": "payout",
+            "status": "established"
+          }
+        }
+      ],
+      "interruption": {
+        "completedOperationIds": [
+          "prepare"
+        ],
+        "startedOperationIds": []
+      }
+    },
+    "output": {
+      "format": "10x.cashflow.v1",
+      "mode": "planning-only",
+      "assumptions": "caller-supplied-unverified",
+      "financialExecution": false,
+      "isAuthorization": false,
+      "operationCount": 2,
+      "distinctChargeCount": 1,
+      "deduplicated": [],
+      "evaluatedPrefixes": 3,
+      "totals": [
+        {
+          "payer": "claimant",
+          "unit": "lamport",
+          "status": "calculated",
+          "grossUpfront": "100",
+          "grossKnownSubtotal": "100",
+          "peakUpfront": "100",
+          "peakUpfrontUpperBound": "100",
+          "consumed": "10",
+          "consumedKnownSubtotal": "10",
+          "expectedRefundable": "90",
+          "refundableKnownSubtotal": "90",
+          "interruption": {
+            "incurredUpfront": "100",
+            "incurredKnownSubtotal": "100",
+            "consumed": "10",
+            "heldFloat": "90",
+            "heldFloatKnownSubtotal": "90",
+            "cleanup": {
+              "openAccountCount": "1",
+              "additionalCost": null,
+              "status": "unquoted"
+            }
+          }
+        }
+      ],
+      "unresolved": []
+    }
+  },
+  "remaining": [
+    "Not full B16: no action-plan,14-scenario,usage/quota or read-only UI integration",
+    "No freshness/source/account verification, FX conversion, funding or spend approval added; existing packet/reference semantics unchanged",
+    "No Node/D1 adapter parity claimed for this pure synchronous module, no full CI run"
+  ],
+  "financialExecution": false,
+  "sourceHashes": {
+    "platform/costs/cashflow.mjs": "177d9e10e092f0eb01b429d74074f4f88c11a9896491ce3d7cfb614297400563",
+    "platform/costs/cashflow.d.mts": "68affe92c8880df9d16d44a3d29446149e8ed8923b201590894b72033ce17218",
+    "platform/costs/cashflow.test.mjs": "067ff74284ffc599dc47338bb6f72016a4b37688c681baf1b1d50006a824d41f"
+  }
+}

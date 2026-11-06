@@ -1,0 +1,10 @@
+export const CASHFLOW_FORMAT:'10x.cashflow.v1';
+export const CASHFLOW_LIMITS:Readonly<{operations:16;charges:64;inputBytes:65536;count:10000;amountDigits:80}>;
+export type CashflowOperation=Readonly<{id:string;dependsOn:readonly string[]}>;
+export type CashflowCharge=Readonly<{id:string;operationId:string;sharedAccount:string|null;payer:string;unit:'lamport'|'ogRaw'|'microUSD';kind:'consumed'|'rent';count:number|null;unitAmount:string|null;expectedRefundableUnitAmount:string|null;closure:Readonly<{operationId:string;status:'established'|'unknown'}>|null}>;
+export type CashflowInput=Readonly<{format:typeof CASHFLOW_FORMAT;operations:readonly CashflowOperation[];charges:readonly CashflowCharge[];interruption:Readonly<{completedOperationIds:readonly string[];startedOperationIds:readonly string[]}>|null}>;
+export type CashflowInterruption=Readonly<{incurredUpfront:string|null;incurredKnownSubtotal:string;consumed:string|null;heldFloat:string|null;heldFloatKnownSubtotal:string;cleanup:Readonly<{openAccountCount:string|null;additionalCost:string|null;status:'none'|'unquoted'}>}>;
+export type CashflowTotal=Readonly<{payer:string;unit:CashflowCharge['unit'];status:'incomplete'|'calculated';grossUpfront:string|null;grossKnownSubtotal:string;peakUpfront:string|null;peakUpfrontUpperBound:string|null;consumed:string|null;consumedKnownSubtotal:string;expectedRefundable:string|null;refundableKnownSubtotal:string;interruption:CashflowInterruption|null}>;
+export type CashflowResult=Readonly<{format:typeof CASHFLOW_FORMAT;mode:'planning-only';assumptions:'caller-supplied-unverified';financialExecution:false;isAuthorization:false;operationCount:number;distinctChargeCount:number;deduplicated:readonly Readonly<{id:string;chargedAs:string}>[];evaluatedPrefixes:number;totals:readonly CashflowTotal[];unresolved:readonly Readonly<{chargeId:string;reasons:readonly string[]}>[]}>;
+/** Pure arithmetic on planning assumptions, not verification of closure/evidence. */
+export function evaluateCashflow(input:CashflowInput):CashflowResult;
