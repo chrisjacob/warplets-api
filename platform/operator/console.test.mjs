@@ -91,3 +91,12 @@ test('operator board keeps consumed staffing and operating budget holds distinct
  recordUsage(db,{provider:'synthetic-budget',metric:'new-monthly-usd',measured:'200000000',atMs:now-1,evidenceRef:'synthetic-limit'});
  metrics=await read();assert.equal(metrics.capacity.reason,'budget-limit');assert.equal(metrics.capacity.limit,1);assert.equal(metrics.capacity.admitted,1);assert.equal(metrics.winners,null);
 });
+
+test('private readiness requires operator session and reports observations without launch authority or writes',async t=>{
+ const db=openDatabase();t.after(()=>db.close());const origin='http://127.0.0.1:4174',bootToken='synthetic-readiness-more-than32-characters',app=createOperatorApp(db,{bootToken});
+ const req=token=>new Request(origin+'/ops/readiness',{headers:token?{authorization:'Bearer '+token}:{}});
+ assert.equal((await app(req())).status,401);
+ const login=await app(new Request(origin+'/ops/login',{method:'POST',headers:{origin,'content-type':'application/json'},body:JSON.stringify({code:bootToken})}));const {sessionToken}=await login.json();
+ const before=db.prepare('SELECT total_changes() n').get().n,response=await app(req(sessionToken)),body=await response.json();assert.equal(response.status,200);assert.equal(response.headers.get('cache-control'),'no-store');assert.equal(body.metrics.kind,'ready');assert.equal(body.readiness.isAuthorization,false);assert.equal(body.readiness.financialExecution,false);assert.equal(body.readiness.checks.find(c=>c.id==='production-custody').status,'pending');assert.equal(body.readiness.checks.find(c=>c.id==='staffing').status,'pending');assert.equal(db.prepare('SELECT total_changes() n').get().n,before);
+ assert.equal(Object.hasOwn(body.readiness,'launchApproved'),false);
+});

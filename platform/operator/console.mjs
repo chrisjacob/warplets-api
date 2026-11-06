@@ -1,3 +1,6 @@
+import {createOperationalMetrics} from '../observability/metrics.mjs';
+import {readinessFromMetrics} from '../operations/readiness.mjs';
+import {createNodeAtomicDriver} from '../storage/node/atomic-driver.mjs';
 import {createWhitelistDraftTransport} from './whitelist-draft-transport.mjs';
 import {nodeArtifactStore} from '../artifacts/node.mjs';
 import {createOperatorUploadTransport} from './upload-transport.mjs';
@@ -53,6 +56,10 @@ export function createOperatorApp(db,{bootToken,clock=Date.now,operatorId='local
    if(pathname==='/ops/status'&&request.method==='GET')return json({mode:'local-fixture',expiresAt:iso(authorization.expiresAtMs),asOf:iso(now),
     principal:authorization.principal,allowedKinds:authorization.allowedKinds,financialExecution:false,
     expectedRevisions:Object.fromEntries(db.prepare('SELECT name,revision FROM app_revisions ORDER BY name').all().map(r=>[r.name,String(r.revision)]))});
+   if(pathname==='/ops/readiness'&&request.method==='GET'){
+    const metrics=await createOperationalMetrics({driver:createNodeAtomicDriver(db),clock:{nowMs:()=>now}}).read();
+    return json({metrics,readiness:readinessFromMetrics(metrics)});
+   }
    if(pathname==='/ops/config'&&request.method==='GET'){
     const latest=db.prepare('SELECT revision,paused FROM ops_scope_log WHERE scope=? ORDER BY at_ms DESC LIMIT 1');
     return json({nowMs:clock(),expectedRevisions:Object.fromEntries(db.prepare('SELECT name,revision FROM app_revisions ORDER BY name').all().map(r=>[r.name,String(r.revision)])),

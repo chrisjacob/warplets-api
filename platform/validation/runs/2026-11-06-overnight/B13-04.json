@@ -1,0 +1,65 @@
+{
+  "task": "B13",
+  "slice": "B13-04",
+  "status": "verified-slice",
+  "baseCommit": "ae0d4e6",
+  "scope": "Authenticated read-only operator usage/readiness panel; no command or launch authority",
+  "checks": {
+    "console": "5PASS2097.1742ms work/b13-readiness-console.log",
+    "browser": {
+      "format": "10x.local.implementation-evidence.v1",
+      "task": "B13",
+      "slice": "authenticated local usage and readiness panel",
+      "baseCommit": "ae0d4e6783d1c892641450edf933114bd24ca0b9",
+      "implementationCommit": null,
+      "sourceHashes": {
+        "platform/operator/ui.mjs": "29836e9c4ab90c77ff079b30465dc03629751e90b3fb00909601606730f38076",
+        "platform/operator/index.html": "0f2b17694454b84142afe328c9c14e5c00acd41cf5ed188e6471277a8eef448d",
+        "platform/operator/readiness-browser-qa.mjs": "109126940f0b1241a5f84dea98fc418086636d8ee7a733995a344db673e49c1d"
+      },
+      "checks": [
+        {
+          "command": "node platform/operator/readiness-browser-qa.mjs",
+          "exitCode": 0,
+          "widths": [
+            360,
+            390,
+            768,
+            1440
+          ],
+          "log": "work/b13-readiness-browser.log"
+        },
+        {
+          "command": "node platform/operator/browser-qa.mjs",
+          "exitCode": 0,
+          "widths": [
+            360,
+            390,
+            768,
+            1440
+          ],
+          "realCommandExecutions": 14,
+          "log": "work/b13-readiness-operator-regression.log"
+        },
+        {
+          "command": "node --check platform/operator/ui.mjs; node --check platform/operator/readiness-browser-qa.mjs; git diff --check",
+          "exitCode": 0
+        }
+      ],
+      "acceptance": [
+        "Actual migrated Node database and authenticated private HTTP; default session has no command grants and can read observations.",
+        "Metrics and checks display separate charged admission, job-attempt and committed-effect counts; actual provider calls and external costs remain unknown.",
+        "Budget-limit and admission pause do not disable protected claim/principal/recovery budget controls; wording preserves other authorization requirements.",
+        "Individual passed/pending/failed/not-applicable checks show observation time and fixed reference labels. There is no all-green aggregate, launch approval or financial execution.",
+        "Private provider/evidence/wallet/payload canaries are absent from response and panel. Reads do not change SQLite total_changes.",
+        "Reload clears panel before fresh authenticated read; expiry, logout and new-principal login discard prior panel data. No metrics are persisted in browser storage or command journal.",
+        "Existing command preview/confirm, exact uncertain retry, legacy receipt lookup, session reauthentication, review packets, keyboard and logout behavior all passed unchanged."
+      ],
+      "fixtureClassification": "Synthetic count rows test observation presentation only, not provider dispatch, accepted effects or financial attestations.",
+      "screenshots": "work/b13-readiness-operator",
+      "scope": "Only UI/index and dedicated browser test changed. Coordinator owns the endpoint. No external calls, migration, financial or launch capability enabled."
+    }
+  },
+  "financialExecution": false,
+  "remaining": "Delivery64final tests, member mainWorker capability and browser, bounded retention/B03 handler."
+}
