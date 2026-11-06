@@ -6,6 +6,7 @@ import {createRecoveryV2IndexReader} from './v2-traversal.mjs';
 import {fenceRow,readPinnedPublication} from './reconcile.mjs';
 import {createRecoveryV2FreeCutReconciler} from './v2-reconcile-free-cuts.mjs';
 import {createRecoveryV2CollectionReconciler} from './v2-reconcile-collections.mjs';
+import {createRecoveryV2LegacyAdoptionReconciler} from './v2-reconcile-legacy-adoptions.mjs';
 import {createRecoveryV2FragmentCodec} from './v2-fragments.mjs';
 import {createRecoveryV2FragmentRestore} from './v2-fragment-restore.mjs';
 const same=(a,b)=>canonicalJson(a)===canonicalJson(b);
@@ -15,6 +16,7 @@ class MissingObject extends Error {}
  * committed only against the target watermark pinned after all imports/fences.
  * No source artifacts or live provider reads participate in reconciliation. */
 export function createRecoveryV2Reconciler({driver,artifacts,crypto,v2Codec,codec,repository,beaconVerifier,createDigest}){
+ const legacyAdoptions=createRecoveryV2LegacyAdoptionReconciler({driver,artifacts,crypto,repository,createDigest});
  const collection=createRecoveryV2CollectionReconciler({driver,artifacts,crypto,beaconVerifier,repository,nextPhase:'reconcile-free-cut-records'});
  const freeCuts=createRecoveryV2FreeCutReconciler({driver,crypto,repository,createDigest});
  const fragmentCodec=createRecoveryV2FragmentCodec({crypto}),fragments=createRecoveryV2FragmentRestore({driver,artifacts,crypto,repository});
@@ -73,7 +75,7 @@ export function createRecoveryV2Reconciler({driver,artifacts,crypto,v2Codec,code
  async function economics(loaded,c){
   const active=c.economicBoardRowid!==undefined&&c.economicBoardRowid!==null;
   const [rows]=await read([sql(`SELECT rowid recovery_cursor,epoch,finalized_ms,snapshot_hash,CASE WHEN length(CAST(winners AS BLOB))<=131072 THEN winners ELSE NULL END winners FROM earn_boards WHERE rowid${active?'=':'>'}? ORDER BY rowid LIMIT 1`,active?c.economicBoardRowid:c.boardCursor??-9007199254740991)]);
-  if(!rows.length){need(!active,'Recovery active board disappeared.');const [count]=await read([sql('SELECT COUNT(*) n FROM earn_boards')]);need(count[0].n===c.checkedBoards,'Recovery board count mismatch.');return checked(loaded,c,{phase:'reconcile-collection-authorities',collectionAuthorityCursor:-9007199254740991,checkedCollectionAuthorities:0},{phase:'economics-count',scope:'boards',ordinal:0,resultDigest:await hashJson(crypto,['v2-reconciled-board-count',c.checkedBoards]),itemCount:c.checkedBoards});}
+  if(!rows.length){need(!active,'Recovery active board disappeared.');const [count]=await read([sql('SELECT COUNT(*) n FROM earn_boards')]);need(count[0].n===c.checkedBoards,'Recovery board count mismatch.');return checked(loaded,c,{phase:'reconcile-legacy-adoptions',legacyAdoptionCursor:-9007199254740991,checkedLegacyAdoptions:0},{phase:'economics-count',scope:'boards',ordinal:0,resultDigest:await hashJson(crypto,['v2-reconciled-board-count',c.checkedBoards]),itemCount:c.checkedBoards});}
   const board=rows[0];need(typeof board.winners==='string','Recovery board exceeds reconciliation bound.');const winners=JSON.parse(board.winners);need(Array.isArray(winners)&&winners.length<=100,'Recovery winner bound.');const publicBoard={epoch:board.epoch,finalizedAtMs:board.finalized_ms,snapshotId:board.snapshot_hash,winners};
   if(!active){const [counts]=await read([sql('SELECT COUNT(*) n FROM earn_allocations WHERE epoch=?',board.epoch)]);need(counts[0].n<=32,'Recovery allocation count bound.');const bundle=await codec.build({board:publicBoard,allocations:[]});return checked(loaded,c,{economicBoardRowid:board.recovery_cursor,allocationCursor:-9007199254740991,checkedAllocations:0,expectedAllocations:counts[0].n},{phase:'economic-boards',scope:String(board.epoch),ordinal:0,resultDigest:bundle.semanticDigest,itemCount:1});}
   const [allocations]=await read([sql(`SELECT a.rowid recovery_cursor,CASE WHEN length(CAST(a.token_id AS BLOB))<=256 THEN a.token_id ELSE NULL END token_id,a.day,a.starts_ms,a.vests_from_ms,a.vests_through_ms,
@@ -96,6 +98,7 @@ export function createRecoveryV2Reconciler({driver,artifacts,crypto,v2Codec,code
  async function step(loaded){const c=JSON.parse(loaded.run.checkpoint_json);try{
   // Resume old post-table checkpoints by proving completion before retirement.
   if(Array.isArray(c.tables)&&!['reconcile-objects','reconcile-table-metadata','reconcile-tables'].includes(c.phase))return await retireTables(loaded,c,c.phase);
+  if(c.phase.startsWith('reconcile-legacy-adoption'))return await legacyAdoptions.step(loaded,c);
   if(c.phase.startsWith('reconcile-free-cut-'))return await freeCuts.step(loaded,c);
   if(c.phase.startsWith('reconcile-collection-'))return await collection.step(loaded,c);
   if(c.phase==='reconcile-objects')return await object(loaded,c);if(c.phase==='reconcile-table-metadata')return await metadata(loaded,c);if(c.phase==='reconcile-tables')return await table(loaded,c);

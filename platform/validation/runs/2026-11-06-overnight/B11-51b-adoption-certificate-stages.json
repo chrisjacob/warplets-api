@@ -1,0 +1,458 @@
+{
+  "checkpoint": "B11-51b",
+  "title": "Fresh-target legacy certificate and original imported-stage reconciliation",
+  "status": "verified-partial-recovery-held",
+  "lastConfirmedBaseCommit": "c6800c1654cf627db905152d2e0d719f1f21f5c8",
+  "implementationCommit": null,
+  "schemaThrough": 55,
+  "businessTables": 112,
+  "source": "synthetic-genuine035050051052053054-activation-then-fresh-private-node-and-d1-r2-recovery",
+  "financialExecution": false,
+  "applicationActivationByRecovery": false,
+  "remainingSemanticsReady": false,
+  "limits": {
+    "checkpointBytes": 131072,
+    "phaseContextBytes": 16384,
+    "operationsPerStep": 64,
+    "batchBytes": 262144,
+    "workingBytes": 1048576
+  },
+  "checks": [
+    {
+      "command": "node --test platform/recovery/v2-reconcile-legacy-adoptions.test.mjs platform/collect/legacy-adoption-authority.test.mjs platform/recovery/v2-checkpoint-lifecycle.test.mjs",
+      "passed": 13,
+      "failed": 0,
+      "durationMs": 63726.9315,
+      "log": "work/b11-51b-verified-node.log"
+    },
+    {
+      "command": "node --test --test-name-pattern=\"empty adopted\" platform/recovery/v2-reconcile-legacy-adoptions.test.mjs",
+      "passed": 1,
+      "failed": 0,
+      "durationMs": 82196.4489,
+      "log": "work/b11-51b-empty-unused-node.log"
+    },
+    {
+      "command": "node --test platform/edge/test/recovery-legacy-adoption.test.mjs",
+      "passed": 1,
+      "failed": 0,
+      "durationMs": 107022.5051,
+      "log": "work/b11-51b-verified-edge.log"
+    },
+    {
+      "scope": "Edge TypeScript, scoped git diff whitespace, all10sources UTF8 LF/noBOM/trailing whitespace",
+      "status": "passed"
+    }
+  ],
+  "measurements": {
+    "work/b11-51b-verified-node.log": [
+      {
+        "sql": 13,
+        "maxBatchBytes": 12410,
+        "maxParameters": 7,
+        "maxReturnedBytes": 5525,
+        "workingBytes": 70271
+      },
+      {
+        "sql": 28,
+        "maxBatchBytes": 12427,
+        "maxParameters": 7,
+        "maxReturnedBytes": 85763,
+        "workingBytes": 442049
+      },
+      {
+        "limit": 131072,
+        "iterations": 1046,
+        "maxCheckpointBytes": 129208,
+        "peaks": {
+          "metadata": {
+            "bytes": 126702,
+            "fields": {
+              "descriptor": 77179,
+              "tables": 39701,
+              "root": 7669,
+              "parents": 682,
+              "tableOrder": 4,
+              "restoredRevisions": 4
+            }
+          },
+          "objects": {
+            "bytes": 128715,
+            "fields": {
+              "descriptor": 77179,
+              "tables": 39701,
+              "root": 7669,
+              "parents": 4,
+              "tableOrder": 2534,
+              "restoredRevisions": 4
+            }
+          },
+          "publications": {
+            "bytes": 128335,
+            "fields": {
+              "descriptor": 77179,
+              "tables": 39701,
+              "root": 7669,
+              "parents": 4,
+              "tableOrder": 2534,
+              "restoredRevisions": 4
+            }
+          },
+          "tables": {
+            "bytes": 129208,
+            "fields": {
+              "descriptor": 77179,
+              "tables": 39701,
+              "root": 7669,
+              "parents": 4,
+              "tableOrder": 2534,
+              "restoredRevisions": 95
+            }
+          },
+          "fences": {
+            "bytes": 125721,
+            "fields": {
+              "descriptor": 77179,
+              "tables": 39701,
+              "root": 7669,
+              "parents": 4,
+              "tableOrder": 4,
+              "restoredRevisions": 95
+            }
+          },
+          "pin-target": {
+            "bytes": 125634,
+            "fields": {
+              "descriptor": 77179,
+              "tables": 39701,
+              "root": 7669,
+              "parents": 4,
+              "tableOrder": 4,
+              "restoredRevisions": 4
+            }
+          },
+          "reconcile-objects": {
+            "bytes": 127066,
+            "fields": {
+              "descriptor": 77179,
+              "tables": 39701,
+              "root": 7669,
+              "parents": 4,
+              "tableOrder": 4,
+              "restoredRevisions": 4
+            }
+          },
+          "reconcile-table-metadata": {
+            "bytes": 127028,
+            "fields": {
+              "descriptor": 77179,
+              "tables": 39701,
+              "root": 7669,
+              "parents": 4,
+              "tableOrder": 4,
+              "restoredRevisions": 4
+            }
+          },
+          "reconcile-tables": {
+            "bytes": 127133,
+            "fields": {
+              "descriptor": 77179,
+              "tables": 39701,
+              "root": 7669,
+              "parents": 4,
+              "tableOrder": 4,
+              "restoredRevisions": 4
+            }
+          },
+          "reconcile-audit": {
+            "bytes": 86482,
+            "fields": {
+              "descriptor": 77179,
+              "tables": 4,
+              "root": 7669,
+              "parents": 4,
+              "tableOrder": 4,
+              "restoredRevisions": 4
+            }
+          },
+          "reconcile-economics": {
+            "bytes": 86647,
+            "fields": {
+              "descriptor": 77179,
+              "tables": 4,
+              "root": 7669,
+              "parents": 4,
+              "tableOrder": 4,
+              "restoredRevisions": 4
+            }
+          },
+          "reconcile-legacy-adoptions": {
+            "bytes": 86693,
+            "fields": {
+              "descriptor": 77179,
+              "tables": 4,
+              "root": 7669,
+              "parents": 4,
+              "tableOrder": 4,
+              "restoredRevisions": 4
+            }
+          },
+          "reconcile-collection-authorities": {
+            "bytes": 86800,
+            "fields": {
+              "descriptor": 77179,
+              "tables": 4,
+              "root": 7669,
+              "parents": 4,
+              "tableOrder": 4,
+              "restoredRevisions": 4
+            }
+          },
+          "reconcile-collection-admissions": {
+            "bytes": 86845,
+            "fields": {
+              "descriptor": 77179,
+              "tables": 4,
+              "root": 7669,
+              "parents": 4,
+              "tableOrder": 4,
+              "restoredRevisions": 4
+            }
+          },
+          "reconcile-collection-fulfillments": {
+            "bytes": 86895,
+            "fields": {
+              "descriptor": 77179,
+              "tables": 4,
+              "root": 7669,
+              "parents": 4,
+              "tableOrder": 4,
+              "restoredRevisions": 4
+            }
+          },
+          "reconcile-free-cut-records": {
+            "bytes": 86606,
+            "fields": {
+              "descriptor": 77179,
+              "tables": 4,
+              "root": 7669,
+              "parents": 4,
+              "tableOrder": 4,
+              "restoredRevisions": 4
+            }
+          },
+          "reconcile-free-cut-attempts": {
+            "bytes": 86644,
+            "fields": {
+              "descriptor": 77179,
+              "tables": 4,
+              "root": 7669,
+              "parents": 4,
+              "tableOrder": 4,
+              "restoredRevisions": 4
+            }
+          },
+          "reconcile-free-cut-validations": {
+            "bytes": 86687,
+            "fields": {
+              "descriptor": 77179,
+              "tables": 4,
+              "root": 7669,
+              "parents": 4,
+              "tableOrder": 4,
+              "restoredRevisions": 4
+            }
+          },
+          "reconcile-free-cut-lists": {
+            "bytes": 86700,
+            "fields": {
+              "descriptor": 77179,
+              "tables": 4,
+              "root": 7669,
+              "parents": 4,
+              "tableOrder": 4,
+              "restoredRevisions": 4
+            }
+          },
+          "reconcile-free-cut-bindings": {
+            "bytes": 86740,
+            "fields": {
+              "descriptor": 77179,
+              "tables": 4,
+              "root": 7669,
+              "parents": 4,
+              "tableOrder": 4,
+              "restoredRevisions": 4
+            }
+          },
+          "reconcile-publications": {
+            "bytes": 88079,
+            "fields": {
+              "descriptor": 77179,
+              "tables": 4,
+              "root": 7669,
+              "parents": 4,
+              "tableOrder": 4,
+              "restoredRevisions": 4
+            }
+          },
+          "reconcile-checkpoints": {
+            "bytes": 87066,
+            "fields": {
+              "descriptor": 77179,
+              "tables": 4,
+              "root": 7669,
+              "parents": 4,
+              "tableOrder": 4,
+              "restoredRevisions": 4
+            }
+          },
+          "reconcile-final": {
+            "bytes": 87060,
+            "fields": {
+              "descriptor": 77179,
+              "tables": 4,
+              "root": 7669,
+              "parents": 4,
+              "tableOrder": 4,
+              "restoredRevisions": 4
+            }
+          },
+          "final-ready": {
+            "bytes": 87327,
+            "fields": {
+              "descriptor": 77179,
+              "tables": 4,
+              "root": 7669,
+              "parents": 4,
+              "tableOrder": 4,
+              "restoredRevisions": 4
+            }
+          }
+        },
+        "retired": {
+          "objects": {
+            "beforeBytes": 125752,
+            "afterBytes": 127310
+          },
+          "fences": {
+            "beforeBytes": 128251,
+            "afterBytes": 125721
+          },
+          "pin-target": {
+            "beforeBytes": 125721,
+            "afterBytes": 125634
+          }
+        },
+        "fences": {
+          "sessions": 0,
+          "revisions": [
+            {
+              "name": "control",
+              "revision": 2
+            },
+            {
+              "name": "earn",
+              "revision": 17
+            },
+            {
+              "name": "source",
+              "revision": 17
+            }
+          ]
+        },
+        "finalBytes": 87327
+      },
+      {
+        "genuineActivation": true,
+        "excludedEconomicControlsAbsent": true,
+        "stagesChecked": 1,
+        "remainingSemanticsHeld": true,
+        "rejected": [
+          "wrong-link",
+          "wrong-current-ordinal",
+          "wrong-revisions",
+          "wrong-chain",
+          "missing-certificate-proof",
+          "missing-object",
+          "corrupt-object",
+          "missing-list-page"
+        ],
+        "maxWorkingBytes": 263894,
+        "maxOperationAllowance": 24,
+        "maxActualOperations": 23,
+        "maxBatchBytes": 4592
+      }
+    ],
+    "work/b11-51b-empty-unused-node.log": [
+      {
+        "profile": "empty",
+        "stages": 0,
+        "remainingSemanticsHeld": true,
+        "maxWorkingBytes": 248351,
+        "maxActualOperations": 16
+      },
+      {
+        "profile": "unadmitted",
+        "stages": 2,
+        "remainingSemanticsHeld": true,
+        "maxWorkingBytes": 263950,
+        "maxActualOperations": 22
+      }
+    ],
+    "work/b11-51b-verified-edge.log": [
+      {
+        "genuineActivation": true,
+        "sourceObjects": 172,
+        "steps": 1055,
+        "excludedEconomicControlsAbsent": true,
+        "remainingSemanticsHeld": true,
+        "wrongLinkHeld": true,
+        "missingOriginalHeld": true,
+        "omittedProofRolledBack": true,
+        "maxOperations": 23,
+        "maxBatchBytes": 103223,
+        "maxSerializedWorkingBytes": 347664,
+        "financialExecution": false
+      }
+    ]
+  },
+  "verified": [
+    "Exact certificate economic/preparation/parent/quiescence hashes, committed activation receipt and immutable035source lineage.",
+    "Actual imported/current stage ordinal, SQL-derived row binding and import receipt expected revisions equal parent activation receipt.",
+    "Prepared command IDs/nonces/input/request/output digests, immutable body and preparation chain.",
+    "Independent original artifact SHA and sealed indexed wallet-list bytes; exact37historical source digest and52stage proof recomputed using historical source pin.",
+    "Fresh target has no excluded legacy economic audit controls.",
+    "Private wrapper input capture survives caller mutation across awaited hashes.",
+    "Wrong links/current ordinals/revisions/chains, missing certificate proof, missing/corrupt original, missing list page and actual target-watermark mutation hold.",
+    "Omitted semantic proof rolls back with cleared nonce; exact retry succeeds.",
+    "Genuine empty and unused whitelist/public stage profiles retain exact coverage and remain held.",
+    "Ordinary no-adoption recovery and existing live authority reader compatibility pass."
+  ],
+  "intentionalHolds": [
+    "After the imported stage prefix, populated adopted recovery remains held: recovery-legacy-adoption-semantics-incomplete.",
+    "Later-Genesis first-stage opening evidence is a distinct unimplemented recovery prerequisite."
+  ],
+  "limitations": [
+    "Original mint/admission economics, adoption object closure and full current graph are not yet wired or certified.",
+    "Historical43source/current digests remain accepted commitments; later as-of rows are not presented as exact old preimages.",
+    "No maximum32stage/1000admission full populated recovery claim.",
+    "No new public route, financial action or imported caller fact authority."
+  ],
+  "sourceHashes": {
+    "platform/collect/legacy-adoption-authority.mjs": "986b6fdf0b610ea4454fceddd5b77cc2a53b5587090fe467e2f629aac8dc7c6d",
+    "platform/collect/legacy-adoption-authority.d.mts": "6f588e03d77b723354b19b8f27ae70775610fa931e13901bb868b6dad9581952",
+    "platform/recovery/v2-reconcile.mjs": "f6108105b1d4d884a87da7f72d029c36e470314b53cc7cd8875c65622b04c129",
+    "platform/recovery/v2-reconcile-legacy-adoptions.mjs": "07b8cf41e5dc35e89743f8a5f173ac2d0dca527cc831eee7c6c9ebff51f42bb6",
+    "platform/recovery/v2-legacy-adoption-stage.mjs": "92bf294db8feca77453c273552300acd0060816be38d875f0d8e9c30d93051f1",
+    "platform/recovery/v2-legacy-adoption-fixtures.mjs": "2b829eb752ee257b06deedb02b89011de825821620c6a735f29e45ebb138e8c9",
+    "platform/recovery/v2-reconcile-legacy-adoptions.test.mjs": "e8e39052f9d30104f10a4fa1dc6f1f16833859e4b79658f083982eab34606d3d",
+    "platform/edge/test/fixtures/recovery-legacy-adoption-worker.ts": "0a07bc69e2661daca11eb323422579a501a1635b43adac1ffe50542fcdc74a8e",
+    "platform/edge/test/recovery-legacy-adoption.test.mjs": "b5ecf9144eb56f01ae450aedee7b0520aa05e55eb127049effb775789061b9ac",
+    "platform/recovery/LEGACY_ADOPTION_RECONCILIATION.md": "d040ef5c67c7908dcdc8f725b9e5082de970f0fdcf363f82f067061cb1899b4e"
+  },
+  "installedSchemaPins": {
+    "platform/storage/054-collection-legacy-adoption.sql": "5f82a5fafe536c65b9889ec05c6ea4986b1323db17067ceb99104f0a61a7620e",
+    "platform/storage/055-collection-imported-admission.sql": "0ed9b1b39bed9efee13bc739a48cdd7748d9dd1726e3869ae6f5dbbbf504b750"
+  }
+}

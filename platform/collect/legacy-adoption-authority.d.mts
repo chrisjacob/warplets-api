@@ -29,3 +29,14 @@ export type LegacyAdoptionAuthorityResult=
 /** Internal read facts only. Mutation callers retain current scope and replay
  * handling, and recheck this fence in their actual receipt claim. */
 export function createLegacyAdoptionAuthorityReader(ports:{driver:{batch(statements:readonly {sql:string;values:readonly (string|number|null)[]}[]):Promise<{rows:Record<string,unknown>[];changes:number}[]>};crypto:CanonicalCrypto}):Readonly<{read(input:Readonly<{inventoryId:string;stageId:string|null;wallet:string|null}>):Promise<LegacyAdoptionAuthorityResult>}>;
+
+/** Internal pure receipt checks; actual restored row linkage is required separately. */
+export interface LegacyAdoptionReceiptFields {
+ readonly operation_id:string;readonly state:string;readonly operation_kind:string;readonly principal_key:string;readonly business_key:string;readonly result_ref:string;readonly request_key:string;readonly created_ms:number;readonly input_json:string;readonly result_json:string;readonly request_digest:string;readonly output_digest:string;
+}
+export interface LegacyImportedStageReceiptFields extends LegacyAdoptionReceiptFields {
+ /** Computed by private SQL joining actual prepared/imported/current rows. Never caller authority. */
+ readonly binding_valid:number;readonly ordinal:number;readonly stage_id:string;readonly terms_digest:string;readonly source_proof_digest:string;readonly terms_json:string;readonly stage_type:string;readonly eligibility_kind:string;readonly list_id:string|null;readonly eligible_count:number|null;
+}
+export function verifyLegacyAdoptionActivationReceipt(input:Readonly<{receipt:LegacyAdoptionReceiptFields;certificate:LegacyAdoptionCertificateBody;certificateDigest:string}>,crypto:CanonicalCrypto):Promise<string>;
+export function verifyLegacyImportedStageReceipt(input:Readonly<{receiptAndStage:LegacyImportedStageReceiptFields;certificate:LegacyAdoptionCertificateBody;sourceStage:Readonly<{id:string;ordinal:number;termsByteDigest:string;eligibility:Readonly<{kind:string;manifestId:string|null}>}>}>,crypto:CanonicalCrypto):Promise<void>;

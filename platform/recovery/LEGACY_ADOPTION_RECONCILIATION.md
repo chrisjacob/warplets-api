@@ -1,0 +1,15 @@
+# Private legacy adoption reconciliation
+
+The B11-51b slice verifies an installed054 adoption certificate and its imported stage prefix on a fresh private recovery target. It does not complete populated adoption recovery. After the last imported stage, the target deliberately remains held with `recovery-legacy-adoption-semantics-incomplete` until original admissions/economics, object closure and current graph reconciliation are implemented.
+
+The certificate checks its economic, preparation, parent and quiescence preimages; the actual committed activation receipt; the committed035source seal/root; and the historical inventory identity. Original source revision, generation, schema fingerprint and watermark remain historical certificate fields. New recovery proofs are fenced to the fresh target watermark.
+
+Each stage step verifies the actual imported/current stage/receipt join, current ordinal, parent/import revision equality, original prepared command bytes, immutable stage body and preparation-chain link. It retrieves the retained original stage artifact with independent SHA verification and streams the original sealed wallet list through the existing legacy publication auditor. It reconstructs the exact historical37source digest and52stage-proof digest. The imported current command is never presented as an original publication receipt.
+
+Private receipt helper exports copy their arguments before awaiting hashes. Their validation does not grant authority; recovery derives `binding_valid` from actual joined SQL rows and separately checks all prepared-body fields. Current runtime authority-reader behavior is unchanged.
+
+The original43current/source digests remain accepted historical commitments. This slice does not rehash those commitments from later as-of history and does not yet certify the current asset graph. Later-Genesis first-stage opening evidence is an explicit pending recovery prerequisite rather than a current ballot substituted for original approval.
+
+Every new phase measures the checkpoint, retained context, bounded SQL transports, object buffers and hash/parser copies. The durable context stays below16KiB; existing64operation,256KiB SQL,1MiB working-set and131072byte checkpoint limits remain unchanged. Large root SQL/base64 buffers are released before verification copies, and the full parsed root is released after selecting one stage and prior scalar facts. Interrupted work restarts that step against the pinned target watermark.
+
+The focused acceptance uses genuinely executed035/050/051/052/053/054 synthetic histories, a separate fresh target, and absent excluded economic audit controls. It checks wrong receipt links/current ordinals/revisions, missing or corrupt originals, missing list pages, omitted semantic proofs, stale replay, argument mutation during hashing and a real target-watermark change during artifact verification. Missing effects cannot produce a ready target. See the milestone evidence for the exact tested profiles and measured bounds; maximum32stage/1000admission populated recovery is not established by this slice.

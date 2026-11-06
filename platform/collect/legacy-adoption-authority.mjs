@@ -55,6 +55,17 @@ async function importedStage(row,b,sourceStage,crypto){
  need(row.business_key===businessKey&&row.result_ref===canonicalJson([b.inventoryId,row.stage_id])&&same(input,expected)&&same(result,output),'legacy-adoption-stage-receipt-binding');need(await sha(crypto,result)===row.output_digest&&await sha(crypto,[row.operation_kind,{kind:'operator',id:b.operator},businessKey,row.request_key,input])===row.request_digest,'legacy-adoption-stage-receipt-digest');
 }
 
+/** Internal pure receipt semantics only. The recovery mapper must independently
+ * prove actual certificate/row linkage; these helpers do not grant authority. */
+export async function verifyLegacyAdoptionActivationReceipt(input,crypto){
+ const q=clone(input);need(exact(q,['receipt','certificate','certificateDigest']),'legacy-adoption-receipt-input');
+ return receipt(q.receipt,q.certificate,q.certificateDigest,crypto);
+}
+export async function verifyLegacyImportedStageReceipt(input,crypto){
+ const q=clone(input);need(exact(q,['receiptAndStage','certificate','sourceStage']),'legacy-adoption-stage-receipt-input');
+ return importedStage(q.receiptAndStage,q.certificate,q.sourceStage,crypto);
+}
+
 const pinSql=`SELECT CAST(v.revision AS TEXT) sourceRevision,w.revision watermark,r.generation,r.mode,r.status FROM app_revisions v CROSS JOIN app_recovery_watermark w CROSS JOIN app_recovery_state r WHERE v.name='source' AND w.id=1 AND r.id=1 AND r.write_nonce IS NULL AND length(CAST(r.generation AS BLOB))<=256`;
 const certificateColumns=Object.keys(fieldNames).concat(['activation_command_id','economic_result_json','preparation_result_json','remaining_json','parent_preimage_json','quiescence_json']);
 const boundedCertificate=`SELECT ${certificateColumns.join(',')} FROM app_collection_legacy_adoptions WHERE inventory_id=? AND length(CAST(economic_result_json AS BLOB))<=16384 AND length(CAST(preparation_result_json AS BLOB))<=16384 AND length(CAST(parent_preimage_json AS BLOB))<=8192 AND length(CAST(quiescence_json AS BLOB))<=8192 AND length(CAST(remaining_json AS BLOB))<=512 AND length(CAST(json_array(${certificateColumns.join(',')}) AS BLOB))<=98304`;
