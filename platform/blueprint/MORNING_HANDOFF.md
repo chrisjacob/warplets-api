@@ -1,3 +1,11 @@
+# Latest checkpoint: normalized fairness and refresh schema
+
+Pushed product 5b896ec includes normalized mint fairness reader: 10 combined Node tests and actual D1 parity passed. Disclosure requires retained 045/046 assignment and 041 reveal lineage, including earlier mint prefix. Owner HTTP/UI integration is underway.
+
+Schema069 adds immutable authenticated-refresh revision/checkpoint lineage. Three final schema tests pass; nine combined schema/economic/recovery tests pass before additive actor tightening. Golden118-table restore peak128346/131072 bytes leaves2726. Populated refresh workflow recovery remains to implement/test. Next070 unreserved. B17 remains partial; no provider, metadata application or financial authority.
+
+Accountusage87%; continue to100%, save review summary before exhaustion. B16CI42299274676 still active at751e37a. Do not interrupt it with a new checkpoint marker. Two agents continue refresh repository and fairness HTTP/UI. Preserve work/ scratch.
+
 # Active checkpoint: B17 local foundations
 
 User authorized continuing through 100% account usage; last measured 85%. Save review summary near exhaustion, then continue. No usage reset authorized.

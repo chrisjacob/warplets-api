@@ -1,0 +1,50 @@
+{
+  "milestone": "B17 immutable refresh revision schema",
+  "status": "partial-schema-verified",
+  "baseCommit": "5b896ec",
+  "schema": "069",
+  "businessTables": 118,
+  "checks": [
+    {
+      "command": "node --test platform/storage/nft-refresh-revisions.test.mjs platform/storage/economic-plans.test.mjs platform/recovery/v2-restore.test.mjs",
+      "passed": 9,
+      "durationMs": 43590.7414,
+      "log": "work/b17-schema069-final.log",
+      "note": "Before final additive actor/action discriminator tightening; full existing mandatory-effect trigger preserved."
+    },
+    {
+      "command": "node --test platform/storage/nft-refresh-revisions.test.mjs",
+      "passed": 3,
+      "durationMs": 2142.7227,
+      "log": "work/b17-schema069-tests.log",
+      "note": "Final actor/action guards"
+    }
+  ],
+  "recovery": {
+    "peakCheckpointBytes": 128346,
+    "cap": 131072,
+    "remainingBytes": 2726,
+    "objects": 175,
+    "steps": 1101,
+    "reconciliationComplete": true
+  },
+  "assertions": [
+    "immutable predecessor/owner/asset/request lineage",
+    "private checkpoint exact receipt/catalog binding",
+    "omitted children roll back command and artifacts",
+    "wallet versus scoped operator actions enforced",
+    "held recovery targets reject mutations",
+    "all existing mandatory effect checks retained"
+  ],
+  "limitations": [
+    "Golden recovery includes new empty table; populated refresh workflow recovery awaits repository acceptance",
+    "Authenticated refresh repository and UI still in progress",
+    "No financial, provider or metadata application authority"
+  ],
+  "sourceHashes": {
+    "platform/storage/069-nft-refresh-revisions.sql": "9e3c18a653c364b82d1914e0d34d8bfd42f78336ab3fb5c4ee85a257dd554136",
+    "platform/storage/nft-refresh-revisions.test.mjs": "bcdfedbf5bde80c2cc15aa8f3ea738e3277dc69a54be30ba6d5769b3c722052b",
+    "platform/recovery/schema.mjs": "6dc00d36f3a25ebe2c1cd1a42e6c8bf0a558d78543e6a1b28df588371a979c2b"
+  },
+  "financialExecution": false
+}
