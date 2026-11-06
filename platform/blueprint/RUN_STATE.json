@@ -5,7 +5,7 @@
   "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
   "currentTask": "B11",
-  "lastUpdatedAt": "2026-11-06T08:25:18.857130+00:00",
+  "lastUpdatedAt": "2026-11-06T08:42:22.590793+00:00",
   "migrationAllocation": {
     "next": 54,
     "reserved": [
@@ -331,9 +331,10 @@
         "platform/validation/runs/2026-11-06-overnight/B11-41-legacy-economic-repository.json",
         "platform/validation/runs/2026-11-06-overnight/B11-43-current-asset-audit.json",
         "platform/validation/runs/2026-11-06-overnight/B11-44-adoption-preparation.json",
-        "platform/validation/runs/2026-11-06-overnight/B11-46-adoption-preparation-capacity.json"
+        "platform/validation/runs/2026-11-06-overnight/B11-46-adoption-preparation-capacity.json",
+        "platform/validation/runs/2026-11-06-overnight/B11-47-recovery-checkpoint.json"
       ],
-      "nextAction": "B11-46 full32stage/1000settled preparation capacity verified Node-only. Fix B11-47 restore checkpoint regression (broad767pass/11fail; retain131072bound), complete45authority helper, then054schema/activation/mixed operations and recovery. No activation yet.",
+      "nextAction": "B11-47 restores fixed checkpoint headroom and passes25Node+2D1. Next48compact transient FK parent indices (backwardcompatible) before054schema,45activecertificate reader and subsequent activation/mixed mint/read/recovery. B11partial.",
       "blocker": null
     },
     "B12": {

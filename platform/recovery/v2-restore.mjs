@@ -38,7 +38,7 @@ export function createRecoveryV2Restore({driver,artifacts,sourceArtifacts=artifa
   if(result.kind==='done'){
    need(c.tables.length===BUSINESS_TABLES.length&&c.tables.length===c.root.tables.count,'Private v2 table inventory incomplete.');const remaining=new Map(Object.entries(c.parents).map(([name,parents])=>[name,new Set(parents)]));remaining.get('app_epoch_freezes').add('earn_submissions');remaining.get('earn_admission_counts').add('earn_submissions');
    const order=[];while(remaining.size){const ready=[...remaining].filter(([,deps])=>[...deps].every(name=>order.includes(name))).map(([name])=>name).sort();need(ready.length>0,'Private v2 table dependency cycle.');for(const name of ready){order.push(name);remaining.delete(name);}}
-   Object.assign(delta,{phase:'objects',tableOrder:order,objectCursor:null,tableCursor:null});
+   Object.assign(delta,{phase:'objects',tableOrder:order,parents:null,objectCursor:null,tableCursor:null});
   }
   return repository.advance(loaded,{delta,records});
  }
@@ -53,7 +53,7 @@ export function createRecoveryV2Restore({driver,artifacts,sourceArtifacts=artifa
   return repository.advance(loaded,{delta,records});
  }
  async function tables(loaded,c){
-  const name=c.tableOrder[c.tableIndex];if(!name)return repository.advance(loaded,{delta:{phase:'fences'}});const table=c.tables.find(t=>t.name===name);need(table,'Missing private v2 table descriptor.');
+  const name=c.tableOrder[c.tableIndex];if(!name)return repository.advance(loaded,{delta:{phase:'fences',tableOrder:null}});const table=c.tables.find(t=>t.name===name);need(table,'Missing private v2 table descriptor.');
   if(c.activePage){
    const entry=c.activePage,object=await verifyObject(artifacts,entry.identity,crypto);if(object.kind!=='verified')throw new MissingObject(object.reason);
    if(JSON.parse(new TextDecoder().decode(object.bytes)).format==='10x.local.recovery.fragmented-row.v2')return fragments.importPage(loaded,c,table,await fragmentCodec.verifyRowDescriptor(object.bytes,entry.identity));
@@ -71,7 +71,7 @@ export function createRecoveryV2Restore({driver,artifacts,sourceArtifacts=artifa
  async function fences(loaded,c){
   const revisions=c.restoredRevisions;need(Array.isArray(revisions)&&revisions.length===3&&['earn','source','control'].every(name=>revisions.some(r=>r.name===name&&Number.isSafeInteger(r.revision)&&r.revision>=0)),'Private v2 revision checkpoint incomplete.');
   const effects=[...AUTH_TABLES.map(table=>sql('DELETE FROM '+quote(table))),...revisions.map(r=>sql('UPDATE app_revisions SET revision=? WHERE name=?',r.revision,r.name))],digest=await hashJson(crypto,['v2-private-fences',loaded.state.generation,revisions]);
-  return repository.advance(loaded,{delta:{phase:'pin-target'},effects,records:[{key:'private-final-fences',digest,resultDigest:digest,rowCount:0,tableName:'recovery-fences'}]});
+  return repository.advance(loaded,{delta:{phase:'pin-target',restoredRevisions:null},effects,records:[{key:'private-final-fences',digest,resultDigest:digest,rowCount:0,tableName:'recovery-fences'}]});
  }
  async function start(value){const {root,id}=await input(value),old=await repository.load(id);if(old.run)return repository.outcome(old,'replayed');const descriptor=await readRecoveryV2SourceMetadata(driver,{schema,crypto});return repository.start({root,pinnedDigest:id,descriptor});}
  async function step(value){

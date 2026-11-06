@@ -9,10 +9,10 @@ export const recoveryV2SourceGuardSql=`SELECT r.generation,r.mode,r.status,r.inv
 // D1 disallows schema_version. Compare exact persisted table and watermark
 // trigger SQL in both directions instead; no metadata hash SQL extension or
 // untrusted caller assertion is needed, including between async hashing/commit.
-export function recoveryV2SchemaFence(descriptorSql){
+export function recoveryV2SchemaFence(descriptorSql,schemaSql=`json_extract(${descriptorSql},'$.schema')`){
  const expected=`SELECT json_extract(value,'$.type') type,json_extract(value,'$.name') name,json_extract(value,'$.sql') sql FROM json_each(${descriptorSql},'$.schemaInventory') UNION ALL SELECT 'trigger','recovery_watermark_'||t.value||'_'||a.key,replace(a.value,'__TABLE__',t.value) FROM json_each(${descriptorSql},'$.tableNames') t CROSS JOIN json_each(${descriptorSql},'$.watermarkTemplates') a`;
  const actual="SELECT type,name,sql FROM sqlite_schema WHERE (type='table' AND name NOT LIKE 'sqlite_%') OR (type='trigger' AND name GLOB 'recovery_watermark_*')";
- return `NOT EXISTS(${actual} EXCEPT SELECT * FROM (${expected})) AND NOT EXISTS(SELECT * FROM (${expected}) EXCEPT ${actual}) AND NOT EXISTS(SELECT version FROM schema_versions EXCEPT SELECT json_extract(value,'$.file') FROM json_each(${descriptorSql},'$.schema.migrations')) AND NOT EXISTS(SELECT json_extract(value,'$.file') FROM json_each(${descriptorSql},'$.schema.migrations') EXCEPT SELECT version FROM schema_versions)`;
+ return `NOT EXISTS(${actual} EXCEPT SELECT * FROM (${expected})) AND NOT EXISTS(SELECT * FROM (${expected}) EXCEPT ${actual}) AND NOT EXISTS(SELECT version FROM schema_versions EXCEPT SELECT json_extract(value,'$.file') FROM json_each(${schemaSql},'$.migrations')) AND NOT EXISTS(SELECT json_extract(value,'$.file') FROM json_each(${schemaSql},'$.migrations') EXCEPT SELECT version FROM schema_versions)`;
 }
 function need(c,message){if(!c)throw new TypeError(message);}
 export function checkRecoveryV2SourceGuard(rows,expected=null){
