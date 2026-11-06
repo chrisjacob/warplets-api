@@ -1,0 +1,80 @@
+{
+  "task": "B11",
+  "slice": "B11-33 original admission source and prior-fact mapping",
+  "status": "verified-private-source-reader; no adoption authority",
+  "sourceHashes": {
+    "platform/collect/legacy-admission-source.mjs": "d504828853a1f5aff60e4ba6ab75ae1eca8bfcb815d020c0b2a8a27b9181745b",
+    "platform/collect/legacy-admission-source.d.mts": "bd879acee81ed75917eadab84dab07e2fcd373781936f5c711d7792df034f3f2",
+    "platform/collect/legacy-admission-source.fixtures.mjs": "de75a847ac528b4d1d6f8ff3040097581a9b6cd6b95317605a9c6f22ffad102f",
+    "platform/collect/legacy-admission-source.test.mjs": "28f86f609068f1bb099fae3f6664198eca214154bc87084f536c85bcb125cdd6",
+    "platform/collect/LEGACY_ADMISSION_SOURCE.md": "2cc337b6a2ee94632752f465ce9bd9e18f14bd47f5d23ef3df7f936708409569",
+    "platform/edge/test/legacy-admission-source.test.mjs": "729f8f8fcc34ca608dec23e4739032266befb02eaef0c23ea5ddeea65f7d23a6",
+    "platform/edge/test/fixtures/legacy-admission-source-worker.ts": "be8e1c5330a59ca328179100779a3ea68b66a1e4dda45f985c1224e821cbb90a"
+  },
+  "dependencyHashes": {
+    "platform/collect/source-seal-guard.mjs": "ca3ee3ceab6a201fecc552d3afedccfd9d00eba20fc3a46a1a162a3bf70d0091",
+    "platform/collect/source-seal-guard.d.mts": "0fb91d10dc8a012352b2b836075cd1c16a412a8f3e9c9099e3f54e09c1abfffe"
+  },
+  "checks": [
+    {
+      "command": "node --test platform/collect/legacy-admission-source.test.mjs",
+      "result": "PASS",
+      "tests": 7,
+      "durationMs": 11871.2481,
+      "log": "work/b11-admission-source-node-final.log"
+    },
+    {
+      "command": "node --test platform/edge/test/legacy-admission-source.test.mjs",
+      "result": "PASS",
+      "tests": 1,
+      "durationMs": 28247.2025,
+      "log": "work/b11-admission-source-edge-final.log"
+    },
+    {
+      "command": "node platform/edge/node_modules/typescript/bin/tsc --noEmit -p platform/edge/tsconfig.json",
+      "result": "PASS"
+    }
+  ],
+  "bounds": {
+    "actual1000OriginalAdmissions": {
+      "lastOrdinal": 999,
+      "sql": 7,
+      "workingBytes": 174069,
+      "recordBytes": 30402,
+      "contextBytes": 1048
+    },
+    "maximalSyntheticScalarProjection": {
+      "sql": 7,
+      "workingBytes": 382915,
+      "recordBytes": 133453,
+      "contextBytes": 2003,
+      "classification": "source mapping only; complete operation closure/economics intentionally not claimed"
+    },
+    "actualD1": {
+      "originalRows": 101,
+      "pageCrossing": true,
+      "maxSql": 7,
+      "maxBatchBytes": 2839,
+      "maxReturnedBytes": 38640,
+      "maxWorkingBytes": 172527
+    }
+  },
+  "assertions": [
+    "actual settled/pending original operations consumed by31audit",
+    "prior wallet-stage/operation/commitment/owner-request/proof counts",
+    "named immutable page/hash and exact raw ordinal equality",
+    "orphan original mint closure includingemptyadmissionarray",
+    "committed035source/root receipt lineage",
+    "wrong cursor/pin/operation holds",
+    "oversized/malformed JSON escaping bounded inSQL",
+    "source mutation duringhash holds",
+    "zero045receipt fabrication"
+  ],
+  "installedSchemaDuringFinalTests": "051 (reader adds no migration)",
+  "limitations": [
+    "Ordinal/prefix is private durable prerequisite, not caller authority.",
+    "Complete source relation, canonical/raw hashes and original stage/control/cut/mint economics remain separate.",
+    "MaximumD1singlevalue and completeoriginaloperatorauthentication/payment/chainprovenance not claimed."
+  ],
+  "recordedAt": "2026-11-06T06:03:32.629288+00:00"
+}

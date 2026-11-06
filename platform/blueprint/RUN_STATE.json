@@ -5,9 +5,9 @@
   "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
   "currentTask": "B11",
-  "lastUpdatedAt": "2026-11-06T05:59:18.613935+00:00",
+  "lastUpdatedAt": "2026-11-06T06:03:32.649180+00:00",
   "migrationAllocation": {
-    "next": 51,
+    "next": 52,
     "reserved": [
       {
         "version": 31,
@@ -108,6 +108,11 @@
         "version": 50,
         "task": "B11",
         "purpose": "excluded private legacy fingerprint continuation controls; no adoption authority"
+      },
+      {
+        "version": 51,
+        "task": "B11",
+        "purpose": "excluded durable legacy source relation controls bound to050fingerprints; no adoption authority"
       }
     ],
     "historicalGap": 19
@@ -270,7 +275,7 @@
       "status": "in_progress",
       "owner": "coordinator",
       "baseCommit": "96cdfa1fb6334fcb27deb831d786243227b9d1a8",
-      "implementationCommit": "85b83f2",
+      "implementationCommit": "4d61f69",
       "pushed": false,
       "evidence": [
         "platform/validation/runs/2026-11-06-overnight/B11-1.json",
@@ -305,9 +310,10 @@
         "platform/validation/runs/2026-11-06-overnight/B11-30-legacy-source-relation.json",
         "platform/validation/runs/2026-11-06-overnight/B11-31-legacy-admission-audit.json",
         "platform/validation/runs/2026-11-06-overnight/B11-34-relation-working-bound.json",
-        "platform/validation/runs/2026-11-06-overnight/B11-32-legacy-control-audit.json"
+        "platform/validation/runs/2026-11-06-overnight/B11-32-legacy-control-audit.json",
+        "platform/validation/runs/2026-11-06-overnight/B11-33-legacy-admission-source.json"
       ],
-      "nextAction": "Followhash24CI42170371867 then pushremainingtestedcommits eachCI.32historicalcontrolsource finalized25Node+1D1; sharedcommitted035lineageguard shipswith32.33priorfacts reader finalguard checksnext.35durablerelation agent assigned proposed051 (notyetinstalled);36legacyfreecutpreimage agentplanning. Noactiveadoption.",
+      "nextAction": "Stage25 10f5395 pushed after hash24CI42170371867success; identify/follow25CI then remainingqueuedcommits individually.33verified7Node+1D1;35durablerelationactive051uncommitted; parent29lineage/export10Nodepass14636ms.36legacyfreecutpreimageplanning. Noadoption.",
       "blocker": null
     },
     "B12": {

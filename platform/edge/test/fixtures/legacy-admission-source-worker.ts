@@ -1,0 +1,5 @@
+import {createLegacyAdmissionSource} from '../../../collect/legacy-admission-source.mjs';
+import {createD1AtomicDriver} from '../../../storage/d1/atomic-driver';
+import {createWebCrypto} from '../../../security/web-crypto.mjs';
+import {measureBatch} from '../../../storage/atomic-driver.mjs';
+export default {async fetch(request:Request,env:{DB:D1Database}){if(new URL(request.url).pathname!=='/__fixture'||request.method!=='POST')return new Response('Not found',{status:404});try{const body=await request.json() as any,base=createD1AtomicDriver(env.DB),metrics={sql:0,maxBatchBytes:0,maxReturnedBytes:0},driver={...base,async batch(s:any[]){metrics.sql+=s.length;metrics.maxBatchBytes=Math.max(metrics.maxBatchBytes,measureBatch(s).batchBytes);const r=await base.batch(s);metrics.maxReturnedBytes=Math.max(metrics.maxReturnedBytes,new TextEncoder().encode(JSON.stringify(r)).length);return r;}},service=createLegacyAdmissionSource({driver,crypto:createWebCrypto()}),result=body.method==='closure'?await service.closure(body.input):await service.read(body.input);return Response.json({result,metrics});}catch(error){return Response.json({error:String(error)},{status:409});}}};
