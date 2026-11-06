@@ -21,7 +21,7 @@ const INPUTS=Object.freeze({
  [STAFF]:{effectiveEpoch:nat,staffedMinutes:v=>nat(v,1440),secondsPerReview:v=>nat(v,3600)&&v>=1,admissionLimit:v=>nat(v,100),reason:text},
  [SCOPE]:{scope,paused:bool,previousRevision:v=>v===null||text(v),reason:text,evidenceRef:text},
  [REVIEW]:{submissionId:text,score:v=>nat(v,10),reason:text,sourceRef:text},
- [STAGE]:{inventoryId:id,stageId:id,type:fixed('whitelist'),publishedAt:time,opensAt:time,closesAt:time,priceLamports:money,costLamports:money,allocation:v=>nat(v,1000)&&v>0,walletLimit:v=>nat(v,1000)&&v>0,founderApproved:fixed(false),approvedSpendLamports:isNull,ballotId:isNull,inventoryOverrideReason:isNull,eligibilityListId:hex,sourceKind:fixed('synthetic-local-operator-fixture')},
+ [STAGE]:{inventoryId:id,stageId:id,type:v=>['whitelist','free','public','founder'].includes(v),publishedAt:time,opensAt:time,closesAt:time,priceLamports:money,costLamports:money,allocation:v=>nat(v,1000)&&v>0,walletLimit:v=>v===null||nat(v,1000)&&v>0,founderApproved:bool,approvedSpendLamports:v=>v===null||money(v),ballotId:isNull,inventoryOverrideReason:isNull,eligibilityListId:v=>v===null||hex(v),sourceKind:fixed('synthetic-local-operator-fixture')},
  [BALLOT]:{ballotId:id,opensMs:time,previousTrancheOpeningMs:time,electorateSourceId:id,electorateDigest:hex,cutoffMs:time,sourceKind:fixed('synthetic-local-operator-fixture'),holdersListId:hex,nextWhitelistListId:hex,unionListId:hex},
  [DECISION]:{ballotId:id,choice:v=>['ASAP','7','14','30'].includes(v),decidedMs:time,noticeMs:time,rationale:v=>text(v,1000)},
  [BEGIN]:{rootId:hex},[PAGE]:{attemptId:hex,pageIndex:v=>nat(v,99)},[SEAL]:{attemptId:hex}
@@ -49,7 +49,11 @@ export function createOperatorApprovalPacket({request,preview}){
  let summary={...input};
  if(operationKind===STAFF){Object.assign(summary,select(rawSummary,{calculatedCapacity:v=>nat(v,100),currentOrFutureEpoch:bool}));if(summary.calculatedCapacity!==Math.min(input.admissionLimit,Math.floor(input.staffedMinutes*60/input.secondsPerReview)))fail();}
  else if(operationKind===REVIEW){Object.assign(summary,select(rawSummary,{final:fixed(true)}));if(requestKey!==input.submissionId)fail();}
- else if(operationKind===STAGE){const eligibility=select(field(rawSummary,'eligibility'),{kind:fixed('list'),listId:hex,count:v=>nat(v,10000)});if(eligibility.listId!==input.eligibilityListId||input.closesAt<=input.opensAt)fail();Object.assign(summary,select(rawSummary,{termsDigest:hex,costUncertainty:v=>text(v,1000)}),{eligibility});}
+ else if(operationKind===STAGE){
+  const listed=['whitelist','founder'].includes(input.type),founder=['public','founder'].includes(input.type),eligibility=select(field(rawSummary,'eligibility'),{kind:fixed(listed?'list':input.type==='free'?'pending':'unrestricted'),listId:listed?hex:isNull,count:listed?v=>nat(v,10000):isNull});
+  if(eligibility.listId!==input.eligibilityListId||input.closesAt<=input.opensAt||input.founderApproved!==founder||(['free','founder'].includes(input.type)&&input.priceLamports!=='0')||(input.type==='founder'?!money(input.approvedSpendLamports):input.approvedSpendLamports!==null))fail();
+  Object.assign(summary,select(rawSummary,{termsDigest:hex,costUncertainty:v=>text(v,1000)}),{eligibility});
+ }
  else if(operationKind===BALLOT){Object.assign(summary,select(rawSummary,{advisory:fixed(true),financialExecution:fixed(false),snapshotHash:hex,eligibleCount:v=>nat(v,10000),closesAt:time}));if(input.cutoffMs!==input.opensMs||summary.closesAt!==input.opensMs+172800000)fail();}
  else if(operationKind===DECISION){Object.assign(summary,select(rawSummary,{advisory:fixed(true),financialExecution:fixed(false),earliestMs:time,ballotSnapshotHash:hex}));if(summary.earliestMs<input.decidedMs||summary.earliestMs<input.noticeMs+172800000)fail();}
  else if([BEGIN,PAGE,SEAL].includes(operationKind))summary=cutSummary(operationKind,input,rawSummary);

@@ -1,10 +1,10 @@
-# Current checkpoint — B12 free cuts, recovery and review packets
+# Current checkpoint â€” B12 free cuts, recovery and review packets
 
 User budget: latest account meter16% weekly used (baseline15%). Check each checkpoint and before larger tasks. Stop starting work around75%, reserve verification/commit/push/report margin before80%; then hand over for manual review. Account usage is shared. Do not spend or consume reset credits.
 
 Continue ready B work between checkpoints. No deployment, remote resource mutation, signing, spending, messages, merges or R-stage work. Financial capabilities remain disabled. Sydney launch hours/later mint prices remain open.
 
-Branch work/10x-prd-foundation; last pushed71cfb80, last product0269b2f. Current tested B12-06 changes await commit/push. B00–B11 and B14 locally verified; B12 partial; B20-core verified, skip until full prerequisites. Schema059 installed, next060 unreserved;112business tables.
+Branch work/10x-prd-foundation; last pushed/product a0665d6 (B12-06). B12-07 stage expansion tested and ready for commit/push. B00â€“B11 and B14 locally verified; B12 partial; B20-core verified, skip until full prerequisites. Schema059 installed, 060 reserved for future action policy, next061 unreserved;112business tables.
 
 ## Evidence
 
@@ -18,6 +18,6 @@ B11 run42221767194 onb9efc0c SUCCESS,1h0m41s. B12 run42230198456 on71cfb80 still
 
 ## Next executable work
 
-Commit/push B12-06 explicit paths after staged diff check. Continue explicit local free/public/founder publication approvals using existing repository scopes and fixture-only results. Then collection source/draft/whitelist/cut-record intake, future action configuration and fixture observations, complete B12 matrix/browser checks and proceed dependency queue. Approval-packet helper currently supports nine command kinds; extend its explicit safe allowlists as commands expand. Standard transport remains16KiB; never loosen just to accept source uploads. All approval packets are descriptive, not authorization.
+Commit/push tested B12-07 stage approvals;18registry+2transport+21regression tests and expanded4widthbrowser/helper checks pass. Future action policy is actively being implemented (service/repository, migration060, bounded recovery reader); not yet verified or committed. Then collection source/draft/whitelist/cut-record intake, future action configuration and fixture observations, complete B12 matrix/browser checks and proceed dependency queue. Approval-packet helper currently supports nine command kinds; extend its explicit safe allowlists as commands expand. Standard transport remains16KiB; never loosen just to accept source uploads. All approval packets are descriptive, not authorization.
 
 Both agents completed the cut/packet slice. snapshot_acceptance is inspecting the next stage expansion read-only. Coordinator owns contracts/migrations/commits. Keep reads task-sized, reuse passed evidence and check account usage each checkpoint.

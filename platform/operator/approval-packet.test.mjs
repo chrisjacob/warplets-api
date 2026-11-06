@@ -44,3 +44,13 @@ test('bounded strings and scalar types reject oversized or nested payloads inste
  const valid=await pair(5);valid.request.input.rationale=valid.preview.summary.rationale='😀'.repeat(500);assert.ok(new TextEncoder().encode(JSON.stringify(createOperatorApprovalPacket(valid))).length<OPERATOR_APPROVAL_PACKET_MAX_BYTES);
  const amount=await pair(3);amount.request.input.priceLamports=amount.preview.summary.priceLamports='18446744073709551616';assert.throws(()=>createOperatorApprovalPacket(amount),TypeError);
 });
+
+test('all four stage types retain exact terms and distinct eligibility/approval/budget meanings',async()=>{
+ for(const type of ['whitelist','free','public','founder']){
+  const base=await pair(3),i=base.request.input;i.type=type;i.priceLamports=['free','founder'].includes(type)?'0':'100000000';i.founderApproved=['public','founder'].includes(type);i.approvedSpendLamports=type==='founder'?'0':null;i.eligibilityListId=['whitelist','founder'].includes(type)?digest('a'):null;i.walletLimit=type==='free'?null:1;
+  const prepared=await prepareOperatorCommand({principal,request:base.request,nowMs:now},crypto);base.preview=structuredClone(prepared.preview);Object.assign(base.preview.summary,{termsDigest:digest('b'),costUncertainty:'Synthetic estimate; total and network cost unknown.',eligibility:{kind:type==='public'?'unrestricted':type==='free'?'pending':'list',listId:i.eligibilityListId,count:i.eligibilityListId===null?null:2}});
+  const packet=createOperatorApprovalPacket(base);assert.equal(packet.summary.type,type);assert.equal(packet.summary.priceLamports,i.priceLamports);assert.equal(packet.summary.approvedSpendLamports,i.approvedSpendLamports);assert.equal(packet.summary.founderApproved,i.founderApproved);assert.deepEqual(packet.summary.eligibility,base.preview.summary.eligibility);
+  for(const mutate of [v=>v.preview.summary.eligibility.kind='wrong',v=>v.preview.summary.eligibility.count=-1,v=>{v.request.input.founderApproved=v.preview.summary.founderApproved=!i.founderApproved;},v=>{v.request.input.approvedSpendLamports=v.preview.summary.approvedSpendLamports=type==='founder'?null:'1';}]){const bad=structuredClone(base);mutate(bad);assert.throws(()=>createOperatorApprovalPacket(bad),TypeError);}
+  if(type==='free'||type==='founder'){const bad=structuredClone(base);bad.request.input.priceLamports=bad.preview.summary.priceLamports='1';assert.throws(()=>createOperatorApprovalPacket(bad),TypeError);}
+ }
+});

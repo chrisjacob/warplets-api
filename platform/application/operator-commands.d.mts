@@ -11,6 +11,9 @@ type CutInputs={'collection.begin-free-cut.v1':{rootId:string};'collection.valid
 type LocalCutKind=keyof CutInputs;
 type Inputs=OperationInputs & CutInputs & {'earn.final-review.v1':FinalReviewCommand['input'];'collection.publish-stage.v1':StagePublicationInput;'governance.publish-ballot.v1':GovernancePublicationInput;'governance.record-decision.v1':RecordGenesisDecisionCommand['input']};
 type Command<K extends LocalOperatorKind>=K extends LocalCutKind?Omit<CollectionCutCommand,'operationKind'|'input'|'expectedRevisions'>&{readonly operationKind:K;readonly input:Readonly<CutInputs[K]>;readonly expectedRevisions:OperatorRevisions}:K extends 'governance.publish-ballot.v1'?GovernancePublicationCommand:K extends 'governance.record-decision.v1'?RecordGenesisDecisionCommand:K extends 'collection.publish-stage.v1'?StagePublicationCommand:K extends 'earn.final-review.v1'?FinalReviewCommand:K extends keyof OperationInputs?OperationsCommand<K>:never;
+/** Stage requests retain the existing exact input shape. Runtime validation
+ * requires type-specific local fixture approval and rejects ballot/overrides.
+ * Publication repository grants remain the authority at preview and commit. */
 export type LocalOperatorRequest<K extends LocalOperatorKind=LocalOperatorKind>={
  [P in K]:Readonly<{operationKind:P;requestKey:string;input:DeepReadonly<Inputs[P]>;expectedRevisions:OperatorRevisions}>
 }[K];

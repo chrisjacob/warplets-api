@@ -221,3 +221,40 @@ test('fixed-cut request is captured and deeply frozen before either asynchronous
   for(const value of [prepared.command,prepared.command.input,prepared.command.principal,prepared.command.expectedRevisions,prepared.preview,prepared.preview.summary])assert.equal(Object.isFrozen(value),true);
  }
 });
+
+
+test('stage registry expands only explicit local free, public and founder approvals while preserving original command identity',async()=>{
+ const cases=[
+  {...stage().input,type:'free',priceLamports:'0',eligibilityListId:null,walletLimit:null},
+  {...stage().input,type:'public',founderApproved:true,eligibilityListId:null},
+  {...stage().input,type:'founder',priceLamports:'0',founderApproved:true,approvedSpendLamports:'0'},
+  {...stage().input,type:'founder',priceLamports:'0',founderApproved:true,approvedSpendLamports:'1000000'}
+ ];
+ for(const input of cases){
+  const request={...stage(),input},prepared=await prepare(request),original=await buildStagePublicationCommand(principal,{input,requestKey:request.requestKey},crypto);
+  assert.equal(prepared.command.requestDigest,original.requestDigest);assert.equal(prepared.command.businessIdentity,original.businessIdentity);assert.deepEqual(prepared.preview.summary,input);assert.equal(prepared.preview.financialExecution,false);assert.equal(operatorCommandScope(request.operationKind),'collection-publication');
+  assert.equal(Object.hasOwn(prepared.preview.summary,'eligibleCount'),false);assert.equal(Object.hasOwn(prepared.preview.summary,'termsDigest'),false);
+  const revised=await prepare({...request,expectedRevisions:{...revisions,control:'4'}});assert.equal(revised.command.requestDigest,original.requestDigest);assert.notEqual(revised.preview.confirmationDigest,prepared.preview.confirmationDigest);
+  const later=await prepareOperatorCommand({principal,request,nowMs:nowMs+86400000},crypto);assert.deepEqual(later,prepared);
+ }
+ const founder=cases.at(-1),a=await prepare({...stage(),input:founder}),b=await prepare({...stage(),input:{...founder,approvedSpendLamports:'1000001'}});assert.notEqual(a.command.requestDigest,b.command.requestDigest);assert.notEqual(a.preview.confirmationDigest,b.preview.confirmationDigest);
+ const publicInput=cases[1],publicPreview=await prepare({...stage(),input:publicInput}),whitelistPreview=await prepare(stage());assert.notEqual(publicPreview.preview.confirmationDigest,whitelistPreview.preview.confirmationDigest);
+});
+
+test('stage approval combinations reject inferred founder authority, extra budgets, invalid prices and unavailable ballot or override lanes',async()=>{
+ let hashes=0;const counting={...crypto,async sha256(bytes){hashes++;return crypto.sha256(bytes);}},base=stage().input;
+ const inputs=[
+  {...base,founderApproved:true}, {...base,approvedSpendLamports:'0'},
+  {...base,type:'free',priceLamports:'0',eligibilityListId:null,founderApproved:true}, {...base,type:'free',priceLamports:'0',eligibilityListId:null,approvedSpendLamports:'0'},
+  {...base,type:'free',priceLamports:'1',eligibilityListId:null}, {...base,type:'free',priceLamports:'0'},
+  {...base,type:'public',eligibilityListId:null}, {...base,type:'public',eligibilityListId:null,founderApproved:true,approvedSpendLamports:'0'}, {...base,type:'public',founderApproved:true},
+  {...base,type:'founder',priceLamports:'0',approvedSpendLamports:'0'}, {...base,type:'founder',priceLamports:'0',founderApproved:true}, {...base,type:'founder',priceLamports:'1',founderApproved:true,approvedSpendLamports:'0'},
+  {...base,type:'founder',priceLamports:'0',founderApproved:true,approvedSpendLamports:'0',eligibilityListId:null}
+ ];
+ for(const approvedSpendLamports of ['-1','01','18446744073709551616',0])inputs.push({...base,type:'founder',priceLamports:'0',founderApproved:true,approvedSpendLamports});
+ for(const type of ['whitelist','free','public','founder']){
+  const input={...base,type,priceLamports:['free','founder'].includes(type)?'0':base.priceLamports,founderApproved:['public','founder'].includes(type),approvedSpendLamports:type==='founder'?'0':null,eligibilityListId:['public','free'].includes(type)?null:base.eligibilityListId};
+  inputs.push({...input,ballotId:'synthetic-ballot'},{...input,inventoryOverrideReason:'synthetic override'},{...input,spendAuthorized:true});
+ }
+ for(const input of inputs)await assert.rejects(prepareOperatorCommand({principal,request:{...stage(),input},nowMs},counting));assert.equal(hashes,0);
+});

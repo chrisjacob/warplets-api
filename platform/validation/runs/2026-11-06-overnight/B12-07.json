@@ -1,0 +1,142 @@
+{
+  "task": "B12",
+  "slice": "B12-07",
+  "status": "verified-slice",
+  "baseCommit": "a0665d6",
+  "scope": [
+    "Explicit local free/public/founder stage inputs with existing repository guards",
+    "Type-specific safe previews and descriptive review packets; no actual financial authority"
+  ],
+  "checks": {
+    "registry": "18PASS234.7632ms; declarationsPASS; work/b12-stage-expansion-registry.log",
+    "transport": "2PASS1585.806ms work/b12-stage-expansion-transport.log",
+    "regression": "21PASS14411.1478ms work/b12-stage-expansion-regression.log",
+    "browser": {
+      "scope": "B12 local stage UI expansion; no payment, live approval or release authority",
+      "capturedAt": "2026-11-06T14:25:47.907878+00:00",
+      "sourceHashes": {
+        "platform/operator/ui.mjs": "80894a138c0cebbb90d42e5d850bf4eb788344e23d16affc80fa6a706171ed69",
+        "platform/operator/index.html": "dd0afff73afe9a99423f3aa8d056ecb41bd32bb282da45307bd9c447fd43f23c",
+        "platform/operator/approval-packet.mjs": "58261e858704e562b7fa94fe2fb846dbaf2c68716e7ae4a51696b37cd59e6429",
+        "platform/operator/approval-packet.test.mjs": "dc5145045f2473579b12e7f0f54fd3bb1a9ebb9783eead8f5263333feedfc5ae",
+        "platform/operator/stage-browser-qa.mjs": "e0ad0b4aae8ae06441087eb26203714be33ce85a7e979571099aa3f361907924"
+      },
+      "commands": [
+        "node platform/operator/stage-browser-qa.mjs",
+        "node platform/operator/browser-qa.mjs",
+        "node --test platform/operator/approval-packet.test.mjs",
+        "node --check platform/operator/ui.mjs",
+        "node --check platform/operator/approval-packet.mjs",
+        "node --check platform/operator/stage-browser-qa.mjs",
+        "git diff --check -- platform/operator/ui.mjs platform/operator/index.html platform/operator/approval-packet.mjs platform/operator/approval-packet.test.mjs platform/operator/stage-browser-qa.mjs"
+      ],
+      "results": [
+        {
+          "log": "work/b12-expanded-stage-browser.log",
+          "result": {
+            "passed": true,
+            "widths": [
+              360,
+              390,
+              768,
+              1440
+            ],
+            "clock": "actual Date.now with database execution-time fence",
+            "source": "synthetic-local-operator-fixture",
+            "missingListHold": "Preview held: electorate-seal-missing. No publication has been confirmed.",
+            "missingTrancheHeld": true,
+            "noLaunchDefaults": true,
+            "exactUtcTimes": true,
+            "derivedTerms": true,
+            "eligibilityCount": 3,
+            "previewReadOnly": true,
+            "staleConfirmationRejected": true,
+            "negativeLostResponse": true,
+            "negativeResponseIdentity": true,
+            "exactReplayAfterScopeRevocation": true,
+            "immutablePublishedTerms": true,
+            "auditEvents": 6,
+            "expandedStageTypes": [
+              "free",
+              "public",
+              "founder"
+            ],
+            "missingPaidPhasesHeld": true,
+            "explicitFounderApproval": true,
+            "missingFounderScopeRejected": true,
+            "freeEligibilityPending": true,
+            "expandedPacketDownloads": true,
+            "readOnlyPermission": true,
+            "financialExecution": false,
+            "screenshots": "work/b12-stage-operator"
+          }
+        },
+        {
+          "log": "work/b12-expanded-stage-regression.log",
+          "result": {
+            "passed": true,
+            "widths": [
+              360,
+              390,
+              768,
+              1440
+            ],
+            "realCommandExecutions": 14,
+            "auditEvents": 10,
+            "newAuditEvents": 9,
+            "baselineAuditEvents": 1,
+            "previewReadOnly": true,
+            "localReviewPacketDownload": true,
+            "packetNoAuthorityOrPrivateData": true,
+            "packetDisabledAfterAttempt": true,
+            "negativeResponseLoss": true,
+            "exactRetryAfterReload": true,
+            "expiredSessionReauthentication": true,
+            "stablePrincipalRetry": true,
+            "differentPrincipalIsolation": true,
+            "negativeStalePreview": true,
+            "readOnlySession": true,
+            "auditedFinalReview": true,
+            "immutableReviewConflict": true,
+            "reviewExactReplay": true,
+            "confirmationRevisionBinding": true,
+            "negativePreviewMismatch": true,
+            "legacyReceiptReadOnly": true,
+            "missingLegacyReceiptHeld": true,
+            "keyboardFocus": true,
+            "logoutClearsPrivateState": true,
+            "financialExecution": false,
+            "screenshots": "work/b12-operator"
+          }
+        }
+      ],
+      "packetUnitTests": {
+        "passed": 7,
+        "failed": 0,
+        "durationMs": 198.977,
+        "log": "work/b12-expanded-stage-packet.log"
+      },
+      "coverage": [
+        "Existing whitelist browser assertions retained, including unknown-outcome replay after scope revocation and altered response hold",
+        "Explicit type selector with zero free/founder prices; paid prices and schedules remain blank",
+        "Free publication requires completed paid phase schedule and retains pending fixed-opening eligibility",
+        "Public and founder require explicit approval choice plus separate collection-founder scope",
+        "Founder requires a supplied nonnegative local budget and sealed list; no financial execution",
+        "Actual derived terms/eligibility/privacy readonly previews at360/390/768/1440 for all types",
+        "Actual safe packet download for each expanded stage type; seven pure tests cover all four types",
+        "Six real audited publications; no cut commitment or tx intent manufactured",
+        "Unchanged operator session/review/staff/pause/packet suite passes at four widths"
+      ],
+      "visualInspection": "work/b12-stage-operator/founder-preview-360.png; no horizontal overflow at four tested widths",
+      "fixtures": "Synthetic local sealed indexed list; actual Date.now and database execution-time fence. Season schedule and prices are explicit test-only choices.",
+      "integrationDependencies": "Coordinator/registry agent expanded operator registry; no console/schema edits by this agent",
+      "limitations": [
+        "No external founder authorization attestation, chain completeness, production release or financial capability",
+        "Genesis later tranche ballot/override admission remains held under existing prerequisite policy",
+        "Free publication alone does not establish wallet eligibility"
+      ]
+    }
+  },
+  "financialExecution": false,
+  "remaining": "B12 future action policy, source/draft/whitelist intake, fixture observations and completion matrix."
+}

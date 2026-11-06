@@ -38,7 +38,11 @@ export async function prepareOperatorCommand({principal,request,nowMs},crypto){
  if(!stage&&!governance&&!cut){requireValue(exact(i,staffing?staffingFields:review?reviewFields:scopeFields),'Invalid operator input fields.');name(i.reason,'reason');}
  if(stage){
   normalizeStagePublication(i);
-  requireValue(i.type==='whitelist'&&i.founderApproved===false&&i.approvedSpendLamports===null&&i.inventoryOverrideReason===null&&i.ballotId===null,'Only whitelist publication without founder, spend, override or ballot approval is available here.');
+  requireValue(i.inventoryOverrideReason===null&&i.ballotId===null,'Ballot and inventory override publication are unavailable here.');
+  requireValue(i.type==='public'?i.founderApproved===true&&i.approvedSpendLamports===null:
+   i.type==='founder'?i.founderApproved===true&&i.approvedSpendLamports!==null:
+   i.founderApproved===false&&i.approvedSpendLamports===null,'Supply only the explicit fixture approvals required by this stage type.');
+  requireValue(!['free','founder'].includes(i.type)||i.priceLamports==='0','Free and founder stage price must be zero.');
  }else if(staffing){
   nat(i.effectiveEpoch,'epoch');
   requireValue(Number.isInteger(i.staffedMinutes)&&i.staffedMinutes>=0&&i.staffedMinutes<=1440,'Invalid staffed minutes.');
