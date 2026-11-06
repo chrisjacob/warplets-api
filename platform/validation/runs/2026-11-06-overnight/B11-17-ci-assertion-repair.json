@@ -1,0 +1,19 @@
+{
+  "task": "B11",
+  "checkpoint": "B11-17-installed-guard-assertion-repair",
+  "baseCommit": "15c2628dc0c0bdb795b466cdf7ab88247078d752",
+  "failedCI": 42158256759,
+  "change": "Update exact old admission-test rejection message to installed046 guard; unbacked settlement remains rejected on Node and D1. Product code unchanged.",
+  "verification": {
+    "tests": 1,
+    "passed": 1,
+    "pairedCalls": 17,
+    "concurrentCalls": 4,
+    "durationMs": 99384.2373,
+    "log": "work/b11-046-ci-assertion-repair.log",
+    "logSha256": "7fedf9362c15b02c5724b9f3f2ca2c5bddee2064d50dd907e941484a44eb8286"
+  },
+  "sourceHashes": {
+    "platform/edge/test/collection-mint.test.mjs": "44a94ac24eb01c966d853ac036f0b10d92aa215bbd6e02d5add463c5683fcea5"
+  }
+}

@@ -1,5 +1,5 @@
 {
   "policy": "prd-1.2",
   "scope": "local",
-  "checkpoint": "blueprint-b11-guarded-private-mint-fulfillment"
+  "checkpoint": "blueprint-b11-installed-mint-guard-assertion"
 }
