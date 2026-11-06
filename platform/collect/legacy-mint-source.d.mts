@@ -1,0 +1,7 @@
+import type {CanonicalCrypto} from '../application/ports';
+import type {LegacyAdmissionSourcePin} from './legacy-admission-source.mjs';
+import type {LegacyMintAuditInput} from './legacy-mint-audit.mjs';
+type Configured=NonNullable<LegacyMintAuditInput['configured']>;
+export type LegacyMintSourceFacts=Pick<LegacyMintAuditInput,'header'|'operation'|'collectBinding'|'vaultBinding'|'vaultObservation'|'initialHistory'>&Readonly<{configured:null|Readonly<{policy:Pick<NonNullable<Configured['policy']>,'inventoryId'|'policyHash'|'registeredMs'>;request:NonNullable<Configured['request']>;result:NonNullable<Configured['result']>}>}>;
+export type LegacyMintSourceResult=Readonly<{kind:'held';reason:string}>|Readonly<{kind:'verified';facts:LegacyMintSourceFacts;sourceDigest:string;sourcePin:LegacyAdmissionSourcePin;provenance:'retained-original-mint-database-facts';originalPreimageVerified:false;prefixAuthority:false;economics:false;adoption:false;metrics:{sql:number;maxBatchBytes:number;maxReturnedBytes:number;workingBytes:number}}>;
+export function createLegacyMintSource(ports:{driver:{batch(statements:readonly {sql:string;values:readonly (string|number|null)[]}[]):Promise<{rows:Record<string,unknown>[];changes:number}[]>};crypto:CanonicalCrypto}):Readonly<{read(input:{rootId:string;ordinal:number;pageIndex:number;entryIndex:number;source:LegacyAdmissionSourcePin}):Promise<LegacyMintSourceResult>}>;

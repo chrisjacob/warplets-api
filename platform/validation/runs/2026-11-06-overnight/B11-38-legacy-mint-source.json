@@ -1,0 +1,63 @@
+{
+  "task": "B11",
+  "slice": "B11.38 original mint database source mapping",
+  "status": "verified-private-retained-facts; B11 partial",
+  "baseCommit": "2414b2c14ee4f5db281b214f132cbdc09639727e",
+  "implementationCommit": null,
+  "recordedAt": "2026-11-06T06:28:43.154195+00:00",
+  "sourceHashes": {
+    "platform/collect/legacy-mint-source.mjs": "b0623de9c61bf6109083c0d758845d4b26a3e26accdc74c1747b1908872ec022",
+    "platform/collect/legacy-mint-source.d.mts": "332f1dfe8b5b66807046ab4a3aac83a00474216461ca534d9d466fd6223f762b",
+    "platform/collect/legacy-mint-source.fixtures.mjs": "096b547db1f7b6337386d17550dc3f89bb6655f9b758f10c652cc505c34bfa95",
+    "platform/collect/legacy-mint-source.test.mjs": "8f1b1164bc7cc4d953319a2a5a32fd96f7a02dbccbc5ec1795af3f8f59d21084",
+    "platform/edge/test/legacy-mint-source.test.mjs": "a6da9b4558783ddb2041e03dcbf8aba9ba50f4fb9dd7d532dd66500d50c1a070",
+    "platform/edge/test/fixtures/legacy-mint-source-worker.ts": "35d19834e7002ccad143dd697c27d3ce6be3abefb15c693631acc43773be169a"
+  },
+  "checks": [
+    {
+      "command": "node --test platform/collect/legacy-mint-source.test.mjs",
+      "result": "PASS",
+      "tests": 4,
+      "durationMs": 3415.3125,
+      "log": "work/b11-mint-source-node.log"
+    },
+    {
+      "command": "node --test platform/edge/test/legacy-mint-source.test.mjs",
+      "result": "PASS",
+      "tests": 1,
+      "durationMs": 48431.6679,
+      "log": "work/b11-mint-source-edge.log"
+    },
+    {
+      "command": "node platform/edge/node_modules/typescript/bin/tsc --noEmit -p platform/edge/tsconfig.json",
+      "result": "PASS"
+    }
+  ],
+  "observedBounds": {
+    "sql": 18,
+    "maxBatchBytes": 3249,
+    "maxReturnedBytes": 6525,
+    "workingBytes": 69106,
+    "classification": "actual manual and configured Season source, large configured policy excluded from projection; not a maximum full inventory traversal"
+  },
+  "acceptance": [
+    "Reuses33 committed-root original operation/cursor mapping and compares generation/revision/whole-business watermark after hashing all facts.",
+    "Manual Genesis and Season source facts feed27 and retain exact original audit results; missing manual originals remain held.",
+    "Reads original bind fields, Vault slot and original bind event and initial Season history; never current owner/asset traits/Level.",
+    "Configured original request/result and policy identity agree across Node/D1; original policy parts and pinned beacon verification remain27 obligations.",
+    "Complete JSON projections bounded inside SQL before hydration including escaped strings; missing, contradictory, oversized, partial configured rows hold.",
+    "Actual local D1 matches Node; mutation invalidates captured source; public route absent; no writes/schema/public integration."
+  ],
+  "scope": {
+    "originalPreimageVerified": false,
+    "prefixAuthority": false,
+    "economics": false,
+    "adoption": false,
+    "financialExecution": false
+  },
+  "remaining": [
+    "Private original manual fixture and configured policy artifact selection must be composed by durable economic audit.",
+    "Source mapping is not proof of original ingestion time, operator authorization or production payment.",
+    "No original047 free-cut completeness authority can be inferred from this module."
+  ]
+}
