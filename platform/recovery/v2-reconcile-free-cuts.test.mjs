@@ -24,7 +24,7 @@ test('recovery rejects changed retained bytes, closures, indexed pages and recei
  ['app_collection_cut_records',rows=>{for(const r of rows)if(typeof r.body_json==='string')r.body_json=r.body_json.replace('solana-genesis','solana-genesiZ');},/cut-record-digest/],
  ['app_collection_cut_pages',rows=>{for(const r of rows)if(r.closure_digest)r.closure_digest='a'.repeat(64);},/page closure/],
  ['app_collection_eligibility_pages',rows=>{for(const r of rows)if(r.entries_json)r.entries_json='[]';},/indexed eligibility/],
- ['app_command_receipts',rows=>{for(const r of rows)if(r.request_digest)r.request_digest='f'.repeat(64);},/receipt command digest/],
+ ['app_command_receipts',rows=>{for(const r of rows)if(r.request_digest)r.request_digest='f'.repeat(64);},/receipt command digest|historical event hash/],
  ['app_collection_stages',rows=>{for(const r of rows)if(r.opens_ms)r.opens_ms++;},/original stage binding/],
  ])await assert.rejects(check(f,{driver:corruptDriver(f,table,mutate)}),pattern);});
 test('ten-thousand-wallet historical cut reconciles pagewise within the invocation envelope',async t=>{const f=await prepareFreeCutCapacity(t),r=await check(f,{checkpoint:{syntheticCheckpointPadding:'x'.repeat(125000)}});const digest=r.metrics.filter(m=>m.scope.includes('digest:'));assert.equal(digest.length,2);assert.ok(r.metrics.every(m=>m.operations<=48&&m.workingBytes<=1048576));t.diagnostic(JSON.stringify({holdings:10000,knownGenesis:100,pages:100,steps:r.metrics.length,maxOperations:Math.max(...r.metrics.map(m=>m.operations)),maxWorkingBytes:Math.max(...r.metrics.map(m=>m.workingBytes)),digestSteps:digest}));});
@@ -35,3 +35,35 @@ test('wallet hash rejects a target mutation across the streaming await',async t=
 test('fresh private v2 target checks the retained cut before ready and preserves later ownership',async t=>{const f=await sealed(t),now=f.cutMs+10000,store=memoryArtifacts(),ports={...f.ports,clock:{nowMs:()=>now},schema:await readInstalledRecoverySchema(f.ports.crypto),v2Codec:createRecoveryV2Codec(f.ports),codec:createManifestCodec(f.ports)};observeCollectionAsset(f.db,{sourceId:'synthetic-restored-cut-transfer',assetId:f.holdings[0].id,kind:'transfer',from:f.holdings[0].owner,to:f.holders[1],at:f.cutMs+1000,finalized:true},now);f.db.prepare('UPDATE app_operator_scopes SET enabled=0').run();const capture=createRecoveryV2Capture({...ports,driver:f.base,artifacts:store});let captured=await capture.start({captureId:'synthetic-free-cut-restore',sourceCommit:'a'.repeat(40)});for(let n=0;n<3000&&['started','progress','replayed'].includes(captured.kind);n++)captured=await capture.step({captureId:captured.captureId,expectedRevision:captured.revision});assert.equal(captured.kind,'captured',JSON.stringify(captured));const target=v2RestoreTarget(t,{...ports,store,captured,now}),result=await target.drive();assert.equal(result.kind,'restored',JSON.stringify(result));assert.equal(target.db.prepare("SELECT COUNT(*) n FROM app_recovery_reconcile_checks WHERE phase='free-cuts' AND scope LIKE 'binding-digest:%'").get().n,1);assert.equal(target.db.prepare('SELECT owner FROM collect_assets WHERE id=?').get(f.holdings[0].id).owner,f.holders[1]);assert.deepEqual(target.db.prepare('SELECT * FROM app_collection_free_cuts').all(),f.db.prepare('SELECT * FROM app_collection_free_cuts').all());assert.ok(target.metrics.every(m=>m.sql<=64&&m.maxBatchBytes<=262144));t.diagnostic(JSON.stringify({tables:result.report.tables,steps:target.metrics.length,maxSql:Math.max(...target.metrics.map(m=>m.sql)),maxBatchBytes:Math.max(...target.metrics.map(m=>m.maxBatchBytes)),originalCutRestored:true,laterOwnerPreserved:true}));});
 
 test('empty exact cut uses the two-byte canonical digest without a streaming factory',async t=>{const f=await sealed(t,{count:0,trackedCount:0}),r=await check(f,{createDigest:null});assert.equal(r.checks.filter(v=>v.scope.startsWith('binding-digest:')).length,1);assert.ok(r.metrics.filter(m=>m.hashedBytes).every(m=>m.hashedBytes===2));});
+
+
+test('audited057 and059 inputs verify exact rows before stripping metadata; old plain receipt projection remains compatible',async t=>{
+ const f=await sealed(t),kinds=['collection.stage-cut-record.v1','collection.begin-free-cut.v1','collection.validate-cut-page.v1','collection.seal-free-cut.v1','collection.publish-stage.v1'];
+ for(const kind of kinds){const row=f.db.prepare('SELECT input_json FROM app_command_receipts WHERE operation_kind=? LIMIT 1').get(kind);assert.ok(JSON.parse(row.input_json).audit,kind+' is an actual audited producer receipt');}
+ let auditReads=0;const audited={...f.base,async batch(statements){const result=await f.base.batch(statements);for(let n=0;n<statements.length;n++)if(statements[n].sql.includes('FROM ops_config_audit WHERE seq IN')){auditReads++;assert.equal(statements[n].values.length,2);assert.ok(result[n].rows.length<=2);}return result;}};
+ const current=await check(f,{driver:audited});assert.ok(auditReads>=kinds.length);assert.ok(current.metrics.every(m=>m.operations<=48&&m.workingBytes<=1048576&&m.sqlBytes<=262144));
+ // Read-only pre-audit format projection: business fields/digests/results are
+ // byte-identical to old producer receipts; no persisted immutable row changes.
+ const old=corruptDriver(f,'app_command_receipts',rows=>{for(const r of rows)if(r.input_json){const {audit,...input}=JSON.parse(r.input_json);r.input_json=canonicalJson(input);}}),historical=await check(f,{driver:old});assert.deepEqual(historical.checks,current.checks);
+});
+
+test('missing or inconsistent cut/stage audit metadata, child rows and predecessor hashes cannot reconcile',async t=>{
+ const f=await sealed(t);
+ for(const kind of ['collection.stage-cut-record.v1','collection.publish-stage.v1']){
+  const original=f.db.prepare('SELECT input_json FROM app_command_receipts WHERE operation_kind=? ORDER BY created_ms LIMIT 1').get(kind),metadata=JSON.parse(original.input_json).audit;
+  for(const variant of ['extra-metadata','missing-metadata','payload-extra','bad-hash','wrong-time']){
+   const driver=corruptDriver(f,'app_command_receipts',rows=>{for(const r of rows)if(r.operation_kind===kind){const input=JSON.parse(r.input_json);if(variant==='extra-metadata')input.audit.extra=true;if(variant==='missing-metadata')delete input.audit.recordedMs;if(variant==='payload-extra')input.audit.payload=canonicalJson({...JSON.parse(input.audit.payload),extra:true});if(variant==='bad-hash')input.audit.eventHash='f'.repeat(64);if(variant==='wrong-time')input.audit.recordedMs++;r.input_json=canonicalJson(input);}});
+   await assert.rejects(check(f,{driver}),/Recovery receipt audit/);
+  }
+  // For publication choose every audited stage row because only the free stage
+  // is traversed by this reconciler; cut-record faults use the same broad lane.
+  for(const variant of ['missing-row','wrong-actor','wrong-payload','wrong-predecessor']){
+   const driver=corruptDriver(f,'FROM ops_config_audit WHERE seq IN',(rows,statement)=>{const seq=statement.values[0],target=rows.find(r=>r.seq===seq);if(!target||target.category!==(kind==='collection.publish-stage.v1'?'collection-stage':'collection-free-cut'))return;
+    if(variant==='missing-row')rows.splice(rows.indexOf(target),1);if(variant==='wrong-actor')target.actor='synthetic-other';if(variant==='wrong-payload')target.payload=canonicalJson({...JSON.parse(target.payload),extra:true});if(variant==='wrong-predecessor'){const predecessor=rows.find(r=>r.seq===seq-1);assert.ok(predecessor);predecessor.event_hash='f'.repeat(64);}});
+   await assert.rejects(check(f,{driver}),/Recovery receipt audit/);
+  }
+  assert.ok(metadata.seq>1);
+ }
+ const unknown=corruptDriver(f,'app_command_receipts',rows=>{for(const r of rows)if(r.operation_kind==='collection.stage-record.v1'){const input=JSON.parse(r.input_json);input.audit=JSON.parse(f.db.prepare("SELECT input_json FROM app_command_receipts WHERE operation_kind='collection.stage-cut-record.v1' LIMIT 1").get().input_json).audit;r.input_json=canonicalJson(input);}});
+ await assert.rejects(check(f,{driver:unknown}),/unsupported audited kind/);
+});

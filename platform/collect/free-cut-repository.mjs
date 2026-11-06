@@ -1,5 +1,6 @@
+import {prepareConfigAudit,configAuditStatement} from '../storage/atomic-audit.mjs';
 import {createAtomicReceipts} from '../storage/atomic-receipts.mjs';
-import {sql,revisions} from '../storage/atomic-driver.mjs';
+import {sql,revisions,matchesExpectedRevisions} from '../storage/atomic-driver.mjs';
 import {canonicalJson,utf8} from '../security/canonical.mjs';
 import {period,pressureFromRows,decisionFromRows} from '../operations/portable-controls.mjs';
 import {buildCollectionCutCommand,STAGE_COLLECTION_CUT_RECORD as STAGE,BEGIN_COLLECTION_FREE_CUT as BEGIN,VALIDATE_COLLECTION_CUT_PAGE as PAGE,SEAL_COLLECTION_FREE_CUT as SEAL} from './free-cut-service.mjs';
@@ -18,13 +19,13 @@ function operating(scope,usage,spend,now){
  * verifies stored inputs; no caller-prepared plan is an authority capability. */
 export function createCollectionCutRepository(driver,ports){
  const {crypto,clock}=ports,{read,replay,execute}=createAtomicReceipts(driver,ports),nowSql=driver.leaseNowSql??"CAST(unixepoch('subsec')*1000 AS INTEGER)";
- async function run(value,recordValue){
+ async function run(value,recordValue,previewOnly=false){
   const c=clone(value),record=recordValue===undefined?null:captureCollectionCutRecord(recordValue);
-  if(canonicalJson(c)!==canonicalJson(await buildCollectionCutCommand(c.operationKind,c.principal,{requestKey:c.requestKey,...c.input},crypto)))throw new TypeError('Cut command identity mismatch.');
+  if(canonicalJson(c)!==canonicalJson(await buildCollectionCutCommand(c.operationKind,c.principal,{requestKey:c.requestKey,...c.input,...(Object.hasOwn(c,'expectedRevisions')?{expectedRevisions:c.expectedRevisions}:{})},crypto)))throw new TypeError('Cut command identity mismatch.');
   const prior=await replay(c);if(prior)return prior;const now=clock.nowMs();if(!time(now)||now>8640000000000000-30000)return pending('cut-clock-unavailable');
   const isRecord=c.operationKind===STAGE,isBegin=c.operationKind===BEGIN,isPage=c.operationKind===PAGE,isSeal=c.operationKind===SEAL;
   const rootSelector=isRecord||isBegin?'r.id=?':'r.id=(SELECT root_id FROM app_collection_cut_attempts WHERE id=?)',rootParameter=isRecord?c.input.id:isBegin?c.input.rootId:c.input.attemptId;
-  const [rs,grants,scope,usage,spend,records,attempts]=await read([
+  const [rs,grants,scope,usage,spend,records,attempts,heads]=await read([
    sql('SELECT name,CAST(revision AS TEXT) revision FROM app_revisions ORDER BY name'),
    sql("SELECT enabled FROM app_operator_scopes WHERE operator=? AND scope='collection-evidence'",c.principal.id),
    sql("SELECT revision,paused,at_ms FROM ops_scope_log WHERE scope='collection-mint' ORDER BY at_ms DESC LIMIT 1"),
@@ -32,12 +33,21 @@ export function createCollectionCutRepository(driver,ports){
    sql(`SELECT at_ms,status,settled_ms,${bounded('limit_usd_micros',80)},${bounded('actual_usd_micros',80)} FROM ops_optional_spend WHERE status='reserved' OR COALESCE(settled_ms,at_ms)>=? LIMIT 101`,Date.parse(period(now,true)+'-01T00:00:00Z')),
    sql(`SELECT r.id,r.size,r.format,${bounded('r.body_json',65536)} FROM app_collection_cut_records r WHERE ${rootSelector}`,rootParameter),
    sql('SELECT id,root_id,CAST(source_revision AS TEXT) source_revision,created_ms FROM app_collection_cut_attempts WHERE id=?',isRecord||isBegin?null:c.input.attemptId),
+   sql('SELECT seq,event_hash FROM ops_config_audit ORDER BY seq DESC LIMIT 1'),
   ]);
   if(grants[0]?.enabled!==1)return conflict('operator_scope_required');
-  if(rs.length!==3||new Set(rs.map(r=>r.name)).size!==3||rs.some(r=>!['earn','source','control'].includes(r.name)||!decimal(r.revision)||!Number.isSafeInteger(Number(r.revision))))return pending('cut-revisions-unavailable');const version=revisions(rs);
+  if(rs.length!==3||new Set(rs.map(r=>r.name)).size!==3||rs.some(r=>!['earn','source','control'].includes(r.name)||!decimal(r.revision)||!Number.isSafeInteger(Number(r.revision))))return pending('cut-revisions-unavailable');const version=revisions(rs);if(c.expectedRevisions&&!matchesExpectedRevisions(c.expectedRevisions,version))return conflict('revision_conflict');
   const decision=operating(scope,usage,spend,now);if(decision?.allowed!==true)return pending(decision?.reason??'operating-decision-unavailable');
   const authority=[grant,`${nowSql}>=? AND ${nowSql}<=?`,"COALESCE((SELECT paused FROM ops_scope_log WHERE scope='collection-mint' ORDER BY at_ms DESC LIMIT 1),0)=0"],values=[c.principal.id,now,now+30000];
-  const commit=(result,resultRef,child,extra=[],extraValues=[])=>execute({...c,nowMs:now,expectedRevisions:version},{businessKey:c.businessIdentity,input:c.input,result,resultRef,version,authoritySql:[...authority,...extra].join(' AND '),authorityValues:[...values,...extraValues],child});
+  let previewContext=null;
+  const commit=async(result,resultRef,child,extra=[],extraValues=[])=>{
+   if(previewOnly)return {kind:'preview',value:{...result,expectedRevisions:version,context:previewContext,financialExecution:false}};
+   const event={category:'collection-free-cut',entity:c.businessIdentity,changeKey:c.requestKey,atMs:now,actor:c.principal.id,evidenceRef:rootParameter,
+    payload:{operationKind:c.operationKind,requestDigest:c.requestDigest,resultRef,resultDigest:await crypto.sha256(utf8(canonicalJson(result)))}};
+   const audit=await prepareConfigAudit(heads[0],event,crypto);
+   return execute({...c,nowMs:now,expectedRevisions:version},{businessKey:c.businessIdentity,input:{...c.input,audit},result,resultRef,version,
+    authoritySql:[...authority,...extra].join(' AND '),authorityValues:[...values,...extraValues],child:(gate,p)=>[...child(gate,p),configAuditStatement(audit,event,gate,p)]});
+  };
   if(isRecord){
    if(records.length)return conflict('cut_record_already_staged');if(!record||record.id!==c.input.id)throw new TypeError('Cut record binding mismatch.');
    const verified=await prepareCollectionCutRecord(record,crypto),result={id:verified.id,format:verified.format,size:verified.size,source:'local-fixture',executable:false};
@@ -61,6 +71,7 @@ export function createCollectionCutRepository(driver,ports){
   const s=stages[0],l=lists[0];if(!s||s.kind!=='season'||s.stage_type!=='free'||s.eligibility_kind!=='pending'||s.list_id!==null||s.opens_ms!==b.atMs||s.terms_digest!==b.termsDigest||now<b.atMs)return pending('cut-stage-binding');
   if(!l||l.page_count===null||l.page_count<1||l.page_count>100||l.indexed_pages!==l.page_count||l.indexed_count!==l.member_count||l.wallets_digest===null)return pending('cut-indexed-list-missing');
   if(existing.length)return conflict('free_cut_already_sealed');
+  previewContext={inventoryId:b.inventoryId,stageId:b.stageId,cutMs:b.atMs,termsDigest:b.termsDigest,eligibilityListId:b.eligibilityListId,pageCount:b.pages.length};
   if(inputClosure[0]?.available!==b.pages.length)return pending('cut-input-pages-missing');
   authority.push('EXISTS(SELECT 1 FROM app_collection_cut_records WHERE id=? AND body_json=?)',"EXISTS(SELECT 1 FROM app_collection_stages WHERE inventory_id=? AND stage_id=? AND terms_digest=? AND opens_ms=? AND stage_type='free')",'NOT EXISTS(SELECT 1 FROM app_collection_free_cuts WHERE inventory_id=? AND stage_id=?)');values.push(r.id,r.body_json,b.inventoryId,b.stageId,b.termsDigest,b.atMs,b.inventoryId,b.stageId);
   if(isBegin){
@@ -94,5 +105,5 @@ export function createCollectionCutRepository(driver,ports){
   return commit(result,r.id,(gate,p)=>[sql(`INSERT INTO app_collection_free_cuts(inventory_id,stage_id,attempt_id,root_id,list_id,cut_ms,source_ref,source_revision,wallets_digest,eligible_count,command_operation_id) SELECT ?,?,?,?,?,?,?,?,?,?,operation_id FROM app_command_receipts WHERE operation_id=? AND claim_nonce=? AND state='staging' AND ${gate}`,b.inventoryId,b.stageId,a.id,r.id,l.id,b.atMs,sourceRef,Number(sourceRevision),walletsDigest,plan.eligibleWallets,...p,...p)]);
  }
  async function resolve(value,record){const c=clone(value),r=record===undefined?undefined:captureCollectionCutRecord(record),result=await run(c,r);return ['pending','conflict'].includes(result.kind)?await replay(c)??result:result;}
- return Object.freeze({stageRecord:(c,r)=>resolve(c,r),beginCut:c=>resolve(c),validatePage:c=>resolve(c),sealCut:c=>resolve(c)});
+ return Object.freeze({previewCommand:(c,r)=>run(c,r,true),stageRecord:(c,r)=>resolve(c,r),beginCut:c=>resolve(c),validatePage:c=>resolve(c),sealCut:c=>resolve(c)});
 }

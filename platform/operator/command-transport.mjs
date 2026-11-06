@@ -1,3 +1,5 @@
+import {createCollectionCutRepository} from '../collect/free-cut-repository.mjs';
+import {BEGIN_COLLECTION_FREE_CUT,VALIDATE_COLLECTION_CUT_PAGE,SEAL_COLLECTION_FREE_CUT} from '../collect/free-cut-service.mjs';
 import {createGovernanceOperatorRepository} from '../governance/operator-repository.mjs';
 import {PUBLISH_BALLOT,RECORD_DECISION} from '../governance/operator-service.mjs';
 import {CollectionPolicyError} from '../domain/collections/policy.mjs';
@@ -44,6 +46,7 @@ export function createOperatorCommandTransport(db,{sessions,clock=Date.now,crypt
    const driver=createNodeAtomicDriver(db,{transactionGuard:authorization.guard});
    const stages=createStagePublicationRepository(driver,{crypto,ids,clock:{nowMs:clock}});
    const governance=createGovernanceOperatorRepository(driver,{crypto,ids,clock:{nowMs:clock}});
+   const cuts=createCollectionCutRepository(driver,{crypto,ids,clock:{nowMs:clock}});
    if(pathname.endsWith('/receipt')){
     const result=await createAtomicReceipts(driver,{crypto,ids}).replay(prepared.command);
     return result?json(result,result.kind==='conflict'?409:200):failure(404,'receipt_not_found','No accepted receipt matches this command. No change was executed.');
@@ -72,11 +75,18 @@ export function createOperatorCommandTransport(db,{sessions,clock=Date.now,crypt
       {earliestMs:derived.value.earliestMs,ballotSnapshotHash:derived.value.ballotSnapshotHash};
      return json({...prepared.preview,summary:{...prepared.preview.summary,...extra}});
     }
+    if([BEGIN_COLLECTION_FREE_CUT,VALIDATE_COLLECTION_CUT_PAGE,SEAL_COLLECTION_FREE_CUT].includes(prepared.command.operationKind)){
+     const derived=await cuts.previewCommand(prepared.command);
+     if(derived.kind!=='preview')return json(derived,derived.kind==='conflict'?409:derived.kind==='pending'?202:200);
+     authorization.guard();
+     const {expectedRevisions,context,financialExecution,...result}=derived.value;
+     return json({...prepared.preview,summary:{...prepared.preview.summary,context,result}});
+    }
     return json(prepared.preview);
    }
    if(request.headers.get('x-operator-preview')!==prepared.preview.confirmationDigest)
     return failure(409,'preview_required','Confirm the exact command preview.');
-   const result=await dispatchOperatorCommand({...createAtomicOperationsRepository(driver,{crypto,ids}),recordFinalReview:createAtomicEarnRepository(driver,{crypto,ids}).recordFinalReview,publishStage:stages.publishStage,publishBallot:governance.publishBallot,recordDecision:governance.recordDecision},prepared);
+   const result=await dispatchOperatorCommand({...createAtomicOperationsRepository(driver,{crypto,ids}),recordFinalReview:createAtomicEarnRepository(driver,{crypto,ids}).recordFinalReview,publishStage:stages.publishStage,publishBallot:governance.publishBallot,recordDecision:governance.recordDecision,beginCut:cuts.beginCut,validatePage:cuts.validatePage,sealCut:cuts.sealCut},prepared);
    return json(result,result.kind==='conflict'?409:result.kind==='pending'?202:200);
   }catch(error){
    if(error instanceof EarnError||error instanceof OperatorSessionError)return failure(error.status,error.code,error.message);

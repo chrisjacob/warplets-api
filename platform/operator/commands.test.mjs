@@ -5,6 +5,7 @@ import {createOperationsCommand,OPERATIONS} from '../storage/atomic-operations.m
 import {createNodeCrypto} from '../security/node-crypto.mjs';
 import {FINAL_REVIEW,reviewRequestBytes} from '../application/commands.mjs';
 import {canonicalJson,utf8} from '../security/canonical.mjs';
+import {buildCollectionCutCommand,STAGE_COLLECTION_CUT_RECORD,BEGIN_COLLECTION_FREE_CUT,VALIDATE_COLLECTION_CUT_PAGE,SEAL_COLLECTION_FREE_CUT} from '../collect/free-cut-service.mjs';
 import {PUBLISH_BALLOT,RECORD_DECISION,prepareGovernanceOperatorCommand,governanceOperatorCommandBytes} from '../governance/operator-service.mjs';
 import {PUBLISH_COLLECTION_STAGE,buildStagePublicationCommand} from '../collect/stage-service.mjs';
 
@@ -22,6 +23,9 @@ const stage=()=>({operationKind:PUBLISH_COLLECTION_STAGE,requestKey:'synthetic-s
  priceLamports:'100000000',costLamports:'5000',allocation:100,walletLimit:1,founderApproved:false,approvedSpendLamports:null,ballotId:null,inventoryOverrideReason:null,eligibilityListId:'a'.repeat(64),sourceKind:'synthetic-local-operator-fixture'}});
 const ballot=()=>({operationKind:PUBLISH_BALLOT,requestKey:'synthetic-ballot-publish',expectedRevisions:{...revisions},input:{ballotId:'synthetic-ballot',opensMs:nowMs,previousTrancheOpeningMs:nowMs-86400000,electorateSourceId:'synthetic-electorate',electorateDigest:'b'.repeat(64),cutoffMs:nowMs,sourceKind:'synthetic-local-operator-fixture',holdersListId:'c'.repeat(64),nextWhitelistListId:'d'.repeat(64),unionListId:'e'.repeat(64)}});
 const decision=()=>({operationKind:RECORD_DECISION,requestKey:'synthetic-decision',expectedRevisions:{...revisions},input:{ballotId:'synthetic-ballot',choice:'7',decidedMs:nowMs,noticeMs:nowMs-86400000,rationale:'Synthetic advisory choice'}});
+const cutBegin=()=>({operationKind:BEGIN_COLLECTION_FREE_CUT,requestKey:'synthetic-cut-begin',expectedRevisions:{...revisions},input:{rootId:'a'.repeat(64)}});
+const cutPage=()=>({operationKind:VALIDATE_COLLECTION_CUT_PAGE,requestKey:'synthetic-cut-page',expectedRevisions:{...revisions},input:{attemptId:'b'.repeat(64),pageIndex:0}});
+const cutSeal=()=>({operationKind:SEAL_COLLECTION_FREE_CUT,requestKey:'synthetic-cut-seal',expectedRevisions:{...revisions},input:{attemptId:'b'.repeat(64)}});
 const prepare=request=>prepareOperatorCommand({principal,request,nowMs},crypto);
 const invalid=error=>error.code==='invalid_input';
 
@@ -36,7 +40,7 @@ test('local operator registry rejects member authority, extra fields, unknown co
  for(const badPrincipal of [{kind:'wallet',wallet:'synthetic'}, {...principal,sessionToken:'not-command-data'}, {kind:'operator',id:' '}])
   await assert.rejects(prepareOperatorCommand({principal:badPrincipal,request:staffing(),nowMs},counting),invalid);
  await assert.rejects(prepareOperatorCommand({principal,request:staffing(),nowMs:NaN},counting),invalid);
- assert.equal(hashes,0);assert.deepEqual(LOCAL_OPERATOR_COMMANDS,[OPERATIONS.configureWorkload,OPERATIONS.changeScope,FINAL_REVIEW,PUBLISH_COLLECTION_STAGE,PUBLISH_BALLOT,RECORD_DECISION]);
+ assert.equal(hashes,0);assert.deepEqual(LOCAL_OPERATOR_COMMANDS,[OPERATIONS.configureWorkload,OPERATIONS.changeScope,FINAL_REVIEW,PUBLISH_COLLECTION_STAGE,PUBLISH_BALLOT,RECORD_DECISION,BEGIN_COLLECTION_FREE_CUT,VALIDATE_COLLECTION_CUT_PAGE,SEAL_COLLECTION_FREE_CUT]);
 });
 
 test('final moderation keeps historical receipt identity while confirmation binds explicit revisions',async()=>{
@@ -51,7 +55,7 @@ test('final moderation keeps historical receipt identity while confirmation bind
 });
 
 test('all confirmation identities bind canonical captured request, principal, revisions and key',async()=>{
- for(const request of [staffing(),pause(),review(),stage(),ballot(),decision()]){
+ for(const request of [staffing(),pause(),review(),stage(),ballot(),decision(),cutBegin(),cutPage(),cutSeal()]){
   const value=await prepare(request),expected=await crypto.sha256(utf8(canonicalJson(['10x-local-operator-confirmation-v1',principal.id,request])));assert.equal(value.preview.confirmationDigest,expected);
   const changedRevision=await prepare({...request,expectedRevisions:{...revisions,earn:'1'}});assert.notEqual(changedRevision.preview.confirmationDigest,expected);
   const other=await prepareOperatorCommand({principal:{...principal,id:'another-operator'},request,nowMs},crypto);assert.notEqual(other.preview.confirmationDigest,expected);
@@ -172,6 +176,47 @@ test('governance input, principal and full confirmation stay captured across asy
   const request=factory(),original=structuredClone(request),p={...principal},delayed={...crypto,async sha256(bytes){started();await gate;return crypto.sha256(bytes);}};
   const pending=prepareOperatorCommand({principal:p,request,nowMs},delayed);await entered;
   request.input.ballotId='another-ballot';request.expectedRevisions.control='99';request.requestKey='another-key';p.id='another-operator';release();
+  const prepared=await pending;assert.deepEqual(prepared,await prepare(original));
+  for(const value of [prepared.command,prepared.command.input,prepared.command.principal,prepared.command.expectedRevisions,prepared.preview,prepared.preview.summary])assert.equal(Object.isFrozen(value),true);
+ }
+});
+
+
+test('fixed-cut registry preserves historical digests, exact static inputs and three distinct named dispatches',async()=>{
+ for(const [factory,method] of [[cutBegin,'beginCut'],[cutPage,'validatePage'],[cutSeal,'sealCut']]){
+  const request=factory(),prepared=await prepare(request),legacy=await buildCollectionCutCommand(request.operationKind,principal,{requestKey:request.requestKey,...request.input},crypto);
+  assert.equal(prepared.command.requestDigest,legacy.requestDigest);assert.equal(prepared.command.businessIdentity,legacy.businessIdentity);assert.deepEqual(prepared.command.expectedRevisions,revisions);
+  const changed=await prepare({...request,expectedRevisions:{...revisions,control:'4'}}),later=await prepareOperatorCommand({principal,request,nowMs:nowMs+86400000},crypto);
+  assert.equal(changed.command.requestDigest,legacy.requestDigest);assert.notEqual(changed.preview.confirmationDigest,prepared.preview.confirmationDigest);assert.deepEqual(later,prepared);
+  assert.deepEqual(prepared.preview.summary,{...request.input,financialExecution:false});assert.equal(prepared.preview.financialExecution,false);assert.equal(operatorCommandScope(request.operationKind),'collection-evidence');
+  for(const field of ['inventoryId','stageId','cutMs','termsDigest','eligibilityListId','pageCount','wallets','result'])assert.equal(Object.hasOwn(prepared.preview.summary,field),false);
+  assert.throws(()=>dispatchOperatorCommand({},prepared),invalid);const accepted={kind:'replayed',value:{source:'local-fixture',executable:false}};let seen;
+  assert.equal(await dispatchOperatorCommand({[method](command){seen=command;return Promise.resolve(accepted);}},prepared),accepted);assert.equal(seen,prepared.command);
+ }
+ for(const pageIndex of [0,99])assert.equal((await prepare({...cutPage(),input:{...cutPage().input,pageIndex}})).command.input.pageIndex,pageIndex);
+});
+
+test('fixed-cut input bounds reject caller timing, lists, record uploads, aliases and noncanonical identities before hashing',async()=>{
+ let hashes=0;const counting={...crypto,async sha256(bytes){hashes++;return crypto.sha256(bytes);}},bad=[];
+ for(const factory of [cutBegin,cutPage,cutSeal]){
+  const request=factory(),id=request.operationKind===BEGIN_COLLECTION_FREE_CUT?'rootId':'attemptId';
+  for(const value of ['', 'a'.repeat(63),'a'.repeat(65),'A'.repeat(64),'g'.repeat(64),null,7])bad.push({...request,input:{...request.input,[id]:value}});
+  for(const field of Object.keys(request.input)){const input={...request.input};delete input[field];bad.push({...request,input});}
+  for(const field of ['cutMs','atMs','wallets','sourceRevision','complete','inventoryId','stageId','record','expectedRevisions'])bad.push({...request,input:{...request.input,[field]:field==='wallets'?[]:true}});
+  bad.push({...request,expectedRevisions:{earn:'0',source:'12'}});
+ }
+ for(const pageIndex of [-1,100,0.5,'0',null,NaN,Infinity])bad.push({...cutPage(),input:{...cutPage().input,pageIndex}});
+ for(const operationKind of [STAGE_COLLECTION_CUT_RECORD,'beginCut','validatePage','sealCut','collection.freeze-free-cut.v1'])bad.push({...cutBegin(),operationKind});
+ for(const request of bad)await assert.rejects(prepareOperatorCommand({principal,request,nowMs},counting));assert.equal(hashes,0);
+ assert.equal(LOCAL_OPERATOR_COMMANDS.includes(STAGE_COLLECTION_CUT_RECORD),false);
+});
+
+test('fixed-cut request is captured and deeply frozen before either asynchronous digest',async()=>{
+ for(const factory of [cutBegin,cutPage,cutSeal]){
+  let release,started;const gate=new Promise(resolve=>{release=resolve;}),entered=new Promise(resolve=>{started=resolve;});
+  const request=factory(),original=structuredClone(request),p={...principal},delayed={...crypto,async sha256(bytes){started();await gate;return crypto.sha256(bytes);}};
+  const pending=prepareOperatorCommand({principal:p,request,nowMs},delayed);await entered;
+  request.input={attemptId:'f'.repeat(64),pageIndex:99};request.requestKey='changed';request.expectedRevisions.source='99';p.id='changed';release();
   const prepared=await pending;assert.deepEqual(prepared,await prepare(original));
   for(const value of [prepared.command,prepared.command.input,prepared.command.principal,prepared.command.expectedRevisions,prepared.preview,prepared.preview.summary])assert.equal(Object.isFrozen(value),true);
  }

@@ -12,7 +12,7 @@ import {LOCAL_OPERATOR_COMMANDS} from '../application/operator-commands.mjs';
 import {controlledScopes} from '../operations/portable-controls.mjs';
 import {DAY_MS} from '../domain/earn/index.mjs';
 
-const assets=new Map([['/',['index.html','text/html']],['/operator.js',['ui.mjs','text/javascript']],['/operator.css',['ui.css','text/css']]]);
+const assets=new Map([['/',['index.html','text/html']],['/operator.js',['ui.mjs','text/javascript']],['/approval-packet.js',['approval-packet.mjs','text/javascript']],['/operator.css',['ui.css','text/css']]]);
 const iso=n=>new Date(n).toISOString();
 function parseDate(value){
  if(!/^\d{4}-\d\d-\d\d$/.test(value))throw new EarnError(400,'invalid_epoch','Select a valid UTC board date.');

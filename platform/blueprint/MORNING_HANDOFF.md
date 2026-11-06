@@ -1,25 +1,23 @@
-# Current checkpoint — B12 advisory governance tested
+# Current checkpoint — B12 free cuts, recovery and review packets
 
-Continue authorized B work after checkpoints. User requests token efficiency: task-sized reads, compact logs, reuse passed evidence and avoid duplicate broad suites. No deployment, remote resources, spending, signing, external messages, merges or R-stage work. Financial capabilities stay disabled; Sydney launch hours and later mint prices stay open.
+User budget: latest account meter16% weekly used (baseline15%). Check each checkpoint and before larger tasks. Stop starting work around75%, reserve verification/commit/push/report margin before80%; then hand over for manual review. Account usage is shared. Do not spend or consume reset credits.
 
-Branch work/10x-prd-foundation. Last pushed d0cad5d; governance B12-05 commit/push follows this record. B00–B11 and B14 locally verified; B12 active; B20-core passed and must be skipped until full prerequisites pass. Preserve all newer edits. Schema058 installed; next059 unreserved.112business tables.
+Continue ready B work between checkpoints. No deployment, remote resource mutation, signing, spending, messages, merges or R-stage work. Financial capabilities remain disabled. Sydney launch hours/later mint prices remain open.
 
-## Tested milestones
+Branch work/10x-prd-foundation; last pushed71cfb80, last product0269b2f. Current tested B12-06 changes await commit/push. B00–B11 and B14 locally verified; B12 partial; B20-core verified, skip until full prerequisites. Schema059 installed, next060 unreserved;112business tables.
 
-- B12-01 4bed3c1: explicit session permissions/expiry/revocation, guarded Node transactions, staffing/pause, atomic final-review audit056.
-- B12-02 ecde28f: audited final moderation UI; full-request confirmation digest; legacy receipt-only recovery.
-- B12-03 9cfca73: table-order index compaction saves2195B; old-name checkpoints resume. Full Node/D1 recovery passed.
-- B12-04 d0cad5d: whitelist-only publication exact source-derived preview and atomic audit057.25Node tests,10000walletD1,4widthbrowsers and fullD1recovery passed; maxcheckpoint129260B.
-- B12-05 ready: advisory governance publication/decision previews and atomic audit058.29boundary tests,7existingrepo tests,6newaudit tests,2actualD1 tests (10000memberparity),types pass. Node modern-pending recovery finished,maxcheckpoint129234/131072B. Governance/review/stage4widthbrowser journeys allpass. Exact results in platform/validation/runs/2026-11-06-overnight/B12-05.json.
+## Evidence
 
-## Active next work
+B12-01 through05 retain detailed evidence in platform/validation/runs/2026-11-06-overnight/. B12-06 records free-cut registry/transport/UI, mandatory audit059, verified audit-aware recovery and local review-packet export. Existing9cut tests,33boundary,6audit,2D1audit,11recoveryNode,2recoveryD1 all pass. Four-width cut/browser flows pass; six packet tests and actual download regression pass. No broad reruns needed without changes.
 
-Uncommitted coordinator free-cut-service.mjs/free-cut-repository.mjs: optional explicit reviewed revisions preserve old digests; common atomic audit child; read-only previewCommand returns result+safe context fixed to actual stage opening. Initial3smoke tests passed (work/b12-free-cut-audit-smoke.log). Mandatory059audit trigger, declarations, focusedfault tests and typedoperatorUI not implemented yet. Stage-record upload/source intake is separate remaining work. Both agents idle after governance verification.
-
-Next executable step: verify governance commit/push outcome; reserve/write059mandatory free-cut audit guard; finish begin/page/seal operator registry and safe derived previews (no user-selectable cut timestamp), then source/action/observation/explicit founder approvals and approval-packet export. Do not mark B12 complete merely because these slices pass.
+Recovery now verifies exact additive audit metadata, original ordered event hash, persisted row and predecessor before extracting business input. Historical plain receipts remain supported; no blind metadata stripping. Full112table restore and10000holding D1 recovery pass unchanged resource bounds.
 
 ## Integrated CI
 
-Frozen run42221767194 on b9efc0c: reference domains/recovery, viewer and beacon steps passed; Edge suite stillrunning at last observation. Watchsession37792,work/ci-42221767194.log. This run does not cover B12. Follow it to completion; then trigger a consolidated tested B12 checkpoint without cancelling earlier evidence. Prior40minute run timed out; allowance120minutes, no assertions weakened.
+B11 run42221767194 onb9efc0c SUCCESS,1h0m41s. B12 run42230198456 on71cfb80 still pending at last observation; watchsession34102,work/ci-42230198456.log. Frozen run covers through0269b2f/schema058, not current059/reader fix. It may expose the stage receipt audit incompatibility now fixed and locally tested. Follow to completion, resolve any additional failures, then start a consolidated tested checkpoint; do not cancel or weaken acceptance.
 
-B11 complete local rollup: platform/validation/runs/2026-11-06-overnight/B11.json (140EdgePASS;849referencePASS plus corrected obsolete memoryfloor focusedPASS). Historical detail is in git/evidence; no need to reload it for current B12 work.
+## Next executable work
+
+Commit/push B12-06 explicit paths after staged diff check. Continue explicit local free/public/founder publication approvals using existing repository scopes and fixture-only results. Then collection source/draft/whitelist/cut-record intake, future action configuration and fixture observations, complete B12 matrix/browser checks and proceed dependency queue. Approval-packet helper currently supports nine command kinds; extend its explicit safe allowlists as commands expand. Standard transport remains16KiB; never loosen just to accept source uploads. All approval packets are descriptive, not authorization.
+
+Both agents completed the cut/packet slice. snapshot_acceptance is inspecting the next stage expansion read-only. Coordinator owns contracts/migrations/commits. Keep reads task-sized, reuse passed evidence and check account usage each checkpoint.

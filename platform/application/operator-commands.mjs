@@ -5,10 +5,11 @@ import {FINAL_REVIEW,reviewRequestBytes} from './commands.mjs';
 import {canonicalJson,utf8} from '../security/canonical.mjs';
 import {buildStagePublicationCommand,PUBLISH_COLLECTION_STAGE} from '../collect/stage-service.mjs';
 import {normalizeStagePublication} from '../collect/stage-plan.mjs';
+import {buildCollectionCutCommand,BEGIN_COLLECTION_FREE_CUT,VALIDATE_COLLECTION_CUT_PAGE,SEAL_COLLECTION_FREE_CUT} from '../collect/free-cut-service.mjs';
 import {prepareGovernanceOperatorCommand,PUBLISH_BALLOT,RECORD_DECISION} from '../governance/operator-service.mjs';
 
-export const LOCAL_OPERATOR_COMMANDS=Object.freeze([OPERATIONS.configureWorkload,OPERATIONS.changeScope,FINAL_REVIEW,PUBLISH_COLLECTION_STAGE,PUBLISH_BALLOT,RECORD_DECISION]);
-export const LOCAL_OPERATOR_SCOPES=Object.freeze({[OPERATIONS.configureWorkload]:'operations',[OPERATIONS.changeScope]:'operations',[FINAL_REVIEW]:'earn-review',[PUBLISH_COLLECTION_STAGE]:'collection-publication',[PUBLISH_BALLOT]:'governance-publication',[RECORD_DECISION]:'governance-decision'});
+export const LOCAL_OPERATOR_COMMANDS=Object.freeze([OPERATIONS.configureWorkload,OPERATIONS.changeScope,FINAL_REVIEW,PUBLISH_COLLECTION_STAGE,PUBLISH_BALLOT,RECORD_DECISION,BEGIN_COLLECTION_FREE_CUT,VALIDATE_COLLECTION_CUT_PAGE,SEAL_COLLECTION_FREE_CUT]);
+export const LOCAL_OPERATOR_SCOPES=Object.freeze({[OPERATIONS.configureWorkload]:'operations',[OPERATIONS.changeScope]:'operations',[FINAL_REVIEW]:'earn-review',[PUBLISH_COLLECTION_STAGE]:'collection-publication',[PUBLISH_BALLOT]:'governance-publication',[RECORD_DECISION]:'governance-decision',[BEGIN_COLLECTION_FREE_CUT]:'collection-evidence',[VALIDATE_COLLECTION_CUT_PAGE]:'collection-evidence',[SEAL_COLLECTION_FREE_CUT]:'collection-evidence'});
 export function operatorCommandScope(kind){requireValue(LOCAL_OPERATOR_COMMANDS.includes(kind),'This operator command is unavailable.');return LOCAL_OPERATOR_SCOPES[kind];}
 const exact=(value,keys)=>value&&typeof value==='object'&&!Array.isArray(value)
  &&Object.keys(value).length===keys.length&&keys.every(key=>Object.hasOwn(value,key));
@@ -18,6 +19,7 @@ const scopeFields=['scope','paused','previousRevision','reason','evidenceRef'];
 const reviewFields=['submissionId','score','reason','sourceRef'];
 const ballotFields=['ballotId','opensMs','previousTrancheOpeningMs','electorateSourceId','electorateDigest','cutoffMs','sourceKind','holdersListId','nextWhitelistListId','unionListId'];
 const decisionFields=['ballotId','choice','decidedMs','noticeMs','rationale'];
+const cutFields=Object.freeze({[BEGIN_COLLECTION_FREE_CUT]:['rootId'],[VALIDATE_COLLECTION_CUT_PAGE]:['attemptId','pageIndex'],[SEAL_COLLECTION_FREE_CUT]:['attemptId']});
 
 /** This registry accepts trusted principal/time separately from the wire body.
  * A preview is descriptive, never session, scope or current-state authority. */
@@ -30,9 +32,10 @@ export async function prepareOperatorCommand({principal,request,nowMs},crypto){
  requireValue(typeof r.requestKey==='string'&&/^[A-Za-z0-9._:-]{1,128}$/.test(r.requestKey),'Invalid request key.');
  requireValue(exact(r.expectedRevisions,['earn','source','control'])&&Object.values(r.expectedRevisions).every(value=>
   typeof value==='string'&&/^(0|[1-9][0-9]*)$/.test(value)&&Number.isSafeInteger(Number(value))),'Supply all three exact safe revision strings.');
- const i=r.input,staffing=r.operationKind===OPERATIONS.configureWorkload,review=r.operationKind===FINAL_REVIEW,stage=r.operationKind===PUBLISH_COLLECTION_STAGE,governance=r.operationKind===PUBLISH_BALLOT||r.operationKind===RECORD_DECISION;
+ const i=r.input,staffing=r.operationKind===OPERATIONS.configureWorkload,review=r.operationKind===FINAL_REVIEW,stage=r.operationKind===PUBLISH_COLLECTION_STAGE,governance=r.operationKind===PUBLISH_BALLOT||r.operationKind===RECORD_DECISION,cut=Object.hasOwn(cutFields,r.operationKind);
+ if(cut)requireValue(exact(i,cutFields[r.operationKind]),'Invalid fixed-cut input fields.');
  if(governance)requireValue(exact(i,r.operationKind===PUBLISH_BALLOT?ballotFields:decisionFields),'Invalid governance input fields.');
- if(!stage&&!governance){requireValue(exact(i,staffing?staffingFields:review?reviewFields:scopeFields),'Invalid operator input fields.');name(i.reason,'reason');}
+ if(!stage&&!governance&&!cut){requireValue(exact(i,staffing?staffingFields:review?reviewFields:scopeFields),'Invalid operator input fields.');name(i.reason,'reason');}
  if(stage){
   normalizeStagePublication(i);
   requireValue(i.type==='whitelist'&&i.founderApproved===false&&i.approvedSpendLamports===null&&i.inventoryOverrideReason===null&&i.ballotId===null,'Only whitelist publication without founder, spend, override or ballot approval is available here.');
@@ -44,22 +47,22 @@ export async function prepareOperatorCommand({principal,request,nowMs},crypto){
  }else if(review){
   name(i.submissionId,'submission');name(i.sourceRef,'source reference');
   requireValue(r.requestKey===i.submissionId,'Final review request key must equal its submission ID.');
-  requireValue(Number.isInteger(i.score)&&i.score>=0&&i.score<=10,'Score must be 0â€“10.');
- }else if(!governance){
+  requireValue(Number.isInteger(i.score)&&i.score>=0&&i.score<=10,'Score must be 0-10.');
+ }else if(!governance&&!cut){
   requireValue(controlledScopes.includes(i.scope),'Choose a controllable application scope. Claims, principal and recovery are protected.');
   requireValue(typeof i.paused==='boolean','Specify pause or resume.');
   requireValue(i.previousRevision===null||typeof i.previousRevision==='string'&&i.previousRevision.length>0&&i.previousRevision.length<=256&&i.previousRevision===i.previousRevision.trim(),'Invalid prior scope revision.');
   name(i.evidenceRef,'evidence reference');
  }
  freeze(p);freeze(r);
- const command=governance?await prepareGovernanceOperatorCommand(r.operationKind,{principal:p,requestKey:r.requestKey,input:i,nowMs:at,expectedRevisions:r.expectedRevisions},crypto):stage?await buildStagePublicationCommand(p,{requestKey:r.requestKey,input:i,expectedRevisions:r.expectedRevisions},crypto):review?{principal:p,operationKind:FINAL_REVIEW,businessIdentity:i.submissionId,requestKey:r.requestKey,input:i,nowMs:at,expectedRevisions:r.expectedRevisions,
+ const command=cut?await buildCollectionCutCommand(r.operationKind,p,{requestKey:r.requestKey,...i,expectedRevisions:r.expectedRevisions},crypto):governance?await prepareGovernanceOperatorCommand(r.operationKind,{principal:p,requestKey:r.requestKey,input:i,nowMs:at,expectedRevisions:r.expectedRevisions},crypto):stage?await buildStagePublicationCommand(p,{requestKey:r.requestKey,input:i,expectedRevisions:r.expectedRevisions},crypto):review?{principal:p,operationKind:FINAL_REVIEW,businessIdentity:i.submissionId,requestKey:r.requestKey,input:i,nowMs:at,expectedRevisions:r.expectedRevisions,
   requestDigest:await crypto.sha256(reviewRequestBytes({principal:p,input:i}))}:
   await createOperationsCommand(r.operationKind,{principal:p,requestKey:r.requestKey,input:i,nowMs:at,expectedRevisions:r.expectedRevisions},crypto);
  const confirmationDigest=await crypto.sha256(utf8(canonicalJson(['10x-local-operator-confirmation-v1',p.id,r])));
  // Current-time/state predicates stay in the repository, after accepted replay.
  const preview={operationKind:r.operationKind,requestKey:r.requestKey,requestDigest:command.requestDigest,confirmationDigest,
   expectedRevisions:r.expectedRevisions,financialExecution:false,
-  summary:governance?{...i,advisory:true,financialExecution:false}:staffing?{...i,calculatedCapacity:Math.min(i.admissionLimit,Math.floor(i.staffedMinutes*60/i.secondsPerReview)),currentOrFutureEpoch:i.effectiveEpoch>=Math.floor(at/86400000)}:review?{...i,final:true}:{...i}};
+  summary:cut?{...i,financialExecution:false}:governance?{...i,advisory:true,financialExecution:false}:staffing?{...i,calculatedCapacity:Math.min(i.admissionLimit,Math.floor(i.staffedMinutes*60/i.secondsPerReview)),currentOrFutureEpoch:i.effectiveEpoch>=Math.floor(at/86400000)}:review?{...i,final:true}:{...i}};
  return freeze({command,preview});
 }
 
@@ -68,6 +71,9 @@ export async function prepareOperatorCommand({principal,request,nowMs},crypto){
 export function dispatchOperatorCommand(repository,prepared){
  const command=prepared?.command;
  requireValue(command&&LOCAL_OPERATOR_COMMANDS.includes(command.operationKind),'This operator command is unavailable.');
+ if(command.operationKind===BEGIN_COLLECTION_FREE_CUT){requireValue(typeof repository.beginCut==='function','Fixed-cut begin is unavailable.');return repository.beginCut(command);}
+ if(command.operationKind===VALIDATE_COLLECTION_CUT_PAGE){requireValue(typeof repository.validatePage==='function','Fixed-cut page validation is unavailable.');return repository.validatePage(command);}
+ if(command.operationKind===SEAL_COLLECTION_FREE_CUT){requireValue(typeof repository.sealCut==='function','Fixed-cut sealing is unavailable.');return repository.sealCut(command);}
  if(command.operationKind===PUBLISH_BALLOT){requireValue(typeof repository.publishBallot==='function','Ballot publication is unavailable.');return repository.publishBallot(command);}
  if(command.operationKind===RECORD_DECISION){requireValue(typeof repository.recordDecision==='function','Advisory decision is unavailable.');return repository.recordDecision(command);}
  if(command.operationKind===PUBLISH_COLLECTION_STAGE){requireValue(typeof repository.publishStage==='function','Stage publication is unavailable.');return repository.publishStage(command);}

@@ -1,3 +1,4 @@
+import {matchesExpectedRevisions} from '../storage/atomic-driver.mjs';
 import {canonicalJson,utf8} from '../security/canonical.mjs';
 import {captureCollectionCutRecord,prepareCollectionCutRecord} from './free-cut-codec.mjs';
 export const STAGE_COLLECTION_CUT_RECORD='collection.stage-cut-record.v1';
@@ -11,10 +12,12 @@ export async function buildCollectionCutCommand(operationKind,principal,request,
  const p=structuredClone(principal),r=structuredClone(request);
  if(!exact(p,['kind','id'])||p.kind!=='operator'||!id(p.id)||!id(r?.requestKey))throw new TypeError('Collection cuts require a scoped operator and request key.');
  const fields=operationKind===STAGE_COLLECTION_CUT_RECORD?['id']:operationKind===BEGIN_COLLECTION_FREE_CUT?['rootId']:operationKind===VALIDATE_COLLECTION_CUT_PAGE?['attemptId','pageIndex']:operationKind===SEAL_COLLECTION_FREE_CUT?['attemptId']:null;
- if(!fields||!exact(r,['requestKey',...fields])||!hash(r[fields[0]])||(operationKind===VALIDATE_COLLECTION_CUT_PAGE&&(!Number.isInteger(r.pageIndex)||r.pageIndex<0||r.pageIndex>99)))throw new TypeError('Supply exact bounded collection cut fields.');
- const {requestKey,...input}=r,businessIdentity=operationKind===BEGIN_COLLECTION_FREE_CUT?canonicalJson([input.rootId,requestKey]):operationKind===VALIDATE_COLLECTION_CUT_PAGE?canonicalJson([input.attemptId,input.pageIndex]):input[fields[0]];
+ const reviewed=Object.hasOwn(r??{},'expectedRevisions');
+ if(reviewed){matchesExpectedRevisions(r.expectedRevisions,{});if(Object.keys(r.expectedRevisions).length!==3)throw new TypeError('Supply all reviewed cut revisions.');}
+ if(!fields||!exact(r,['requestKey',...fields,...(reviewed?['expectedRevisions']:[])])||!hash(r[fields[0]])||(operationKind===VALIDATE_COLLECTION_CUT_PAGE&&(!Number.isInteger(r.pageIndex)||r.pageIndex<0||r.pageIndex>99)))throw new TypeError('Supply exact bounded collection cut fields.');
+ const {requestKey,expectedRevisions,...input}=r,businessIdentity=operationKind===BEGIN_COLLECTION_FREE_CUT?canonicalJson([input.rootId,requestKey]):operationKind===VALIDATE_COLLECTION_CUT_PAGE?canonicalJson([input.attemptId,input.pageIndex]):input[fields[0]];
  const requestDigest=await crypto.sha256(utf8(canonicalJson([operationKind,p,businessIdentity,requestKey,input])));
- return freeze({operationKind,principal:p,businessIdentity,requestKey,input,requestDigest});
+ return freeze({operationKind,principal:p,businessIdentity,requestKey,input,requestDigest,...(reviewed?{expectedRevisions}:{})});
 }
 /** Private named commands only. Repository re-verifies retained bytes and all
  * closure/current-source facts; codec output is never an approval capability. */
