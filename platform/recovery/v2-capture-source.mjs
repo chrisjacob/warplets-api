@@ -53,7 +53,8 @@ export function createRecoveryV2CaptureSource({driver,artifacts,crypto,clock,sch
   need(checkpoint.phase==='rows','Invalid v2 source phase.');
   const table=checkpoint.tables[checkpoint.tableIndex];if(!table)return advance(run,{...checkpoint,phase:'references',referenceTable:0,referencePage:0,referenceItem:0},{state:'verifying'});
   const plan=planRecoveryV2Rows(table,{index:checkpoint.pageIndex,after:checkpoint.after}),rows=await read([sql(recoveryV2SourceGuardSql),plan.statement,sql(recoveryV2SourceGuardSql)]);let page;
-  try{checkRecoveryV2SourceGuard(rows[0],descriptor);checkRecoveryV2SourceGuard(rows[2],descriptor);page=materializeRecoveryV2Rows(plan,rows[1]);}catch(error){return hold(run,/source/.test(error.message)?'capture-source-changed':'capture-row-bound-or-invalid');}
+  try{checkRecoveryV2SourceGuard(rows[0],descriptor);checkRecoveryV2SourceGuard(rows[2],descriptor);}catch{return hold(run,'capture-source-changed');}
+  try{page=materializeRecoveryV2Rows(plan,rows[1]);}catch{return hold(run,'capture-row-bound-or-invalid');}
   if(!page.value){checkpoint.tableIndex++;checkpoint.pageIndex=0;checkpoint.after=null;return advance(run,checkpoint);}
   const n=page.value.rows.length;if(checkpoint.tableCounts[checkpoint.tableIndex]+n>RECOVERY_V2_LIMITS.tableRows)return hold(run,'capture-table-row-bound');
   const object=await v2Codec.encodeRows(page.value),stored=await persistObject(artifacts,object.identity,object.bytes,crypto);if(stored.kind!=='verified')return {kind:'conflict',code:stored.reason};

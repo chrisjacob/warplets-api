@@ -2,8 +2,8 @@
 
 This local B11 slice adds private v2 **capture**. The existing v1 exporter,
 inventory format, restore implementation and limits are unchanged. Continued
-v2 restore and its final target reconciliation are not yet implemented. A v2
-pin is therefore not a claim of completed disaster recovery or B11 completion.
+v2 private restore and target reconciliation are implemented in [V2_RESTORE.md](V2_RESTORE.md).
+A capture pin alone is not a completed restore or a claim of B11 completion.
 No public route, operator web route, scheduled export, production resource or
 financial capability is enabled by these modules.
 
@@ -84,5 +84,5 @@ The capacity cases stage actual SQL data through the guarded commands. One has
 10,000 electorate members and10,000 votes; the other retains32 distinct10,000
 member lists,3,245 raw records,3,200 private eligibility index pages, all command
 receipts and1,000 declared admissions. The latter is a verified record closure,
-not activated economic inventory or a claim of chain provenance. Final v2
-restore acceptance for both legal graphs remains the next recovery milestone.
+not activated economic inventory or a claim of chain provenance. Fresh-target v2 restore acceptance for both graphs has passed; exact evidence
+and remaining oversized-row limitations are documented in V2_RESTORE.md.

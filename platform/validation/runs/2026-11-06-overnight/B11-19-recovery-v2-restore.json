@@ -1,0 +1,273 @@
+{
+  "task": "B11",
+  "slice": "B11.19 continued private v2 restore",
+  "status": "partial",
+  "baseCommit": "687a816dc0c27682e557420bd6cc32ff728d26ed",
+  "implementationCommit": null,
+  "recordedAt": "2026-11-06T04:03:22.759Z",
+  "sourceHashes": {
+    ".github/workflows/10x-platform-check.yml": "056024320ac08010b799a96cb83bff76080e6891e49d86c0ebda9b2cba8a5f8f",
+    "platform/edge/test/fixtures/recovery-v2-restore-worker.ts": "a2ecfd74acc8d9c8d3a5d1ace251dc51d6a932362154ae676d25cc1613b629a1",
+    "platform/edge/test/recovery-v2-restore.test.mjs": "cd390e4fc636fff8db988cb213fb1f80a82005a52732b807a1ca3f7d8d98d4e5",
+    "platform/recovery/V2_RESTORE.md": "e80eb214968d470c12de804da79762230100bda8c1b31d36d0cf0487cdce8ebd",
+    "platform/recovery/v2-capture-source.mjs": "fd67aec24bb042ba94b096d8d96041cdc7ad4187441960ffd3e52cece8cb86ee",
+    "platform/recovery/v2-capture-source.test.mjs": "36f9be49e48842f847c366162dc12305066b4bc978db6418e2fd64d20b5eabe9",
+    "platform/recovery/v2-mint-fixture.mjs": "d7e4a5abd371081a8e8bcd7fa34b39eb3a7170d86c21ba3d173b2bda9d95b2b0",
+    "platform/recovery/v2-reconcile-collections.mjs": "e87bf2eca8c709aa5990732adee7306abebfd76592e7bb47cec66f18a8322bda",
+    "platform/recovery/v2-reconcile-collections.test.mjs": "7ea71e45f2d00f36256eb938f44d577248f2677abc05cb9b45bb005407225bd5",
+    "platform/recovery/v2-reconcile-economics.test.mjs": "341d735f10481e643d8a41ac9d90c59f3bc0abcae37de990a17c70f068d62057",
+    "platform/recovery/v2-reconcile.mjs": "a9741b99aa0931bf67399fdaedb1ab4e0c283224f0cb1a878844772a2f98016e",
+    "platform/recovery/v2-restore-capacity.test.mjs": "57f4c1ebd793e30636debe5d74a9a90174fa99b5c85c04f8876c442ecfc90b01",
+    "platform/recovery/v2-restore-db.mjs": "fc45f4c1a568eb4b407161822443b4f01dbcae4edada8c2130fdcf159d52f90f",
+    "platform/recovery/v2-restore-db.test.mjs": "88d56dd23fece97b607a14ef6534c0cc0a58edf6cc21ee06e3712f9812077bc5",
+    "platform/recovery/v2-restore-faults.test.mjs": "8af3ef3b4fab009064d2f1044b968318bacdcd440b8b5830bb88957582b501eb",
+    "platform/recovery/v2-restore-fixtures.mjs": "aed5afa0b050571e4afb20d2c19879bde9ddd5bc569de97cebaabc41110ffa74",
+    "platform/recovery/v2-restore.d.mts": "a1bdc197c142e4dd0501939d5cd54c5e9c283e561f76bfa2aee2328a53b88f12",
+    "platform/recovery/v2-restore.mjs": "400b43a246d5e97195be5149e0ffa6bbdf60ea5586cce3060a750bdb72ef03cd",
+    "platform/recovery/v2-restore.test.mjs": "f68c34685c1522c7e3902f647e555b7f90342526e1d7bdfc9c634e376e131461",
+    "platform/recovery/V2_CAPTURE.md": "16e1ddd3db9180f2df139b6b6c85c8c3365a0bf22753ff4d237690de7070c8f5"
+  },
+  "commands": [
+    {
+      "command": "node --test platform/recovery/v2-restore-db.test.mjs platform/recovery/v2-reconcile-economics.test.mjs",
+      "log": "work/b11-recovery-v2-final-unit.log",
+      "passed": 4,
+      "failed": 0,
+      "durationMs": 1842.4733,
+      "measurements": [
+        {
+          "allocations": 32,
+          "winners": 100,
+          "awardRows": 3200,
+          "steps": 35,
+          "maxReturnedRows": 100,
+          "maxSerializedWorkingBytesIncluding128KiBCheckpoint": 246598,
+          "largestCodecInputBytes": 37727,
+          "perAllocationConservation": true,
+          "storageAuthorityTest": false
+        }
+      ]
+    },
+    {
+      "command": "node --test platform/recovery/v2-restore.test.mjs platform/recovery/v2-restore-faults.test.mjs platform/recovery/v2-reconcile-collections.test.mjs",
+      "log": "work/b11-recovery-v2-final-node.log",
+      "passed": 11,
+      "failed": 0,
+      "durationMs": 213304.2197,
+      "measurements": [
+        {
+          "configuredMint": 1,
+          "syntheticVerifier": true,
+          "retainedRawEvidence": true,
+          "currentOwnerDiffersFromMint": true,
+          "revokedOperator": true,
+          "acceptedEvidenceHeadAbsent": true,
+          "tables": 104
+        },
+        {
+          "policyBytes": 311075,
+          "traitContinuations": 3,
+          "maxReturnedBytes": 106142,
+          "maxCheckpointBytes": 1493,
+          "syntheticVerifier": true,
+          "captureLargeRowAcceptance": false
+        },
+        {
+          "steps": 1018,
+          "maxOperations": 17,
+          "maxSerializedWorkingBytes": 278634,
+          "maxBatchBytes": 83006,
+          "checkpointBytes": 112774,
+          "actualJobFence": true
+        },
+        {
+          "steps": 979,
+          "checkpointBytes": 111767,
+          "maxSqlStatements": 13,
+          "maxBatchBytes": 83006,
+          "objects": 159,
+          "reconciliationComplete": true
+        }
+      ]
+    },
+    {
+      "command": "node --test platform/recovery/v2-restore-capacity.test.mjs",
+      "log": "work/b11-recovery-v2-restore-capacity.log",
+      "passed": 2,
+      "failed": 0,
+      "durationMs": 561453.546,
+      "measurements": [
+        {
+          "label": "synthetic-restored-full-turnout",
+          "tables": 104,
+          "rows": 30661,
+          "objects": 501,
+          "retainedBytes": 13985458,
+          "restoreSteps": 3894,
+          "maxOperations": 51,
+          "maxSerializedWorkingBytes": 732339,
+          "maxBatchBytes": 205576,
+          "checkpointBytes": 109392,
+          "exactCountAndRowReconciliation": true,
+          "financialExecution": false
+        },
+        {
+          "label": "synthetic-restored-max-source",
+          "tables": 104,
+          "rows": 12960,
+          "objects": 610,
+          "retainedBytes": 60229354,
+          "restoreSteps": 4089,
+          "maxOperations": 51,
+          "maxSerializedWorkingBytes": 731658,
+          "maxBatchBytes": 205595,
+          "checkpointBytes": 108614,
+          "exactCountAndRowReconciliation": true,
+          "financialExecution": false
+        }
+      ]
+    },
+    {
+      "command": "node --test platform/edge/test/recovery-v2-restore.test.mjs",
+      "log": "work/b11-recovery-v2-restore-d1-configured.log",
+      "passed": 2,
+      "failed": 0,
+      "durationMs": 160432.9555,
+      "measurements": [
+        {
+          "steps": 1021,
+          "objects": 167,
+          "faults": [
+            "omit-check",
+            "omit-final-state",
+            "lost-final-ack"
+          ],
+          "maxOperations": 17,
+          "maxBatchBytes": 83159,
+          "maxParameters": 29,
+          "maxSerializedWorkingBytes": 279063,
+          "separateBuckets": true,
+          "oldLeaseRejected": true,
+          "financialExecution": false
+        },
+        {
+          "configuredMint": 1,
+          "pinnedBls": true,
+          "traitContinuations": 3,
+          "steps": 1118,
+          "maxOperations": 51,
+          "maxSerializedWorkingBytes": 278527,
+          "financialExecution": false
+        }
+      ]
+    },
+    {
+      "command": "node --test platform/recovery/v2-capture-source.test.mjs",
+      "log": "work/b11-recovery-v2-row-bound.log",
+      "passed": 7,
+      "failed": 0,
+      "durationMs": 12601.091,
+      "measurements": [
+        {
+          "steps": 114,
+          "maxOperations": 22,
+          "maxBatchBytes": 64142,
+          "maxParameters": 23,
+          "dataSealedOnly": true
+        }
+      ]
+    },
+    {
+      "command": "node --test --test-name-pattern=\"configured mint\" platform/edge/test/recovery-v2-restore.test.mjs",
+      "log": "work/b11-recovery-v2-restore-d1-108.log",
+      "passed": 1,
+      "failed": 0,
+      "durationMs": 90337.2773,
+      "measurements": [
+        {
+          "configuredMint": 1,
+          "pinnedBls": true,
+          "tables": 108,
+          "traitContinuations": 3,
+          "steps": 1146,
+          "maxOperations": 51,
+          "maxSerializedWorkingBytes": 292173,
+          "financialExecution": false
+        }
+      ]
+    },
+    {
+      "command": "node --test platform/recovery/v2-restore.test.mjs",
+      "log": "work/b11-recovery-v2-restore-node-108.log",
+      "passed": 1,
+      "failed": 0,
+      "durationMs": 40093.2608,
+      "measurements": [
+        {
+          "steps": 1007,
+          "checkpointBytes": 117023,
+          "maxSqlStatements": 13,
+          "maxBatchBytes": 87013,
+          "objects": 163,
+          "reconciliationComplete": true
+        }
+      ]
+    },
+    {
+      "command": "node platform/edge/node_modules/typescript/bin/tsc --noEmit -p platform/edge",
+      "result": "passed"
+    },
+    {
+      "command": "git diff --check -- platform/recovery platform/edge/test/recovery-v2-restore.test.mjs platform/edge/test/fixtures/recovery-v2-restore-worker.ts",
+      "result": "passed"
+    }
+  ],
+  "acceptance": [
+    "Fresh target exact schema/table/watermark SQL; source metadata and every unique reachable object retained.",
+    "Durable revision CAS, per-step checkpoint patches, same-pin missing-object resume, omitted-child rollback and lost-ready acknowledgement replay.",
+    "Whole target watermark after import/fences pins all row, audit, economics, publication and final checks.",
+    "Sessions revoked; running jobs/attempts and execution leases fenced; stale leases rejected.",
+    "One allocation per economic step proves32allocations\u00d7100winners within246598 serialized working bytes.",
+    "Normalized collection original-slot quotas and historical mint receipts/evidence/outcomes remain valid after reveal/transfer/revocation/head change.",
+    "Configured mint actual workerd restore uses real pinned BLS; reference fixture explicitly uses synthetic verifier.",
+    "Maximum10000-voter/full-turnout and32-list/3245record/3200index source closure roundtrips complete; source closure is not economic inventory activation."
+  ],
+  "remaining": [
+    {
+      "id": "oversized-valid-trait-policy",
+      "status": "not implemented",
+      "policyBytes": 311075,
+      "choicesPerField": 256,
+      "nameUtf16Units": 128,
+      "fields": 3,
+      "captureResult": "capture-row-bound-or-invalid",
+      "restoreFieldSelection": "verified separately:3continuations,max106142 returned bytes,1493-byte selected-value checkpoint",
+      "next": "048 scoped immutable row-fragment staging and fair_inventories-only fragmented capture/restore/reconciliation; preserve existing v2 bytes."
+    },
+    {
+      "id": "oversized-other-rows",
+      "status": "explicitly held",
+      "detail": "Legacy aggregate inventory state and unrelated oversized rows are outside this milestone; no generic row support claim."
+    },
+    {
+      "id": "B11",
+      "status": "partial",
+      "detail": "This private local recovery milestone does not complete B11 or authorize deployment/release/financial execution."
+    }
+  ],
+  "boundaries": {
+    "remoteMutation": false,
+    "externalProviderCalls": false,
+    "financialExecution": false,
+    "deployment": false,
+    "publicRecoveryRoute": false,
+    "sourceFixtureLabelsPreserved": true
+  },
+  "broadCompatibilityReuse": {
+    "tests": 569,
+    "passed": 569,
+    "durationMs": 295232.3377,
+    "log": "work/b11-047-reference.log",
+    "scope": "Existing tracked reference compatibility and capture error regression; new restore acceptance separately recorded above. Maximum restore graphs not needlessly rerun."
+  }
+}

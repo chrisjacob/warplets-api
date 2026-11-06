@@ -9,6 +9,9 @@ import {createRecoveryV2CaptureSource} from './v2-capture-source.mjs';
 import {readInstalledRecoverySchema} from './node-schema.mjs';
 import {measureBatch} from '../storage/atomic-driver.mjs';
 import {BUSINESS_TABLES} from './schema.mjs';
+import {createCollection} from '../collect/store.mjs';
+import {publishDrawPolicy} from '../randomness/selection.mjs';
+import {governanceWallets} from '../governance/operator-test-fixture.mjs';
 async function setup(t,{fault=null}={}){
  const db=openDatabase();t.after(()=>db.close());const baseCrypto=createNodeCrypto(),schema=await readInstalledRecoverySchema(baseCrypto);
  const metrics=[],store=memoryArtifacts(),base=createNodeAtomicDriver(db);let current=null,injected=false;
@@ -48,4 +51,8 @@ test('installed migration inventory must exactly match trusted migration names',
 });
 test('same-name schema substitution during asynchronous page hashing cannot pass the final SQL fence',async t=>{
  const f=await setup(t,{fault:'schema-in-hash'}),result=await f.complete();assert.equal(result.kind,'held');assert.equal(result.reason,'capture-source-changed');assert.equal(f.db.prepare('SELECT COUNT(*) n FROM app_recovery_capture_pages').get().n,0);assert.equal(f.db.prepare('SELECT revision FROM app_recovery_watermark').get().revision,0,'Exact SQL catches DDL without a business watermark change.');
+});
+test('a legal oversized trait policy reports the row/page bound rather than a concurrent source mutation',async t=>{
+ const f=await setup(t),now=Date.now(),traits=Object.fromEntries(['model','backdrop','symbol'].map(k=>[k,Array.from({length:256},(_,n)=>({name:'\u9fff'.repeat(124)+String(n).padStart(4,'0'),weight:1000000}))]));
+ createCollection(f.db,{id:'synthetic-large-trait-policy',kind:'genesis',tranche:1});publishDrawPolicy(f.db,{inventoryId:'synthetic-large-trait-policy',assets:governanceWallets(1000),traitChoices:traits,at:now},now);const watermark=f.db.prepare('SELECT revision FROM app_recovery_watermark').get().revision,result=await f.complete('synthetic-large-traits');assert.equal(result.kind,'held');assert.equal(result.reason,'capture-row-bound-or-invalid');assert.equal(f.db.prepare('SELECT revision FROM app_recovery_watermark').get().revision,watermark);assert.equal(f.db.prepare('SELECT length(CAST(traits AS BLOB)) bytes FROM fair_inventories').get().bytes,311075);
 });
