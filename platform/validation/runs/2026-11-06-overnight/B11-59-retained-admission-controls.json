@@ -1,0 +1,61 @@
+{
+  "task": "B11",
+  "slice": "B11-59 retained original admission controls",
+  "status": "verified-private-helper; no dispatch or readiness",
+  "recordedAt": "2026-11-06T10:30:46.881718+00:00",
+  "sourceHashes": {
+    "platform/recovery/v2-legacy-admission-controls.mjs": "aa8f610c85b84589f782f485fdd26ed19ed79df05367b85086c7b0629dccd81c",
+    "platform/recovery/v2-legacy-admission-controls.d.mts": "f2475744b483771812c3f07ecacbc6b6cd3874f77494763fe4ba791c4281cf54",
+    "platform/recovery/v2-legacy-admission-controls.test.mjs": "d029c9d7e5686452cae9591e9e92c6d312022f4eb9456db002c3a391ecd6caff",
+    "platform/recovery/V2_RETAINED_CONTROLS.md": "4ff40566f577e5b79022e3ccb1b564eb7728b43891acf123818f5502e74b0e24",
+    "platform/edge/test/recovery-legacy-controls.test.mjs": "bb56e97f5340f67a1494b6e00598551d16970ebe70ad727e3abb290cbdd408b6",
+    "platform/edge/test/fixtures/recovery-legacy-controls-worker.ts": "4b493dea744a551ac64de94ef27df57bdb83115339e474f4051ea8164593b8af"
+  },
+  "checks": [
+    {
+      "command": "node --test platform/recovery/v2-legacy-admission-controls.test.mjs",
+      "passed": 1,
+      "failed": 0,
+      "durationMs": 42704.1674,
+      "log": "work/b11-59-control-history-node.log"
+    },
+    {
+      "command": "node --test platform/edge/test/recovery-legacy-controls.test.mjs",
+      "passed": 1,
+      "failed": 0,
+      "durationMs": 83187.8091,
+      "log": "work/b11-59-control-history-edge.log"
+    },
+    {
+      "command": "node platform/edge/node_modules/typescript/bin/tsc --noEmit -p platform/edge/tsconfig.json",
+      "status": "passed"
+    },
+    {
+      "command": "git diff --check",
+      "status": "passed"
+    }
+  ],
+  "metrics": {
+    "sql": 8,
+    "objectReads": 1,
+    "maxBatchBytes": 2340,
+    "maxReturnedBytes": 1519,
+    "workingBytes": 341484,
+    "includedOuterCheckpointReserve": 267264
+  },
+  "verified": [
+    "Genuine synthetic adoption then separate fresh private Node/D1 recovery target",
+    "Original certificate generation/watermark retained, separate target before/after pin",
+    "Bounded retained private object identity/proof/SHA and canonical control selection",
+    "Actual immutable original inventory and operation bindings",
+    "Nonempty historical usage and spend rows reselected as of original admission",
+    "Exact control fact and allowed decision, missing/corrupt artifact and mismatched history holds",
+    "Caller mutation during hash does not affect captured input; target mutation holds"
+  ],
+  "limitations": [
+    "Helper requires independently verified certificate and anchor and does not emit a durable recovery proof.",
+    "Later ingestion changing as-of history conservatively holds even if frozen preimage remains internally valid.",
+    "No original operator authentication, payment evidence or full-profile readiness claim."
+  ],
+  "financialExecution": false
+}

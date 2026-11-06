@@ -1,0 +1,25 @@
+import {recordUsage,reserveOptionalCost} from '../../operations/controls.mjs';
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {Miniflare} from 'miniflare';
+import {build} from 'esbuild';
+import {readFileSync,readdirSync} from 'node:fs';
+import {fileURLToPath} from 'node:url';
+import {recoveryLegacyAdoptionSource} from '../../recovery/v2-legacy-adoption-fixtures.mjs';
+async function runtime(t){
+ const bundle=await build({entryPoints:[fileURLToPath(new URL('./fixtures/recovery-legacy-controls-worker.ts',import.meta.url))],bundle:true,platform:'browser',format:'esm',write:false,target:'es2022'}),mf=new Miniflare({workers:[{config:{name:'recovery-v2-private-test',type:'worker',compatibilityDate:'2026-08-25',manifest:{mainModule:'worker.mjs',modules:{'worker.mjs':{type:'esm',contents:bundle.outputFiles[0].text}}},env:{DB:{type:'d1',id:'00000000-0000-4000-8000-000000000001'},MANIFESTS:{type:'r2',name:'recovery-v2-target'},RECOVERY_SOURCE:{type:'r2',name:'recovery-v2-source'}}}}]});t.after(()=>mf.dispose());const db=await mf.getD1Database('DB'),directory=new URL('../../storage/',import.meta.url);await db.exec('CREATE TABLE schema_versions(version TEXT PRIMARY KEY) STRICT');
+ for(const name of readdirSync(directory).filter(n=>/^\d+.*\.sql$/.test(n)).sort()){const statements=[];let current='';for(const line of readFileSync(new URL(name,directory),'utf8').replace(/^--.*$/gm,'').split(/\r?\n/)){current+=(current?'\n':'')+line;const value=current.trim();if(value.endsWith(';')&&(!value.startsWith('CREATE TRIGGER')||/\bEND;$/i.test(value))){statements.push(db.prepare(value));current='';}}assert.equal(current.trim(),'');await db.batch(statements);await db.prepare('INSERT INTO schema_versions VALUES(?)').bind(name).run();}
+ return {mf,db,source:await mf.getR2Bucket('RECOVERY_SOURCE'),target:await mf.getR2Bucket('MANIFESTS')};
+}
+import {hashLegacyAdoptionCertificate} from '../../collect/legacy-adoption-authority.mjs';
+test('actual fresh D1/R2 target revalidates retained original admission controls without current-source substitution',async t=>{
+ const f=await recoveryLegacyAdoptionSource(t,{beforeParents(f){const at=f.db.prepare("SELECT MIN(created_ms) at FROM collect_operations WHERE kind='mint'").get().at;recordUsage(f.db,{provider:'synthetic-recovery-controls',metric:'new-monthly-usd',measured:'1000',atMs:at,evidenceRef:'synthetic-retained-usage'});reserveOptionalCost(f.db,{scope:'collection-mint',now:at,upperUsdMicros:'1',actor:'synthetic-operator',quoteRef:'synthetic-quote',requestKey:'synthetic-control-reservation'});}}),r=await runtime(t),identities=f.db.prepare('SELECT identity_json FROM app_recovery_capture_objects WHERE capture_id=?').all(f.captured.captureId).map(x=>JSON.parse(x.identity_json));for(const id of identities)await r.source.put(id.key,f.store.objects.get(id.key),{httpMetadata:{contentType:id.contentType}});
+ const input={root:f.captured.value,pinnedDigest:f.captured.digest};let revision=0,controlInput;
+ const call=async(method='step',fault)=>{const response=await r.mf.dispatchFetch('http://localhost/__fixture',{method:'POST',body:JSON.stringify({method,fault,controlInput,input:{...input,expectedRevision:revision},schema:f.schema,nowMs:f.now})});assert.equal(response.status,200,await response.clone().text());const data=await response.json();if(Number.isSafeInteger(data.result.revision))revision=data.result.revision;return data.result;};
+ let result=await call('start');for(let n=0;n<5000&&result.phase!=='reconcile-audit';n++){assert.ok(['started','progress','replayed'].includes(result.kind),JSON.stringify(result));result=await call();}assert.equal(result.phase,'reconcile-audit');
+ const certificate=(await hashLegacyAdoptionCertificate(await r.db.prepare('SELECT * FROM app_collection_legacy_adoptions').first(),f.crypto)).body,anchor=JSON.parse(await r.db.prepare('SELECT body_json FROM app_collection_legacy_mint_anchors').first('body_json')),generation=await r.db.prepare('SELECT generation FROM app_recovery_state').first('generation'),watermark=await r.db.prepare('SELECT revision FROM app_recovery_watermark').first('revision');
+ controlInput={certificate,anchor,pin:{generation,watermark},retainedBytes:267264};result=await call('controls');assert.equal(result.kind,'verified',JSON.stringify(result));assert.equal(result.readiness,false);assert.deepEqual(result.controlFact,anchor.controlFact);assert.ok(result.metrics.workingBytes<=1048576&&result.metrics.sql+result.metrics.objectReads<=64);const metrics=result.metrics;
+ const identity=anchor.controlSelectionIdentity;await r.target.delete(identity.key);assert.equal((await call('controls')).kind,'held');await r.target.put(identity.key,f.store.objects.get(identity.key),{httpMetadata:{contentType:identity.contentType}});
+ result=await call('controls','mutation');assert.equal(result.kind,'held');assert.match(result.reason,/target-changed/);assert.equal(await r.db.prepare('SELECT status FROM app_recovery_state').first('status'),'restoring');
+ t.diagnostic(JSON.stringify({genuineAdoption:true,freshD1Target:true,remainingSemanticsHeld:true,metrics}));
+});
