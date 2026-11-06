@@ -1,0 +1,82 @@
+{
+  "task": "B16",
+  "status": "partial-frozen-portable-calculator-foundation",
+  "baseCommit": "a7efb8f2d6e14e0510f0bbad2df3ea31f2554238",
+  "implementationCommit": null,
+  "files": [
+    "platform/costs/packet.mjs",
+    "platform/costs/packet-core.mjs",
+    "platform/costs/packet-core.d.mts",
+    "platform/costs/packet-service.mjs",
+    "platform/costs/packet-service.d.mts",
+    "platform/costs/packet-service.test.mjs",
+    "platform/costs/packet-types.d.mts",
+    "platform/costs/packet.fixtures.mjs",
+    "platform/edge/test/cost-packets.test.mjs",
+    "platform/edge/test/fixtures/cost-packet-worker.ts"
+  ],
+  "checks": [
+    {
+      "command": "node --test platform/costs/packet-service.test.mjs platform/costs/costs.test.mjs platform/launch/launch.test.mjs",
+      "passed": 14,
+      "durationMs": 665.6244,
+      "log": "work/b16-portable-cost-node.log"
+    },
+    {
+      "command": "node --test platform/edge/test/cost-packets.test.mjs",
+      "passed": 1,
+      "calls": 7,
+      "durationMs": 1765.6329,
+      "log": "work/b16-portable-cost-workerd.log"
+    },
+    {
+      "command": "node platform/edge/node_modules/typescript/bin/tsc --noEmit -p platform/edge/tsconfig.json",
+      "status": "passed",
+      "log": "work/b16-portable-cost-types.log"
+    }
+  ],
+  "metrics": {
+    "maxActualInputBytes": 24750,
+    "maxActualOutputBytes": 112142,
+    "browserWorkerBundleBytes": 30800,
+    "hashesPerCalculation": 1,
+    "storageCalls": 0,
+    "portableInputBoundBytes": 262144,
+    "portableInputDepth": 32,
+    "portableInputEntries": 10000
+  },
+  "acceptance": [
+    "Node costPacket/executionContextId signatures remain synchronous; exact original ordered9-field JSON context preimage preserved",
+    "Pure calculation core reuses unchanged scenarioCatalog/budget; no Node imports in portable Worker bundle, no nodejs_compat",
+    "Six historical report SHA256 values independently computed from pre-extraction HEAD packet.mjs: dated reference, complete synthetic, stale, changed context, unknown and zero counts",
+    "All fourteen scenario outputs and firstAtt preserve exact Node/Worker equality; reference/hypothetical/quoted distinctions and arithmetic unchanged",
+    "Bounded plain-data capture before async SHA; mutation of context/amount/count/FX during hash cannot change report",
+    "Caller contextId/executionContextId/computedContextId cannot override derived identity; quote context mismatch remains incomplete",
+    "No new execution context timestamps, source validation, financial authorization, storage or provider clients"
+  ],
+  "limits": [
+    "This is portable calculator foundation only, not full B16 readiness",
+    "No cashflow graph integration, action-plan/usage evidence join, new14-scenario semantics, API or operator UI",
+    "Original synchronous calculator output intentionally unchanged: mode planning-only; no new financial capability flags or authority",
+    "Worker parity is pure workerd execution without storage bindings, not a D1 report integration claim"
+  ],
+  "financialExecution": false,
+  "sourceHashes": {
+    "platform/costs/packet.mjs": "04ad3cfdec56204299e40deff6abed997f46f1ad76eacdd87187b443d10a9935",
+    "platform/costs/packet-core.mjs": "93db90691e6dfcb4d11f6c895caff0a0158817671571669438fcd21c439dc968",
+    "platform/costs/packet-core.d.mts": "e9081e3f319329e94fcaa58d38d592ffaa6e95f1a3281ee0ab12b6e6f07a7735",
+    "platform/costs/packet-service.mjs": "0f9afe3b8f11b2d2528ff6456d3f3bc256698e41571243aadaa596c2b2cf1958",
+    "platform/costs/packet-service.d.mts": "74d2fa265238d33d03e05a431ca52177830aa6c5b63769b54873b873711fd562",
+    "platform/costs/packet-service.test.mjs": "59636b43781c63ecb0153efd4bd3d5430f5556e2346432ec3aafd1c2e730a41d",
+    "platform/costs/packet-types.d.mts": "1bcc773a467bdca60f2a91404f8e14cad2d06cfb27c7850f3a16eede93f04857",
+    "platform/costs/packet.fixtures.mjs": "6bd2ac7513b2f341d95f04032fcae83beaed74f38bfb4144ec39a5d2fef8311e",
+    "platform/edge/test/cost-packets.test.mjs": "48a8ad01cdb388bfc3deec3ff37c945c67e588389c4cd180a69e9a9f9cc436a2",
+    "platform/edge/test/fixtures/cost-packet-worker.ts": "7058f0f088db3a8cbc94bc5805962249fc61325ebeeda264dbedafc1d8624be8"
+  },
+  "unchangedDependencies": {
+    "platform/costs/scenarios.mjs": "12b335a2d158894fd90b26ae04633c6b1881046ac60eb37fb922ded751287a0d",
+    "platform/costs/budget.mjs": "d03123214c9071fb5e09bbc377721a0cabe4049dc7c68df00da76f8b55ec9c80",
+    "platform/costs/reference.mjs": "7794bd91a29416d0081c6c16ac193a0cd70905f78bc1c288a4990dae3864c66b",
+    "platform/costs/cashflow.mjs": "177d9e10e092f0eb01b429d74074f4f88c11a9896491ce3d7cfb614297400563"
+  }
+}
