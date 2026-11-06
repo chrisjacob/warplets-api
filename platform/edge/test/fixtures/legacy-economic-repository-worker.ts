@@ -1,0 +1,19 @@
+import {_SHA256} from '../../../beacon/node_modules/.pnpm/@noble+hashes@2.2.0/node_modules/@noble/hashes/sha2.js';
+import type {PinnedSha256State} from '../../../collect/legacy-audit-hash.mjs';
+import {createLegacyAuditHashAdapter,LEGACY_HASH_IMPLEMENTATION_PIN} from '../../../collect/legacy-audit-hash.mjs';
+import {createLegacyAuditRepository} from '../../../collect/legacy-audit-repository.mjs';
+import {createLegacyRelationRepository} from '../../../collect/legacy-relation-repository.mjs';
+import {createLegacyEconomicRepository} from '../../../collect/legacy-economic-repository.mjs';
+import {createD1AtomicDriver} from '../../../storage/d1/atomic-driver';
+import {createWebCrypto} from '../../../security/web-crypto.mjs';
+import {createWorkerRecoveryDigest} from '../../../recovery/v2-worker-digest.mjs';
+import {createNobleBeaconVerifier} from '../../../beacon/noble-verifier.mjs';
+import {r2ArtifactStore} from '../../../artifacts/r2';
+export default {async fetch(request:Request,env:Env){
+ if(new URL(request.url).pathname!=='/__fixture'||request.method!=='POST')return new Response('Not found',{status:404});
+ try{const body=await request.json() as any,base=createD1AtomicDriver(env.DB);let metrics:any=null,faulted=false;const driver={...base,async batch(statements:any[]){const writing=statements.some(s=>s.sql.startsWith('UPDATE app_collection_legacy_economics'));
+ if(writing&&!faulted){faulted=true;if(body.fault==='omit-proof')statements=statements.filter(s=>!s.sql.startsWith('INSERT INTO app_collection_legacy_economic_phases'));if(body.fault==='omit-update')statements=statements.filter(s=>!s.sql.startsWith('UPDATE app_collection_legacy_economics'));if(body.fault==='tamper-context')statements=statements.map(s=>s.sql.startsWith('UPDATE app_collection_legacy_economics')?{...s,values:s.values.map((v:any,i:number)=>i===5?'{}':v)}:s);if(body.fault==='source')await env.DB.prepare('UPDATE collect_assets SET observed_ms=observed_ms+1').run();if(body.fault==='scope')await env.DB.prepare('UPDATE app_operator_scopes SET enabled=0 WHERE operator=?').bind(body.principal.id).run();if(body.fault==='generation')await env.DB.prepare("UPDATE app_recovery_state SET generation='replaced-economic-source'").run();if(body.fault==='schema')await env.DB.prepare('DROP TRIGGER recovery_watermark_collect_inventories_update').run();if(body.fault==='final-result')statements=statements.map(s=>{if(!s.sql.startsWith('UPDATE app_collection_legacy_economics')||s.values[0]!=='ready')return s;const result=JSON.parse(s.values[7]);result.remaining[0]++;return {...s,values:s.values.map((v:any,i:number)=>i===7?JSON.stringify(result):v)};});}
+ const result=await base.batch(statements);if(writing&&body.fault==='lost')throw Error('Synthetic lost economic acknowledgement');return writing&&body.fault==='zero-changes'?result.map(r=>({...r,changes:0})):result;
+ }},ports={driver,crypto:createWebCrypto(),clock:{nowMs:()=>body.nowMs},ids:{next:()=>body.nonce??crypto.randomUUID()},onMeasure:(m:any)=>{metrics=m;}},parent=createLegacyAuditRepository({...ports,schema:body.schema,createHashAdapter:()=>createLegacyAuditHashAdapter({createSha256:()=>new _SHA256() as unknown as PinnedSha256State,implementationPin:LEGACY_HASH_IMPLEMENTATION_PIN})}),relation=createLegacyRelationRepository(ports),economic=createLegacyEconomicRepository({...ports,artifacts:r2ArtifactStore(env.MANIFESTS),createDigest:createWorkerRecoveryDigest,beaconVerifier:createNobleBeaconVerifier()}),service=body.method.startsWith('parent-')?parent:body.method.startsWith('relation-')?relation:economic,method=body.method.replace(/^(parent|relation)-/,'');const result=await (service as any)[method](body.principal,body.input);return Response.json({result,metrics,source:'synthetic-private-fixture'});
+ }catch(error){return Response.json({error:String(error)},{status:409});}
+}};

@@ -1,0 +1,41 @@
+import assert from 'node:assert/strict';
+import {randomUUID} from 'node:crypto';
+import {stageSourceScene,retainStageSources,legacyAdmissionWallet,START,DAY} from './legacy-stage-source.fixtures.mjs';
+import {nativeTranscriptFixture} from './legacy-state-audit.fixtures.mjs';
+import {readInstalledRecoverySchema} from '../recovery/node-schema.mjs';
+import {createLegacyAuditRepository} from './legacy-audit-repository.mjs';
+import {createLegacyRelationRepository} from './legacy-relation-repository.mjs';
+import {createLegacyEconomicRepository} from './legacy-economic-repository.mjs';
+import {mintSourceAuditFixture} from './legacy-mint-source-audit.fixtures.mjs';
+import {createEligibilityIndexService} from './eligibility-index-service.mjs';
+import {createEligibilityIndexRepository} from './eligibility-index-repository.mjs';
+import {createNodeRecoveryDigest} from '../recovery/v2-node-digest.mjs';
+export const economicPrincipal={kind:'operator',id:'synthetic-stage-source'};
+export async function economicFixture(t,{profile='mixed',count=3,prepareParent=true}={}){
+ const s=stageSourceScene(t,{kind:['founder','public','unadmitted'].includes(profile)?'genesis':'season'}),originalMints=new Map();
+ if(profile==='founder'){s.publish(s.stage('founder','founder',{allocation:3,approvedSpendLamports:'10000',wallets:[legacyAdmissionWallet(1),legacyAdmissionWallet(2)]}));s.admit('founder');s.admit('founder',legacyAdmissionWallet(2));}
+ else if(profile==='public'){s.publish(s.stage('whitelist'));s.publish(s.stage('public','public'));s.admit('public',legacyAdmissionWallet(99));}
+ else if(profile==='unadmitted'){s.publish(s.stage('whitelist'));s.publish(s.stage('public','public'));}
+ else if(profile==='free'){s.publish(s.stage('paid1','whitelist',{opensAt:START,closesAt:START+DAY}));s.publish(s.stage('paid2','whitelist',{opensAt:START+DAY,closesAt:START+2*DAY}));s.publish(s.stage('free','free'));s.cut('free');s.admit('free');}
+ else if(profile!=='empty'){s.publish(s.stage('paid'));for(let n=0;n<count;n++){const op=s.admit('paid').operation;if(profile==='mixed'&&n===0)originalMints.set(op.id,s.settle(op.id));}}
+ const f=await retainStageSources(s),mintSelections=new Map();for(const [operationId,fixture] of originalMints)mintSelections.set(operationId,{kind:'manual',fixture:await f.retain(fixture)});
+ return wrapEconomicFixture(f,{mintSelections,stageOriginals:f.state.stages.map(stage=>f.identities.get(stage.id)),prepareParent});
+}
+async function wrapEconomicFixture(f,{mintSelections,stageOriginals,prepareParent=true,asOfMs=START+30*DAY}){
+ f.db.prepare('INSERT INTO app_operator_scopes VALUES(?,?,0,1)').run('synthetic-other-economic-auditor','collection-import');
+ const schema=await readInstalledRecoverySchema(f.crypto),hash=nativeTranscriptFixture(),clock={nowMs:()=>asOfMs},ids={next:randomUUID},parentPorts={driver:f.driver,crypto:f.crypto,clock,ids,schema,createHashAdapter:()=>hash},fingerprints=createLegacyAuditRepository(parentPorts),relation=createLegacyRelationRepository({driver:f.driver,crypto:f.crypto,clock,ids}),fingerprintInput={auditId:'synthetic-economic-fingerprints',inventoryId:f.inventoryId,rootId:f.bundle.root.id},relationInput={auditId:'synthetic-economic-relation',fingerprintAuditId:fingerprintInput.auditId};
+ let parent=null;async function prepare(){let result=await fingerprints.start(economicPrincipal,fingerprintInput);for(let n=0;n<1000&&['started','progress','replayed'].includes(result.kind);n++)result=await fingerprints.step(economicPrincipal,{auditId:fingerprintInput.auditId,expectedRevision:result.revision});assert.equal(result.kind,'fingerprints-ready',JSON.stringify(result));result=await relation.start(economicPrincipal,relationInput);for(let n=0;n<4000&&['started','progress','replayed'].includes(result.kind);n++)result=await relation.step(economicPrincipal,{auditId:relationInput.auditId,expectedRevision:result.revision});assert.equal(result.kind,'relation-ready',JSON.stringify(result));parent=result;return result;}if(prepareParent)await prepare();
+ const measurements=[],ports={driver:f.driver,crypto:f.crypto,clock,ids,artifacts:f.artifacts,createDigest:createNodeRecoveryDigest,beaconVerifier:f.beaconVerifier,onMeasure:m=>measurements.push(m)},input={auditId:'synthetic-economic-audit',relationAuditId:relationInput.auditId,asOfMs,stageOriginals};
+ return {...f,parent,prepareParents:prepare,schema,parentPorts,fingerprints,relation,fingerprintInput,relationInput,mintSelections,measurements,economicPorts:ports,economicInput:input,economics:createLegacyEconomicRepository(ports)};
+}
+export async function driveEconomics(f,result,{limit=10000,onStep=()=>{},select=null}={}){let calls=0;while(['started','progress','replayed','awaiting-original'].includes(result.kind)&&calls++<limit){if(result.phase==='select'){const op=f.state.admissions[result.ordinal].operationId;result=await f.economics.selectOriginal(economicPrincipal,{auditId:f.economicInput.auditId,expectedRevision:result.revision,original:select?await select(result):f.mintSelections.get(op)??null});}else result=await f.economics.step(economicPrincipal,{auditId:f.economicInput.auditId,expectedRevision:result.revision});await onStep(result);}return result;}
+export async function reachEconomicPhase(f,phase){let result=await f.economics.start(economicPrincipal,f.economicInput);while(['started','progress','replayed','awaiting-original'].includes(result.kind)&&result.phase!==phase){if(result.phase==='select'){const op=f.state.admissions[result.ordinal].operationId;result=await f.economics.selectOriginal(economicPrincipal,{auditId:f.economicInput.auditId,expectedRevision:result.revision,original:f.mintSelections.get(op)??null});}else result=await f.economics.step(economicPrincipal,{auditId:f.economicInput.auditId,expectedRevision:result.revision});}assert.equal(result.phase,phase,JSON.stringify(result));return result;}
+
+export async function configuredEconomicFixture(t,options={}){
+ const f=await mintSourceAuditFixture(t,{kind:'season',configured:true,large:true,...options});f.db.prepare('INSERT INTO app_operator_scopes VALUES(?,?,0,1)').run(economicPrincipal.id,'collection-import');const state=JSON.parse(f.db.prepare('SELECT state FROM collect_inventories WHERE id=?').get(f.inventoryId).state,(_k,v)=>v&&typeof v==='object'&&Object.hasOwn(v,'$lamports')?BigInt(v.$lamports):v),stage=state.stages[0],root=JSON.parse(new TextDecoder().decode(f.bundle.root.bytes));
+ // Exact originals from the synthetic fixture publication, not inferred general
+ // legacy provenance: that fixture explicitly publishes walletLimit1, cost5000.
+ const original={format:'legacy-stage-publication-preimage-v1',inventoryId:f.inventoryId,stageId:'first',type:'whitelist',publishedAt:stage.publishedAt,opensAt:stage.opensAt,closesAt:stage.closesAt,priceLamports:'100000000',costLamports:'5000',allocation:1000,walletLimit:1,founderApproved:false,approvedSpendLamports:null,ballotId:null,inventoryOverrideReason:null,walletListId:root.stages[0].eligibility.manifestId},identity=await f.retain(original),indexer=createEligibilityIndexService({repository:createEligibilityIndexRepository(f.driver,{crypto:f.crypto,ids:{next:randomUUID}}),crypto:f.crypto,clock:{nowMs:()=>f.input().asOfMs}});
+ for(const page of f.bundle.pages)if(JSON.parse(new TextDecoder().decode(page.bytes)).kind==='eligibility')assert.equal((await indexer.materializePage(economicPrincipal,{id:page.id,requestKey:'economic-index-'+page.id})).kind,'committed');
+ return wrapEconomicFixture({...f,state,beaconVerifier:f.auditPorts.beaconVerifier},{mintSelections:new Map([[f.input().operation.id,f.references[0]]]),stageOriginals:[identity],prepareParent:options.prepareParent??true,asOfMs:f.input().asOfMs});
+}

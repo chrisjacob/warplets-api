@@ -1,0 +1,211 @@
+{
+  "checkpoint": "B11-41",
+  "title": "Durable private original collection economic audit phases",
+  "status": "partial-historical-economics-no-adoption-authority",
+  "lastConfirmedBaseCommit": "b1186e64d68c80f657c754ad94bf67cf1ff7c4e9",
+  "implementationCommit": null,
+  "source": "synthetic-actual-legacy-operations-original-artifacts-genuine050051parents",
+  "financialExecution": false,
+  "applicationActivation": false,
+  "packageChanges": false,
+  "coordinatorSchema": "052-legacy-economic-continuations.sql",
+  "businessTables": 108,
+  "newExcludedControlTables": [
+    "app_collection_legacy_economics",
+    "app_collection_legacy_economic_stages",
+    "app_collection_legacy_economic_phases"
+  ],
+  "checks": [
+    {
+      "command": "node --test platform/collect/legacy-economic-repository.test.mjs platform/collect/legacy-economic-schema.test.mjs",
+      "passed": 9,
+      "failed": 0,
+      "durationMs": 34983.0873,
+      "log": "work/b11-legacy-economic-node-final.log",
+      "note": "8repository+1coordinator schema cases; final added replay case verified by focused command below."
+    },
+    {
+      "command": "node --test --test-name-pattern=selection platform/collect/legacy-economic-repository.test.mjs",
+      "passed": 2,
+      "failed": 0,
+      "durationMs": 2998.4922,
+      "log": "work/b11-legacy-economic-selection-final.log",
+      "note": "Includes final strict nested-null artifact rejection and added source-race/awaited-metrics replay regression."
+    },
+    {
+      "command": "node --test platform/collect/legacy-economic-repository.capacity.test.mjs",
+      "passed": 1,
+      "failed": 0,
+      "durationMs": 420097.193,
+      "log": "work/b11-legacy-economic-capacity.log"
+    },
+    {
+      "command": "node --test platform/edge/test/legacy-economic-repository.test.mjs",
+      "passed": 1,
+      "failed": 0,
+      "durationMs": 147199.0652,
+      "log": "work/b11-legacy-economic-edge-final.log",
+      "note": "Complete manual and configured actualD1/R2/workerd profiles with genuine pinned050051parents and real retained round30000000 BLS."
+    },
+    {
+      "command": "node platform/edge/node_modules/typescript/bin/tsc --noEmit -p platform/edge/tsconfig.json",
+      "result": "pass",
+      "log": "work/b11-legacy-economic-types.log"
+    },
+    {
+      "command": "11owned/coordinatorfiles LF/trailing-whitespace; shared git diff --check",
+      "result": "pass"
+    },
+    {
+      "command": "node --test platform/recovery/v2-planning.test.mjs platform/recovery/v2-watermark.test.mjs",
+      "passed": 4,
+      "failed": 0,
+      "durationMs": 193.6261,
+      "log": "work/b11-52-recovery-smoke.log"
+    }
+  ],
+  "distinctReferenceCases": 11,
+  "metrics": {
+    "nodeProfiles": [
+      {
+        "profile": "mixed",
+        "steps": 24,
+        "maxOperations": 27,
+        "maxWorkingBytes": 101254
+      },
+      {
+        "profile": "public",
+        "steps": 13,
+        "maxOperations": 14,
+        "maxWorkingBytes": 74425
+      },
+      {
+        "profile": "founder",
+        "steps": 18,
+        "maxOperations": 17,
+        "maxWorkingBytes": 78577
+      },
+      {
+        "profile": "empty",
+        "steps": 6,
+        "maxOperations": 8,
+        "maxWorkingBytes": 52693
+      },
+      {
+        "profile": "unadmitted",
+        "steps": 7,
+        "maxOperations": 11,
+        "maxWorkingBytes": 70408
+      },
+      {
+        "configuredDurableEconomics": {
+          "maxOperations": 52,
+          "maxWorkingBytes": 942988,
+          "maxCoreWorkingBytes": 911097,
+          "maxControlBytes": 6155
+        }
+      }
+    ],
+    "actualD1Profiles": [
+      {
+        "configured": false,
+        "realPinnedRound": null,
+        "calls": 22,
+        "maxOperations": 27,
+        "maxWorkingBytes": 101254,
+        "maxBatchBytes": 64386,
+        "allPhasesRestarted": true,
+        "adoption": false
+      },
+      {
+        "configured": true,
+        "realPinnedRound": 30000000,
+        "calls": 10,
+        "maxOperations": 52,
+        "maxWorkingBytes": 942988,
+        "maxBatchBytes": 64386,
+        "allPhasesRestarted": true,
+        "adoption": false
+      }
+    ],
+    "actual1000Pending": [
+      {
+        "actualPendingAdmissions": 1000,
+        "calls": 6005,
+        "maxOperations": 17,
+        "maxWorkingBytes": 211738,
+        "maxBatchBytes": 64386,
+        "elapsedMs": 419824.6089,
+        "adoption": false
+      }
+    ],
+    "maximumConfiguredOperations": 52,
+    "maximumConfiguredWorkingBytes": 943042,
+    "maximumSqlBatchBytes": 64386
+  },
+  "bounds": {
+    "operationsPerInvocation": 64,
+    "workingBytes": 1048576,
+    "sqlBatchBytes": 262144,
+    "prefixBytes": 8192,
+    "contextBytes": 32768,
+    "stageOriginalSelectionBytes": 16384,
+    "stageProofBytes": 8192,
+    "phaseProofBytes": 32768,
+    "stages": 32,
+    "admissions": 1000
+  },
+  "verified": [
+    "Actual050fingerprint+051relation readiness, sameoperator andcurrentcollection-import scope required; root/source/schema/generation/watermark/receiptlineage fenced on every phase",
+    "All originalstage proofs required evenwithoutadmissions, emptyinventory supported",
+    "Caller selects onlyartifactidentities; no mappedfacts/checkpoint/prefix/quotas accepted; selectioncommitted before33/32/39crypto andchangedretry conflicts",
+    "Separate durable37stage/33prepare/32controls/39mint/40membership/31advance/33closure/31finish phases, privateprefix onlyfromretainedSQL",
+    "Manual and configured originalsettlements, orderedpending prefix, exactwhitelist/public/founderallocation/wallet/budget semantics andfinalcounts",
+    "Wholeconfigured600611B originalpolicy path <=52storageops and<=1MiB includingdurablewrapper, realretainedBLS inactualworkerd",
+    "Immutable proofchain bodies withfullpriorCAS, SQLmandatoryphasevalue/priorcontext bindings, omittedproof/update rollback, lostack replay, same-nonce raceonewinner",
+    "Changedpriorselection/newpreparedvalue differingcorrectproof abort atomically; finalresultcannotdisagreewithretainedprefix",
+    "Source/scope/generation/schema changes duringcomputation cannotappendproofs oradvanceprefix; selection replay awaitsfinalsourcefence andreportsallSQL",
+    "Freeadmission withoutoriginalcompleteness andmissingstage/mintoriginals holdexplicitly; no fabricated authoritativefree-cut/openingfacts",
+    "Actual1000pendinglegacyadmissions produce6005durablecalls and6001phaseproofs, pending1000/unsold0/unmintedReserve1000 withunchangedLevelquotas",
+    "No businesswatermark changes fromprivateaudit; no publicroute/collectionauthority/financialexecution"
+  ],
+  "limitations": [
+    "Historical local economics under retained history is not original operator authentication, original ingestion timing, chain finality or payment verification. Final originalOperatorAuthentication/paymentVerified/adoptionAuthorized/executable flags remain false.",
+    "Free admission needs independent original known-local completeness/historical ownership proof; B11-36 preimage+walletprojection is insufficient. LaterGenesis firstadmission needs original opening/ballot/previoussupply facts, never currentpreviousinventory substitution.",
+    "A heldattempt keepsitsprivateprefix/context. UNIQUErelation parent means changedartifactselections requirefreshgenuine050051audits; no reset/import API.",
+    "Large individuallylegal source/context/policy combinations mayhold whenaggregateworkingbudgetexceeds1MiB. Metrics are conservative serializedbuffer accounting, notengineheapprofiling.",
+    "Max1000admission rehearsal is localNode actualstate; actualD1 covers complete representative manual/configuredprofiles andrealBLS, not1000remote/runtimecalls.",
+    "The600611B retainedoriginalpolicy doesnotrelax active normalizedmint512KiB policy limit.",
+    "Control/proofstate is excluded fromrecovery; restored orchangedbusinesssources startfreshpreparatoryaudits. Nohistorical045/046receipt fabrication ornormalizedadoption occurs."
+  ],
+  "sourceHashes": {
+    "platform/collect/legacy-economic-repository.mjs": "322a8ff3808b1fb729f79786901f9c474e6e02ffc2b97107a9ea749eb9377347",
+    "platform/collect/legacy-economic-repository.d.mts": "181a64f06a6463d98c020ef2412db569765156a100ddfea4b850bb8a6a02b159",
+    "platform/collect/legacy-economic-repository.fixtures.mjs": "02b2bcbb071852184fb32bbfc9f495049ca48c96cab8b33d915377de969abd7c",
+    "platform/collect/legacy-economic-repository.test.mjs": "1115759865b34cc0258aac4a6bf9621e622e6661d64d8aeffa67d9ec1f492f6a",
+    "platform/collect/legacy-economic-repository.capacity.test.mjs": "1617a86f94a4cac36eacb203be8cb8670e4dafbd8c20f9d21374ac5fed74629f",
+    "platform/collect/LEGACY_ECONOMIC_REPOSITORY.md": "f3b2fc6dc867ee3335efe0d82dbb1ef79b56c68c997ca92210ae69d0a784d320",
+    "platform/edge/test/legacy-economic-repository.test.mjs": "3cd37c05fe3ed79ebc621b7fae529c0a136a26fd8d424b6eab25caf53fa6c620",
+    "platform/edge/test/fixtures/legacy-economic-repository-worker.ts": "c036f8f6fe00daa307b48ee88e8be1ed0c39bee39a0acfe7b6e1f3fe5ae9b303",
+    "platform/storage/052-legacy-economic-continuations.sql": "ec969bd05ff2c3865721abf675c74679bfc8853bcb0edca2c2ab3a06997d6927",
+    "platform/recovery/schema.mjs": "36f59839a3e6ac5d745b8345fddc2f5934600812d126c7039a8e6eb09b1187cf",
+    "platform/collect/legacy-economic-schema.test.mjs": "507cde574287ffd3f42d3c2f6ab1072e0d727a46bf082b5a6211ca673ab1ef61"
+  },
+  "coordinatorOwnedHashes": {
+    "platform/storage/052-legacy-economic-continuations.sql": "ec969bd05ff2c3865721abf675c74679bfc8853bcb0edca2c2ab3a06997d6927",
+    "platform/recovery/schema.mjs": "36f59839a3e6ac5d745b8345fddc2f5934600812d126c7039a8e6eb09b1187cf",
+    "platform/collect/legacy-economic-schema.test.mjs": "507cde574287ffd3f42d3c2f6ab1072e0d727a46bf082b5a6211ca673ab1ef61"
+  },
+  "reusedDependencyHashes": {
+    "platform/collect/legacy-audit-repository.mjs": "666ffe0fa273584d486cee8ba03eb27443c3a228ad7b48bdf297fcdbd644cd37",
+    "platform/collect/legacy-relation-repository.mjs": "473678a5dfbf3d6653a09e9650abcea30d36677a8701505146aa44f93ef382c0",
+    "platform/collect/legacy-stage-source.mjs": "85ae8d2d4dcc1a618282c5eeba0c57dbce96dc2475ff34e83df9b224b92c003d",
+    "platform/collect/legacy-admission-source.mjs": "d504828853a1f5aff60e4ba6ab75ae1eca8bfcb815d020c0b2a8a27b9181745b",
+    "platform/collect/legacy-control-audit.mjs": "106f3c97b5a2ea58d9bacb36e64fb092b50f33b0c5133ad4e3bd37be74fceca9",
+    "platform/collect/legacy-mint-source-audit.mjs": "5d4c6607bf8edbdeeb8136b9d81d910fc27c2efb292e25c49ee8a813687c77f5",
+    "platform/collect/legacy-membership-source.mjs": "c11ef260431a16da4c5c0ccf6fb03ed728ab58e1bb23a43db1d47bf89c0ec7d3",
+    "platform/collect/legacy-admission-audit.mjs": "19185d748049918553312f7c0f97da98800da3bc5450b0c0fa5951fa5ac036f5",
+    "platform/collect/source-seal-guard.mjs": "ca3ee3ceab6a201fecc552d3afedccfd9d00eba20fc3a46a1a162a3bf70d0091"
+  },
+  "integration": "Coordinator52 guards exact context/proof binding, typed zero prefix/closure and final prefix-v-source aggregates. ActualD1 executes final triggers. Three excluded controls;108 business tables unchanged."
+}
