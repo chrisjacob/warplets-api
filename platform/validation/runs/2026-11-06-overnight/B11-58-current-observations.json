@@ -1,0 +1,111 @@
+{
+  "task": "B11",
+  "slice": "B11.58 genuine adopted-asset normalized observation recovery integration",
+  "status": "verified-local-adapter; main recovery dispatch and full readiness remain unfinished",
+  "baseCommit": "3c345826ba052e34660a7bbcf04a20efd3ca8ff5",
+  "implementationCommit": null,
+  "recordedAt": "2026-11-06T10:45:51.741882+00:00",
+  "sourceHashes": {
+    "platform/recovery/v2-reconcile-legacy-current.mjs": "882f1aa9b39c8008e8d113e398e25bcdd270b422be7cb28e4691f4d53d2beb0a",
+    "platform/recovery/v2-reconcile-legacy-current.test.mjs": "e30372f1baf81d39a1c8c0ec34c131b235a776f93ccd91bdb70a11f1903f72e3",
+    "platform/recovery/v2-legacy-observed-source.fixtures.mjs": "3df900145f781279dbef693899b12b9ae74242c7e9dc440f051ca97b6ab9fd0c",
+    "platform/recovery/v2-reconcile-observed-current.test.mjs": "75baf60b538690d04e28b0dba9d32e82f38f9333ec74ac905bad733884864f50",
+    "platform/recovery/V2_ADOPTED_OBSERVATIONS.md": "55666f9955abae2f503ab0d5dabd52bb7dfb2412048e561b13072d2fc5347b28",
+    "platform/edge/test/recovery-observed-current.test.mjs": "3caed047493bfcd1bb06e822544e7dd300fe1eae0726cfc2b8d8eefe41ca6dcc",
+    "platform/edge/test/fixtures/recovery-observed-current-worker.ts": "0bb3968b3167379e001b7668c8578154424408acd59372fb2037d10273ed562d"
+  },
+  "sharedDependencies": {
+    "platform/recovery/v2-legacy-current-observation.mjs": "65cd2ab35fa1156c69b192c75e814aaa4ed284ca281435165cedacca248b21b7",
+    "platform/recovery/v2-legacy-current-history.mjs": "a19cffa5710bb07a818d68d18eccd4751c12a4522e4f6355ddbbda87d946df7b",
+    "platform/collect/legacy-adoption-activation.fixtures.mjs": "f6922a7d8f190543c4b6ec5a1aaa0e03e35979b8a80a89bc3f48b5f8dd1d4641",
+    "platform/storage/041-collection-observations.sql": "a4f36ba190a2298856fcf7086b0a90c1bc7fa06219f04e40547578f02333c388",
+    "platform/storage/055-collection-imported-admission.sql": "0ed9b1b39bed9efee13bc739a48cdd7748d9dd1726e3869ae6f5dbbbf504b750"
+  },
+  "installedSchema": {
+    "last": "055-collection-imported-admission.sql",
+    "migrationFiles": 54
+  },
+  "checks": [
+    {
+      "command": "node --test platform/recovery/v2-reconcile-legacy-current.test.mjs platform/recovery/v2-reconcile-observed-current.test.mjs",
+      "log": "work/b11-58-current-chain-node.log",
+      "passed": 3,
+      "failed": 0,
+      "durationMs": 74064.5756,
+      "measurements": [
+        {
+          "syntheticPrerequisiteProof": true,
+          "fullReadiness": false,
+          "maxWorkingBytes": 346342,
+          "maxSql": 16
+        },
+        {
+          "genuineActivation": true,
+          "genuine041": true,
+          "freshTarget": true,
+          "syntheticOriginalMintPrerequisite": true,
+          "fullReadiness": false,
+          "maxSql": 20,
+          "maxWorkingBytes": 401695,
+          "checkpointBytes": 86114
+        }
+      ]
+    },
+    {
+      "command": "node --test platform/edge/test/recovery-observed-current.test.mjs",
+      "log": "work/b11-58-current-chain-d1.log",
+      "passed": 1,
+      "failed": 0,
+      "durationMs": 119045.4747,
+      "measurements": [
+        {
+          "genuineActivation": true,
+          "genuine041": true,
+          "freshD1Target": true,
+          "syntheticOriginalMintPrerequisite": true,
+          "fullReadiness": false,
+          "sourceObjects": 184,
+          "maxWorkingBytes": 402109,
+          "maxOperations": 29,
+          "maxBatchBytes": 6012
+        }
+      ]
+    },
+    {
+      "command": "node platform/edge/node_modules/typescript/bin/tsc -p platform/edge/tsconfig.json --noEmit",
+      "status": "passed"
+    },
+    {
+      "command": "git diff --check -- [seven owned paths]",
+      "status": "passed"
+    }
+  ],
+  "bounds": {
+    "operations": 64,
+    "sqlBatchBytes": 262144,
+    "workingBytes": 1048576,
+    "currentContextBytes": 32768,
+    "checkpointBytes": 131072,
+    "legacyHistoryRows": 1000,
+    "legacyHistoryBytes": 196608,
+    "modernObservationCount": 1000
+  },
+  "acceptance": [
+    "Genuine original source runs fingerprint, relation, economics, preparation and atomic activation before two real B04-bound041 observations.",
+    "Actual private capture and fresh Node plus workerd/D1/R2 import; current evidence heads removed and observer grants revoked after acceptance.",
+    "Activation receipt numeric source revision defines adoption cut; pre-cut041, malformed ordering and wrong before-image hold.",
+    "Exact adoption-cut raw JSON/current/count digest reconstructed before one accepted event per durable continuation.",
+    "Complete final Collect/Vault rows and Collect/Vault/Level/binding counts checked; extra history holds.",
+    "Lost checkpoint acknowledgement replays; omitted cursor or final proof conflicts without progress; missing retained object holds.",
+    "Unchanged and observed current proofs append to currentChain in the same CAS; tests independently rebuild chain.",
+    "Entire serialized checkpoint above128KiB rejected before SQL/object work; unused per-phase contexts cleared while required prefixes remain."
+  ],
+  "limitations": [
+    "Original-mint prerequisite check is explicitly synthetic in these adapter-isolation tests; no full original-mint/economics readiness claim.",
+    "Main v2 recovery dispatcher remains unchanged and target remains restoring.",
+    "Pre-adoption041, progression, claims and unresolved operation conflicts explicitly hold until independent replay supports them.",
+    "Two real normalized observations exercised;1000 is an explicit guard, not a claimed maximum-observation capacity run.",
+    "No external calls, financial capability, public import endpoint or release authorization."
+  ],
+  "nextExecutableStep": "Coordinator integrates independently verified original mint/economics/current closure phases; closure rebuilds retained currentChain from every per-asset proof before readiness."
+}

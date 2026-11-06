@@ -30,7 +30,7 @@ test('private retained current-history adapter requires prior original-mint proo
  const call=async()=>helper.step(await repository.load(f.captured.digest));
  for(const kind of ['missing-mint-proof','corrupt-owner']){fault.kind=kind;reset();const result=await call();assert.equal(result.kind,'held',JSON.stringify(result));}
  fault.kind='omit-proof';reset();assert.equal((await call()).kind,'conflict');assert.deepEqual(target.checkpoint(),initial);
- fault.kind=null;const result=await call();assert.equal(result.kind,'progress',JSON.stringify(result));assert.equal(target.checkpoint().legacyAdoption.currentOrdinal,1);
+ fault.kind=null;const result=await call();assert.equal(result.kind,'progress',JSON.stringify(result));assert.equal(target.checkpoint().legacyAdoption.currentOrdinal,1);const proof=target.db.prepare("SELECT result_digest FROM app_recovery_reconcile_checks WHERE phase='legacy-adoption-current'").get().result_digest;assert.equal(target.checkpoint().legacyAdoption.currentChain,await hashJson(f.crypto,['v2-legacy-current-chain',anchor.adoptionId,0,await hashJson(f.crypto,['v2-legacy-current-start',anchor.adoptionId,1]),proof]));
  assert.equal(target.db.prepare("SELECT COUNT(*) n FROM app_recovery_reconcile_checks WHERE phase='legacy-adoption-current'").get().n,1);
  assert.equal((await call()).phase,'reconcile-legacy-adoption-closure');assert.equal(target.db.prepare('SELECT status FROM app_recovery_state').get().status,'restoring');
  reset();fault.kind='mutation';assert.equal((await call()).kind,'held');

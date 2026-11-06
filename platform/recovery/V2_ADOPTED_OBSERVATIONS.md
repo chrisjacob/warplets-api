@@ -1,0 +1,15 @@
+# Retained observations after legacy adoption
+
+B11-58 extends the private current-asset recovery phase. It remains unmounted from the main recovery dispatcher. A matching original-mint semantic proof is a prerequisite; this adapter cannot create that proof or authorize readiness.
+
+The activation command receipt's numeric `expected_revisions.source` is the adoption boundary. Header revisions, recovery watermarks and timestamps are not substitutes. All accepted 041 observation revisions must be canonical safe decimal integers, unique for the asset and strictly after that boundary. Pre-cut 041 events, progression, claims and unresolved operation conflicts explicitly hold.
+
+The initial continuation reconstructs the accepted adoption snapshot from the retained anchor's scalar fields, the first 041 effect's original asset JSON, and the complete unbound legacy history. Existing legacy-history verification must reproduce the anchor's exact asset digest, current fields and event counts. Raw asset and Vault JSON strings keep their original property order. Extra unbound history cannot be hidden by an event-time filter.
+
+Each subsequent continuation uses the B11-55 verifier to replay one accepted 041 event against the verified baseline. Retained B04 originals and immutable receipts are checked without requiring current evidence heads or operator grants. The final continuation compares exact current Collect/Vault rows and complete Collect observation, Vault event, Level history and 041 binding counts before writing the per-asset proof. Both unchanged and observed assets append their result digest to the retained `currentChain` in the same CAS as the proof and ordinal update. The seed commits adoption ID and admission count; the later aggregate closure can rescan per-asset proofs and compare the resulting chain. No missing event or unresolved conflict is counted as complete.
+
+The current context is capped at 32 KiB and the entire serialized checkpoint at 128 KiB. Unused mint, economic and stage contexts are cleared on phase progress while required prefix information remains. Ordinary working data stays within 1 MiB, SQL batches within 256 KiB, and complete local invocations within 64 SQL/object operations. Existing unbound legacy history remains bounded to 1,000 rows and 192 KiB; normalized observations use one bounded continuation each, up to 1,000 per asset.
+
+Acceptance creates an actual legacy source, runs genuine fingerprint/relation/economics/preparation/activation, then accepts real B04-bound 041 reveal and transfer commands. It captures the source and imports it into fresh Node and D1/R2 targets. The tests explicitly inject only the agreed original-mint prerequisite proof to isolate this current-asset adapter; they do not claim full recovery readiness. Lost acknowledgements, omitted checkpoint/proof children, missing retained objects, pre-cut ordering, wrong before-images and incomplete history all fail closed or replay the retained continuation.
+
+All inputs and actors in this acceptance are synthetic local fixtures. No external calls, public import endpoint, financial capability or release authority is added.
