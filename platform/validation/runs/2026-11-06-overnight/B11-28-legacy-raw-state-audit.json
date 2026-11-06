@@ -1,0 +1,82 @@
+{
+  "task": "B11",
+  "slice": "B11-28 exact legacy raw-state continuation",
+  "status": "verified-read-only-prerequisite; no adoption authority",
+  "recordedAt": "2026-11-06T05:13:43.405596+00:00",
+  "sourceHashes": {
+    "platform/collect/legacy-raw-state-audit.mjs": "c038533f7f4dc5bdb1bb75cbeb2af9d2e9b3cb38b77e060829671338fda1aca0",
+    "platform/collect/legacy-raw-state-audit.d.mts": "a86360a6db15bcd80ebf89986130ab0777fbbb01285a8e1376da9a21c9b1f2c7",
+    "platform/collect/legacy-raw-state-audit.test.mjs": "4b2c5e92ba50c7bd96b4efec14733c4e8b86c72a9b794ba569982464ef0eb5ac",
+    "platform/collect/legacy-raw-state-audit.README.md": "798e17389ea2fe4440df75b4a22235b32ee948ca9b93ef89eb52df2deda878ad",
+    "platform/edge/test/legacy-raw-state-audit.test.mjs": "79599063703e1930001e7d25f5df33c56a2c270563dbcfbf10a9234b2f0e9475",
+    "platform/edge/test/fixtures/legacy-raw-state-audit-worker.ts": "d0f0d036bff47dd1498e4e8ef3181de880e5dbc73dc96f8ee803289e790026bb"
+  },
+  "checks": [
+    {
+      "command": "node --test platform/collect/legacy-raw-state-audit.test.mjs",
+      "result": "PASS",
+      "tests": 4,
+      "durationMs": 2541.8213,
+      "log": "work/b11-raw-audit-node.log"
+    },
+    {
+      "command": "node --test platform/edge/test/legacy-raw-state-audit.test.mjs",
+      "result": "PASS",
+      "tests": 2,
+      "durationMs": 45982.8327,
+      "log": "work/b11-raw-audit-edge.log",
+      "reuse": "Maximum Node capacity preceded bounded header string projection; final exact D1 SQL rerun below."
+    },
+    {
+      "command": "node --test --test-name-pattern='actual D1' platform/edge/test/legacy-raw-state-audit.test.mjs",
+      "result": "PASS",
+      "tests": 1,
+      "durationMs": 23511.0572,
+      "log": "work/b11-raw-audit-edge-final.log"
+    }
+  ],
+  "bounds": {
+    "sqlPerStep": 3,
+    "chunkBytes": 65536,
+    "sourceBytes": 33554432,
+    "maxWorkingBytes": 738422,
+    "checkpointBytes": 8192
+  },
+  "acceptance": {
+    "actualD1": {
+      "sourceBytes": 900014,
+      "steps": 14,
+      "maxWorkingBytes": 738366,
+      "nativeNodeDigestMatches": true,
+      "freshAdapterEveryInvocation": true
+    },
+    "maximumNode": {
+      "sourceBytes": 33554432,
+      "steps": 512,
+      "classification": "synthetic NUL raw bytes; not valid inventory JSON; no claim of D1 single-value capacity"
+    },
+    "sourceFence": [
+      "recovery generation/mode/status",
+      "whole-business watermark",
+      "inventory header identity/revision/byte length"
+    ],
+    "faults": [
+      "state update without header revision",
+      "unrelated business update",
+      "generation change",
+      "interrupted read exact retry",
+      "malformed chunk",
+      "forged offset",
+      "missing source",
+      "oversize source",
+      "restoring source",
+      "inconsistent batch header"
+    ]
+  },
+  "limitations": [
+    "Private checkpoint requires future durable guarded persistence; hash words are not prefix authority.",
+    "Exact raw digest does not prove JSON validity, canonical projection relation, original stage approvals or economic validity.",
+    "No writes, schema change, activation, financial execution or public route.",
+    "Pinned D1 cannot store a32MiB single value; existing measured local single-value limit remains."
+  ]
+}
