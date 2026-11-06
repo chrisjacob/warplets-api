@@ -1,0 +1,25 @@
+{
+  "task": "B19 steps4-6",
+  "status": "local-substeps-tested-not-full-B19",
+  "command": "node --test platform/claims/recorded-codecs.test.mjs platform/stake/readiness.test.mjs platform/validation/decisions/decisions.test.mjs platform/domain/economics/economics.test.mjs",
+  "passed": 15,
+  "failed": 0,
+  "durationMs": 216.84,
+  "log": "work/b19-dossiers-tests.log",
+  "sourceHashes": {
+    "platform/claims/recorded-codecs.mjs": "6d8814b7c081d74a93423325b6433fd8d448cd171fcf46814fe6bfd07d2ba6ba",
+    "platform/claims/recorded-codecs.test.mjs": "1cafae5242fb28406f49b07e26142deafaa48052c5d321871fbfcbd84405a1ea",
+    "platform/stake/readiness.mjs": "935abcab2d72aeeb3bf7f9375e045ff20bd3b37f4448a8d96a89017bc3b48ecc",
+    "platform/stake/readiness.test.mjs": "0f5514f6fd0530d8e7287ef15d9bab0f26ba09563d83e94cc261af6c3f3578e7",
+    "platform/validation/decisions/README.md": "f7c01ac44b78277ecae1b9808dbe1954279e6a859ccf8995c247e1f20a498bf0",
+    "platform/validation/decisions/financial-decisions.json": "63bc249a02f40b63891ad546218d4e42e8db7219bbee739aad3c7503244e7b5e",
+    "platform/validation/decisions/decisions.test.mjs": "9e8972904f53fa92287ee3d35da69b6d6c057d7f92e1341253952e75c980ddcb"
+  },
+  "limitations": [
+    "Claims wire shape only: missing standalone frozen leaf/root/proof vectors, no Merkle proof verification",
+    "Caller supplied farm amounts are not provider evidence",
+    "All custody/provider/release decisions unresolved; incompatible findings preserved",
+    "No new protocol experiments, signatures or transactions"
+  ],
+  "baseCommit": "aff515e"
+}

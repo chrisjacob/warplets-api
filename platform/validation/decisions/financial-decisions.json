@@ -1,0 +1,154 @@
+{
+  "format": "10x.local.financial-decisions.v1",
+  "evidenceClass": "retained-local-fixtures-and-dated-public-observations",
+  "sourceAuthority": "artifact-pins-only-not-provider-or-review-authority",
+  "sources": [
+    {
+      "path": "platform/validation/protocol-status.md",
+      "commit": "51c0741c757453bdd9f1bcdd9ef9d18f066ab920",
+      "digest": "44a4632b33f564baa39ceb3b202af7b9a7dd3867e62d97506cce5faab99f2b27"
+    },
+    {
+      "path": "platform/lab/CORE-VAULT.md",
+      "commit": "bee8e1de2f533befdbda313fd04aa5c516fd841f",
+      "digest": "82ab3469e980e2a2dccc700cc2ed6889f6604a0d489dc39c1ad28f84ddac3ca7"
+    },
+    {
+      "path": "platform/lab/KAMINO.md",
+      "commit": "28a96db02bcdbf3c37c8613a07bb8900be46837d",
+      "digest": "fe80273186687605642beae99e31a2fa0ec4677570ee1187df50c9be23390f2d"
+    }
+  ],
+  "decisions": [
+    {
+      "id": "reserve-assignment",
+      "status": "review-required",
+      "reviewOwner": null,
+      "selectedOption": null,
+      "finding": "The first funded ATT must back all promised reserves, including every unminted Genesis position. The controlled future asset key in the replay does not prove fair mint assignment.",
+      "options": [
+        "Keep candidate Core asset-signer custody unselected until reserve assignment is enforceable.",
+        "Evaluate a separately authorized custody design if required rights cannot coexist."
+      ],
+      "unlockEvidence": [
+        "Immutable complete reserve commitment with supply, budgets, original clocks and stable coordinates.",
+        "Reviewed enforceable slot-to-asset binding and unbiased assignment, including withheld future identities.",
+        "Independent full recovery of original bindings and cumulative claims; no recreated spent entitlement."
+      ],
+      "financialExecution": false,
+      "releaseAuthorized": false
+    },
+    {
+      "id": "external-burn-and-metadata",
+      "status": "incompatible",
+      "reviewOwner": null,
+      "selectedOption": null,
+      "finding": "Plain Core burn strands signer funds; retained update authority removed the Oracle; a permanent burn delegate bypassed the veto. Unreachable update authority restricts metadata/progression. No burn button does not prevent external burns.",
+      "options": [
+        "Reject tested removable-Oracle and permanent-burn-delegate configurations.",
+        "Review a constrained exact asset-and-collection policy supporting both burn protection and required metadata rights."
+      ],
+      "unlockEvidence": [
+        "Exact asset and collection plugin allowlists with authority roles and upgradeability.",
+        "Independent direct-path proof of external burn protection and required refresh/Level/Season changes together.",
+        "Marketplace escrow, freeze, execute and former-owner delegation compatibility."
+      ],
+      "financialExecution": false,
+      "releaseAuthorized": false
+    },
+    {
+      "id": "claim-format-and-permanence",
+      "status": "review-required",
+      "reviewOwner": null,
+      "selectedOption": null,
+      "finding": "Wallet-bound Earn and stable asset-signer Vault have distinct claimant semantics. The recorded linear leaf payload is 32 claimant bytes, u64 amount and tagged linear schedule. Distribution and mint are account context, not leaf payload fields.",
+      "options": [
+        "Retain shape-only codecs and explicitly missing frozen hash/root/proof vectors.",
+        "Accept a program-specific proof verifier only with independently retained matching vectors and reviewed exact program configuration."
+      ],
+      "unlockEvidence": [
+        "Pinned full leaf/root/proof vectors for wallet and asset-signer cases, including wrong claimant and root-format rejection.",
+        "Independent durable proof availability and exact funded distribution/mint/root identities.",
+        "Nonrevocation, finite max-i64 clawback semantics and reviewed source-to-binary correspondence.",
+        "Current-owner authority after transfer with atomic exact payout and fresh temporary recipient account; no persistent former-owner delegate."
+      ],
+      "financialExecution": false,
+      "releaseAuthorized": false
+    },
+    {
+      "id": "public-claim-rarity",
+      "status": "review-required",
+      "reviewOwner": null,
+      "selectedOption": null,
+      "finding": "A public claim amount may disclose Level before the planned reveal. Private metadata or a concealed UI cannot hide public economic facts.",
+      "options": [
+        "Explicitly disclose and accept economic rarity inference after release review.",
+        "Review a different compatible custody/reveal design before selection."
+      ],
+      "unlockEvidence": [
+        "Document what amount, timing and reserve coordinates are publicly observable.",
+        "Choose and disclose the resulting privacy/fairness policy without delaying or withholding vested rights."
+      ],
+      "financialExecution": false,
+      "releaseAuthorized": false
+    },
+    {
+      "id": "farm-authority",
+      "status": "incompatible",
+      "reviewOwner": null,
+      "selectedOption": null,
+      "finding": "The unrestricted administrator removed 10 of 100 deposited units in the recorded counterexample. An empty withdraw-authority field and UI restrictions do not remove the power to set it.",
+      "options": [
+        "Reject unrestricted administrative custody.",
+        "Review an enforceable constrained on-chain authority arrangement; none is selected."
+      ],
+      "unlockEvidence": [
+        "Allow only required reward refresh, configured end-of-campaign upkeep and isolated idle recovery.",
+        "Forbid principal withdrawal/redirection, authority reassignment that restores it, and premature cancellation of funded emissions.",
+        "Show direct instruction paths preserve principal and every earned-unclaimed reward."
+      ],
+      "financialExecution": false,
+      "releaseAuthorized": false
+    },
+    {
+      "id": "farm-funding-and-precision",
+      "status": "review-required",
+      "reviewOwner": null,
+      "selectedOption": null,
+      "finding": "Fund exactly 5% gross. Observed zero fees are dated configuration evidence. Whole-unit 1000000-base-unit/second execution does not prove fractional-rate precision.",
+      "options": [
+        "Disclose measured nonzero fees as reduced net receipts; never top up from other token budgets.",
+        "Review a separately approved alternative if fee or precision behavior cannot meet the product."
+      ],
+      "unlockEvidence": [
+        "Selected global fee and authority configuration verified at decision time.",
+        "Fractional rates, supply/decimal combinations, refresh frequency and cumulative rounding compared against the exact model.",
+        "Recovery after required default-curve upkeep excludes principal and earned-unclaimed liabilities.",
+        "Complete account/rent/network/priority/retry cost quote with payer and refundable rent separated."
+      ],
+      "financialExecution": false,
+      "releaseAuthorized": false
+    },
+    {
+      "id": "earn-calendar",
+      "status": "review-required",
+      "reviewOwner": null,
+      "selectedOption": null,
+      "finding": "Keep the proposed UTC daily board mapping, including day-eleven final allocation reconciliation, in local artifacts. It remains a release-ratification decision; late processing never shifts original launch or vesting clocks.",
+      "options": [
+        "Ratify the proposed UTC/day-eleven mapping explicitly before release.",
+        "Change it only through an explicitly reviewed product/contract revision with migration and fixture impact."
+      ],
+      "unlockEvidence": [
+        "Founder ratification of UTC boundaries, ten activation-based allocation days and day-eleven reconciliation.",
+        "Demonstrate late settlement/recovery retains original board selection and cumulative vesting."
+      ],
+      "financialExecution": false,
+      "releaseAuthorized": false
+    }
+  ],
+  "metadataProvider": null,
+  "identityCustodyProvider": null,
+  "financialExecution": false,
+  "releaseAuthorized": false
+}
