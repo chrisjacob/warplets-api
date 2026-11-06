@@ -1,11 +1,12 @@
 import {AssetEvidence,InventoryEvidence,StageEvidence,eligibleMaterials} from './collection-details';
 import {ProgressionAssetContext} from './progression-review';
-import { Capability, useRuntimeQuery, principalKey } from './capabilities';
-import { useEffect, useState } from 'react';
+import { Capability, useRuntimeQuery, useCapability, principalKey } from './capabilities';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { rootRoute } from './routes';
-import { client, sdk, type ProgressionRequest } from './sdk';
+import { client, sdk, PlatformApiError, type ProgressionRequest } from './sdk';
+import {progressionJournal,matchesProgressionReceipt,type ProgressionAttempt,type ProgressionJournalEntry} from './progression-intent';
 import type { Asset, Ballot, Inventory, ProgressQuote, Receipt, Stage } from './models';
 import { Empty, Facts, friendlyError, Hero, intentKey, Loaded, Modal, Panel, pretty, Signal, sol, usePageMeta, utc } from './common';
 import { useSession } from './session';
@@ -33,26 +34,34 @@ export function BallotCard({ballot,wallet}:{ballot:Ballot;wallet:string|null}){
   </article>;
 }
 type Review={kind:'mint';inventory:Inventory;stage:Stage} | {kind:'progress';asset:Asset;materialId?:string};
+type QuoteSelection={req:ProgressionRequest;target:Asset;material?:Asset};
 function ReviewOperation({review,wallet,onClose}:{review:Review;wallet:string;onClose:()=>void}){
-  const navigate=useNavigate(),cache=useQueryClient();
-  const quote=useRuntimeQuery('/api/v1/collect/assets/{id}',{queryKey:['private',wallet,'solana','quote',review],enabled:review.kind==='progress',staleTime:0,
+  const navigate=useNavigate(),cache=useQueryClient(),mounted=useRef(true),attempt=useRef<ProgressionAttempt|null>(null);
+  const journal=useMemo(()=>typeof sessionStorage==='undefined'?null:progressionJournal(sessionStorage,wallet),[wallet]);
+  const [pending,setPending]=useState<ProgressionJournalEntry|null>(()=>review.kind==='progress'?journal?.read(review.asset.inventoryId,review.asset.id,review.materialId)??null:null);
+  const [quoteSession,setQuoteSession]=useState<{key:string;allowUpdated:boolean;captured?:QuoteSelection}>(()=>({key:crypto.randomUUID(),allowUpdated:false}));
+  const [now,setNow]=useState(Date.now),[needsRefresh,setNeedsRefresh]=useState(false);
+  const reserveCapability=useCapability('POST','/api/v1/collect/inventories/{id}/progression');
+  useEffect(()=>{mounted.current=true;const interval=setInterval(()=>setNow(Date.now()),500);return()=>{mounted.current=false;clearInterval(interval);};},[]);
+  const quote=useRuntimeQuery('/api/v1/collect/assets/{id}',{queryKey:['private',wallet,'solana','progression-quote',quoteSession.key],enabled:review.kind==='progress'&&!pending,staleTime:Infinity,retry:false,refetchOnWindowFocus:false,refetchOnMount:false,
     queryFn:async({signal})=>{
       if(review.kind!=='progress')throw Error('Select an asset.');
-      const target=await sdk.asset(review.asset.id,signal);
-      if(target.owner!==wallet||target.revealStatus!=='revealed'||target.version!==review.asset.version)
-        throw Error('The target ownership, reveal or version changed. Refresh the selected asset.');
-      const req:ProgressionRequest={kind:review.materialId?'upgrade':'visual',targetId:review.asset.id,
-        expectedTargetVersion:review.asset.version!};
-      let material:Asset|undefined;
-      if(review.materialId){
-        material=await sdk.asset(review.materialId,signal);
-        if(material.owner!==wallet||material.revealStatus!=='revealed'||material.version===undefined)
-          throw Error('The material ownership or reveal changed. Refresh the selected pair.');
-        req.materialId=material.id;req.expectedMaterialVersion=material.version;
+      if(!quoteSession.captured){
+        const target=await sdk.asset(review.asset.id,signal);
+        if(target.owner!==wallet||target.revealStatus!=='revealed'||target.version===undefined||(!quoteSession.allowUpdated&&target.version!==review.asset.version))
+          throw Error('The target ownership, reveal or version changed. Refresh the selected asset.');
+        const req:ProgressionRequest={kind:review.materialId?'upgrade':'visual',targetId:target.id,expectedTargetVersion:target.version};let material:Asset|undefined;
+        if(review.materialId){
+          material=await sdk.asset(review.materialId,signal);
+          if(material.owner!==wallet||material.revealStatus!=='revealed'||material.version===undefined)throw Error('The material ownership or reveal changed. Refresh the selected pair.');
+          req.materialId=material.id;req.expectedMaterialVersion=material.version;
+        }
+        signal.throwIfAborted();quoteSession.captured={req,target,material};
       }
-      const result=await sdk.quote(review.asset.inventoryId,req);
-      return {req,result,target,material};
+      const captured=quoteSession.captured,result=await sdk.quote(review.asset.inventoryId,captured.req,quoteSession.key,signal);
+      return {...captured,result};
     }});
+  const reviewed=pending?.kind==='pending'?pending.attempt.quote:quote.data?.result,expired=!!reviewed&&now>=reviewed.quoteExpiresMs;
   const confirm=useMutation({mutationFn:async():Promise<Receipt>=>{
     if(review.kind==='mint'){
       const body={inventory:review.inventory.id,stage:review.stage.id};
@@ -60,36 +69,63 @@ function ReviewOperation({review,wallet,onClose}:{review:Review;wallet:string;on
       const receipt=await sdk.mint(body.inventory,body.stage,intent.key);
       intent.done();return receipt;
     }
-    if(!quote.data)throw Error('Refresh the operation quote.');
-    const intent=intentKey(wallet,'progress:'+review.asset.inventoryId,quote.data.req);
-    const receipt=await sdk.progress(review.asset.inventoryId,quote.data.req,intent.key);
-    intent.done();return receipt;
+    if(!journal)throw Error('This browser cannot retain a recoverable request.');
+    if(pending?.kind==='invalid')throw Error('The retained request is unreadable. Review existing operation receipts.');
+    if(!pending&&(!quote.data||quote.isError||Date.now()>=quote.data.result.quoteExpiresMs||needsRefresh))throw Error('Refresh the expired or changed quote before confirming.');
+    const captured=pending?.kind==='pending'?pending.attempt:journal.capture(quote.data!.result,{target:quote.data!.target,material:quote.data!.material});
+    attempt.current=captured;setPending({kind:'pending',name:'',attempt:captured});
+    const receipt=await sdk.progress(captured.inventoryId,captured.body,captured.key);
+    if(!matchesProgressionReceipt(captured,receipt))throw Error('The response did not match the retained request. Retry the original request.');
+    journal.complete(captured);return receipt;
   },onSuccess:async op=>{
+    if(!mounted.current)return;
     await Promise.all([cache.invalidateQueries({queryKey:['private',wallet]}),cache.invalidateQueries({predicate:q=>q.queryKey.includes('inventories')})]);
+    if(!mounted.current)return;
     onClose();await navigate({to:'/collect',search:{receipt:op.id}});
+  },onError:error=>{
+    const definitive=error instanceof PlatformApiError&&error.status===409&&(error.code.startsWith('quote-')||['wrong_owner','stale_asset_version','asset_reserved','reroll_cooldown','ineligible_upgrade_level','owner-changed','asset-version-changed','asset-reserved'].includes(error.code));
+    if(definitive&&attempt.current){journal?.complete(attempt.current);attempt.current=null;if(mounted.current){setPending(null);setNeedsRefresh(true);}}
   }});
   return <Modal id="collection-dialog" title={review.kind==='mint'?'Review mint reservation':review.materialId?'Review Level upgrade':'Review visual reroll'} onClose={onClose}>
     {review.kind==='mint'?<><Facts items={[['Collection',review.inventory.id],['Stage',review.stage.id],['Mint price',sol(review.stage.priceLamports)],
       ['Creation and network quote',sol(review.stage.costLamports)],['Wallet limit',review.stage.walletLimit]]}/>
       <p>Reserve one local slot and wait for its committed draw. Your wallet pays no SOL in this preview.</p></>
+      :pending?.kind==='invalid'?<Signal>A stored request is unreadable. Review your existing operation receipts before creating a new request.</Signal>
+      :pending?.kind==='pending'?<><QuoteDetails quote={pending.attempt.quote}/><Signal>The result of this original reviewed request is unresolved. Retry its retained key and terms to recover the result.</Signal>
+        {expired&&<p>The original quote has expired. An identical retry can still recover an already accepted request.</p>}</>
       :<Loaded query={quote}>{q=><><QuoteDetails quote={q.result}/><div className="two-up">
         <ProgressionAssetContext asset={q.target} wallet={wallet} label="Target"/>
         {q.material&&<ProgressionAssetContext asset={q.material} wallet={wallet} label="Material"/>}
       </div></>}</Loaded>}
-    <button disabled={confirm.isPending || (review.kind==='progress' && !quote.data)} onClick={()=>confirm.mutate()}>
-      {review.kind==='mint'?'Reserve preview slot':'Record preview request'}</button>
+    {review.kind==='progress'&&!pending&&<>{expired&&<Signal>This quote has expired. Refresh it and review the new terms before confirming.</Signal>}
+      {needsRefresh&&<Signal>The request was not accepted. Refresh the quote and review current ownership and terms.</Signal>}
+      <button disabled={confirm.isPending} onClick={()=>{confirm.reset();setNeedsRefresh(false);setQuoteSession({key:crypto.randomUUID(),allowUpdated:true});}}>Refresh quote</button></>}
+    <button disabled={confirm.isPending || (review.kind==='progress' && (!reserveCapability.allowed||pending?.kind==='invalid'||(!pending&&(!quote.data||quote.isError||expired||needsRefresh))))} onClick={()=>confirm.mutate()}>
+      {review.kind==='mint'?'Reserve preview slot':pending?'Retry original request':'Record preview request'}</button>
+    {review.kind==='progress'&&!reserveCapability.allowed&&<Signal>{reserveCapability.reason}</Signal>}
     {confirm.error&&<Signal>{friendlyError(confirm.error)}</Signal>}
   </Modal>;
 }
 function QuoteDetails({quote:q}:{quote:ProgressQuote}){
-  const facts:Array<[string,React.ReactNode]>=[['Target',q.targetId],['Fee quote',sol(q.feeLamports)]];
+  const facts:Array<[string,React.ReactNode]>=[['Target',q.targetId],['Fee quote',sol(q.feeLamports)],['Reviewed local-component ceiling',sol(q.maxTotalLamports)],['Network cost','Unknown'],['Total cost','Unknown'],['Quote expires',utc(q.expiresAt)]];
   if(q.kind==='visual')facts.push(['Traits replaced',q.fields?.join(', ')],['Cooldown after fulfillment',(q.cooldownMs??0)/3_600_000+' hours']);
   else facts.push(['Material NFT',q.materialId],['New target Level',q.nextTargetLevel],['Target expiry',q.nextTargetExpiry&&utc(q.nextTargetExpiry)]);
   return <><Facts items={facts}/>
     {q.asOf&&<p>Server quote as of {utc(q.asOf)} · {q.source??'Local evidence'}.</p>}
     {q.materialProbabilities&&<details><summary>Material Level probabilities</summary>
       <p>The material survives and may drop to a lower Level, shortening its future benefit period. Its past allocations remain intact.</p><Facts items={q.materialProbabilities.map(row=>['Level '+row.level,row.count+' of '+row.total+(row.expiresAt?' · expires '+utc(row.expiresAt):'')+(row.remainingMs===undefined?'':' · '+row.remainingMs+' ms remaining at quote time')])}/></details>}
-    <p>The selected assets remain reserved locally until the committed result arrives.</p></>;
+    <p>The ceiling covers the disclosed local components only. Network and total costs are unknown. No SOL is sent by this preview.</p>
+    <p>After acceptance, the selected assets remain reserved locally until the committed result arrives.</p></>;
+}
+function PendingProgression({wallet,review}:{wallet:string;review:(value:Review)=>void}){
+  const journal=useMemo(()=>typeof sessionStorage==='undefined'?null:progressionJournal(sessionStorage,wallet),[wallet]),[entries,setEntries]=useState<ProgressionJournalEntry[]>(()=>journal?.list()??[]);
+  useEffect(()=>{const refresh=()=>setEntries(journal?.list()??[]);window.addEventListener('10x:progression-journal',refresh);refresh();return()=>window.removeEventListener('10x:progression-journal',refresh);},[journal]);
+  if(!entries.length)return null;
+  return <Panel title="Requests awaiting a result">{entries.map(entry=><article className="record" key={entry.name}>
+    {entry.kind==='invalid'?<Signal>A stored request is unreadable. Review existing operation receipts before starting another request.</Signal>:<>
+      <p>Original reviewed request for {entry.attempt.body.targetId}. Its key and terms are retained for this wallet.</p>
+      <Capability method="POST" path="/api/v1/collect/inventories/{id}/progression"><button onClick={()=>review({kind:'progress',asset:entry.attempt.selection.target,materialId:entry.attempt.selection.material?.id})}>Review original request</button></Capability>
+    </>}</article>)}</Panel>;
 }
 
 function CollectionTerms(){
@@ -186,7 +222,7 @@ export function Collect(){
         {inv.stages.map(s=><PublishedStage key={s.id} inventory={inv} stage={s} review={setReview}/>)}</article>)}
       {page.nextCursor!==null&&<Link to="/collect" search={{inventories:String(page.nextCursor)}}>Next collections →</Link>}
     </>}</Loaded></Panel>
-    {wallet&&<MemberAssets key={wallet} wallet={wallet} review={setReview}/>}
+    {wallet&&<><PendingProgression key={'pending:'+wallet} wallet={wallet} review={setReview}/><MemberAssets key={wallet} wallet={wallet} review={setReview}/></>}
     <Panel title="Genesis ballots"><Loaded query={ballots}>{page=>page.items.length?page.items.map(b=>
       <BallotCard key={b.id+(wallet??'')} wallet={wallet} ballot={b}/>):<Empty title="No published ballots"/>}</Loaded></Panel>
     {wallet&&review&&<Capability method="POST" path={review.kind==='mint'?'/api/v1/collect/inventories/{id}/stages/{stage}/reservations':'/api/v1/collect/inventories/{id}/progression/quote'}>

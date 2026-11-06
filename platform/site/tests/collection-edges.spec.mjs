@@ -4,6 +4,7 @@ import {sign} from 'node:crypto';
 import {createCollectionEdgeFixture} from '../../application/fixtures/collection-edges.mjs';
 import {encode58} from '../../server/base58.mjs';
 import {observeCollectionAsset} from '../../collect/store.mjs';
+import {reviewedProgressionRequest} from './progression-requests.mjs';
 function assertHistoricalVault(after,before){
  const semantic=({sourceRevision:ignoredRevision,snapshotId:ignoredSnapshot,...value})=>value;
  assert.deepEqual(semantic(after),semantic(before));
@@ -11,7 +12,8 @@ function assertHistoricalVault(after,before){
  assert.notEqual(after.snapshotId,before.snapshotId,'progression must create a new read snapshot identity');
 }
 async function actor(f,account){
- let cookie='';const call=async(path,body,requestKey)=>{
+ let cookie='',quoteSequence=0;const call=async(path,body,requestKey)=>{
+  if(body&&path.endsWith('/progression/quote')&&!requestKey)requestKey='synthetic-reviewed-quote-'+(++quoteSequence);
   const response=await fetch(f.origin+'/api/v1'+path,{...(body?{method:'POST',body:JSON.stringify(body)}:{}),headers:{origin:f.origin,'content-type':'application/json',cookie,...(requestKey?{'idempotency-key':requestKey}:{})}});
   if(response.headers.get('set-cookie'))cookie=response.headers.get('set-cookie').split(';')[0];return {status:response.status,value:await response.json()};
  };
@@ -45,12 +47,12 @@ test('real progression API reactivates an expired pair and preserves historical 
  const request={kind:'upgrade',targetId:'synthetic-season-000',materialId:'synthetic-season-001',expectedTargetVersion:0,expectedMaterialVersion:0};
  const quote=(await original(path+'/quote',request)).value;assert.equal(quote.nextTargetLevel,2);assert.ok(Date.parse(quote.nextTargetExpiry)>f.nowMs);
  assert.equal(quote.materialProbabilities[0].remainingMs,0);assert.equal(quote.materialProbabilities.reduce((n,row)=>n+row.count,0),1000);
- const pending=await original(path,request,'synthetic-upgrade');assert.equal(pending.status,201);assert.equal((await original(path,request,'synthetic-upgrade')).value.operation.id,pending.value.operation.id);
+ const reviewed=reviewedProgressionRequest(quote),pending=await original(path,reviewed,'synthetic-upgrade');assert.equal(pending.status,201);assert.equal((await original(path,reviewed,'synthetic-upgrade')).value.operation.id,pending.value.operation.id);
  f.fulfill(pending.value.operation.id);assert.equal(f.fulfill(pending.value.operation.id).replayed,true);
  const after=(await original(asset(request.targetId))).value,material=(await original(asset(request.materialId))).value;
  assert.equal(after.level,2);assert.equal(after.expiresAt,quote.nextTargetExpiry);assert.deepEqual(after.traits,before.traits);assert.equal(material.level,1);assert.ok(Date.parse(material.expiresAt)<f.nowMs);
  const upgradedVault=(await original('/nfts/synthetic-season-000/vault')).value;assert.equal(f.historical(),historical);assertHistoricalVault(upgradedVault,vault);
- const visual={kind:'visual',targetId:request.targetId,expectedTargetVersion:after.version},reroll=await original(path,visual,'synthetic-reroll');assert.equal(reroll.status,201);
+ const visual={kind:'visual',targetId:request.targetId,expectedTargetVersion:after.version},visualQuote=(await original(path+'/quote',visual)).value,reroll=await original(path,reviewedProgressionRequest(visualQuote),'synthetic-reroll');assert.equal(reroll.status,201);
  f.fulfill(reroll.value.operation.id,{traits:{model:'Synthetic new model',backdrop:'Synthetic new backdrop',symbol:'Synthetic new symbol'}});
  const rerolled=(await original(asset(request.targetId))).value;assert.equal(rerolled.level,2);assert.equal(rerolled.rerolls,1);assert.equal(Date.parse(rerolled.nextRerollAt),f.nowMs+3600000);
  assertHistoricalVault((await original('/nfts/synthetic-season-000/vault')).value,upgradedVault);
@@ -68,12 +70,12 @@ test('every upgrade starting Level preserves historical entitlements through tar
    const claims=await Promise.all([targetId,materialId].map(async id=>(await call('/nfts/'+id+'/vault')).value));assert.equal(oldTarget.level,level);assert.equal(oldMaterial.level,level);
    const request={kind:'upgrade',targetId,materialId,expectedTargetVersion:0,expectedMaterialVersion:0},quote=(await call(path+'/quote',request)).value;
    assert.equal(quote.feeLamports,String(BigInt(level)*10000000n));assert.equal(quote.nextTargetLevel,level+1);
-   const admitted=await call(path,request,'synthetic-level-'+level);assert.equal(admitted.status,201);f.fulfill(admitted.value.operation.id);
+   const admitted=await call(path,reviewedProgressionRequest(quote),'synthetic-level-'+level);assert.equal(admitted.status,201);f.fulfill(admitted.value.operation.id);
    const target=(await call('/collect/assets/'+targetId)).value,material=(await call('/collect/assets/'+materialId)).value;
    assert.equal(target.level,level+1);assert.equal(target.expiresAt,quote.nextTargetExpiry);assert.deepEqual(target.traits,oldTarget.traits);
    assert.equal(material.level,1);assert.deepEqual(material.traits,oldMaterial.traits);assert.ok(Date.parse(material.expiresAt)<=Date.parse(oldMaterial.expiresAt));
    const upgradedClaims=await Promise.all([targetId,materialId].map(async id=>(await call('/nfts/'+id+'/vault')).value));upgradedClaims.forEach((value,index)=>assertHistoricalVault(value,claims[index]));
-   const visual=await call(path,{kind:'visual',targetId,expectedTargetVersion:target.version},'synthetic-visual-'+level);assert.equal(visual.status,201);
+   const visualQuote=(await call(path+'/quote',{kind:'visual',targetId,expectedTargetVersion:target.version})).value,visual=await call(path,reviewedProgressionRequest(visualQuote),'synthetic-visual-'+level);assert.equal(visual.status,201);
    f.fulfill(visual.value.operation.id,{traits:{model:'Synthetic changed model',backdrop:'Synthetic changed backdrop',symbol:'Synthetic changed symbol'}});
    const rerolled=(await call('/collect/assets/'+targetId)).value;assert.equal(rerolled.level,level+1);assert.equal(rerolled.expiresAt,target.expiresAt);assert.equal(rerolled.rerolls,1);
    assert.equal(f.historical(),historical);const rerolledClaims=await Promise.all([targetId,materialId].map(async id=>(await call('/nfts/'+id+'/vault')).value));rerolledClaims.forEach((value,index)=>assertHistoricalVault(value,upgradedClaims[index]));

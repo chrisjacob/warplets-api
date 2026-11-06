@@ -48,9 +48,14 @@ export const receiptModel=z.object({
   id:text,kind:text,inventoryId:text,owner:text,status:text,createdAt:date,stageId:text.nullable(),
   targetId:text.nullable(),materialId:text.nullable(),assetId:text.nullable(),
   priceLamports:units.nullable(),feeLamports:units.nullable(),costLamports:units.nullable(),
+  quoteId:text.optional(),bindingDigest:text.regex(/^[a-f0-9]{64}$/).optional(),
 });
 export const quoteModel=z.object({
-  asOf:date.optional(),source:text.optional(),
+  asOf:date,source:z.literal('local-fixture'),inventoryId:text,
+  quoteId:text,bindingDigest:text.regex(/^[a-f0-9]{64}$/),policyVersion:text,
+  targetVersion:count,materialVersion:count.nullable(),maxTotalLamports:units,quoteExpiresMs:count,expiresAt:date,
+  costStatus:z.literal('local-preview-only'),ceilingScope:z.literal('disclosed-local-components-only'),
+  networkCost:z.literal('unknown'),totalCost:z.literal('unknown'),executable:z.literal(false),
   kind:z.enum(['visual','upgrade']),feeLamports:units,materialId:text.nullable(),targetId:text,
   nextTargetLevel:count.optional(),nextTargetExpiry:date.optional(),cooldownMs:count.optional(),
   materialProbabilities:z.array(z.object({level:count,count,total:count,expiresAt:date.optional(),remainingMs:count.optional()})).optional(),

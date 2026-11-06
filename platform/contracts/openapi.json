@@ -5648,17 +5648,58 @@
                     "type": "integer"
                   },
                   "materialId": {
-                    "type": "string"
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
                   },
                   "expectedMaterialVersion": {
+                    "anyOf": [
+                      {
+                        "type": "integer"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "quoteId": {
+                    "type": "string"
+                  },
+                  "bindingDigest": {
+                    "type": "string"
+                  },
+                  "policyVersion": {
+                    "type": "string"
+                  },
+                  "reviewedFeeLamports": {
+                    "type": "string",
+                    "pattern": "^(0|[1-9][0-9]*)$"
+                  },
+                  "reviewedMaxTotalLamports": {
+                    "type": "string",
+                    "pattern": "^(0|[1-9][0-9]*)$"
+                  },
+                  "quoteExpiresMs": {
                     "type": "integer"
                   }
                 },
                 "required": [
                   "kind",
                   "targetId",
-                  "expectedTargetVersion"
-                ]
+                  "expectedTargetVersion",
+                  "quoteId",
+                  "bindingDigest",
+                  "policyVersion",
+                  "reviewedFeeLamports",
+                  "reviewedMaxTotalLamports",
+                  "quoteExpiresMs"
+                ],
+                "additionalProperties": false
               }
             }
           }
@@ -5678,7 +5719,7 @@
       ],
       "post": {
         "operationId": "quoteLocalProgression",
-        "summary": "Inspect local cost and changes before preparing a progression.",
+        "summary": "Store immutable local cost and outcome terms before reviewing progression.",
         "responses": {
           "200": {
             "description": "Local collection response",
@@ -5708,6 +5749,16 @@
             }
           }
         },
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -5728,17 +5779,43 @@
                     "type": "integer"
                   },
                   "materialId": {
-                    "type": "string"
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
                   },
                   "expectedMaterialVersion": {
-                    "type": "integer"
+                    "anyOf": [
+                      {
+                        "type": "integer"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "maxTotalLamports": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^(0|[1-9][0-9]*)$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
                   }
                 },
                 "required": [
                   "kind",
                   "targetId",
                   "expectedTargetVersion"
-                ]
+                ],
+                "additionalProperties": false
               }
             }
           }
@@ -7903,6 +7980,18 @@
           },
           "executable": {
             "type": "boolean"
+          },
+          "quoteId": {
+            "type": "string"
+          },
+          "bindingDigest": {
+            "type": "string"
+          },
+          "fairness": {
+            "enum": [
+              "manual-fixture",
+              "configured-offline-beacon"
+            ]
           }
         },
         "required": [
@@ -8011,6 +8100,54 @@
           },
           "executable": {
             "type": "boolean"
+          },
+          "quoteId": {
+            "type": "string"
+          },
+          "bindingDigest": {
+            "type": "string"
+          },
+          "policyVersion": {
+            "type": "string"
+          },
+          "targetVersion": {
+            "type": "integer"
+          },
+          "materialVersion": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "maxTotalLamports": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "quoteExpiresMs": {
+            "type": "integer"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "costStatus": {
+            "const": "local-preview-only"
+          },
+          "ceilingScope": {
+            "const": "disclosed-local-components-only"
+          },
+          "networkCost": {
+            "const": "unknown"
+          },
+          "totalCost": {
+            "const": "unknown"
+          },
+          "historicalAllocationsChange": {
+            "const": false
           }
         },
         "required": [
@@ -8021,7 +8158,20 @@
           "feeLamports",
           "asOf",
           "source",
-          "executable"
+          "executable",
+          "quoteId",
+          "bindingDigest",
+          "policyVersion",
+          "targetVersion",
+          "materialVersion",
+          "maxTotalLamports",
+          "quoteExpiresMs",
+          "expiresAt",
+          "costStatus",
+          "ceilingScope",
+          "networkCost",
+          "totalCost",
+          "historicalAllocationsChange"
         ]
       },
       "EarnMemberStatus": {

@@ -1,0 +1,75 @@
+{
+  "taskId": "B11",
+  "substep": "B11.9-shared-progression-transport",
+  "status": "partial",
+  "implementationCommit": null,
+  "baseCommit": "118ad4bb16ebd9bfbbaf121351ccc6a46d8a38c4",
+  "classification": "Local Node and actual workerd with genuine signed fixture wallets; financial execution disabled",
+  "commands": [
+    {
+      "command": "node --test platform/collect/progression-http.test.mjs",
+      "tests": 3,
+      "exitCode": 0,
+      "durationMs": 651.4165
+    },
+    {
+      "command": "node --test platform/edge/test/progression-http.test.mjs",
+      "tests": 1,
+      "exitCode": 0,
+      "durationMs": 18429.8544,
+      "log": "work/b11-progression-http-edge.log"
+    },
+    {
+      "command": "focused transport, legacy collect and contract tests",
+      "tests": 17,
+      "exitCode": 0,
+      "durationMs": 2395.2722,
+      "log": "work/b11-progression-contracts.log"
+    },
+    {
+      "command": "node platform/scripts/test-reference.mjs",
+      "tests": 430,
+      "exitCode": 0,
+      "durationMs": 45652.3035,
+      "log": "work/b11-progression-reference-final.log",
+      "scope": "Includes two separate uncommitted041 observation evidence tests; CI verifies exact committed scope."
+    },
+    {
+      "command": "node platform/edge/node_modules/typescript/bin/tsc --noEmit -p platform/edge/tsconfig.json",
+      "exitCode": 0
+    },
+    {
+      "command": "node platform/contracts/generate.mjs --check",
+      "exitCode": 0
+    }
+  ],
+  "sourceHashes": {
+    "platform/collect/progression-http.mjs": "28cb8c7472af2fccf359ab6e35b75f946b67b47317a011a8bf51d1866694fd25",
+    "platform/collect/progression-http.d.mts": "5e85daf561a54404290280335f1077b64ba318dcdfd0f79f4bfc05c0eb7dfa2b",
+    "platform/collect/progression-http.test.mjs": "ecd080cdacc7bed457e355db1f36f708a812db81f87e54c192afa8747d17a985",
+    "platform/collect/node-progression.mjs": "763f08df39556d2e77604acd047c013d8b016bc5efcf1cd113aaae039d502a6f",
+    "platform/collect/http.mjs": "80b5137ba546691874db49738e7f8f387ef31811510e2f789fdb554e9e934d19",
+    "platform/edge/src/progression.ts": "41fe1f6bd4b50b38b5360160ccf8d15c08869382baa1bbeef262b188fc7b9c03",
+    "platform/edge/src/worker.ts": "7ea44d21a103a3cecb767312dc71ca41d1cd0f7597a7a86d83882b0749efc313",
+    "platform/edge/test/progression-http.test.mjs": "f024f5a118f148b4de036307606828e3f37f98f01c3b41723d9e02b1b4a44ee5",
+    "platform/application/collections.ts": "89c92c8651d59f720d5fd10cec06230f4176eb59c6160d8bece00c55f7828715",
+    "platform/contracts/capabilities.mjs": "9bdfc3ea780dec0daf11907a1d5a3519a8d00a73263cc5f70e25ef478eed1d8f",
+    "platform/contracts/shapes.mjs": "f76b4a7c7818660b623768901afcf450bf0deca969cd5690bf28efc4515bd8d6",
+    "platform/contracts/client.d.mts": "3c870a2066e032eab7050f94fa97cd1296c49449f0b9c6438b4f75606c57f8e6",
+    "platform/contracts/openapi.json": "b44f70a3d779d5aee015f475cfb0b3e4cb12b88343dc6a33f3c0352c95f68224"
+  },
+  "assertions": [
+    "Mounted Node and Worker share strict transport and real repositories; old public unreviewed progression fallback removed.",
+    "Quote POST requires stable idempotency key; accepted replay retains original binding, quote ID, outcome and expiry.",
+    "Reservation requires all reviewed immutable quote fields; actual wallet ownership, current versions, clock and operating controls rechecked.",
+    "Actual signed-wallet cross-runtime test covers simultaneous duplicate requests, mismatched terms, another wallet, pause/replay, invalid origin/header/body and expired sessions.",
+    "HTTP rejects request-injected inventory/key/authority/clock and bounded numeric overflow without masking internal errors.",
+    "Successful reservation returns original operation, quote ID and binding; UI checks exact response identity before clearing the unknown request."
+  ],
+  "frontendEvidence": "platform/validation/runs/2026-11-06-overnight/B11-9-browser.json",
+  "limitations": [
+    "Collection read routes remain Node-only until separately ported.",
+    "Synthetic sources and local locking establish no chain custody or execution authority.",
+    "041 observations, normalized stage/mint authority, atomic fulfillment and larger recovery capacity remain unfinished."
+  ]
+}

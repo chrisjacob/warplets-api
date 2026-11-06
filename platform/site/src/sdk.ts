@@ -59,14 +59,16 @@ export const sdk={
     const options={path:{id,stage},idempotencyKey,body:{}};
     return one(z.object({operation:receiptModel}),await client.reserveLocalMint(options)).operation;
   },
-  quote:async(id:string,body:ProgressionRequest)=>{
-    const options={path:{id},body};
+  quote:async(id:string,body:ProgressionRequest,idempotencyKey:string,signal?:AbortSignal)=>{
+    const options={path:{id},body,idempotencyKey,signal};
     return one(quoteModel,await client.quoteLocalProgression(options));
   },
-  progress:async(id:string,body:ProgressionRequest,idempotencyKey:string)=>{
+  progress:async(id:string,body:ProgressionReservationRequest,idempotencyKey:string)=>{
     const options={path:{id},body,idempotencyKey};
     return one(z.object({operation:receiptModel}),await client.reserveLocalProgression(options)).operation;
   },
 };
 export type ProgressionRequest={kind:'upgrade'|'visual';targetId:string;expectedTargetVersion:number;
   materialId?:string;expectedMaterialVersion?:number};
+export type ProgressionReservationRequest=ProgressionRequest&{quoteId:string;bindingDigest:string;policyVersion:string;
+  reviewedFeeLamports:string;reviewedMaxTotalLamports:string;quoteExpiresMs:number};

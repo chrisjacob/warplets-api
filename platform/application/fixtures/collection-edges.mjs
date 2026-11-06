@@ -10,7 +10,7 @@ import {recordVaultManifest,observeAsset} from '../../vault/ledger.mjs';
 import {LEVEL_QUOTAS} from '../../domain/collections/policy.mjs';
 const DAY=86400000,iso=ms=>new Date(ms).toISOString(),key=n=>encode58(Buffer.alloc(32,n));
 const account=label=>{const pair=generateKeyPairSync('ed25519'),bytes=pair.publicKey.export({type:'spki',format:'der'}).subarray(-32);return {...pair,label,wallet:encode58(bytes),publicKeyBytes:[...bytes]};};
-export async function createCollectionEdgeFixture({assetCount=101,seasonLevel=1,nowMs=Math.floor(Date.now()/1000)*1000}={}){
+export async function createCollectionEdgeFixture({assetCount=101,seasonLevel=1,nowMs=Math.floor(Date.now()/1000)*1000,startServer=true}={}){
  if(!Number.isInteger(seasonLevel)||seasonLevel<1||seasonLevel>9||!Number.isInteger(assetCount)||assetCount<2||assetCount>LEVEL_QUOTAS[seasonLevel-1])throw Error('Invalid synthetic Season pair inventory.');
  const db=openDatabase(),accounts=Object.fromEntries(['original','buyer','late','seasonOnly'].map(label=>[label,account(label)]));let server;
  const seasonId='synthetic-edge-season',start=nowMs-40*DAY,cut=nowMs-3600000,genesisOpen=start-2*DAY;
@@ -45,10 +45,10 @@ export async function createCollectionEdgeFixture({assetCount=101,seasonLevel=1,
   recordVaultManifest(db,{marketId:tokenId,originalUnits:'402600000',seasons:[{id:seasonId,startsAt:iso(start),levels:LEVEL_QUOTAS.flatMap((count,n)=>Array(count).fill(n+1))}]});
   observeAsset(db,{eventId:'synthetic-historical-claim',assetId:'synthetic-season-000',kind:'claim',at:iso(nowMs-7200000),owner:accounts.original.wallet,marketId:tokenId,units:'1'},nowMs);
   const historical=()=>JSON.stringify({manifests:db.prepare('SELECT * FROM vault_manifests ORDER BY id').all(),claims:db.prepare('SELECT * FROM vault_claim_totals ORDER BY asset_id,launch_id').all()});
-  server=createLocalServer(createApp(db,{clock:()=>nowMs}));await new Promise((resolve,reject)=>{server.once('error',reject);server.listen(0,'127.0.0.1',resolve);});let closed=false;
-  return {db,accounts,seasonId,start,cut,nowMs,tokenId,activation,snapshot,traits,origin:'http://127.0.0.1:'+server.address().port,historical,
+  if(startServer){server=createLocalServer(createApp(db,{clock:()=>nowMs}));await new Promise((resolve,reject)=>{server.once('error',reject);server.listen(0,'127.0.0.1',resolve);});}let closed=false;
+  return {db,accounts,seasonId,start,cut,nowMs,tokenId,activation,snapshot,traits,origin:server?'http://127.0.0.1:'+server.address().port:null,historical,
    acceptSnapshot:(value=snapshot)=>freezeSeasonSnapshot(db,value,nowMs),
    fulfill:(operationId,extra={ticket:0})=>fulfillProgression(db,{operationId,commitment:inspectOperation(db,operationId).commitment,proofId:'synthetic-progression-'+operationId,at:nowMs,finalized:true,...extra},nowMs),
-   async close(){if(closed)return;closed=true;server.closeAllConnections();await new Promise(resolve=>server.close(resolve));db.close();}};
+   async close(){if(closed)return;closed=true;if(server){server.closeAllConnections();await new Promise(resolve=>server.close(resolve));}db.close();}};
  }catch(error){server?.closeAllConnections();if(server?.listening)await new Promise(resolve=>server.close(resolve));db.close();throw error;}
 }

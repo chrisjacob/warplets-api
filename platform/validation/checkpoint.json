@@ -1,5 +1,5 @@
 {
   "policy": "prd-1.2",
   "scope": "local",
-  "checkpoint": "blueprint-b11-quote-required-progression-reservations"
+  "checkpoint": "blueprint-b11-guarded-progression-http-and-browser"
 }

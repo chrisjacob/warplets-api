@@ -1,0 +1,170 @@
+{
+  "task": "B11",
+  "slice": "B11.9 guarded progression browser review lifecycle",
+  "status": "partial",
+  "baseCommit": "118ad4bb16ebd9bfbbaf121351ccc6a46d8a38c4",
+  "implementationCommit": null,
+  "recordedAt": "2026-11-06T01:12:57.739Z",
+  "sourceHashes": {
+    "platform/site/src/models.ts": "5443389f0958459ca407851e85f35f64a2dc3dbe00e840136f12e75883cc43e7",
+    "platform/site/src/sdk.ts": "39cc4c739d71e5aead1fb4239d35b18e0e8066f99d86509447804809053e5e1d",
+    "platform/site/src/progression-intent.ts": "0a0a619cb1d9932a1b6b7672e7672eeca84591d92dca14c097b534a7b9ef5773",
+    "platform/site/src/collect.tsx": "c4c2f22e086420ed19c50d671f6b47b4343f29de626ae18bd5569ee500051651",
+    "platform/site/tests/progression-intent.spec.mjs": "f8072a139c10703faf1bd30b089b2b23f8309dd4b82aaaa0f7d274863d55d26f",
+    "platform/site/tests/progression-requests.mjs": "abe41f6f5b9fef519642a0d6eb32cc61ba5a349307997d481a282f2a7b1b863f",
+    "platform/site/tests/progression-lifecycle-qa.mjs": "19018344e948fef505149b38a8e87804defaff0b808220f376dcdc8b2751bc2c",
+    "platform/site/tests/collection-edges.spec.mjs": "e8b1d06abfddc20650e0a43b59704ddab2ab6a31ed918f1b5963f337488a12c8",
+    "platform/site/tests/collection-edges-qa.mjs": "7ef58c861905a9d8137b5a2937af7dca74f8e3c09ddd1d1290a698fe7dd59539",
+    "platform/application/fixtures/collection-edges.mjs": "d97f421c88d86d291178ff43151ac8c6e34b4ad3a1bc9ade900d6f1033e69e08",
+    "platform/application/fixtures/progression-review.mjs": "a6f12b42cef284190c617990d2f74123102656fac88200b678ecc4d23049c7a2",
+    "platform/site/PROGRESSION_REVIEW.md": "cc0ebe41fea029099be91d98b6c4c65a5c13830d47549f8ec891d23ee2710e65"
+  },
+  "checks": [
+    {
+      "command": "node --test platform/site/tests/*.spec.mjs",
+      "result": "PASS",
+      "tests": 24,
+      "durationMs": 5408.8155,
+      "log": "work/b11-progression-site.log"
+    },
+    {
+      "command": "node node_modules/typescript/bin/tsc --noEmit",
+      "cwd": "platform/site",
+      "result": "PASS"
+    },
+    {
+      "command": "node node_modules/vite/bin/vite.js build",
+      "cwd": "platform/site",
+      "result": "PASS",
+      "durationSeconds": 3.75,
+      "log": "work/b11-progression-build.log",
+      "notes": "Pinned Zod annotation warnings only; collect chunk 28.20 kB / gzip 9.16 kB."
+    },
+    {
+      "command": "node platform/site/tests/progression-lifecycle-qa.mjs",
+      "result": "PASS",
+      "widths": [
+        360,
+        390,
+        768,
+        1440
+      ],
+      "log": "work/b11-progression-lifecycle-browser.log",
+      "reuseNote": "Four-width lifecycle run preceded the final receipt-binding check. The changed response-validation path and positive retry were exercised by the final targeted run below; 24 final site tests cover all receipt identity fields."
+    },
+    {
+      "command": "node platform/site/tests/progression-lifecycle-qa.mjs --wrong-response",
+      "result": "PASS",
+      "widths": [
+        390
+      ],
+      "log": "work/b11-progression-lifecycle-negative.log"
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS"
+    }
+  ],
+  "browserResults": [
+    {
+      "width": 360,
+      "classification": "synthetic private clock; actual HTTP/repositories; genuine Ed25519 auth; response-loss fault injection",
+      "quoteRetriesSameKey": true,
+      "expiredFreshConfirmationBlocked": true,
+      "explicitRefreshNewQuote": true,
+      "unknownRetryAfterExpiryExactBodyAndKey": true,
+      "ownerSessionIsolation": true,
+      "staleOwnerRejected": true,
+      "reservations": 1,
+      "networkCost": "unknown",
+      "totalCost": "unknown",
+      "financialExecution": false
+    },
+    {
+      "width": 390,
+      "classification": "synthetic private clock; actual HTTP/repositories; genuine Ed25519 auth; response-loss fault injection",
+      "quoteRetriesSameKey": true,
+      "expiredFreshConfirmationBlocked": true,
+      "explicitRefreshNewQuote": true,
+      "unknownRetryAfterExpiryExactBodyAndKey": true,
+      "ownerSessionIsolation": true,
+      "staleOwnerRejected": true,
+      "reservations": 1,
+      "networkCost": "unknown",
+      "totalCost": "unknown",
+      "financialExecution": false
+    },
+    {
+      "width": 768,
+      "classification": "synthetic private clock; actual HTTP/repositories; genuine Ed25519 auth; response-loss fault injection",
+      "quoteRetriesSameKey": true,
+      "expiredFreshConfirmationBlocked": true,
+      "explicitRefreshNewQuote": true,
+      "unknownRetryAfterExpiryExactBodyAndKey": true,
+      "ownerSessionIsolation": true,
+      "staleOwnerRejected": true,
+      "reservations": 1,
+      "networkCost": "unknown",
+      "totalCost": "unknown",
+      "financialExecution": false
+    },
+    {
+      "width": 1440,
+      "classification": "synthetic private clock; actual HTTP/repositories; genuine Ed25519 auth; response-loss fault injection",
+      "quoteRetriesSameKey": true,
+      "expiredFreshConfirmationBlocked": true,
+      "explicitRefreshNewQuote": true,
+      "unknownRetryAfterExpiryExactBodyAndKey": true,
+      "ownerSessionIsolation": true,
+      "staleOwnerRejected": true,
+      "reservations": 1,
+      "networkCost": "unknown",
+      "totalCost": "unknown",
+      "financialExecution": false
+    }
+  ],
+  "negativeBrowserResults": [
+    {
+      "width": 390,
+      "classification": "synthetic private clock; actual HTTP/repositories; genuine Ed25519 auth; response-loss fault injection",
+      "quoteRetriesSameKey": true,
+      "expiredFreshConfirmationBlocked": true,
+      "explicitRefreshNewQuote": true,
+      "unknownRetryAfterExpiryExactBodyAndKey": true,
+      "ownerSessionIsolation": true,
+      "staleOwnerRejected": true,
+      "negativeCorruptedResponseRetained": true,
+      "reservations": 2,
+      "networkCost": "unknown",
+      "totalCost": "unknown",
+      "financialExecution": false
+    }
+  ],
+  "runtime": {
+    "playwrightModule": "C:/Users/cjacob/Documents/GitHub/WarpletsAPI/.worktrees/10x-operations/node_modules/.pnpm/playwright-core@1.64.1/node_modules/playwright-core",
+    "browserExe": "C:/Users/cjacob/AppData/Local/ms-playwright/chromium-1248/chrome-win64/chrome.exe",
+    "authentication": "Genuine Ed25519 signature and actual session HTTP",
+    "authority": "Actual Node guarded quote/reservation repositories with private synthetic clock; Node/Worker route parity recorded separately by coordinator",
+    "positiveApiMocks": false,
+    "negativeFaults": [
+      "Drop quote response after actual commit",
+      "Drop reservation response after actual commit",
+      "Corrupt only returned binding digest after actual commit; retry actual API untouched"
+    ]
+  },
+  "invariants": [
+    "Immutable quote retry uses original body/key; explicit refresh obtains a new identity",
+    "Fresh expired quote cannot be confirmed",
+    "Unknown reservation retains exact reviewed body/key and recovers accepted receipt after expiry",
+    "Owner-scoped journal survives logout/reconnect and is hidden from other wallet",
+    "Wrong receipt wallet/inventory/kind/participants/quote/binding/fee cannot clear original intent",
+    "Actual ownership change is rejected and requires explicit current-facts refresh",
+    "Network and total costs unknown; ceiling covers only disclosed local components",
+    "No financial execution or live chain provenance claim"
+  ],
+  "limitations": [
+    "Session storage does not provide cross-device or browser-session recovery",
+    "Synthetic fixture data and private deterministic clock are not live chain evidence",
+    "B11 remains partial; remaining collection authority, full legacy migration and maximum legal recovery capacity are not claimed complete"
+  ]
+}

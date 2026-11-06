@@ -4,7 +4,7 @@
   "status": "partial",
   "classification": "Locally verified private quote-required reservation; fixture database locks do not establish chain custody",
   "lastTestedBaseCommit": "a118aa19e65c72ef8d76036b02918968061bfe31",
-  "implementationCommit": null,
+  "implementationCommit": "118ad4bb16ebd9bfbbaf121351ccc6a46d8a38c4",
   "commands": [
     {
       "command": "node --test platform/collect/reservation-service.test.mjs platform/collect/reservation-repository.test.mjs platform/collect/reservation-recovery.test.mjs",
@@ -137,5 +137,11 @@
     "Guarded external observation conflict and fulfillment remain next B11 work",
     "Public progression HTTP/client migration remains unmounted in this milestone",
     "Maximum accumulated-data recovery capacity remains separately tracked; this test covers populated reservation recovery"
-  ]
+  ],
+  "ci": {
+    "runId": 42140229608,
+    "headSha": "118ad4bb16ebd9bfbbaf121351ccc6a46d8a38c4",
+    "conclusion": "success",
+    "url": "https://github.com/chrisjacob/warplets-api/actions/runs/42140229608"
+  }
 }

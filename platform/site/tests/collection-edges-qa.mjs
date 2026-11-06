@@ -49,7 +49,7 @@ export async function checkCollectionEdges({browser}){
    }
    assert.equal(await page.locator('#collection-dialog').evaluate(el=>el.scrollWidth<=el.clientWidth),true);
    if(process.env.SCREENSHOT_DIR){await mkdir(process.env.SCREENSHOT_DIR,{recursive:true});await page.getByRole('heading',{name:'Target before progression',exact:true}).scrollIntoViewIfNeeded();await page.screenshot({path:join(process.env.SCREENSHOT_DIR,'collection-pair-review-'+width+'.png')});}
-   const quoteResponse=await page.request.post(f.origin+'/api/v1/collect/inventories/'+f.seasonId+'/progression/quote',{headers:{origin:f.origin},data:{kind:'upgrade',targetId:'synthetic-season-000',materialId:'synthetic-season-001',expectedTargetVersion:0,expectedMaterialVersion:0}});
+   const quoteResponse=await page.request.post(f.origin+'/api/v1/collect/inventories/'+f.seasonId+'/progression/quote',{headers:{origin:f.origin,'idempotency-key':'synthetic-qa-quote-'+width},data:{kind:'upgrade',targetId:'synthetic-season-000',materialId:'synthetic-season-001',expectedTargetVersion:0,expectedMaterialVersion:0}});
    const quote=await quoteResponse.json();assert.equal(quoteResponse.status(),200);assert.equal(quote.nextTargetLevel,2);assert.ok(Date.parse(quote.nextTargetExpiry)>f.nowMs);assert.equal(quote.materialProbabilities[0].remainingMs,0);
    const historical=f.historical(),before=await (await page.request.get(f.origin+'/api/v1/nfts/synthetic-season-000/vault')).json();
    await page.getByRole('button',{name:'Record preview request',exact:true}).click();await page.locator('#collection-dialog').waitFor({state:'hidden'});await page.getByText('Awaiting committed draw evidence.',{exact:true}).first().waitFor();

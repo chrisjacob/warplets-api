@@ -1,8 +1,10 @@
+import {createNodeProgressionServices} from './node-progression.mjs';
+import {handleProgression} from './progression-http.mjs';
 import { CollectionPolicyError } from '../domain/collections/policy.mjs';
 import { currentSession, consumeQuota } from '../server/auth.mjs';
 import { json, failure } from '../server/api.mjs';
-import { CollectError, id, listInventories, listOwnedAssets, listOwnOperations, need, quoteProgression,
-  readCollectionAsset, readInventory, readOwnOperation, reserveMint, reserveProgression } from './store.mjs';
+import { CollectError, id, listInventories, listOwnedAssets, listOwnOperations, need,
+  readCollectionAsset, readInventory, readOwnOperation, reserveMint } from './store.mjs';
 
 const base='/api/v1/collect';
 const patterns={
@@ -32,15 +34,18 @@ function validCursor(url) {
 export async function handleCollect(db,request,peer,now) {
   const url=new URL(request.url),path=url.pathname;
   if(path!==base && !path.startsWith(base+'/')) return null;
+  if(patterns.progress.test(path))return handleProgression(request,{...createNodeProgressionServices(db,{clock:{nowMs:()=>now}}),
+    authenticate:async req=>{const session=currentSession(db,req,now);return session?{kind:'wallet',wallet:session.wallet}:null;},
+    consumeQuota:async(bucket,limit)=>consumeQuota(db,bucket,now,limit)});
   try {
     const inventory=patterns.inventory.exec(path),asset=patterns.asset.exec(path);
-    const mint=patterns.reserve.exec(path),progress=patterns.progress.exec(path),receipt=patterns.receipt.exec(path);
+    const mint=patterns.reserve.exec(path),receipt=patterns.receipt.exec(path);
     const owned=path===base+'/me/assets',operations=path===base+'/me/operations';
     const list=path===base+'/inventories';
-    if(!list&&!inventory&&!asset&&!owned&&!operations&&!mint&&!progress&&!receipt) {
+    if(!list&&!inventory&&!asset&&!owned&&!operations&&!mint&&!receipt) {
       return failure(404,'not_found','Unknown collection resource.');
     }
-    const write=Boolean(mint||progress);
+    const write=Boolean(mint);
     if(request.method!==(write?'POST':'GET')) return failure(405,'method_not_allowed','Unsupported method.',{allow:write?'POST':'GET'});
     const session=currentSession(db,request,now);
     if((owned||operations||receipt||write)&&!session) return failure(401,'authentication_required','Sign in to access this resource.');
@@ -59,18 +64,12 @@ export async function handleCollect(db,request,peer,now) {
     need(request.headers.get('origin')===url.origin,'invalid_origin','Use the configured local origin.',403);
     const rate=consumeQuota(db,'collect-write:'+session.wallet,now,15);
     if(rate) return rate;
-    const requestKey=progress?.[2]?null:id(request.headers.get('idempotency-key'));
+    const requestKey=id(request.headers.get('idempotency-key'));
     const input=await bodyOf(request);
     let result;
     if(mint) {
       need(Object.keys(input).length===0,'unexpected_fields','State, price and account come from the server.');
       result=reserveMint(db,{inventoryId:mint[1],stageId:mint[2],wallet:session.wallet,requestKey,now});
-    } else {
-      need(Object.keys(input).every(k=>['kind','targetId','materialId','expectedTargetVersion','expectedMaterialVersion'].includes(k)),
-        'unexpected_fields','Unexpected progression request field.');
-      const args={inventoryId:progress[1],requestKey,request:input,wallet:session.wallet,now};
-      if(progress[2]) return json(quoteProgression(db,args));
-      result=reserveProgression(db,args);
     }
     return json(result,result.replayed?200:201);
   } catch(error) {
@@ -98,5 +97,5 @@ export const collectPaths={
   '/collect/me/operations/{id}':read('readMyCollectionOperation','Inspect one of the signed-in wallet’s operations.',['id']),
   '/collect/inventories/{id}/stages/{stage}/reservations':write('reserveLocalMint','Reserve one local fixture slot.',['id','stage']),
   '/collect/inventories/{id}/progression':write('reserveLocalProgression','Reserve local Season assets for a progression fixture.',['id']),
-  '/collect/inventories/{id}/progression/quote':{parameters:[parameter('id')],post:operation('quoteLocalProgression','Inspect local cost and changes before preparing a progression.')},
+  '/collect/inventories/{id}/progression/quote':{parameters:[parameter('id')],post:{...operation('quoteLocalProgression','Store immutable local cost and outcome terms before reviewing progression.'),parameters:[{name:'Idempotency-Key',in:'header',required:true,schema:{type:'string'}}]}},
 };

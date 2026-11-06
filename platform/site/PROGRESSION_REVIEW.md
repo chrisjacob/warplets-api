@@ -1,0 +1,11 @@
+# Stored progression review
+
+The collection review uses the guarded quote and reservation API. A quote is an immutable local preview bound to the wallet, inventory, operation kind, asset versions, policy, outcomes, disclosed fee, local-component ceiling and expiry. Network and total costs remain unknown; financial execution stays disabled.
+
+Quote retries retain their request body and idempotency key. A fresh expired quote cannot be confirmed. Refresh explicitly creates a new quote and rechecks current ownership and asset versions. Confirmation first stores the exact reviewed body, key and selected asset snapshots in a wallet-scoped session-storage journal. Storage failure prevents sending the request.
+
+An unknown response retains this original request across dialog closure, sign-out and reconnection within the browser session. Another wallet cannot view or retry it. An identical retry may recover an accepted receipt after quote expiry. A returned receipt clears the journal only when its wallet, inventory, kind, target/material, quote ID, binding digest and fee match the retained request. Definite quote/state rejection permits an explicit refresh; transport errors and mismatched responses preserve the original request. The journal is browser-session storage, not a cross-device recovery service.
+
+`tests/progression-lifecycle-qa.mjs` runs genuine Ed25519 authentication and real HTTP/database quote and reservation operations against a disposable synthetic fixture. Its private test clock advances both application and SQL execution time without a public clock-control route. Positive responses are not mocked. Faults deliberately drop committed responses; `--wrong-response` additionally corrupts only a returned binding digest after a real commit, then recovers through an untouched API retry.
+
+Run the browser test with `PLAYWRIGHT_MODULE` and `BROWSER_EXE` pointing to the installed pinned Playwright module and Chromium binary. Default widths are 360, 390, 768 and 1440. The negative-only option uses 390. See `validation/runs/2026-11-06-overnight/B11-9-browser.json` for exact evidence. This slice completes the guarded browser review lifecycle; B11 remains partial pending the remaining collection authority and recovery-capacity work.

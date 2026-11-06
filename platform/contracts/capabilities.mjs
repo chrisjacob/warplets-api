@@ -11,12 +11,13 @@ const shared=[
  ['earn-board-preview',[['GET','/earn/epochs/{epoch}/leaderboard'],['GET','/earn/claims']]],
  ['earn-admission',[['GET','/earn/capacity'],['POST','/earn/submissions'],['GET','/earn/me']]],
  ['earn-actions',[['GET','/earn/actions'],['POST','/earn/actions/{actionId}/completions']]],
+ ['collection-progression-preview',[['POST','/collect/inventories/{id}/progression'],['POST','/collect/inventories/{id}/progression/quote']]],
  ['genesis-advisory-vote',[['GET','/genesis/ballots'],['GET','/genesis/ballots/{id}'],['POST','/genesis/ballots/{id}/votes']]],
 ];
 const nodeOnly=[
  ['launch-plan-preview',[['GET','/launch-plans'],['POST','/launch-plans/preview']]],
  ['earn-archive',[['GET','/earn/epochs/{epoch}/manifest'],['GET','/earn/claims/proof']]],
- ['collection-fixture-requests',[['GET','/collect/inventories'],['GET','/collect/inventories/{id}'],['GET','/collect/assets/{id}'],['GET','/collect/me/assets'],['GET','/collect/me/operations'],['GET','/collect/me/operations/{id}'],['POST','/collect/inventories/{id}/stages/{stage}/reservations'],['POST','/collect/inventories/{id}/progression'],['POST','/collect/inventories/{id}/progression/quote']]],
+ ['collection-fixture-requests',[['GET','/collect/inventories'],['GET','/collect/inventories/{id}'],['GET','/collect/assets/{id}'],['GET','/collect/me/assets'],['GET','/collect/me/operations'],['GET','/collect/me/operations/{id}'],['POST','/collect/inventories/{id}/stages/{stage}/reservations']]],
  ['transaction-receipt-preview',[['GET','/transactions/{id}']]],
  ['local-operation-status',[['GET','/operations/status']]],
  ['local-inbox',[['GET','/notifications/capabilities'],['GET','/notifications/subscriptions'],['POST','/notifications/subscriptions'],['GET','/notifications/inbox']]],

@@ -35,9 +35,14 @@ export const shapes={
    priceLamports:nullable(units),costLamports:nullable(units),feeLamports:nullable(units),assetId:nullable(str),source:str,executable:bool}),
  ProgressionQuote:object({kind:{enum:['upgrade','visual']},inventoryId:str,targetId:str,materialId:nullable(str),feeLamports:units,
    nextTargetLevel:integer,nextTargetExpiry:iso,asOf:iso,materialProbabilities:array(object({level:integer,count:integer,total:integer,expiresAt:iso,remainingMs:integer})),
-   level:integer,cooldownMs:integer,fields:array(str),source:str,executable:bool},
-   ['kind','inventoryId','targetId','materialId','feeLamports','asOf','source','executable']),
+   level:integer,cooldownMs:integer,fields:array(str),source:str,executable:bool,
+   quoteId:str,bindingDigest:str,policyVersion:str,targetVersion:integer,materialVersion:nullable(integer),maxTotalLamports:units,quoteExpiresMs:integer,expiresAt:iso,
+   costStatus:{const:'local-preview-only'},ceilingScope:{const:'disclosed-local-components-only'},networkCost:{const:'unknown'},totalCost:{const:'unknown'},historicalAllocationsChange:{const:false}},
+   ['kind','inventoryId','targetId','materialId','feeLamports','asOf','source','executable','quoteId','bindingDigest','policyVersion','targetVersion','materialVersion','maxTotalLamports','quoteExpiresMs','expiresAt','costStatus','ceilingScope','networkCost','totalCost','historicalAllocationsChange']),
 };
+// Quote links are present on guarded progression responses; legacy/mint reads
+// retain their existing shape until the collection read projection is ported.
+Object.assign(shapes.CollectionOperation.properties,{quoteId:str,bindingDigest:str,fairness:{enum:['manual-fixture','configured-offline-beacon']}});
 export const success={
  listMarkets:page(ref('Market')),getMarket:enriched(ref('Market')),
  getFeeSchedule:enriched(object({points:array(ref('FeePoint')),unit:str,clock:str})),
@@ -98,7 +103,10 @@ function wrapped(schema) {
 const cursorMethods=new Set(['getMyVault','getNftVault','getStakePositions','listLocalInventories','listMyCollectionAssets','listMyCollectionOperations']);
 const progression=object({kind:{enum:['visual','upgrade']},targetId:str,expectedTargetVersion:integer,
   materialId:str,expectedMaterialVersion:integer},['kind','targetId','expectedTargetVersion']);
-const bodies={reserveLocalMint:{type:'object',additionalProperties:false},reserveLocalProgression:progression,quoteLocalProgression:progression};
+const reviewedProgression=object({...progression.properties,materialId:nullable(str),expectedMaterialVersion:nullable(integer),quoteId:str,bindingDigest:str,policyVersion:str,reviewedFeeLamports:units,reviewedMaxTotalLamports:units,quoteExpiresMs:integer},[...progression.required,'quoteId','bindingDigest','policyVersion','reviewedFeeLamports','reviewedMaxTotalLamports','quoteExpiresMs']);
+const quoteRequest=object({...progression.properties,materialId:nullable(str),expectedMaterialVersion:nullable(integer),maxTotalLamports:nullable(units)},progression.required);
+reviewedProgression.additionalProperties=false;quoteRequest.additionalProperties=false;
+const bodies={reserveLocalMint:{type:'object',additionalProperties:false},reserveLocalProgression:reviewedProgression,quoteLocalProgression:quoteRequest};
 export function describeResponses(paths) {
  // Build a new tree so producing docs never mutates shared route definitions.
  const result=structuredClone(paths);
