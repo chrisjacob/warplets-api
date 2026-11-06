@@ -1,0 +1,23 @@
+// Synthetic local accepted-event fixture; private-ready test marker is not a
+// claim that a complete recovery run was verified.
+import assert from 'node:assert/strict';
+import {openDatabase} from '../storage/database.mjs';
+import {createNodeAtomicDriver} from '../storage/node/atomic-driver.mjs';
+import {createNodeCrypto} from '../security/node-crypto.mjs';
+import {seedCollectionContext} from '../application/fixtures/collection-context.mjs';
+import {memoryArtifacts} from '../application/fixtures/memory-artifacts.mjs';
+import {dispatchCollectionObservation,observationInput,OBSERVATION_TEST_OPERATOR} from '../collect/observation-test-harness.mjs';
+import {dispatchProgressionReservation,reviewedReservation} from '../collect/reservation-test-harness.mjs';
+export async function retainedObservationFixture(t,{pending=false}={}){
+ const db=openDatabase();t.after(()=>db.close());const f=seedCollectionContext(db),driver=createNodeAtomicDriver(db),crypto=createNodeCrypto(),artifacts=memoryArtifacts(),assetId=f.ids(pending?6:1,'target');let seq=0;
+ for(const scope of ['evidence-ingest','collection-evidence'])db.prepare('INSERT INTO app_operator_scopes VALUES(?,?,0,1)').run(OBSERVATION_TEST_OPERATOR.id,scope);
+ if(!pending)db.prepare('UPDATE collect_assets SET reveal_ms=NULL WHERE id=?').run(assetId);
+ if(pending){const principal={kind:'wallet',wallet:f.wallet},q=await dispatchProgressionReservation({driver,crypto,request:{method:'quote',principal,nowMs:f.nowMs,idPrefix:'recovery-observation-quote',input:{requestKey:'recovery-observation-quote',inventoryId:f.inventoryId,...f.request(6)}}});assert.equal(q.result.kind,'committed',JSON.stringify(q));const accepted=await dispatchProgressionReservation({driver,crypto,request:{principal,nowMs:f.nowMs,idPrefix:'recovery-observation-reserve',input:reviewedReservation(q.result.value,'recovery-observation-reserve')}});assert.equal(accepted.result.kind,'committed',JSON.stringify(accepted));}
+ function baseline(){const asset=db.prepare('SELECT * FROM collect_assets WHERE id=?').get(assetId),vault=db.prepare('SELECT * FROM vault_assets WHERE id=?').get(assetId),ownerEvidence=db.prepare("SELECT * FROM vault_observations WHERE asset_id=? AND kind IN ('bind','transfer') ORDER BY observed_ms DESC,rowid DESC LIMIT 1").get(assetId),pending=JSON.parse(asset.asset).pending,operation=pending?db.prepare('SELECT id,kind,inventory_id,owner,commitment,settled_ms,operation FROM collect_operations WHERE id=?').get(pending):null;return {asset,vault,ownerEvidence,operation};}
+ const events=[...(!pending?[{id:'reveal',kind:'reveal',observedMs:f.nowMs,from:null,to:null}]:[]),{id:'transfer',kind:'transfer',observedMs:f.nowMs+1000,from:f.wallet,to:f.other}];
+ const originals=[],steps=[];async function observe(event){const before=baseline(),nowMs=f.nowMs+10000,r=await dispatchCollectionObservation({driver,crypto,store:artifacts,request:{method:'evidence',nowMs,idPrefix:'recovery-event-'+(++seq),inventoryId:f.inventoryId,assetId,events,recordId:event.id,supersedes:originals.at(-1)?.receiptDigest??null}});assert.equal(r.result?.kind,'committed',JSON.stringify(r));const input=observationInput(r.result.value,{requestKey:'recovery-observation-'+seq,expectedAssetVersion:JSON.parse(before.asset.asset).version}),accepted=await dispatchCollectionObservation({driver,crypto,store:artifacts,request:{nowMs,idPrefix:'recovery-observation-'+seq,input}});assert.equal(accepted.result?.kind,'committed',JSON.stringify(accepted));originals.push(r.result.value);const step={sourceId:accepted.result.value.sourceId,before,after:baseline(),result:accepted.result.value};steps.push(step);return step;}
+ for(const event of events)await observe(event);
+ const marker='b'.repeat(64);db.prepare('INSERT INTO app_recovery_runs VALUES(?,?,?,?,?,?,?,?,?,?)').run('synthetic-observation-check','private',marker,null,marker,'ready',f.nowMs,f.nowMs,'{}',JSON.stringify({synthetic:true,verifiedRecovery:false}));db.prepare("UPDATE app_recovery_state SET mode='private',status='ready',generation='synthetic-observation-target',active_restore_id='synthetic-observation-check',inventory_digest=?,write_nonce=NULL WHERE id=1").run(marker);
+ function input(index=0,{afterSourceRevision=null,retainedBytes=0}={}){return {sourceId:steps[index].sourceId,assetId,afterSourceRevision,inventory:{id:f.inventoryId,kind:'season',tranche:null,season_start:f.start},baseline:steps[index].before,asOfMs:f.nowMs+10000,pin:db.prepare('SELECT r.generation,w.revision watermark FROM app_recovery_state r CROSS JOIN app_recovery_watermark w').get(),retainedBytes};}
+ return {db,f,driver,crypto,artifacts,assetId,steps,originals,input};
+}

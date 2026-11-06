@@ -1,0 +1,19 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {retainedObservationFixture} from '../../recovery/v2-legacy-current-observation.fixtures.mjs';
+import {createRetainedCollectionObservationVerifier} from '../../recovery/v2-legacy-current-observation.mjs';
+import {localRuntime} from './local-runtime.mjs';
+test('actual D1/R2 replays accepted reveal, transfer and retained reservation hold without current authority',async t=>{
+ for(const pending of [false,true]){
+  const f=await retainedObservationFixture(t,{pending});f.db.exec('UPDATE app_operator_scopes SET enabled=0; DELETE FROM app_evidence_heads');const {mf,db}=await localRuntime(t,new URL('./fixtures/retained-observation-worker.ts',import.meta.url)),bucket=await mf.getR2Bucket('MANIFESTS');
+  // Explicit test-only row loading into a private restoring target. Whole-run
+  // restore/capture semantics are exercised by the coordinator's orchestrator.
+  for(const row of f.db.prepare('SELECT * FROM app_recovery_runs').all()){const keys=Object.keys(row);await db.prepare('INSERT INTO app_recovery_runs('+keys.join(',')+') VALUES('+keys.map(()=>'?').join(',')+')').bind(...Object.values(row)).run();}
+  await db.prepare("UPDATE app_recovery_state SET mode='private',status='restoring',generation='synthetic-d1-observation',active_restore_id='synthetic-observation-check',inventory_digest=?,write_nonce='synthetic-observation-copy' WHERE id=1").bind('b'.repeat(64)).run();
+  for(const table of ['app_operator_scopes','collect_inventories','collect_assets','vault_assets','vault_observations','collect_operations','app_command_receipts','app_private_artifacts','app_evidence_sources','app_evidence_receipts','app_collection_quotes','app_collection_reservations','collect_observations','app_collection_operation_conflicts','app_collection_observation_bindings'])for(const row of f.db.prepare('SELECT * FROM '+table).all()){const keys=Object.keys(row);await db.prepare('INSERT INTO '+table+'('+keys.join(',')+') VALUES('+keys.map(()=>'?').join(',')+')').bind(...Object.values(row)).run();}
+  for(const [key,bytes] of f.artifacts.objects)await bucket.put(key,bytes,{httpMetadata:{contentType:'application/json'}});await db.prepare('UPDATE app_recovery_state SET write_nonce=NULL WHERE id=1').run();
+  const pin=()=>db.prepare('SELECT r.generation,w.revision watermark FROM app_recovery_state r CROSS JOIN app_recovery_watermark w').first(),call=async(input,fault=null)=>{const response=await mf.dispatchFetch('http://localhost/__fixture',{method:'POST',body:JSON.stringify({input,fault})}),r=await response.json();assert.equal(response.status,200,JSON.stringify(r));return r;};let afterSourceRevision=null;
+  for(let n=0;n<f.steps.length;n++){const input=f.input(n,{afterSourceRevision,retainedBytes:3*89088}),expected=await createRetainedCollectionObservationVerifier(f).replay(input),actual=await call({...input,pin:await pin()});assert.equal(actual.kind,'verified',JSON.stringify(actual));const {metrics:actualMetrics,...actualValue}=actual,{metrics:expectedMetrics,...expectedValue}=expected;assert.deepEqual(actualValue,expectedValue);assert.equal(actualMetrics.sql,expectedMetrics.sql);assert.equal(actualMetrics.objectReads,expectedMetrics.objectReads);if(pending)assert.equal(actual.conflict.status,'held');else assert.equal(actual.conflict,null);assert.ok(actual.metrics.sql+actual.metrics.objectReads<=64&&actual.metrics.workingBytes<=1048576);afterSourceRevision=actual.sourceRevision;t.diagnostic(JSON.stringify({pending,...actual.metrics}));}
+  const input={...f.input(),pin:await pin()};assert.equal((await call(input,'missing')).kind,'held');assert.equal((await call(input,'watermark')).reason,'observation-target-pin-changed');assert.equal((await mf.dispatchFetch('http://localhost/api/v1/recovery-observation')).status,404);
+ }
+});

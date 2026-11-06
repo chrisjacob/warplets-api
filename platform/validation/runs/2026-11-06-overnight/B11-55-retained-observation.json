@@ -1,0 +1,90 @@
+{
+  "task": "B11",
+  "slice": "B11.55 retained normalized observation replay helper",
+  "status": "verified-local-helper; readiness and B11 completion remain false",
+  "baseCommit": "0a82fe4abc91b5bdc74fa1e761fd95f2c631cd60",
+  "implementationCommit": null,
+  "recordedAt": "2026-11-06T10:22:24.997269+00:00",
+  "sourceHashes": {
+    "platform/recovery/v2-legacy-current-observation.mjs": "65cd2ab35fa1156c69b192c75e814aaa4ed284ca281435165cedacca248b21b7",
+    "platform/recovery/v2-legacy-current-observation.d.mts": "3c3c2d1b6eb88e27a42810d6932f10d19093748fc8ffdb71f46d799ddd026133",
+    "platform/recovery/v2-legacy-current-observation.fixtures.mjs": "5473510a00a71f41f1910d7b45248aee3c4618d645d3bbf4e621b8afd8484d20",
+    "platform/recovery/v2-legacy-current-observation.test.mjs": "7f3c8ba263a1e7c6aed3ea28d1ec450e61dbfef2b56db118a09dbb121fe275fe",
+    "platform/recovery/V2_RETAINED_OBSERVATIONS.md": "a252551cbc7177c22e260db8385a53409ae6c79e5c0c009f3558d088b131df9c",
+    "platform/edge/test/retained-observation.test.mjs": "9d399775dba62e10d4765862533b8be3acb3c575a8a936687f1c160e2883f30e",
+    "platform/edge/test/fixtures/retained-observation-worker.ts": "5a645088c2e1f6c3b2a33a0c5c0e5bb64de49c1cfffddd1ecf02afefcb743603"
+  },
+  "sharedDependencies": {
+    "platform/collect/observation-plan.mjs": "455c114a9787675b46b0193064f806d86e775b1c85f5811168e97ec49c790b80",
+    "platform/collect/observation-evidence.mjs": "b74dfa6415b32e5e8ed100321563722b926c3aca2c13c5a5a183d74167c58cf7",
+    "platform/collect/observation-service.mjs": "140207b1858432bf82bed94094cc77083cc5624737078fe0edf66b34407f2336",
+    "platform/storage/041-collection-observations.sql": "a4f36ba190a2298856fcf7086b0a90c1bc7fa06219f04e40547578f02333c388"
+  },
+  "installedSchema": {
+    "last": "055-collection-imported-admission.sql",
+    "migrationFiles": 54
+  },
+  "checks": [
+    {
+      "command": "node --test platform/recovery/v2-legacy-current-observation.test.mjs",
+      "passed": 5,
+      "failed": 0,
+      "durationMs": 2330.3867,
+      "log": "work/b11-55-observation-node-complete.log"
+    },
+    {
+      "command": "node --test platform/edge/test/retained-observation.test.mjs",
+      "passed": 1,
+      "failed": 0,
+      "durationMs": 60692.8291,
+      "caseDurationMs": 59421.9371,
+      "log": "work/b11-55-observation-d1-complete.log",
+      "profiles": [
+        "accepted reveal then transfer",
+        "accepted transfer with pending040 reservation hold"
+      ],
+      "runtime": "installed local Miniflare/workerd D1/R2, loopback only"
+    },
+    {
+      "command": "node platform/edge/node_modules/typescript/bin/tsc -p platform/edge/tsconfig.json --noEmit",
+      "status": "passed"
+    },
+    {
+      "command": "git diff --check",
+      "status": "passed"
+    }
+  ],
+  "measurements": {
+    "sqlPerReplay": 9,
+    "objectReadsPerReplay": 1,
+    "maxBatchBytes": 3188,
+    "maxParameters": 2,
+    "maxReturnedBytes": 8535,
+    "maxWorkingBytes": 337534,
+    "includedCallerRetainedBytes": 267264,
+    "bounds": {
+      "inputBytes": 131072,
+      "artifactBytes": 16384,
+      "sqlBatchBytes": 262144,
+      "operations": 64,
+      "workingBytes": 1048576
+    }
+  },
+  "acceptance": [
+    "Independent accepted041 command identity/input/output digest verification and exact indexed effect/result binding.",
+    "Retained B04 source/receipt/raw private bytes independently verified without current scope or evidence head.",
+    "Existing observation pure planner reproduces original result/effect at original receipt.created_ms.",
+    "Exact Collect observation, Vault transfer event and optional permanent reservation-conflict row match.",
+    "Strict numeric safe source-revision ordering, duplicate sameasset041 revision rejection, malformed/lexicographically misleading revisions hold.",
+    "Private restoring and private ready targets accepted only with null nonce and exact current generation/business watermark before and after hashes.",
+    "Caller mutation, malformed baseline, altered effect/receipt/event, omitted conflict, missing/corrupt artifact, excessive retained checkpoint and afterhash target mutation hold.",
+    "Actual Node/D1 complete semantic output parity; working-byte differences caused only by different target generation string lengths are independently measured."
+  ],
+  "limitations": [
+    "Previously reconstructed baseline is a required caller precondition, not authority granted by this helper.",
+    "Caller must order all040/041/042 families and prove full event coverage; a verified conflict never authorizes readiness.",
+    "Fixtures isolate accepted-event semantics with an explicitly synthetic private target marker; whole-run recovery and original mint proof belong to the outer reconciler.",
+    "Only existing synthetic collection observation decoder is supported; no chain ownership/completeness, payment or external authority is inferred.",
+    "Main v2 reconcile dispatch remains unchanged by this slice."
+  ]
+}
