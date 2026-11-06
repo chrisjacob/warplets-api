@@ -1,5 +1,5 @@
 {
   "policy": "prd-1.2",
   "scope": "local",
-  "checkpoint": "blueprint-b11-bounded-asset-operation-reads"
+  "checkpoint": "blueprint-b11-guarded-progression-fulfillment"
 }

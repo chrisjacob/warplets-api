@@ -10,7 +10,7 @@ export type ProgressionReservationCommand=CollectionCommand<'collection.reserve-
 /** Operator DTOs name immutable staged evidence; a boolean cannot seal coverage. */
 export type PublishCollectionStageCommand=CollectionCommand<'collection.publish-stage.v1',{inventoryId:string;stageId:string;termsDigest:string;sourceId:string;expectedInventoryRevision:string},OperatorPrincipal>;
 export type FreezeCollectionEligibilityCommand=CollectionCommand<'collection.freeze-eligibility.v1',{inventoryId:string;stageId:string;publishedOpeningMs:number;sourceId:string;sourceDigest:string;expectedInventoryRevision:string},OperatorPrincipal>;
-export type FulfillCollectionOperationCommand=CollectionCommand<'collection.fulfill-operation.v1',{operationId:string;commitment:string;evidenceReceiptId:string;evidenceDigest:string;proofId:string;observedMs:number},OperatorPrincipal>;
+export type FulfillCollectionOperationCommand=CollectionCommand<'collection.fulfill-operation.v1',{operationId:string;evidenceReceiptId:string;evidenceDigest:string},OperatorPrincipal>;
 export type ObserveCollectionAssetCommand=CollectionCommand<'collection.observe-asset.v1',{assetId:string;kind:'reveal'|'transfer';from:string|null;to:string|null;observedMs:number;evidenceReceiptId:string;evidenceDigest:string;expectedAssetVersion:number},OperatorPrincipal>;
 export type PublishGenesisBallotCommand=CollectionCommand<'governance.publish-ballot.v1',{ballotId:string;opensMs:number;previousTrancheOpeningMs:number;electorateSourceId:string;electorateDigest:string},OperatorPrincipal>;
 export type CastGenesisVoteCommand=CollectionCommand<'governance.cast-vote.v1',{ballotId:string;choice:'ASAP'|'7'|'14'|'30'},Principal>;

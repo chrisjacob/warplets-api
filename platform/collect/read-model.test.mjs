@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {createCollectionReadRepository} from './read-model.mjs';
 import {createCollectionEdgeFixture} from '../application/fixtures/collection-edges.mjs';
 import {createNodeAtomicDriver} from '../storage/node/atomic-driver.mjs';
-import {readCollectionAsset,listOwnedAssets,listOwnOperations,readOwnOperation,reserveProgression} from './store.mjs';
+import {readCollectionAsset,listOwnedAssets,listOwnOperations,readOwnOperation} from './store.mjs';
 import {createNodeCrypto} from '../security/node-crypto.mjs';
 import {dispatchProgressionReservation,reviewedReservation} from './reservation-test-harness.mjs';
 import {dispatchCollectionObservation,observationInput,OBSERVATION_TEST_OPERATOR} from './observation-test-harness.mjs';
@@ -73,9 +73,10 @@ test('conflicting owner evidence, oversized scalars, future reveals and inconsis
 test('fulfilled upgrade and visual receipts preserve original fees, participants and retained outcome identity',async t=>{
  const f=await fixture(t,4);
  for(const [kind,targetId,materialId] of [['upgrade','synthetic-season-000','synthetic-season-001'],['visual','synthetic-season-002',undefined]]){
-  const operation=reserveProgression(f.db,{inventoryId:f.seasonId,wallet:f.principal.wallet,requestKey:'read-fulfilled-'+kind,request:{kind,targetId,materialId,expectedTargetVersion:0,...(materialId?{expectedMaterialVersion:0}:{})},now:f.nowMs}).operation;
-  f.fulfill(operation.id,kind==='visual'?{traits:{model:'Synthetic reroll',backdrop:'Synthetic backdrop',symbol:'Synthetic symbol'}}:{ticket:0});
-  assert.deepEqual(ready(await f.repo.readOwnOperation({principal:f.principal,operationId:operation.id,nowMs:f.nowMs})),readOwnOperation(f.db,f.principal.wallet,operation.id));
-  const row=f.db.prepare('SELECT receipt FROM collect_operations WHERE id=?').get(operation.id);f.db.prepare('UPDATE collect_operations SET receipt=? WHERE id=?').run(JSON.stringify({...JSON.parse(row.receipt),assetId:'wrong-target'}),operation.id);assert.equal((await f.repo.readOwnOperation({principal:f.principal,operationId:operation.id,nowMs:f.nowMs})).reason,'operation-settlement-inconsistent');
+  const call=request=>dispatchProgressionReservation({driver:f.driver,crypto,request:{principal:f.principal,nowMs:f.nowMs,idPrefix:'read-fulfilled-'+kind,...request}}),q=await call({method:'quote',input:{requestKey:'read-quote-'+kind,inventoryId:f.seasonId,kind,targetId,...(materialId?{materialId,expectedMaterialVersion:0}:{}),expectedTargetVersion:0}});assert.equal(q.result.kind,'committed',JSON.stringify(q));
+  const accepted=await call({idPrefix:'read-reservation-'+kind,input:reviewedReservation(q.result.value,'read-fulfilled-'+kind)});assert.equal(accepted.result.kind,'committed',JSON.stringify(accepted));const operationId=accepted.result.value.operationId;
+  await f.fulfill(operationId,kind==='visual'?{traits:{model:'Synthetic reroll',backdrop:'Synthetic backdrop',symbol:'Synthetic symbol'}}:{ticket:0});
+  const {quoteId,bindingDigest,fairness,...legacy}=ready(await f.repo.readOwnOperation({principal:f.principal,operationId,nowMs:f.nowMs}));assert.deepEqual(legacy,readOwnOperation(f.db,f.principal.wallet,operationId));assert.equal(quoteId,q.result.value.id);assert.equal(bindingDigest,q.result.value.bindingDigest);assert.equal(fairness,'manual-fixture');
+  const corrupt=createCollectionReadRepository({...f.driver,async batch(s){const results=await f.driver.batch(s),row=results[1].rows[0];row.receipt_json=JSON.stringify({...JSON.parse(row.receipt_json),assetId:'wrong-target'});return results;}});assert.equal((await corrupt.readOwnOperation({principal:f.principal,operationId,nowMs:f.nowMs})).reason,'operation-settlement-inconsistent');
  }
 });

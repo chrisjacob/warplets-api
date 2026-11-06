@@ -8,6 +8,7 @@ import {dispatchProgressionReservation,reviewedReservation} from './reservation-
 import {fulfillProgression,readOwnOperation,reserveProgression} from './store.mjs';
 import {changeScope,recordUsage} from '../operations/controls.mjs';
 import {futureRound,roundTime} from '../randomness/request-plan.mjs';
+import {createGuardedFulfillmentFixture} from '../application/fixtures/guarded-fulfillment.mjs';
 const crypto=createNodeCrypto();
 function setup(t,{fair=false}={}){const db=openDatabase();t.after(()=>db.close());
  const f=seedCollectionContext(db),driver=createNodeAtomicDriver(db);let seq=0;
@@ -22,7 +23,7 @@ test('guarded pair reservation preserves legacy fulfillment format, past clocks 
  changeScope(db,{scope:'collection-progression',paused:true,atMs:f.nowMs+1,actor:'synthetic-operator',reason:'synthetic-pause',evidenceRef:'synthetic-proof',requestKey:'synthetic-pause'});
  const replay=await call({input,nowMs:q.expiresMs+1});assert.equal(replay.result.kind,'replayed');assert.deepEqual(replay.result.value,r.result.value);
  const changed=await call({input:{...input,reviewedMaxTotalLamports:String(BigInt(q.feeLamports)+1n)}});assert.equal(changed.result.code,'idempotency_conflict');
- const receipt=fulfillProgression(db,{operationId:opId,commitment:op.commitment,proofId:'synthetic-manual-proof',at:f.nowMs+1000,finalized:true,ticket:489},f.nowMs+1000);assert.equal(receipt.operationId,opId);
+ const receipt=await createGuardedFulfillmentFixture(db)(opId,{proofId:'synthetic-manual-proof',atMs:f.nowMs+1000,ticket:489},f.nowMs+1000);assert.equal(receipt.operationId,opId);
  const target=JSON.parse(db.prepare('SELECT asset FROM collect_assets WHERE id=?').get(input.targetId).asset);assert.equal(target.pending,null);assert.equal(target.level,2);assert.equal(target.version,2);assert.equal((await call({input,nowMs:q.expiresMs+1})).result.kind,'replayed');assert.equal(db.prepare('SELECT COUNT(*) n FROM tx_intents').get().n,0);
 });
 test('configured fair request and all mandatory children are atomic and retain locks on unverified fulfillment',async t=>{
@@ -74,7 +75,7 @@ test('visual reservation preserves Level and traits, and completed reroll count 
  const {db,f,call,quote}=setup(t),q=await quote(10),initial=JSON.parse(db.prepare('SELECT asset FROM collect_assets WHERE id=?').get(q.targetId).asset),accepted=await call({input:reviewedReservation(q,'synthetic-visual-first')});assert.equal(accepted.result.kind,'committed');
  const locked=JSON.parse(db.prepare('SELECT asset FROM collect_assets WHERE id=?').get(q.targetId).asset);assert.equal(locked.level,initial.level);assert.deepEqual(locked.traits,initial.traits);assert.equal(locked.rerolls,0);assert.equal(locked.eligibleAt,0);assert.equal(locked.expiresAt,initial.expiresAt);
  const op=db.prepare('SELECT * FROM collect_operations WHERE id=?').get(accepted.result.value.operationId),fulfilledAt=f.nowMs+3600123;
- fulfillProgression(db,{operationId:op.id,commitment:op.commitment,proofId:'synthetic-visual-proof',at:fulfilledAt,finalized:true,traits:{model:'Synthetic second',backdrop:'Synthetic dusk',symbol:'Synthetic ring'}},fulfilledAt);
+ await createGuardedFulfillmentFixture(db)(op.id,{proofId:'synthetic-visual-proof',atMs:fulfilledAt,traits:{model:'Synthetic second',backdrop:'Synthetic dusk',symbol:'Synthetic ring'}},fulfilledAt);
  const finished=JSON.parse(db.prepare('SELECT asset FROM collect_assets WHERE id=?').get(q.targetId).asset);assert.equal(finished.rerolls,1);assert.equal(finished.level,10);assert.equal(finished.eligibleAt,fulfilledAt+3600000);assert.equal(finished.expiresAt,initial.expiresAt);
  const quoteInput={requestKey:'synthetic-second-visual',inventoryId:f.inventoryId,...f.request(10,'visual'),expectedTargetVersion:2};assert.equal((await call({method:'quote',input:quoteInput,nowMs:finished.eligibleAt-1})).result.reason,'reroll_cooldown');
  const next=await call({method:'quote',input:quoteInput,nowMs:finished.eligibleAt});assert.equal(next.result.kind,'committed');assert.equal(next.result.value.feeLamports,'20000000');assert.equal((await call({input:reviewedReservation(next.result.value,'synthetic-visual-second'),nowMs:finished.eligibleAt})).result.kind,'committed');

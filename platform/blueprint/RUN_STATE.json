@@ -5,9 +5,9 @@
   "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
   "currentTask": "B11",
-  "lastUpdatedAt": "2026-11-06T01:28:40.224032+00:00",
+  "lastUpdatedAt": "2026-11-06T01:58:54.813999+00:00",
   "migrationAllocation": {
-    "next": 44,
+    "next": 45,
     "reserved": [
       {
         "version": 31,
@@ -73,6 +73,11 @@
         "version": 43,
         "task": "B11",
         "purpose": "normalized stage authority and safe collection admission state"
+      },
+      {
+        "version": 44,
+        "task": "B11",
+        "purpose": "bounded durable v2 recovery capture/reconciliation control state and whole-business mutation watermark"
       }
     ],
     "historicalGap": 19
@@ -235,7 +240,7 @@
       "status": "in_progress",
       "owner": "coordinator",
       "baseCommit": "96cdfa1fb6334fcb27deb831d786243227b9d1a8",
-      "implementationCommit": "1e1e0297fb634ffaa9fef9f81368874699f297f9",
+      "implementationCommit": "66ce5b37e0466635013e238a57068ee30805c29f",
       "pushed": true,
       "evidence": [
         "platform/validation/runs/2026-11-06-overnight/B11-1.json",
@@ -249,9 +254,10 @@
         "platform/validation/runs/2026-11-06-overnight/B11-9-http.json",
         "platform/validation/runs/2026-11-06-overnight/B11-9-browser.json",
         "platform/validation/runs/2026-11-06-overnight/B11-10-observations.json",
-        "platform/validation/runs/2026-11-06-overnight/B11-11-reads.json"
+        "platform/validation/runs/2026-11-06-overnight/B11-11-reads.json",
+        "platform/validation/runs/2026-11-06-overnight/B11-12-fulfillment.json"
       ],
-      "nextAction": "Commit/push B11.11boundedfourreads andfollowCI.1e1e029041CI42143368574success.042progressionfulfillment agentimplementsproof/service/plan; coordinatorwiresB04anddrafts042SQL.043stagefoundationpure4testspass, normalizedrepositorynotyetimplemented. Frontendagentnextmeasures10000voter/maxsource recoverycapacity andproposesboundedfix; donotclaimB11complete.",
+      "nextAction": "B11.12 installed042 fulfillment final475reference+21focused+51affected+42pairedD1 pass; commit/push and followCI. Then install draft043 normalized stage (6Node+10000wallet actualD1 pass), add102-table populated recovery. Agent builds044durable recovery-v2 against exactdraft; second agent derives normalizedmintplans. B11 remains partial; preserve separate work.",
       "blocker": null
     },
     "B12": {

@@ -1,0 +1,195 @@
+{
+  "taskId": "B11",
+  "substep": "B11.12-guarded-progression-fulfillment",
+  "status": "partial",
+  "classification": "Locally verified guarded progression and retained synthetic/real pinned beacon evidence; no chain custody or financial execution",
+  "lastTestedBaseCommit": "66ce5b37e0466635013e238a57068ee30805c29f",
+  "implementationCommit": null,
+  "commands": [
+    {
+      "command": "node --test platform/collect/fulfillment-evidence.test.mjs platform/collect/fulfillment-plan.test.mjs platform/collect/fulfillment-repository.test.mjs platform/collect/fulfillment-recovery.test.mjs platform/beacon/portable.test.mjs",
+      "log": "work/b11-fulfillment-node.log",
+      "exitCode": 0,
+      "tests": 21,
+      "failed": 0,
+      "skipped": 0,
+      "durationMs": 3011.6535
+    },
+    {
+      "command": "node --test platform/edge/test/collection-fulfillments.test.mjs",
+      "log": "work/b11-fulfillment-edge.log",
+      "exitCode": 0,
+      "tests": 1,
+      "failed": 0,
+      "skipped": 0,
+      "durationMs": 21413.4786
+    },
+    {
+      "command": "node --test platform/collect/fulfillment-evidence.test.mjs platform/collect/fulfillment-plan.test.mjs platform/collect/fulfillment-repository.test.mjs platform/collect/fulfillment-recovery.test.mjs platform/collect/reservation-repository.test.mjs platform/collect/observation-repository.test.mjs platform/collect/observation-recovery.test.mjs",
+      "log": "work/b11-fulfillment-integration-node.log",
+      "exitCode": 0,
+      "tests": 51,
+      "failed": 0,
+      "skipped": 0,
+      "durationMs": 4012.5115
+    },
+    {
+      "command": "node --test platform/site/tests/collection-edges.spec.mjs",
+      "log": "work/b11-fulfillment-site.log",
+      "exitCode": 0,
+      "tests": 3,
+      "failed": 0,
+      "skipped": 0,
+      "durationMs": 4663.2493
+    },
+    {
+      "command": "node --test platform/beacon/portable.test.mjs platform/beacon/tests/draw.spec.mjs platform/beacon/tests/portable.spec.mjs",
+      "log": "work/b11-fulfillment-beacon.log",
+      "exitCode": 0,
+      "tests": 5,
+      "failed": 0,
+      "skipped": 0,
+      "durationMs": 1622.4171
+    },
+    {
+      "command": "node --test platform/collect/read-model.test.mjs",
+      "log": "work/b11-collection-reads-042.log",
+      "exitCode": 0,
+      "tests": 6,
+      "failed": 0,
+      "skipped": 0,
+      "durationMs": 1952.2205
+    },
+    {
+      "command": "node platform/edge/node_modules/typescript/bin/tsc --noEmit -p platform/edge/tsconfig.json",
+      "exitCode": 0
+    },
+    {
+      "command": "git diff --check",
+      "exitCode": 0
+    },
+    {
+      "command": "node work/b11-042-reference.mjs",
+      "scope": "All tracked reference test files plus B11.12 checkpoint-added tests; excludes uncommitted stage and recovery-v2 lanes",
+      "log": "work/b11-042-final-reference.log",
+      "exitCode": 0,
+      "tests": 475,
+      "failed": 0,
+      "skipped": 0,
+      "durationMs": 44987.9768
+    }
+  ],
+  "sourceHashes": {
+    "platform/application/collections.ts": "c8e1598f2a47fbe6cd87bbf4634e31db418792bc2353b5eb186b722f8d8ece81",
+    "platform/application/fixtures/collection-edges.mjs": "f3f653a4f9df93c36806b16cb9f922fd4418570ad762d9269c724718d58edcdd",
+    "platform/application/fixtures/collection-fulfillment.mjs": "2c91a5c7d04ebdf77f9f0ebe433bd0439f38ecf44e22eae323d2690896554cad",
+    "platform/application/fixtures/guarded-fulfillment.mjs": "0a3324f35b8c71c62d72037266dddc451a740ff208c727e13b72c48bb5d0181a",
+    "platform/beacon/noble-verifier.d.mts": "b67e4dadb2fd54be974c56075c84e8b695ffed3b70a065bdbbdab7a68558270d",
+    "platform/beacon/noble-verifier.mjs": "f7cd0b8cea976b8ea145a3db1321c7da18e3380bcd553b7b6227b43f85c8e124",
+    "platform/beacon/portable.d.mts": "0be5500f631394029d75321903e3e57e072f7563f8fb0a434c638f057a2cae2b",
+    "platform/beacon/portable.mjs": "41176d84d00445347311d9e81a6157719f8184c884d787878ba731d2a7767f6f",
+    "platform/beacon/portable.test.mjs": "a9104dd691435d01cf8f2164a17cf50ad9daad67c2843d3d25cdaee789600e8a",
+    "platform/beacon/protocol.mjs": "73d8f0efdfe1b8a9e3f174919086606ffd118365d5f53f7a12dfe7dcccb3e164",
+    "platform/beacon/quicknet.mjs": "a0a58d3965a6786bee1c91bdaf1cc3714c5182deb2bb18d55a33148b8060e6ad",
+    "platform/beacon/tests/portable.spec.mjs": "7796b799f58a1a08cbfd461d775cffaf385e6213e03624ae3bc7245220526ba7",
+    "platform/collect/fulfillment-contract.md": "c104bda9b03f3bc5aaae5e537c116ae423bdf0cf3a8bfa145c75a58914b76502",
+    "platform/collect/fulfillment-evidence.d.mts": "23323e56073eff9c43cfd017aeac8a88378938bdf304d193fd6c41ac7e15ccae",
+    "platform/collect/fulfillment-evidence.mjs": "c52ecccc2ac6ef9730b92fc937fc8b1ea5ae9cde482bc9ddfed8596e46d035cb",
+    "platform/collect/fulfillment-evidence.test.mjs": "5545f88eefb18a4bc08095c31adadb8441b5c043c05b7ea7456e8ab542220b50",
+    "platform/collect/fulfillment-plan.mjs": "d6efab2dba74d2626f17085709dc3a18b2f41176c08de8ca44ab2907786d6f68",
+    "platform/collect/fulfillment-plan.test.mjs": "e858402026d24a29556e3a9a0bedad19d343efd5dd828af43720959c813e0d05",
+    "platform/collect/fulfillment-recovery.test.mjs": "9e0ade4ce5bbf48e59e206bd5c3ba7d98850ee7775b06e7337905c1741e1ab6a",
+    "platform/collect/fulfillment-repository.d.mts": "958f2a2d6669e412a8ce28c27d6507de4f6822b28159bdf0606b36ee19eb48b5",
+    "platform/collect/fulfillment-repository.mjs": "58c82c463e87e563984315c05cc6b060f2eabc6dfc48021c5ad0f1684875c707",
+    "platform/collect/fulfillment-repository.test.mjs": "7a7231b856bdd8db229b36a7b3005a28b725af7c1e7aaab62d2ef83dab57b8dd",
+    "platform/collect/fulfillment-service.d.mts": "eb98c3d4745194e1e66a9a2e35aeb5c33c640ab3eec6f6a4619ba8ed8f13eeb5",
+    "platform/collect/fulfillment-service.mjs": "2f2795474abcb6d1dd09dcdc2d4e60f620c7ab49ef77d7db138dc8a20229d8ab",
+    "platform/collect/fulfillment-test-harness.mjs": "3a7e8b0e2b83f57eb4ed190c20b8c8c4c4c99f12bd57e2b4f72b2b8e7547ec68",
+    "platform/collect/observation-recovery.test.mjs": "ae83c0f3e45f0a0f87ff7a74c0feb33c47244d4f64cfc99d5db6dee81d5872e2",
+    "platform/collect/observation-repository.test.mjs": "f242ba40bff5056d9c5ecd736ce4925eeec5fa4a2e0bc5d486c56dd1f93c151d",
+    "platform/collect/read-model.test.mjs": "a7db6188991c52be8f14dbbd568b84f87d32d57bcc6305c2064ba70e9a3ec654",
+    "platform/collect/reservation-repository.test.mjs": "bedc06d5f624b10f0463b98155d679fcd7ffcefba693a839c4893b2f20db62e0",
+    "platform/edge/test/collection-fulfillments.test.mjs": "7404304f7bee808a84a28d30adde62ce862399dc368e5b75c2dc438d4a821106",
+    "platform/edge/test/collection-observations.test.mjs": "56d4686d16e7e053cc4c0d400a1ae33eb1f713c8ab9873fec2eaf9c249af0935",
+    "platform/edge/test/fixtures/collection-fulfillment-worker.ts": "54285b145d9aed0eaf5042ded3cd06c27a94f7190868813e51a9cc845f8ece94",
+    "platform/evidence/decoders.mjs": "407398bb8159748fde4382452e2f3d75ebc6957755fce3a0736091ade425f6eb",
+    "platform/evidence/envelope.mjs": "f1751fde45167dfa5007d35f29075a6f2d0150838e02992d6b63c3764497eb76",
+    "platform/randomness/draw-protocol.mjs": "742e8daadf7ba182ffce37be56337a81f76470da39a6fed0131834846d2ea9d0",
+    "platform/randomness/portable-draw.mjs": "fccb5fff08d930df99680d572eebc7f7aee76fdef784dbfd0c2f7504508c5a2b",
+    "platform/randomness/selection.mjs": "577d49d0e99946668d055610931b1594911cfc6285d1537fd0cda84ffd7ac018",
+    "platform/recovery/schema.mjs": "0f2a60f6faf2dcdfcbb4794266060e9a6e895a737b973a85b48027883df9a13d",
+    "platform/site/tests/collection-edges-qa.mjs": "f4afcf0c18f87cc0c16a7b8031bb3122025f9e486e0506e9b72a72fdf90e9078",
+    "platform/site/tests/collection-edges.spec.mjs": "b1ce5b395ba18d72e03eafbd653c41e3c8e7563143a04eb90f90f34c575c86b7",
+    "platform/storage/042-collection-fulfillments.sql": "fb8c79128ea02dd4a625db972cf3dc7f6608c21f6c56144301e27011fa8150e6"
+  },
+  "measurements": {
+    "pairedNodeD1Calls": 42,
+    "acceptedFulfillments": 4,
+    "concurrentSameOperationWinners": 1,
+    "maxStatementsPerCallIncludingB04": 30,
+    "freshSnapshotStatements": 15,
+    "maxBatchBytes": 16530,
+    "maxParameters": 71,
+    "maxPrivateObjectReadsPerFulfillment": 1,
+    "participantLimit": 2,
+    "hydratedInputByteLimit": 1048576,
+    "policyTraitJsonByteLimit": 524288,
+    "effectJsonByteLimit": 131072,
+    "inventoryAggregateHydrated": false,
+    "preparationFreshnessWindowMs": 30000
+  },
+  "recovery": {
+    "businessTables": 100,
+    "populatedFulfillments": 1,
+    "immutableLevelHistoryRows": 2,
+    "rawEvidenceAndOriginalReceiptsPreserved": true,
+    "acceptedReplayAfterRevocationAndObjectLoss": true,
+    "settledOperationAndHistoryImmutable": true
+  },
+  "acceptance": [
+    "Actual pinned noble BLS signature verified on Node and workerd; wrong signature with recomputed entropy rejected",
+    "Original configured request round/context/policy required; manual fallback rejected",
+    "Manual upgrade/visual exact legacy after-asset JSON, receipt JSON and evidence digest parity",
+    "Original040reservation independently re-derived with shared fee and cooldown math",
+    "Every missing participant/history/fair-result/link/settlement child aborts the atomic batch",
+    "Current B04 head/scope/source changes during hash cannot commit stale approval",
+    "Two same-operation contenders yield one complete fulfillment",
+    "Existing configured fair result independently reverified, exact bytes and original recorded time retained; changed chosen output rejected",
+    "Actual041 external-transfer conflict keeps fulfillment pending",
+    "Accepted replay precedes current scope/object/state checks and resolves lost response",
+    "All nine upgrade Levels retain historical entitlement, claims, material downgrade and visual cooldown assertions through real B04 fixture composition",
+    "100-table private recovery retains completed effects and original accepted replay",
+    "Configured fulfillment delayed one day starts cooldown at trusted server completion time; raw entropy round and retained fair-result timestamp remain unchanged",
+    "Preparation stalled over30seconds at final hash or SQL boundary writes no effects; fresh retry captures new completion clock and accepted replay remains fixed"
+  ],
+  "dependencyBoundary": {
+    "rootReferenceImportsNoble": false,
+    "actualSignatureChecks": [
+      "platform/beacon/tests/portable.spec.mjs",
+      "platform/edge/test/collection-fulfillments.test.mjs"
+    ],
+    "pinnedPackage": "@noble/curves@2.2.0",
+    "networkFetches": 0
+  },
+  "boundaries": {
+    "sourceMode": "synthetic-fixture",
+    "coverageComplete": false,
+    "publicFulfillmentRoutes": false,
+    "financialExecution": false,
+    "mintFulfillment": false,
+    "chainAuthority": false,
+    "holdClearing": false
+  },
+  "remaining": [
+    "Commit/push and follow exact test-only CI; existing HTTP lifecycle browser evidence remains applicable because no production route or UI changed",
+    "Normalized stage and mint authority before guarded mint fulfillment",
+    "Operator application composition/public approval boundaries remain separate; no public fulfillment route"
+  ],
+  "clockSemantics": {
+    "manualEffectiveTime": "retained attested event time",
+    "configuredEffectiveTime": "trusted server command time",
+    "configuredEntropyTime": "original pinned beacon round time",
+    "intentionalPrdCorrection": "Legacy configured adapter backdated completion to the beacon round. Guarded fulfillment separates entropy publication from successful local completion.",
+    "safeOverflowGuard": true
+  }
+}
