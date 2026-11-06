@@ -1,0 +1,33 @@
+{
+  "milestone": "Compact private Vault liability component",
+  "status": "partial-foundation-verified",
+  "baseCommit": "6bd3f64",
+  "checks": [
+    {
+      "command": "node --test platform/vault/manifest.test.mjs platform/domain/economics/economics.test.mjs",
+      "passed": 11,
+      "failed": 0,
+      "durationMs": 214.3915
+    },
+    {
+      "command": "node platform/contracts/generate.mjs --check",
+      "result": "passed"
+    }
+  ],
+  "bounds": {
+    "bytes": 65536,
+    "seasons": 12,
+    "reservedGenesisSlots": 10000,
+    "slotsPerSeason": 1000
+  },
+  "sourceHashes": {
+    "platform/vault/manifest.mjs": "f40666c5e3ffa3519e243676da0f93f1e5e1299d4f4ab42909a944b0480da921",
+    "platform/vault/manifest.test.mjs": "226cf34aba8f8dc4bb2d847f905cbede1f4f5c9960832d3865731d3c42bc9eac"
+  },
+  "limitations": [
+    "Private liability component only; inventory commitment is explicitly an unverified reference pending archive composition.",
+    "No binding or claim history included; no database restore or owner claim authority claimed.",
+    "Requires archive composition preserving observed binding lineage and cumulative spent entitlement."
+  ],
+  "financialExecution": false
+}

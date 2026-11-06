@@ -1,3 +1,7 @@
+# Latest B19 checkpoint: compact liability component
+
+platform/vault/manifest.mjs now creates and verifies canonical byte-pinned PRIVATE liability components, max64KiB/12Seasons. Complete10000 Genesis reserves are represented by fixed quotas and cumulative-range arithmetic; all1000 positions perSeason remain in original launch snapshots. Eleven tests with economics pass214.3915ms; contract check passes. EvidenceB19-04. Inventory commitment remains explicitly unverified-reference, claimHistoryIncluded=false, bindingAuthority=false. This is not a complete archive or restore. Next compose inventory identity and binding/transfer/cumulative-claim history, independently verify all bytes and restore into empty local database. No migration added. B17CI42308923046 active in reference stage; B00-B16 verified. Usage99%, continue as authorized.
+
 # Latest B19 checkpoint: nine recorded findings
 
 The pinned report index now retains four incompatible configurations, one scoped successful owner-transfer fixture and four review-required findings (fractional precision, metadata/progression authority, permanent proof availability and full costs). All four focused tests pass in170.41ms. EvidenceB19-03. Next executable: compact Vault manifest and independently pinned recovery, then supported claim codecs and decision dossiers. Existing ledger/projection inspected; no manifest code started yet. B17 CI42308923046 still active in reference checks. Usage99%; user authorized continued work to exhaustion.
