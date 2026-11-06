@@ -1,0 +1,105 @@
+{
+  "checkpoint": "B11-27",
+  "title": "Bounded original legacy mint preimage audit",
+  "status": "partial-no-adoption-authority",
+  "lastConfirmedBaseCommit": "47454e1b73c7de450b51dc40cb3cd036ecfa0583",
+  "implementationCommit": null,
+  "source": "synthetic-local-legacy-store-fixtures-with-retained-pinned-beacon-round",
+  "financialExecution": false,
+  "applicationActivation": false,
+  "schemaChanges": false,
+  "packageChanges": false,
+  "runtimeSchemaThrough": "050-legacy-audit-continuations.sql",
+  "runtimeSchemaHash": "188bb2b9145005dff5317fcba75bca43c2e8f06864e0dbc9b36b3f0af7516250",
+  "checks": [
+    {
+      "command": "node --test platform/collect/legacy-mint-audit.test.mjs",
+      "passed": 9,
+      "failed": 0,
+      "durationMs": 8165.2761,
+      "log": "work/b11-legacy-mint-audit-node.log"
+    },
+    {
+      "command": "node --test platform/edge/test/legacy-mint-audit.test.mjs",
+      "passed": 1,
+      "failed": 0,
+      "durationMs": 24170.64,
+      "log": "work/b11-legacy-mint-audit-edge.log"
+    },
+    {
+      "command": "node --test platform/beacon/portable.test.mjs platform/beacon/tests/draw.spec.mjs platform/beacon/tests/portable.spec.mjs",
+      "passed": 5,
+      "failed": 0,
+      "durationMs": 1680.7696,
+      "log": "work/b11-legacy-mint-audit-protocol.log"
+    },
+    {
+      "command": "node platform/edge/node_modules/typescript/bin/tsc --project platform/edge/tsconfig.json --noEmit",
+      "result": "pass",
+      "log": "work/b11-legacy-mint-audit-types.log"
+    },
+    {
+      "command": "explicit owned new-file LF and trailing-whitespace check",
+      "result": "pass"
+    }
+  ],
+  "metrics": {
+    "realPinnedRound": 30000000,
+    "legacyOperationSettledByPinnedVerifier": true,
+    "reads": 25,
+    "measurements": {
+      "sourceBytes": 1343,
+      "contextBytes": 7381,
+      "partReads": 25,
+      "partBytes": 1248116,
+      "maxPartBytes": 50049,
+      "workingBytes": 773076,
+      "baseWorking": 41656,
+      "namesBytes": 0,
+      "assetsBytes": 0
+    },
+    "policyBytes": 600611,
+    "applicationActivation": false,
+    "financialExecution": false
+  },
+  "bounds": {
+    "sourceRootBytes": 131072,
+    "admissionPageBytes": 65536,
+    "originalContextBytes": 49152,
+    "policyPartBytes": 65536,
+    "traitChoicesPerPart": 64,
+    "traitChoicesPerField": 256,
+    "policyPartReads": 25,
+    "workingPayloadBytes": 1048576,
+    "workingMeasurement": "Conservative serialized payload/copy accounting, not engine heap profiling; trusted reader must bound before hydration."
+  },
+  "verified": [
+    "Exact legacy evidence tuple and whitespace-preserving original traits",
+    "All ten Genesis and Season initial Levels, ordinal and clamped Season expiry",
+    "Original receipt, Collect slot/bind, Vault bind event and Season initial Level event",
+    "Historical audit unchanged by later reveal, transfer, visual reroll or upgrade",
+    "Original configured policy rehash, request, real pinned BLS round, draw ticket/reserved asset/traits and fair result",
+    "Cross-page duplicate traits and second-pass byte changes rejected",
+    "Missing original proof/objects held explicitly; contradictory proof/receipt/history rejected",
+    "Caller mutation across awaited crypto cannot change captured inputs",
+    "Local R2 size metadata checked before body hydration; malformed real signatures rejected",
+    "No public audit route"
+  ],
+  "limitations": [
+    "Prior quota prefix reachability and original fact selection require a future private guarded repository; pure function does not authorize caller-supplied prefix or manual/configured classification.",
+    "No full 035 component economics/state-digest approval, legacy activation, receipt fabrication, chain mint or payment claim.",
+    "Legal 600611-byte legacy trait policy exceeds the active normalized mint 512KiB reader guard; that guard remains unchanged.",
+    "Reference arithmetic tests explicitly use an injected synthetic verifier; separate actual workerd/R2 test uses pinned real BLS.",
+    "This is pure audit parity with local R2; no new D1 adoption mutation acceptance."
+  ],
+  "sourceHashes": {
+    "platform/collect/legacy-mint-audit.mjs": "e84484a90fae035d10c484d32072e8ff1ac31be00cba3e5be09943c7cd467f7c",
+    "platform/collect/legacy-mint-audit.d.mts": "08894452075258658470a49ad8f59155fb18e038036b1828dc1205c411442dfe",
+    "platform/collect/legacy-mint-audit.test.mjs": "974cfb3d31bdd626bbe5bafe77ae787379bea9e152d16bac87c96dcd3c70a73d",
+    "platform/collect/legacy-mint-audit.fixtures.mjs": "da0fdcd56fcc7c2e38509181e30aa8303f871f136b0d4bc8ae7de954f44d5b7e",
+    "platform/collect/LEGACY_MINT_AUDIT.md": "0ee056661e00ae8042e6cd4bb178f6b716ce78d975063a628aefe0ddbf381957",
+    "platform/randomness/draw-protocol.mjs": "59792154455e21c161612682c0c711f91f0917e4449a200b99d73c029cb8faa9",
+    "platform/edge/test/legacy-mint-audit.test.mjs": "6ed574147bb1b02f7a64b574340b3389a6028f0984f9dd92cc9206008200dc63",
+    "platform/edge/test/fixtures/legacy-mint-audit-worker.ts": "9168d61352e6b33950f44fd6c410e7dbce496f918ca60b251a1d80efec133140"
+  }
+}
