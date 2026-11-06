@@ -1,0 +1,131 @@
+{
+  "milestone": "B17 independent authenticated refresh recovery",
+  "status": "focused-verified",
+  "tests": {
+    "verifier": {
+      "passed": 4,
+      "durationMs": 5411.1343,
+      "log": "work/b17-refresh-reconcile-final.log",
+      "metrics": [
+        {
+          "verifiedRevisions": 7,
+          "workingWithoutOuterCheckpoint": 91138,
+          "historicalClock": true,
+          "grantsNotReauthorized": true
+        },
+        {
+          "maxOperations": 19,
+          "maxObjectReads": 7,
+          "maxWorkingBytes": 271354,
+          "checkpointPaddingBytes": 90000
+        }
+      ]
+    },
+    "normalPrivateRestore": {
+      "passed": 1,
+      "durationMs": 50089.3202,
+      "log": "work/b17-refresh-recovery-final.log",
+      "metrics": {
+        "revisions": 7,
+        "objects": 13,
+        "steps": 1084,
+        "checkpointPeak": 126329,
+        "phases": {
+          "metadata": 126323,
+          "objects": 126091,
+          "publications": 125069,
+          "tables": 126329,
+          "fences": 125015,
+          "pin-target": 124929,
+          "reconcile-objects": 126286,
+          "reconcile-table-metadata": 126243,
+          "reconcile-tables": 125624,
+          "reconcile-audit": 92921,
+          "reconcile-action-policies": 92996,
+          "reconcile-economics": 93496,
+          "reconcile-nft-refresh": 93101,
+          "reconcile-economic-preparations": 93202,
+          "reconcile-recorded-outcomes": 93280,
+          "reconcile-recorded-expiries": 93369,
+          "reconcile-recorded-preparations": 93472,
+          "reconcile-legacy-adoptions": 93571,
+          "reconcile-collection-authorities": 93678,
+          "reconcile-collection-admissions": 93723,
+          "reconcile-collection-fulfillments": 93773,
+          "reconcile-free-cut-records": 93816,
+          "reconcile-free-cut-attempts": 93854,
+          "reconcile-free-cut-validations": 93897,
+          "reconcile-free-cut-lists": 93910,
+          "reconcile-free-cut-bindings": 93950,
+          "reconcile-publications": 93945,
+          "reconcile-checkpoints": 94024,
+          "reconcile-final": 94018,
+          "final-ready": 94285
+        },
+        "maxOperations": 33,
+        "maxBatchBytes": 111848,
+        "fullHistoryReplay": true,
+        "independentRefreshSemanticPhase": true,
+        "omittedProofRollback": true,
+        "lostProofReplay": true,
+        "financialExecution": false
+      }
+    },
+    "actualD1R2": {
+      "passed": 1,
+      "calls": 29,
+      "historicalVerifications": 7,
+      "durationMs": 28880.5849,
+      "log": "work/b17-refresh-repository-edge-final.log",
+      "metrics": {
+        "calls": 29,
+        "independentHistoricalVerifications": 7,
+        "maxOperations": 30,
+        "maxBatchBytes": 6438,
+        "maxParameters": 46,
+        "maxResultBytes": 3114,
+        "revisions": 8,
+        "receipts": 8,
+        "checkpoints": 8,
+        "financialExecution": false,
+        "metadataApplied": false
+      }
+    },
+    "edgeTypes": "passed",
+    "diffCheck": "passed"
+  },
+  "scope": {
+    "historicalClock": true,
+    "independentOriginalEvidenceAndReceiptLineage": true,
+    "exactPredecessorHistory": true,
+    "rehashableForkRejected": true,
+    "durableProofOmissionRollback": true,
+    "lostProofAcknowledgementReplay": true,
+    "privateFullHistory": true,
+    "financialExecution": false,
+    "metadataApplied": false,
+    "providerAuthenticity": "recorded-synthetic-fixture",
+    "actualD1FullRestore": false
+  },
+  "sources": {
+    "platform/recovery/v2-reconcile-nft-refresh.mjs": "d416bcbef8089a36b94e4c9aa7ee4e45c12df0ed0c3796183d7244d0ab0a29bb",
+    "platform/recovery/v2-reconcile-nft-refresh.test.mjs": "ed4177e040b1cb325f6be906c9ce15b059848886c41a0772e2497b2a5520d58f",
+    "platform/recovery/v2-nft-refresh.test.mjs": "86b366591001ccbc815a65641d1d404304926ef3b6bab426cf80ffaea2d78038",
+    "platform/edge/test/refresh-repository.test.mjs": "522bcc7f47c3931c6e400d1a9b4e19c865b89c49248d6b98452133cf7acd8fa6",
+    "platform/edge/test/fixtures/refresh-repository-worker.ts": "19408e5d58125869d8d5f2b51cfe5bb099185fca6e0d4d9643507d9f629939bf",
+    "platform/nfts/refresh-acceptance.fixtures.mjs": "326911b4717f2e4a2d26536027aed7fca1e0719a3518cb822ca0634b816eae25",
+    "platform/nfts/refresh-evidence-reader.mjs": "437f90a7fcb65c525d5369199e3e08e481421b0032630059a24328fe27f65779",
+    "platform/nfts/refresh-repository.mjs": "ae43607fbb0a1ecaca0555cb0316a6ad0b29af6bbaf5d6d582465f562dced4a4",
+    "platform/recovery/v2-reconcile.mjs": "5a29839d06900a01d8c6053357d109e4c68637a21b381b1e2b68888e15b4a442",
+    "platform/storage/069-nft-refresh-revisions.sql": "9e3c18a653c364b82d1914e0d34d8bfd42f78336ab3fb5c4ee85a257dd554136"
+  },
+  "coordinatorGoldenCheck": {
+    "command": "node --test platform/recovery/v2-restore.test.mjs",
+    "passed": 1,
+    "durationMs": 47571.7088,
+    "peakCheckpointBytes": 128346,
+    "checkpointCap": 131072,
+    "steps": 1103,
+    "log": "work/b17-refresh-semantic-golden.log"
+  }
+}

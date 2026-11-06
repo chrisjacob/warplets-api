@@ -1,3 +1,13 @@
+# Current continuation: refresh recovery and owner review
+
+Last pushed product75084f2; this checkpoint adds independent069 recovery verification. B00-B15 verified. B16local acceptance complete, CI42299274676 at751e37a stillpending. B17partial: allnormalizedmint/upgrade/visualfairness readers andownerHTTP/UI accepted; metadata/refreshpurehistory, privatecheckpoint, guarded069repository accepted. Latestindependentrecovery verifies everyrevision, originalreference/quote/media chronology, exactreceipt, predecessor/historyprefix, eventandcompleteproofcoverage. No presentgrant orclockrenewal.
+
+Fourverifier tests, populatedNode fullrestore (7revisions/13artifacts), 29actualD1/R2calls (7historicalrevisionchecks) and golden118-table restore pass. Populatedcheckpoint126329B;golden128346/131072B. ActualD1fullpopulatedrestore next; no claimyet. Newphase reconcile-nft-refresh has guardedproofs/count andfinalcoverage. See B17-15.
+
+frontend_b09 builds ownerrefresh redactedread, process-bounded128preparedtokens andsession-fenced approve/request-fulfillment, plusreadonlyreceiptlookup. Tokenloss/restart cannotrenewtime orauto-resubmit. No upload/create/operator/publicprovider route. snapshot_acceptance runs actualD1fullrestore. Keep agents task-sized; coordinator owns sharedcontracts/schema/commits. Schema069,next070unreserved.
+
+Accountusage92%; updated detailedmanualreview report saved in currentchat outputs (364/411estimatedimplemented,47remaining; strictly330verified). Continue through100% as requested, refreshsummarynear95 thencontinue. Preservework/ scratch. No financialexecution/signing/broadcast/provider/deployment/remoteCFmutation/spending/merges/Rstage. Sydneyhours/latermintpricesopen.
+
 # Latest checkpoint: normalized fairness and refresh schema
 
 Pushed product 5b896ec includes normalized mint fairness reader: 10 combined Node tests and actual D1 parity passed. Disclosure requires retained 045/046 assignment and 041 reveal lineage, including earlier mint prefix. Owner HTTP/UI integration is underway.
