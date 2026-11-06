@@ -5,7 +5,7 @@
   "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
   "currentTask": "B11",
-  "lastUpdatedAt": "2026-11-06T05:40:43.823813+00:00",
+  "lastUpdatedAt": "2026-11-06T05:41:16.072310+00:00",
   "migrationAllocation": {
     "next": 51,
     "reserved": [
@@ -270,7 +270,7 @@
       "status": "in_progress",
       "owner": "coordinator",
       "baseCommit": "96cdfa1fb6334fcb27deb831d786243227b9d1a8",
-      "implementationCommit": "c92aa90",
+      "implementationCommit": "cce2be60e0c1a74ad1951bd40f4eadb25295742a",
       "pushed": false,
       "evidence": [
         "platform/validation/runs/2026-11-06-overnight/B11-1.json",
@@ -301,9 +301,10 @@
         "platform/validation/runs/2026-11-06-overnight/B11-26-canonical-state-audit.json",
         "platform/validation/runs/2026-11-06-overnight/B11-28-legacy-raw-state-audit.json",
         "platform/validation/runs/2026-11-06-overnight/B11-27-legacy-mint-audit.json",
-        "platform/validation/runs/2026-11-06-overnight/B11-29-durable-legacy-audit.json"
+        "platform/validation/runs/2026-11-06-overnight/B11-29-durable-legacy-audit.json",
+        "platform/validation/runs/2026-11-06-overnight/B11-30-legacy-source-relation.json"
       ],
-      "nextAction": "MemberHTTP e1e41c4 pushed; followCI42168326653 (PTY71996), then push exact queued e6d2536,10f5395,fedef2d,47454e1,c92aa90 and later checkpoints sequentially following CI.050 durable29focused9Node+1D1+8recovery pass; full referencePTY29781 running. Source relation30 and admission31 frozen awaiting commits. Next relation memory optimization, historical control reader32, original admission prior-fact reader33. No adoption.",
+      "nextAction": "Follow membermintCI42168326653 then push queued tested checkpoints in git order (each CI).050 durable29cce2be6 focusedverified; fullreferencePTY29781 pending.30/31 frozen and committing. Next relation buffer optimization for wrapper headroom,32 historicalcontrol reader,33 originaladmission prior-fact reader. No adoption.",
       "blocker": null
     },
     "B12": {

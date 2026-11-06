@@ -1,0 +1,150 @@
+{
+  "task": "B11",
+  "slice": "B11.30 bounded legacy SQL to035 source component relation",
+  "status": "verified-read-primitive; B11 remains partial",
+  "baseCommit": "c92aa9033a034b71b2244b265f5eb4d96cc3b896",
+  "implementationCommit": null,
+  "recordedAt": "2026-11-06T05:39:04.735Z",
+  "sourceHashes": {
+    "platform/collect/legacy-source-relation.mjs": "ef55f65a94c4ed6a361948b098d8e7cd89debe6011f661c6a491d9df925d1038",
+    "platform/collect/legacy-source-relation.d.mts": "864fedc84f48b4e8f628636f4b6b46c0cd31178a3c7ea1d9471c0e64eb8e23da",
+    "platform/collect/legacy-source-relation.fixtures.mjs": "09b34bf24df51b692e9fc433bf521a5f411e6b4ac131cdf11844267f997c6977",
+    "platform/collect/legacy-source-relation.test.mjs": "560473326399740e546a7e411438228973dc0f275258e172a30f7e9d6a927450",
+    "platform/collect/legacy-source-relation.capacity.test.mjs": "29f4e79f57306115f663f68d5eb6777b06b4a99e5758acec4af363f397843c7c",
+    "platform/collect/legacy-source-relation.README.md": "409698243e241c86ebefa7afc7ccc0241a4fb6e221804d077909f34c41f88727",
+    "platform/edge/test/legacy-source-relation.test.mjs": "bca8ea430979009048dd303c09c76b6c8ca8ba26b4955e44371cb9e0522f9b78",
+    "platform/edge/test/fixtures/legacy-source-relation-worker.ts": "e867c65858d2beb3a71018b3f5b70658bbafad736046a29d6d98cfbf629b62ee",
+    ".github/workflows/10x-platform-check.yml": "030a2c3c62f4c4be6f089fcb5e2f9d0cbfe3de87174c08626b74140b545f7142"
+  },
+  "checks": [
+    {
+      "command": "node --test platform/collect/legacy-source-relation.test.mjs",
+      "result": "PASS",
+      "tests": 7,
+      "durationMs": 18766.9615,
+      "log": "work/b11-legacy-source-relation-focused.log"
+    },
+    {
+      "command": "node --test platform/collect/legacy-source-relation.capacity.test.mjs",
+      "result": "PASS",
+      "tests": 1,
+      "durationMs": 420802.5594,
+      "log": "work/b11-legacy-source-relation-capacity.log",
+      "sourceDelta": "Maximum run included schema_version pin scalar via unsupported D1 pragma. Final source only removes that SQL select field and nat(pin.schema_version) predicate; no component selection, partition, comparison or working-count change. Final small Node and actual D1 checks cover resulting shape.",
+      "testedImplementationSha256": "d9719113739960603b9a532ea51d733cbcb8824b7a3b457e191397e61d0f037f",
+      "schemaNote": "Installed050 before final control-row NULL/checkpoint guard tightening; relation reads no050 control rows."
+    },
+    {
+      "command": "node --test platform/edge/test/legacy-source-relation.test.mjs",
+      "result": "PASS",
+      "tests": 1,
+      "durationMs": 29590.5647,
+      "log": "work/b11-legacy-source-relation-edge.log"
+    },
+    {
+      "command": "node platform/edge/node_modules/typescript/bin/tsc --noEmit -p platform/edge",
+      "result": "PASS",
+      "log": "work/b11-legacy-source-relation-types.log"
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS"
+    }
+  ],
+  "maximum": {
+    "source": "synthetic SQL legacy state versus real035 retained source records; no economic or adoption authority",
+    "installedMigration": {
+      "version": "050-legacy-audit-continuations.sql"
+    },
+    "records": 3245,
+    "rawBytes": 15836660,
+    "sourceBytes": 16301094,
+    "seedMs": 214914.2912,
+    "result": {
+      "kind": "verified",
+      "pin": {
+        "generation": "initial-local",
+        "id": "synthetic-legacy-canonical",
+        "kind": "season",
+        "mode": "live",
+        "origin_digest": "synthetic-origin",
+        "revision": 1032,
+        "schema_version": 1237,
+        "season_month": "2023-11",
+        "season_start": 1700000000000,
+        "source_bytes": 15836660,
+        "status": "live",
+        "tranche": null,
+        "watermark": 9838
+      },
+      "rootId": "fcfd6200471eaf40978993c0f592330cfb08f83bf920358802d416f6d3a33ad6",
+      "inventoryId": "synthetic-legacy-canonical",
+      "declaredStateDigest": "ce09af71926a664f9e7fa87c2fc0e232efc2fb306ee676a389ba8dcd56d0b4e7",
+      "stageCount": 32,
+      "admissionCount": 1000,
+      "listOccurrences": 32,
+      "walletOccurrences": 320000,
+      "verification": "source-components-equal-legacy-json",
+      "canonicalDigestVerified": false,
+      "rawByteDigestVerified": false,
+      "economicsVerified": false,
+      "adoptionAuthorized": false,
+      "executable": false,
+      "relationDigest": "1964c84006797892603560f756d058f31f390767af3bee5382cc1ebfd240b591",
+      "metrics": {
+        "operations": 3,
+        "maxBatchBytes": 1012,
+        "resultBytes": 91623,
+        "maxWorkingBytes": 293155,
+        "records": 1
+      }
+    },
+    "steps": 3248,
+    "maxWorkingBytes": 1041262,
+    "maxOperations": 6,
+    "maxBatchBytes": 2031,
+    "maxResultBytes": 275758,
+    "elapsedMs": 419797.5246
+  },
+  "d1": {
+    "calls": 23,
+    "maxOperations": 6,
+    "maxWorkingBytes": 376435,
+    "maxBatchBytes": 2030,
+    "maxResultBytes": 91713,
+    "elapsedMs": 27570.589,
+    "source": "synthetic private fixture; Node and workerd actual installed SQL"
+  },
+  "installedSchema": {
+    "version": "050-legacy-audit-continuations.sql",
+    "currentFileSha256": "02273b565bcba0f1faf81bdfb5c05e6e24a7f3304edf3401e6e836fc71f968de",
+    "businessTables": 108
+  },
+  "scope": {
+    "readOnly": true,
+    "rawWholeStateHydration": false,
+    "duplicateKeysRejected": true,
+    "integerLexicalOnly": true,
+    "missingDistinctFromNull": true,
+    "afterDigestPinCheck": true,
+    "sourceGenerationHeaderWatermarkPinned": true,
+    "exactSchemaAuthority": false,
+    "canonicalDigestVerified": false,
+    "rawByteDigestVerified": false,
+    "economicsVerified": false,
+    "adoptionAuthorized": false,
+    "financialExecution": false
+  },
+  "remaining": [
+    "Durable owner/CAS prefix and exact schema/trigger guard integration is required; checkpoint digest alone is not authentication.",
+    "Maximum pure working estimate leaves7314bytes; durable wrapper budget unproved. Reduce actual retained root/buffer lifetimes and measure full wrapper before integration.",
+    "Original publication preimage, free-cut authority, complete raw/canonical composition and economics remain separate audits.",
+    "Maximum32x10000 graph was measured on Node. ActualD1 smaller graph proves SQL semantics and continuations, not maximum D1 capacity.",
+    "No active pointer, source adoption, public audit route, deployment or external action."
+  ],
+  "ciRuntimeBudget": {
+    "timeoutMinutes": 40,
+    "previousMinutes": 30,
+    "reason": "Prior successfulCI42166147861 took20m44s (14m31 reference,5m39edge). New full relation capacity measured420802.56ms plus added hash/raw/mint/durable suites approaches/exceeds30m. Extend test-only runtime ceiling; all acceptance remains enabled."
+  }
+}
