@@ -1,3 +1,7 @@
+# Current checkpoint - B15 verified; B16 bounded cashflow slice
+
+Usage72% weekly; stop starting tasks around75%, complete review handoff below80%. FullCI42269920998 SUCCESS on d5e98c3 (all reference/viewer/beacon/WorkersD1R2 stages). B00-B15 verified. Current B16: snapshot_acceptance owns only pure costs/cashflow.mjs/tests (shared setup, peak/consumed/refundable rent, concurrent versus sequential funding, interrupted liabilities). No schema or wire authority. B16 remains partial; plan/usage/14scenario readiness integration still required. Next069 unreserved.
+
 # Current checkpoint - B15 recorded lifecycle locally verified
 
 Budget last measured 70% weekly (baseline 15%). Stop starting tasks around 75%; reserve final checks, push and manual-review report below 80%. No reset or spending. Continue through checkpoints until an authorized stopping condition.

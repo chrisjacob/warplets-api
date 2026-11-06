@@ -1,0 +1,14 @@
+{
+  "runId": 42269920998,
+  "url": "https://github.com/chrisjacob/warplets-api/actions/runs/42269920998",
+  "head": "d5e98c3e3c07423d010662676a6bc1e6fba792ca",
+  "status": "completed",
+  "conclusion": "success",
+  "stages": [
+    "reference domains/workflows/contracts/local recovery",
+    "primary viewer build/tests",
+    "frozen beacon offline",
+    "Workers types/D1/R2 tests"
+  ],
+  "financialExecution": false
+}

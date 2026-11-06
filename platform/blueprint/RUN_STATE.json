@@ -4,8 +4,8 @@
   "phase": "executing",
   "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
-  "currentTask": "B15",
-  "lastUpdatedAt": "2026-11-06T18:21:08.581996+00:00",
+  "currentTask": "B16",
+  "lastUpdatedAt": "2026-11-06T19:32:31.571004+00:00",
   "migrationAllocation": {
     "next": 69,
     "reserved": [
@@ -508,10 +508,10 @@
       "blocker": null
     },
     "B15": {
-      "status": "in_progress",
+      "status": "verified",
       "owner": "coordinator",
       "baseCommit": "24d2b4266ead2bab6f1338f5a33013b62557a57e",
-      "implementationCommit": "d16a154",
+      "implementationCommit": "d5e98c3e3c07423d010662676a6bc1e6fba792ca",
       "pushed": true,
       "evidence": [
         "platform/validation/runs/2026-11-06-overnight/B15-01.json",
@@ -528,19 +528,20 @@
         "platform/validation/runs/2026-11-06-overnight/B15-12.json",
         "platform/validation/runs/2026-11-06-overnight/B15-13.json",
         "platform/validation/runs/2026-11-06-overnight/B15-acceptance.json",
-        "platform/validation/runs/2026-11-06-overnight/B15-ci-01.json"
+        "platform/validation/runs/2026-11-06-overnight/B15-ci-01.json",
+        "platform/validation/runs/2026-11-06-overnight/B15-ci-02.json"
       ],
-      "nextAction": "CI42263505164 failed9/1080; current fixes pass23schema +6recovery focused tests and types. Follow new full067/068 checkpoint tocompletion; B16 only after gates pass and budget allows.",
+      "nextAction": "Verified full CI42269920998; synthetic local preparation only. Financial wire factories remain explicitly unsupported where evidence is absent.",
       "blocker": null
     },
     "B16": {
-      "status": "not_started",
-      "owner": null,
-      "baseCommit": null,
+      "status": "in_progress",
+      "owner": "coordinator",
+      "baseCommit": "d5e98c3e3c07423d010662676a6bc1e6fba792ca",
       "implementationCommit": null,
       "pushed": false,
       "evidence": [],
-      "nextAction": null,
+      "nextAction": "Bounded pure cashflow graph: shared setup once, established closure for sequential float reuse, concurrent funding and interrupted liabilities. Then plan/usage readiness integration if budget permits.",
       "blocker": null
     },
     "B17": {
