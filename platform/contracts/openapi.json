@@ -5110,7 +5110,7 @@
       "parameters": [],
       "get": {
         "operationId": "listMyCollectionAssets",
-        "summary": "See the signed-in wallet’s assets.",
+        "summary": "See the signed-in walletâ€™s assets.",
         "responses": {
           "200": {
             "description": "Local collection response",
@@ -5289,7 +5289,7 @@
       ],
       "get": {
         "operationId": "readMyCollectionOperation",
-        "summary": "Inspect one of the signed-in wallet’s operations.",
+        "summary": "Inspect one of the signed-in walletâ€™s operations.",
         "responses": {
           "200": {
             "description": "Local collection response",
@@ -7991,6 +7991,26 @@
             "enum": [
               "manual-fixture",
               "configured-offline-beacon"
+            ]
+          },
+          "reconciliation": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "const": "held"
+              },
+              "reason": {
+                "const": "external-transfer"
+              },
+              "observedAt": {
+                "type": "string",
+                "format": "date-time"
+              }
+            },
+            "required": [
+              "status",
+              "reason",
+              "observedAt"
             ]
           }
         },

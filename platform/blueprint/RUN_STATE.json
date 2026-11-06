@@ -5,9 +5,9 @@
   "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
   "currentTask": "B11",
-  "lastUpdatedAt": "2026-11-06T01:20:44.475641+00:00",
+  "lastUpdatedAt": "2026-11-06T01:28:40.224032+00:00",
   "migrationAllocation": {
-    "next": 42,
+    "next": 44,
     "reserved": [
       {
         "version": 31,
@@ -63,6 +63,16 @@
         "version": 41,
         "task": "B11",
         "purpose": "guarded collection reveal/transfer observations and explicit external-transfer reservation evidence holds"
+      },
+      {
+        "version": 42,
+        "task": "B11",
+        "purpose": "guarded progression fulfillment and immutable evidence linkage; no mint stage dependency"
+      },
+      {
+        "version": 43,
+        "task": "B11",
+        "purpose": "normalized stage authority and safe collection admission state"
       }
     ],
     "historicalGap": 19
@@ -225,7 +235,7 @@
       "status": "in_progress",
       "owner": "coordinator",
       "baseCommit": "96cdfa1fb6334fcb27deb831d786243227b9d1a8",
-      "implementationCommit": "0f8570c0fc34f9ea1813f309d9423aa83ad8df24",
+      "implementationCommit": "1e1e0297fb634ffaa9fef9f81368874699f297f9",
       "pushed": true,
       "evidence": [
         "platform/validation/runs/2026-11-06-overnight/B11-1.json",
@@ -238,9 +248,10 @@
         "platform/validation/runs/2026-11-06-overnight/B11-8-reservations.json",
         "platform/validation/runs/2026-11-06-overnight/B11-9-http.json",
         "platform/validation/runs/2026-11-06-overnight/B11-9-browser.json",
-        "platform/validation/runs/2026-11-06-overnight/B11-10-observations.json"
+        "platform/validation/runs/2026-11-06-overnight/B11-10-observations.json",
+        "platform/validation/runs/2026-11-06-overnight/B11-11-reads.json"
       ],
-      "nextAction": "Commit tested041 observations after current reference pass; follow exact CI.0f8570c CI42142496021success.04120Node+30pairedD1 calls+99table populatedrecovery pass. Continue four bounded asset/operation reads and holder-facing transferhold. Coordinator owns042normalizedstage foundation (pure stage-plan4pass uncommitted); snapshot agent designs043guardedprogression fulfillment. Full10000voter/maxsource recovery remains unfinished.",
+      "nextAction": "Commit/push B11.11boundedfourreads andfollowCI.1e1e029041CI42143368574success.042progressionfulfillment agentimplementsproof/service/plan; coordinatorwiresB04anddrafts042SQL.043stagefoundationpure4testspass, normalizedrepositorynotyetimplemented. Frontendagentnextmeasures10000voter/maxsource recoverycapacity andproposesboundedfix; donotclaimB11complete.",
       "blocker": null
     },
     "B12": {

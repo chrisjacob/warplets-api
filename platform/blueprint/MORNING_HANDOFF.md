@@ -1,8 +1,8 @@
 # Continuous implementation checkpoint
 
-Latest pushed product `0f8570c0fc34f9ea1813f309d9423aa83ad8df24` passed test-only CI42142496021. B11.10 observation migration041 is locally verified and ready for its checkpoint. Branch: `work/10x-prd-foundation`. Continuous execution remains active; milestones are not stopping conditions.
+Latest pushed product `1e1e0297fb634ffaa9fef9f81368874699f297f9` passed test-only CI42143368574. B11.11 bounded asset/operation reads are locally verified and ready for their checkpoint. Branch: `work/10x-prd-foundation`. Continuous execution remains active; milestones are not stopping conditions.
 
-B00–B10 and B14 are verified. B11 is partial. B12/B13/B15 onward remain unfinished. B20-core is verified at b18dec7/CI42125215062; skip B20 until all full-profile prerequisites pass. Financial execution remains false; no deployment, resource provisioning, spending, funding, broadcast, subscriptions, external messages, main/dev merge, force push or R-stage work. Sydney hours and later mint prices remain open.
+B00â€“B10 and B14 are verified. B11 is partial. B12/B13/B15 onward remain unfinished. B20-core is verified at b18dec7/CI42125215062; skip B20 until all full-profile prerequisites pass. Financial execution remains false; no deployment, resource provisioning, spending, funding, broadcast, subscriptions, external messages, main/dev merge, force push or R-stage work. Sydney hours and later mint prices remain open.
 
 ## Working behavior and latest evidence
 
@@ -16,7 +16,7 @@ B11.10 adds migration041 and two private tables to the99-table recovery inventor
 
 Commit/push041 and follow its exact CI. Frontend agent owns bounded asset/operation read repository/HTTP adapter, actual D1 acceptance and private transfer-hold display. Coordinator owns shared DTOs/capabilities and Node/Worker mounts; inventory/stage reads remain unsupported in Worker until separately ported. New read files are outside041checkpoint.
 
-Coordinator has a pure stage-plan module with four passing policy/legacy-hash tests; it is not an authority implementation and remains outside041checkpoint. Reserve042 for normalized stage authority, including safe legacy adoption, current list validation, exact free cut and admission holds. Snapshot agent inspects043 guarded progression fulfillment; mint fulfillment waits for normalized mint authority. Shared contracts, migration allocation and commits belong to coordinator.
+Coordinator has a pure stage-plan module with four passing policy/legacy-hash tests; it is not an authority implementation and remains outside041checkpoint. Reserve043 for normalized stage authority, including safe legacy adoption, current list validation, exact free cut and admission holds. Snapshot agent implements042 guarded progression fulfillment; mint fulfillment waits for normalized mint authority. Shared contracts, migration allocation and commits belong to coordinator.
 
 Recovery capacity remains unfinished:8192rows/table cannot cover a legal10000-voter electorate, and24MiB aggregate limits do not cover the maximum32x10000 source graph. Implement measured bounded capture/restore before B11 completion; do not simply raise request operation limits. Other unfinished B11 work includes normalized stage publication/mint admission, free-cut completeness, atomic mint/Vault fulfillment and supported read projections.
 
@@ -33,3 +33,5 @@ B14 product88eb0dd/CI42132784073green. Captured-program quote parity remains mis
 ## Resume
 
 Read RUN_STATE.json, inspect git status/HEAD and run `node platform/blueprint/validate-plan.mjs --next --self-check`. Preserve newer changes. Use pinned local runtimes/dependencies. Local end-to-end rehearsal: `node platform/scripts/rehearse-hosted-slice.mjs`; instructions in platform/scripts/HOSTED_REHEARSAL.md. Private full recovery retains immutable evidence and revokes prior sessions/leases; public recovery remains mutation-disabled. Physical device and release gates remain separate.
+
+B11.11: four exact owner-aware/publicasset GET routes now shared Node/Worker, bounded3SQL/26rows/3params/2172batchbytes; no inventory.state/concealedmetadata/otherwalletoperations. Quote links and permanent041hold disclosed privately; current transferredasset remains publicly visible without privatehold details. SixNode tests, actual signed-walletD1/productionWorker acceptance21884.5019ms,25site tests6186.1918ms, final390px actualAPI browser lifecycle+corrupt-response recovery, types/build/contracts,17integration tests and458reference tests45191.2272ms pass. Evidence B11-11-reads.json. Next follow exactCI then042fulfillment/043normalizedstage and measuredrecoverycapacity; agent investigates10kelectorate/maxsource bounds. B04fulfillment/protocol and stage-plan/service files are separate uncommitted work.

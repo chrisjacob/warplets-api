@@ -41,8 +41,8 @@ export const shapes={
    ['kind','inventoryId','targetId','materialId','feeLamports','asOf','source','executable','quoteId','bindingDigest','policyVersion','targetVersion','materialVersion','maxTotalLamports','quoteExpiresMs','expiresAt','costStatus','ceilingScope','networkCost','totalCost','historicalAllocationsChange']),
 };
 // Quote links are present on guarded progression responses; legacy/mint reads
-// retain their existing shape until the collection read projection is ported.
-Object.assign(shapes.CollectionOperation.properties,{quoteId:str,bindingDigest:str,fairness:{enum:['manual-fixture','configured-offline-beacon']}});
+// retain the existing shape; held guarded operations add private reconciliation.
+Object.assign(shapes.CollectionOperation.properties,{quoteId:str,bindingDigest:str,fairness:{enum:['manual-fixture','configured-offline-beacon']},reconciliation:object({status:{const:'held'},reason:{const:'external-transfer'},observedAt:iso})});
 export const success={
  listMarkets:page(ref('Market')),getMarket:enriched(ref('Market')),
  getFeeSchedule:enriched(object({points:array(ref('FeePoint')),unit:str,clock:str})),

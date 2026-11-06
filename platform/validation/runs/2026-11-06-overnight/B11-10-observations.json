@@ -4,7 +4,7 @@
   "status": "partial",
   "classification": "Locally verified synthetic B04 observation application; no chain authority or financial execution",
   "lastTestedBaseCommit": "0f8570c0fc34f9ea1813f309d9423aa83ad8df24",
-  "implementationCommit": null,
+  "implementationCommit": "1e1e0297fb634ffaa9fef9f81368874699f297f9",
   "commands": [
     {
       "command": "node --test platform/collect/observation-evidence.test.mjs platform/collect/observation-repository.test.mjs platform/collect/observation-recovery.test.mjs",
@@ -124,5 +124,11 @@
     "Explicit future conflict reconciliation design before any hold can be cleared"
   ],
   "mandatoryEffectCompatibility": "041 global receipt trigger exactly preserves040 predicates; only collection.observe-asset.v1 allowlist entry added.",
-  "formatting": "After tests normalized CRLF and excess EOF whitespace only; source hashes reflect final bytes."
+  "formatting": "After tests normalized CRLF and excess EOF whitespace only; source hashes reflect final bytes.",
+  "ci": {
+    "runId": 42143368574,
+    "status": "success",
+    "url": "https://github.com/chrisjacob/warplets-api/actions/runs/42143368574",
+    "headSha": "1e1e0297fb634ffaa9fef9f81368874699f297f9"
+  }
 }

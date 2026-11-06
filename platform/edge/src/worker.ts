@@ -1,3 +1,4 @@
+import {collectionReads} from './collection-reads';
 import {progression} from './progression';
 import { Hono } from 'hono';
 import { z } from 'zod';
@@ -16,7 +17,7 @@ import {r2ArtifactStore} from '../../artifacts/r2';
 const app = new Hono<{ Bindings: Env; Variables: { requestId: string } }>();
 const supportedPaths = new Set(['/health','/policy','/capabilities','/collections','/launch/fee-schedule','/markets','/markets/{id}',
   '/genesis/ballots','/genesis/ballots/{id}','/genesis/ballots/{id}/votes','/vault','/nfts/{id}/vault','/farms/{id}','/stake/positions','/earn/epochs/{epoch}/leaderboard','/earn/claims',
-  '/earn/capacity','/earn/submissions','/earn/me','/earn/actions','/earn/actions/{actionId}/completions','/me','/me/wallets','/auth/challenges','/auth/verify','/auth/logout','/quotes','/markets/{id}/quote-status','/collect/inventories/{id}/progression','/collect/inventories/{id}/progression/quote']);
+  '/earn/capacity','/earn/submissions','/earn/me','/earn/actions','/earn/actions/{actionId}/completions','/me','/me/wallets','/auth/challenges','/auth/verify','/auth/logout','/quotes','/markets/{id}/quote-status','/collect/inventories/{id}/progression','/collect/inventories/{id}/progression/quote','/collect/assets/{id}','/collect/me/assets','/collect/me/operations','/collect/me/operations/{id}']);
 const allRoutes = baseContract.paths as Record<string, object>;
 const paths = {...Object.fromEntries(Object.entries(allRoutes).filter(([path])=>supportedPaths.has(path))),
   '/manifests/{digest}':{parameters:[{in:'path',name:'digest',required:true,schema:{type:'string',pattern:'^[0-9a-f]{64}$'}}],
@@ -97,4 +98,5 @@ app.route(base,quotes);
 app.route(base,financialReads);
 app.route(base,governance);
 app.route(base,progression);
+app.route(base,collectionReads);
 export default app;

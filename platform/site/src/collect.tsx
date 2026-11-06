@@ -1,5 +1,6 @@
 import {AssetEvidence,InventoryEvidence,StageEvidence,eligibleMaterials} from './collection-details';
 import {ProgressionAssetContext} from './progression-review';
+import {CollectionOperationHold} from './collection-operation';
 import { Capability, useRuntimeQuery, useCapability, principalKey } from './capabilities';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from '@tanstack/react-router';
@@ -199,9 +200,9 @@ function MemberAssets({wallet,review}:{wallet:string;review:(review:Review)=>voi
     </>}</Loaded></Panel>
     <Panel title="Operation history">{search.receipt && <Loaded query={receipt}>{r=><article className="receipt"><h3>Operation receipt</h3>
       <Facts items={[['ID',r.id],['State',r.status],['Requested',utc(r.createdAt)],['Action',r.kind],['Collection',r.inventoryId],
-        ['Recorded price',sol(r.priceLamports??r.feeLamports)],['Result NFT',r.assetId??'Pending']]}/></article>}</Loaded>}
+        ['Recorded price',sol(r.priceLamports??r.feeLamports)],['Result NFT',r.assetId??'Pending']]}/><CollectionOperationHold operation={r}/></article>}</Loaded>}
       <Loaded query={operations}>{page=><>{page.items.length?<ul className="rows">{page.items.map(op=><li key={op.id}><Link to="/collect" search={{receipt:op.id}}>
-        <strong>{op.kind} · {op.inventoryId}</strong><span>{op.status} ↗</span></Link></li>)}</ul>:<p>No operations for this wallet.</p>}
+        <strong>{op.kind} · {op.inventoryId}</strong><span>{op.reconciliation?'Held after observed transfer':op.status} ↗</span></Link></li>)}</ul>:<p>No operations for this wallet.</p>}
         {page.nextCursor!==null&&<Link to="/collect" search={{operations:String(page.nextCursor)}}>Next operations →</Link>}</>}</Loaded></Panel>
   </>;
 }

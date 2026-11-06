@@ -1,10 +1,12 @@
+import {createNodeAtomicDriver} from '../storage/node/atomic-driver.mjs';
+import {createCollectionReadRepository} from './read-model.mjs';
+import {handleCollectionReads} from './read-http.mjs';
 import {createNodeProgressionServices} from './node-progression.mjs';
 import {handleProgression} from './progression-http.mjs';
 import { CollectionPolicyError } from '../domain/collections/policy.mjs';
 import { currentSession, consumeQuota } from '../server/auth.mjs';
 import { json, failure } from '../server/api.mjs';
-import { CollectError, id, listInventories, listOwnedAssets, listOwnOperations, need,
-  readCollectionAsset, readInventory, readOwnOperation, reserveMint } from './store.mjs';
+import { CollectError, id, listInventories, need, readInventory, reserveMint } from './store.mjs';
 
 const base='/api/v1/collect';
 const patterns={
@@ -37,28 +39,24 @@ export async function handleCollect(db,request,peer,now) {
   if(patterns.progress.test(path))return handleProgression(request,{...createNodeProgressionServices(db,{clock:{nowMs:()=>now}}),
     authenticate:async req=>{const session=currentSession(db,req,now);return session?{kind:'wallet',wallet:session.wallet}:null;},
     consumeQuota:async(bucket,limit)=>consumeQuota(db,bucket,now,limit)});
+  if(patterns.asset.test(path)||patterns.receipt.test(path)||path===base+'/me/assets'||path===base+'/me/operations')return handleCollectionReads(request,{reads:createCollectionReadRepository(createNodeAtomicDriver(db)),clock:{nowMs:()=>now},
+    authenticate:async req=>{const session=currentSession(db,req,now);return session?{kind:'wallet',wallet:session.wallet}:null;},
+    consumeQuota:async(bucket,limit)=>consumeQuota(db,bucket,now,limit)});
   try {
-    const inventory=patterns.inventory.exec(path),asset=patterns.asset.exec(path);
-    const mint=patterns.reserve.exec(path),receipt=patterns.receipt.exec(path);
-    const owned=path===base+'/me/assets',operations=path===base+'/me/operations';
+    const inventory=patterns.inventory.exec(path),mint=patterns.reserve.exec(path);
     const list=path===base+'/inventories';
-    if(!list&&!inventory&&!asset&&!owned&&!operations&&!mint&&!receipt) {
+    if(!list&&!inventory&&!mint) {
       return failure(404,'not_found','Unknown collection resource.');
     }
     const write=Boolean(mint);
     if(request.method!==(write?'POST':'GET')) return failure(405,'method_not_allowed','Unsupported method.',{allow:write?'POST':'GET'});
     const session=currentSession(db,request,now);
-    if((owned||operations||receipt||write)&&!session) return failure(401,'authentication_required','Sign in to access this resource.');
+    if(write&&!session) return failure(401,'authentication_required','Sign in to access this resource.');
     if(!write) {
       const cursor=validCursor(url);
-      if(inventory||asset||receipt) need(!cursor,'invalid_cursor','This resource does not accept a cursor.');
+      if(inventory) need(!cursor,'invalid_cursor','This resource does not accept a cursor.');
       if(list) return json(listInventories(db,{now,after:cursor,wallet:session?.wallet??null}));
       if(inventory) return json(readInventory(db,inventory[1],now,session?.wallet??null));
-      if(asset) return json(readCollectionAsset(db,asset[1]));
-      const rate=consumeQuota(db,'collect-owner:'+session.wallet,now,60);
-      if(rate) return rate;
-      if(receipt) return json(readOwnOperation(db,session.wallet,receipt[1]));
-      return json(owned?listOwnedAssets(db,session.wallet,cursor):listOwnOperations(db,session.wallet,cursor));
     }
     need(!url.search,'invalid_query','Operation requests do not accept query parameters.');
     need(request.headers.get('origin')===url.origin,'invalid_origin','Use the configured local origin.',403);
@@ -92,9 +90,9 @@ export const collectPaths={
   '/collect/inventories':read('listLocalInventories','See published local collections and stages.'),
   '/collect/inventories/{id}':read('readLocalInventory','See inventory and published stages.',['id']),
   '/collect/assets/{id}':read('readLocalAsset','See local ownership and publicly revealed metadata.',['id']),
-  '/collect/me/assets':read('listMyCollectionAssets','See the signed-in wallet’s assets.'),
+  '/collect/me/assets':read('listMyCollectionAssets','See the signed-in walletâ€™s assets.'),
   '/collect/me/operations':read('listMyCollectionOperations','Recover pending or fulfilled local operations.'),
-  '/collect/me/operations/{id}':read('readMyCollectionOperation','Inspect one of the signed-in wallet’s operations.',['id']),
+  '/collect/me/operations/{id}':read('readMyCollectionOperation','Inspect one of the signed-in walletâ€™s operations.',['id']),
   '/collect/inventories/{id}/stages/{stage}/reservations':write('reserveLocalMint','Reserve one local fixture slot.',['id','stage']),
   '/collect/inventories/{id}/progression':write('reserveLocalProgression','Reserve local Season assets for a progression fixture.',['id']),
   '/collect/inventories/{id}/progression/quote':{parameters:[parameter('id')],post:{...operation('quoteLocalProgression','Store immutable local cost and outcome terms before reviewing progression.'),parameters:[{name:'Idempotency-Key',in:'header',required:true,schema:{type:'string'}}]}},

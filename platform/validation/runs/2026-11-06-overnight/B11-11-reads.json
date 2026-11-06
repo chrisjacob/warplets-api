@@ -1,0 +1,157 @@
+{
+  "task": "B11",
+  "slice": "B11.11 bounded collection asset and owner operation reads",
+  "status": "partial",
+  "baseCommit": "1e1e0297fb634ffaa9fef9f81368874699f297f9",
+  "implementationCommit": null,
+  "recordedAt": "2026-11-06T01:27:46.839Z",
+  "sourceHashes": {
+    "platform/collect/read-model.mjs": "5373cd93343b9e2003cfb189bb3ae232c9b1d31d6fdf0aa371d74d8df6441485",
+    "platform/collect/read-model.d.mts": "e17d1a7ac95d608902a293ded82f85d1646a443e74acbcf8399276a338e4a746",
+    "platform/collect/read-http.mjs": "2f7cd2d78caac573100cfff7d1caba56d402c139cf4885e8b7eab94dbb9ecb4f",
+    "platform/collect/read-http.d.mts": "6d89d258defa5ff3537704198359bfffa1dddf21e190a0cd412b80288c78a8bd",
+    "platform/collect/read-model.test.mjs": "20d693f90a57fcbc475a4280e33b861aee3f04f7c9b058686478043d24fc9517",
+    "platform/collect/READ_PROJECTIONS.md": "c4e3901530185a77471c675cb77b842715409b848a246015dc2dc6ce292779fc",
+    "platform/edge/test/collection-reads.test.mjs": "d0336cb077247388c3f6eacb081e11a499d67037cb71fbadec0a3a6906ec2984",
+    "platform/edge/test/fixtures/collection-read-worker.ts": "f02a81446dd2ac7d0c057caf3f8b481201a840bcb6521eeeb8335a08eb6a9182",
+    "platform/site/src/collection-operation.tsx": "26c9265d056b23f83441de9095e25052d0a451813715cdfcc44c755adfe168b1",
+    "platform/site/src/collect.tsx": "1ce514b69924c56e85c1672b7aeada09d1be6bffdaea23f856a5042e7dbed92e",
+    "platform/site/src/models.ts": "6c6b39c7ef7170237cfa4850da57729827b6e9d051bdf2f4fd1378ca2a6a6bfb",
+    "platform/site/tests/collection-operation.spec.mjs": "1b91b524e52ea84989594934b4ea99df4487e40ec2ae73cc905777b784654a07",
+    "platform/collect/http.mjs": "c810336f1e4178843e29657fe47abd8cc3f9b83bca6f81eb267400c847af0706",
+    "platform/edge/src/collection-reads.ts": "5c324200af23e6d9af568cc091941987baaac423c3d648d27cd10fb3ea86ab99",
+    "platform/edge/src/worker.ts": "edffb14729cfb51856ef652619f695a5f50ed43e22b1b0373949a7cfc111128d",
+    "platform/contracts/capabilities.mjs": "e78e061aef66b2724ac597990820deef893010802f1852ee0f13774400639a6d",
+    "platform/contracts/shapes.mjs": "b78f290cdef3baea5fe930db56db3724cb6820cf700b89f8b8a90cfdc912e458",
+    "platform/contracts/openapi.json": "072c525809cdb3fc29ea199ddfda621c4b2d9aeb4024540f72ce3c1d80d3ed97",
+    "platform/contracts/client.d.mts": "1268423ceebffb9d0b68e11b4b8253e54fd7b6c7e94ecc1c23b2d8583f55f82b"
+  },
+  "checks": [
+    {
+      "command": "node --test platform/collect/read-model.test.mjs",
+      "result": "PASS",
+      "tests": 6,
+      "durationMs": 1579.8786,
+      "log": "work/b11-collection-reads-node.log"
+    },
+    {
+      "command": "node --test platform/edge/test/collection-reads.test.mjs",
+      "result": "PASS",
+      "tests": 1,
+      "durationMs": 21884.5019,
+      "caseDurationMs": 20450.3517,
+      "log": "work/b11-collection-reads-edge.log"
+    },
+    {
+      "command": "node --test platform/site/tests/*.spec.mjs",
+      "result": "PASS",
+      "tests": 25,
+      "durationMs": 6186.1918,
+      "log": "work/b11-collection-reads-site.log"
+    },
+    {
+      "command": "node node_modules/typescript/bin/tsc --noEmit",
+      "cwd": "platform/site",
+      "result": "PASS"
+    },
+    {
+      "command": "node node_modules/vite/bin/vite.js build",
+      "cwd": "platform/site",
+      "result": "PASS",
+      "durationSeconds": 3.61,
+      "log": "work/b11-collection-reads-build.log"
+    },
+    {
+      "command": "node platform/edge/node_modules/typescript/bin/tsc --noEmit -p platform/edge",
+      "result": "PASS"
+    },
+    {
+      "command": "node platform/site/tests/progression-lifecycle-qa.mjs --wrong-response",
+      "result": "PASS",
+      "widths": [
+        390
+      ],
+      "log": "work/b11-collection-reads-browser.log",
+      "classification": "Mounted Node collection reads, real HTTP/database, genuine Ed25519 authentication; synthetic private clock; only negative response-loss/corruption injection."
+    },
+    {
+      "command": "git diff --check -- platform/collect/read-model.mjs platform/collect/read-model.d.mts platform/collect/read-http.mjs platform/collect/read-http.d.mts platform/collect/read-model.test.mjs platform/collect/READ_PROJECTIONS.md platform/edge/test/collection-reads.test.mjs platform/edge/test/fixtures/collection-read-worker.ts platform/site/src/collection-operation.tsx platform/site/src/collect.tsx platform/site/src/models.ts platform/site/tests/collection-operation.spec.mjs",
+      "result": "PASS"
+    }
+  ],
+  "measurements": {
+    "runtimes": 2,
+    "maximumReturnedRowsPerStatement": 26,
+    "statementsPerRead": 3,
+    "batchesPerRead": 1,
+    "maxParameters": 3,
+    "maxBatchBytes": 2172,
+    "pageItems": 25,
+    "recordBytesLimit": 16384,
+    "responseBytesLimit": 262144
+  },
+  "coverage": [
+    "Exact legacy Node DTO parity, paginated asset/operation history and concealed metadata exclusion",
+    "Captured principal before async work, owner SQL filters and outside-wallet missing result",
+    "Source revision change, malformed/oversized bodies,100KB scalar filtered before hydration",
+    "Collect/Vault ownership mismatch, conflicting ownership body and future reveal rejected",
+    "Kind-specific operation inputs and exact fulfilled mint/upgrade/visual receipt identity",
+    "Actual B04 retained transfer after reservation, earliest observed time predating reservation, owner return retains hold",
+    "Immutable quote identity from040 links; no private commitment or evidence receipt disclosure",
+    "Production Worker GETs with genuine Ed25519 login and generated client, exact4-route capability, no inventory capability",
+    "HTTP method/cursor/session expiry and owner quota checks",
+    "React hold text retains awaiting-evidence status; existing actual-browser quote retry/expiry/session/recovery journey remains working"
+  ],
+  "browserResults": [
+    {
+      "width": 390,
+      "classification": "synthetic private clock; actual HTTP/repositories; genuine Ed25519 auth; response-loss fault injection",
+      "quoteRetriesSameKey": true,
+      "expiredFreshConfirmationBlocked": true,
+      "explicitRefreshNewQuote": true,
+      "unknownRetryAfterExpiryExactBodyAndKey": true,
+      "ownerSessionIsolation": true,
+      "staleOwnerRejected": true,
+      "negativeCorruptedResponseRetained": true,
+      "reservations": 2,
+      "networkCost": "unknown",
+      "totalCost": "unknown",
+      "financialExecution": false
+    }
+  ],
+  "notes": [
+    "D1 fixture copies only relevant initial read tables. Node and D1 seed revision histories differ; accepted immutable command values and output digests are compared while each correct runtime revision remains untouched.",
+    "Coordinator owns shared contracts, capabilities and Node/Worker composition; those integration files are not included in this agent-owned hash list."
+  ],
+  "limitations": [
+    "Local synthetic evidence only; no external provider or chain operation",
+    "No inventory/stage aggregate capability enabled in Worker",
+    "No new fulfillment, refund, cancellation, stage/mint authority or recovery-capacity claim",
+    "B11 remains partial"
+  ],
+  "integrationChecks": [
+    {
+      "command": "node --test platform/collect/collect.test.mjs platform/collect/progression-http.test.mjs platform/contracts/*.test.mjs",
+      "tests": 17,
+      "exitCode": 0,
+      "durationMs": 2152.0112,
+      "log": "work/b11-reads-contracts.log"
+    },
+    {
+      "command": "node platform/scripts/test-reference.mjs",
+      "tests": 458,
+      "exitCode": 0,
+      "durationMs": 45191.2272,
+      "log": "work/b11-reads-reference.log",
+      "scope": "Includes four uncommitted pure stage-plan tests; fulfillment slice remains separate."
+    },
+    {
+      "command": "node platform/contracts/generate.mjs --check",
+      "exitCode": 0
+    },
+    {
+      "command": "node platform/edge/node_modules/typescript/bin/tsc --noEmit -p platform/edge/tsconfig.json",
+      "exitCode": 0
+    }
+  ]
+}
