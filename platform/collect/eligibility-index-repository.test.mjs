@@ -14,7 +14,8 @@ import {canonicalJson,utf8} from '../security/canonical.mjs';
 const crypto=createNodeCrypto(),principal={kind:'operator',id:'synthetic-indexer'},wallets=Array.from({length:101},(_,n)=>{const b=Buffer.alloc(32,127);b.writeUInt32BE(n,28);return encode58(b);}).sort();
 async function fixture(t,wrap=base=>base){
  const db=openDatabase();t.after(()=>db.close());db.prepare('INSERT INTO app_operator_scopes VALUES(?,?,0,1)').run(principal.id,'collection-import');
- const base=createNodeAtomicDriver(db),ports={crypto,ids:{next:randomUUID},clock:{nowMs:()=>180000001}},intake=createCollectionSourceIntake({...ports,repository:createCollectionSourceRepository(base,ports)}),bundle=await createCollectionStateCodec({crypto}).encodeWalletList(wallets);
+ // Explicit historical SQL clock for this synthetic fixture.
+ const base={...createNodeAtomicDriver(db),leaseNowSql:'180000001'},ports={crypto,ids:{next:randomUUID},clock:{nowMs:()=>180000001}},intake=createCollectionSourceIntake({...ports,repository:createCollectionSourceRepository(base,ports)}),bundle=await createCollectionStateCodec({crypto}).encodeWalletList(wallets);
  for(const record of [bundle.manifest,...bundle.pages])assert.equal((await intake.stageRecord(principal,{record,requestKey:record.id})).kind,'committed');
  const repository=createEligibilityIndexRepository(wrap(base,db),ports),service=createEligibilityIndexService({...ports,repository});
  return {db,base,bundle,service,intake,count:table=>db.prepare('SELECT COUNT(*) n FROM '+table).get().n,materialize:(n=0,key='index-'+n)=>service.materializePage(principal,{id:bundle.pages[n].id,requestKey:key})};

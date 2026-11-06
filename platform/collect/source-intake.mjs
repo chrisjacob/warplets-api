@@ -122,19 +122,28 @@ function request(principal,value,record){
  const revisions=clone(value.expectedRevisions??{});fail(Object.keys(revisions).every(k=>['source','control','earn'].includes(k)&&decimal(revisions[k])),'Invalid expected source revisions.');
  const captured=record?captureRecord(value.record):value.id;fail(record||digest(captured),'Invalid source record identity.');return {principal:p,requestKey:value.requestKey,expectedRevisions:revisions,value:captured};
 }
+export async function prepareCollectionIntakeCommand(kind,value,crypto){
+ fail([STAGE_COLLECTION_RECORD,SEAL_COLLECTION_LIST,SEAL_COLLECTION_SOURCE].includes(kind),'Invalid collection intake kind.');
+ const v=clone(value);fail(exact(v,['principal','requestKey','input','expectedRevisions','nowMs'])&&exact(v.input,['id']),'Invalid collection intake command.');
+ const captured=request(v.principal,{id:v.input.id,requestKey:v.requestKey,expectedRevisions:v.expectedRevisions},false);
+ fail(nat(v.nowMs,8640000000000000),'Invalid intake clock.');
+ const c={operationKind:kind,principal:captured.principal,businessIdentity:captured.value,input:{id:captured.value},requestKey:captured.requestKey,expectedRevisions:captured.expectedRevisions,nowMs:v.nowMs};
+ return frozen({...c,requestDigest:await crypto.sha256(collectionIntakeCommandBytes(c))});
+}
+export class CollectionSourceDependencyError extends TypeError {
+ constructor(reason,dependencyIds){super('Missing collection source dependencies.');this.reason=reason;this.dependencyIds=[...dependencyIds];}
+}
 export function createCollectionSourceIntake({repository,crypto,clock}){
- async function command(kind,captured,recordId){
-  const c={operationKind:kind,principal:captured.principal,businessIdentity:recordId,input:{id:recordId},requestKey:captured.requestKey,expectedRevisions:captured.expectedRevisions,nowMs:clock.nowMs()};fail(nat(c.nowMs,8640000000000000),'Invalid intake clock.');
-  return frozen({...c,requestDigest:await crypto.sha256(collectionIntakeCommandBytes(c))});
- }
- async function one(recordId){const values=await repository.readRecords([recordId]);const records=captureRecords(values,1,131072);return named(records,[recordId],'source records').get(recordId);}
- return Object.freeze({
-  async stageRecord(principal,value){const c=request(principal,value,true),verified=await prepareCollectionRecord(c.value,crypto);return repository.stageRecord(await command(STAGE_COLLECTION_RECORD,c,verified.id),c.value);},
-  async sealList(principal,value){const c=request(principal,value,false),manifest=await one(c.value),body=await document(manifest,crypto);fail(body.format==='collection-list-v1','Expected eligibility manifest.');
-   const pages=await repository.readRecords([...body.pageIds]),seal=await prepareCollectionList({manifest,pages},crypto);return repository.sealList(await command(SEAL_COLLECTION_LIST,c,seal.id),seal);},
-  async sealSource(principal,value){const c=request(principal,value,false),root=await one(c.value),body=await document(root,crypto);fail(body.format==='collection-source-v1','Expected collection source root.');
-   const ids=[...new Set(body.stages.filter(s=>s.eligibility.kind==='list').map(s=>s.eligibility.manifestId))].sort();
-   const [lists,admissionPages]=await Promise.all([repository.readListSeals(ids),repository.readRecords([...body.admissions.pageIds])]);
-   const seal=await prepareCollectionSource({root,lists,admissionPages},crypto);return repository.sealSource(await command(SEAL_COLLECTION_SOURCE,c,seal.id),seal);},
- });
+ const command=(kind,c,recordId)=>prepareCollectionIntakeCommand(kind,{principal:c.principal,input:{id:recordId},requestKey:c.requestKey,expectedRevisions:c.expectedRevisions,nowMs:clock.nowMs()},crypto);
+ async function requiredRecords(ids){const values=await repository.readRecords(ids),found=new Set(values.map(v=>v.id)),missing=ids.filter(id=>!found.has(id));if(missing.length)throw new CollectionSourceDependencyError('source-records-missing',missing);return values;}
+ async function one(recordId){const values=await requiredRecords([recordId]);const records=captureRecords(values,1,131072);return named(records,[recordId],'source records').get(recordId);}
+ async function record(principal,value,preview){const c=request(principal,value,true),verified=await prepareCollectionRecord(c.value,crypto);return repository[preview?'previewRecord':'stageRecord'](await command(STAGE_COLLECTION_RECORD,c,verified.id),c.value);}
+ async function list(principal,value,preview){const c=request(principal,value,false),manifest=await one(c.value),body=await document(manifest,crypto);fail(body.format==='collection-list-v1','Expected eligibility manifest.');
+  const pages=await requiredRecords([...body.pageIds]),seal=await prepareCollectionList({manifest,pages},crypto);return repository[preview?'previewList':'sealList'](await command(SEAL_COLLECTION_LIST,c,seal.id),seal);}
+ async function source(principal,value,preview){const c=request(principal,value,false),root=await one(c.value),body=await document(root,crypto);fail(body.format==='collection-source-v1','Expected collection source root.');
+  const ids=[...new Set(body.stages.filter(s=>s.eligibility.kind==='list').map(s=>s.eligibility.manifestId))].sort();
+  const [lists,admissionPages]=await Promise.all([repository.readListSeals(ids),requiredRecords([...body.admissions.pageIds])]);
+  const found=new Set(lists.map(v=>v.id)),missing=ids.filter(id=>!found.has(id));if(missing.length)throw new CollectionSourceDependencyError('source-list-seals-missing',missing);
+  const seal=await prepareCollectionSource({root,lists,admissionPages},crypto);return repository[preview?'previewSource':'sealSource'](await command(SEAL_COLLECTION_SOURCE,c,seal.id),seal);}
+ return Object.freeze({stageRecord:(p,v)=>record(p,v,false),previewRecord:(p,v)=>record(p,v,true),sealList:(p,v)=>list(p,v,false),previewList:(p,v)=>list(p,v,true),sealSource:(p,v)=>source(p,v,false),previewSource:(p,v)=>source(p,v,true)});
 }

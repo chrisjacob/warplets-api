@@ -11,7 +11,7 @@ export default {async fetch(request:Request,env:Env){
  const input=await request.json() as Input,base=createD1AtomicDriver(env.DB),cryptoPort=createWebCrypto(),ids={next:()=>crypto.randomUUID()};
  if(input.method==='stage')return Response.json(await collectionSourceTestDispatch({driver:base,crypto:cryptoPort,ids,request:input}));
  let injected=false;const metrics={statements:0,maxBatchBytes:0,maxParameters:0};
- const driver={...base,async batch(statements:readonly Statement[]){
+ const driver={...base,leaseNowSql:'180000001',async batch(statements:readonly Statement[]){
   const m=measureBatch(statements);metrics.statements+=m.statements;metrics.maxBatchBytes=Math.max(metrics.maxBatchBytes,m.batchBytes);metrics.maxParameters=Math.max(metrics.maxParameters,m.maxParameters);
   const writes=statements.some(s=>s.sql.startsWith('INSERT INTO app_collection_eligibility_pages'));
   if(writes&&!injected&&input.fault==='revoke'){injected=true;await base.batch([sql("UPDATE app_operator_scopes SET enabled=0 WHERE operator=? AND scope='collection-import'",COLLECTION_TEST_OPERATOR.id)]);}
@@ -24,7 +24,7 @@ export default {async fetch(request:Request,env:Env){
   }
   return result;
  }};
- const service=createEligibilityIndexService({repository:createEligibilityIndexRepository(driver,{crypto:cryptoPort,ids}),crypto:cryptoPort,clock:{nowMs:()=>180000001}});
+ const service=createEligibilityIndexService({repository:createEligibilityIndexRepository(driver,{crypto:cryptoPort,ids,clock:{nowMs:()=>180000001}}),crypto:cryptoPort,clock:{nowMs:()=>180000001}});
  try{return Response.json({status:200,result:await service.materializePage({kind:'operator',id:COLLECTION_TEST_OPERATOR.id},{id:input.id,requestKey:input.key,expectedRevisions:input.expectedRevisions}),metrics});}
  catch(error){return Response.json({status:500,error:String(error),metrics});}
 }};

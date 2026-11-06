@@ -1,3 +1,4 @@
+// SQL clock below is pinned solely to this synthetic fixture's existing clock.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
@@ -26,7 +27,7 @@ test('v2 restores the complete10000-voter/full-turnout private graph into a fres
  const f=await governanceCapacityFixture(t);await castCapacityVotes(f);await roundtrip(t,{...f,label:'synthetic-restored-full-turnout',expected:[['genesis_voters',10000],['genesis_votes',10000],['app_command_receipts',10327]]});
 });
 test('v2 restores all3245 records and3200 indexes of32 distinct10000-member lists plus1000 declared admissions',async t=>{
- const {crypto,codec,bundle,records}=await maximumSourceBundle(),db=openDatabase();t.after(()=>db.close());const base=createNodeAtomicDriver(db),ports={crypto,ids:{next:randomUUID},clock:{nowMs:()=>1}},principal={kind:'operator',id:'synthetic-max-restored-source'};
+ const {crypto,codec,bundle,records}=await maximumSourceBundle(),db=openDatabase();t.after(()=>db.close());const base={...createNodeAtomicDriver(db),leaseNowSql:'1'},ports={crypto,ids:{next:randomUUID},clock:{nowMs:()=>1}},principal={kind:'operator',id:'synthetic-max-restored-source'};
  db.prepare('INSERT INTO app_operator_scopes VALUES(?,?,0,1)').run(principal.id,'collection-import');const intake=createCollectionSourceIntake({...ports,repository:createCollectionSourceRepository(base,ports)}),indexer=createEligibilityIndexService({...ports,repository:createEligibilityIndexRepository(base,ports)});
  for(const record of records.values())assert.equal((await intake.stageRecord(principal,{record,requestKey:record.id})).kind,'committed');for(const list of bundle.listManifests)assert.equal((await intake.sealList(principal,{id:list.id,requestKey:list.id})).kind,'committed');
  for(const page of bundle.pages)if((await codec.verifyRecord(page)).kind==='eligibility')assert.equal((await indexer.materializePage(principal,{id:page.id,requestKey:page.id})).kind,'committed');const sealed=await intake.sealSource(principal,{id:bundle.root.id,requestKey:bundle.root.id});assert.equal(sealed.kind,'committed');assert.equal(sealed.value.admissionCount,1000);

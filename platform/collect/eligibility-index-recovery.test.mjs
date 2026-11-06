@@ -18,7 +18,7 @@ import {readInstalledRecoverySchema} from '../recovery/node-schema.mjs';
 import {createRecoveryExporter} from '../recovery/export.mjs';
 import {createPrivateRecovery} from '../recovery/restore.mjs';
 test('private recovery retains complete collection source, indexed members and exact receipts while old auth is revoked',async t=>{
- const source=openDatabase(),target=openDatabase();t.after(()=>{source.close();target.close();});const crypto=createNodeCrypto(),sourceDriver=createNodeAtomicDriver(source),targetDriver=createNodeAtomicDriver(target),sourceStore=memoryArtifacts(),targetStore=memoryArtifacts();
+ const source=openDatabase(),target=openDatabase();t.after(()=>{source.close();target.close();});const crypto=createNodeCrypto(),sourceDriver={...createNodeAtomicDriver(source),leaseNowSql:'200000001'},targetDriver=createNodeAtomicDriver(target),sourceStore=memoryArtifacts(),targetStore=memoryArtifacts();
  const ports={crypto,clock:{nowMs:()=>200000001},ids:{next:randomUUID}},principal={kind:'operator',id:'synthetic-index-recovery'};source.prepare('INSERT INTO app_operator_scopes VALUES(?,?,0,1)').run(principal.id,'collection-import');
  const wallets=Array.from({length:101},(_,n)=>{const b=Buffer.alloc(32,127);b.writeUInt32BE(n,28);return encode58(b);}).sort();
  const state=publishStage(createInventory({id:'synthetic-index-recovery',kind:'genesis',tranche:1}),{id:'first',type:'whitelist',publishedAt:0,opensAt:172800000,closesAt:200000000,priceLamports:100000000n,allocation:1000,wallets,walletLimit:1});

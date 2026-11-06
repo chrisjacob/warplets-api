@@ -1,7 +1,7 @@
 /** Descriptive local review artifact only. This module grants no authority and
  * deliberately never serializes the request or arbitrary preview properties. */
 export const OPERATOR_APPROVAL_PACKET_MAX_BYTES=16384;
-const STAFF='ops.configure-workload.v1',ACTION='earn.configure-action.v1',SCOPE='ops.change-scope.v1',REVIEW='earn.final-review.v1',STAGE='collection.publish-stage.v1',BALLOT='governance.publish-ballot.v1',DECISION='governance.record-decision.v1',BEGIN='collection.begin-free-cut.v1',PAGE='collection.validate-cut-page.v1',SEAL='collection.seal-free-cut.v1';
+const STAFF='ops.configure-workload.v1',ACTION='earn.configure-action.v1',SEAL_LIST='collection.seal-list.v1',SEAL_SOURCE='collection.seal-source.v1',INDEX_PAGE='collection.materialize-eligibility-page.v1',SCOPE='ops.change-scope.v1',REVIEW='earn.final-review.v1',STAGE='collection.publish-stage.v1',BALLOT='governance.publish-ballot.v1',DECISION='governance.record-decision.v1',BEGIN='collection.begin-free-cut.v1',PAGE='collection.validate-cut-page.v1',SEAL='collection.seal-free-cut.v1';
 const fail=()=>{throw new TypeError('Invalid operator approval preview.');};
 const plain=v=>v!==null&&typeof v==='object'&&!Array.isArray(v)&&(Object.getPrototypeOf(v)===Object.prototype||Object.getPrototypeOf(v)===null);
 const field=(v,k)=>{if(!plain(v))fail();const d=Object.getOwnPropertyDescriptor(v,k);if(!d||!Object.hasOwn(d,'value'))fail();return d.value;};
@@ -18,6 +18,7 @@ const isNull=v=>v===null;
 const fixed=value=>v=>v===value;
 const scope=v=>['launch-preparation','earn-admission','collection-mint','collection-progression','optional-refresh','optional-images','optional-notifications'].includes(v);
 const INPUTS=Object.freeze({
+ [SEAL_LIST]:{id:hex},[SEAL_SOURCE]:{id:hex},[INDEX_PAGE]:{id:hex},
  [ACTION]:{actionId:text,label:text,verifier:text,effectiveEpoch:nat,enabled:bool,evidenceRef:text},
  [STAFF]:{effectiveEpoch:nat,staffedMinutes:v=>nat(v,1440),secondsPerReview:v=>nat(v,3600)&&v>=1,admissionLimit:v=>nat(v,100),reason:text},
  [SCOPE]:{scope,paused:bool,previousRevision:v=>v===null||text(v),reason:text,evidenceRef:text},
@@ -48,7 +49,12 @@ export function createOperatorApprovalPacket({request,preview}){
  const revisions=field(request,'expectedRevisions'),previewRevisions=field(preview,'expectedRevisions');exact(revisions,['earn','source','control']);exact(previewRevisions,['earn','source','control']);const expectedRevisions=select(revisions,{earn:revision,source:revision,control:revision});for(const key of Object.keys(expectedRevisions))if(field(previewRevisions,key)!==expectedRevisions[key])fail();
  const raw=field(request,'input'),rawSummary=field(preview,'summary'),schema=INPUTS[operationKind];exact(raw,Object.keys(schema));const input=select(raw,schema);for(const [key,value] of Object.entries(input))if(field(rawSummary,key)!==value)fail();
  let summary={...input};
- if(operationKind===ACTION){Object.assign(summary,select(rawSummary,{futureOnly:fixed(true),financialExecution:fixed(false)}));}
+ if([SEAL_LIST,SEAL_SOURCE,INDEX_PAGE].includes(operationKind)){
+  Object.assign(summary,select(rawSummary,{privateStaging:fixed(true),financialExecution:fixed(false)}));
+  const schema=operationKind===SEAL_LIST?{id:hex,count:v=>nat(v,10000),pageCount:v=>nat(v,100)&&v>0,walletsDigest:hex,closureDigest:hex,visibility:fixed('private-staging')}:operationKind===INDEX_PAGE?{id:hex,entryCount:v=>nat(v,100),visibility:fixed('private-staging')}:{id:hex,inventoryId:id,sourceRevision:revision,declaredStateDigest:hex,stageCount:v=>nat(v,32),admissionCount:v=>nat(v,1000),closureDigest:hex,verification:fixed('record-closure-only'),semanticStateDigestVerified:fixed(false),economicsVerified:fixed(false),provenanceVerified:fixed(false)};
+  summary.result=select(field(rawSummary,'result'),schema);if(summary.result.id!==input.id||operationKind===SEAL_LIST&&summary.result.pageCount!==Math.max(1,Math.ceil(summary.result.count/100)))fail();
+ }
+ else if(operationKind===ACTION){Object.assign(summary,select(rawSummary,{futureOnly:fixed(true),financialExecution:fixed(false)}));}
  else if(operationKind===STAFF){Object.assign(summary,select(rawSummary,{calculatedCapacity:v=>nat(v,100),currentOrFutureEpoch:bool}));if(summary.calculatedCapacity!==Math.min(input.admissionLimit,Math.floor(input.staffedMinutes*60/input.secondsPerReview)))fail();}
  else if(operationKind===REVIEW){Object.assign(summary,select(rawSummary,{final:fixed(true)}));if(requestKey!==input.submissionId)fail();}
  else if(operationKind===STAGE){

@@ -1,3 +1,4 @@
+// SQL clock below is pinned solely to this synthetic fixture's existing clock.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
@@ -54,7 +55,7 @@ test('free stage original publication list stays separate from current fixed-cut
  const substitution=structuredClone(after.input);substitution.original.walletListId=substitution.stored.membership.listId;assert.equal((await auditLegacyStagePublication(substitution,ports(after))).kind,'held');
 });
 test('maximum10000 original wallets hash exactly through ten indexed SQL chunks without cloning a full runtime list',async t=>{
- const f=scene(t),data=await inputFor(f,stage('maximum','whitelist',{wallets:wallets(10000),walletLimit:null})),principal={kind:'operator',id:'synthetic-stage-audit'},driver=createNodeAtomicDriver(f.db),p={crypto,clock:{nowMs:()=>START+10*DAY},ids:{next:randomUUID}};
+ const f=scene(t),data=await inputFor(f,stage('maximum','whitelist',{wallets:wallets(10000),walletLimit:null})),principal={kind:'operator',id:'synthetic-stage-audit'},driver={...createNodeAtomicDriver(f.db),leaseNowSql:String(START+10*DAY)},p={crypto,clock:{nowMs:()=>START+10*DAY},ids:{next:randomUUID}};
  f.db.prepare('INSERT INTO app_operator_scopes VALUES(?,?,0,1)').run(principal.id,'collection-import');const intake=createCollectionSourceIntake({...p,repository:createCollectionSourceRepository(driver,p)}),indexer=createEligibilityIndexService({...p,repository:createEligibilityIndexRepository(driver,p)});
  for(const record of [data.bundle.manifest,...data.bundle.pages])assert.equal((await intake.stageRecord(principal,{record,requestKey:record.id})).kind,'committed');assert.equal((await intake.sealList(principal,{id:data.bundle.manifest.id,requestKey:'seal'})).kind,'committed');for(const page of data.bundle.pages)assert.equal((await indexer.materializePage(principal,{id:page.id,requestKey:page.id})).kind,'committed');
  let operations=0,maxRows=0;const result=await auditLegacyStagePublication(data.input,{createDigest:createNodeRecoveryDigest,async readWalletChunk({listId,offset,limit}){operations++;const rows=f.db.prepare("SELECT w.value wallet FROM app_collection_list_seals l,json_each(l.page_ids_json) p JOIN app_collection_eligibility_pages i ON i.record_id=p.value,json_each(i.entries_json) w WHERE l.id=? ORDER BY p.key,w.key LIMIT ? OFFSET ?").all(listId,limit,offset);maxRows=Math.max(maxRows,rows.length);return {listId,offset,wallets:rows.map(r=>r.wallet),done:offset+rows.length===10000};}});

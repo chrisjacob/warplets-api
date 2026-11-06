@@ -1,3 +1,4 @@
+// SQL clock below is pinned solely to this synthetic fixture's existing clock.
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
 import {openDatabase} from '../storage/database.mjs';
@@ -10,7 +11,7 @@ export {crypto};
 export const principal={kind:'operator',id:'synthetic-source-relation-auditor'};
 export const legacyJson=state=>JSON.stringify(state,(_k,v)=>typeof v==='bigint'?{$lamports:v.toString()}:v);
 export async function relationFixture(t,{state=canonicalStateFixture(),mutateRaw=raw=>raw}={}){
- const db=openDatabase();t.after(()=>db.close());const driver=createNodeAtomicDriver(db),ports={crypto,ids:{next:randomUUID},clock:{nowMs:()=>1800000000000}};
+ const db=openDatabase();t.after(()=>db.close());const driver={...createNodeAtomicDriver(db),leaseNowSql:'1800000000000'},ports={crypto,ids:{next:randomUUID},clock:{nowMs:()=>1800000000000}};
  db.prepare('INSERT INTO app_operator_scopes VALUES(?,?,0,1)').run(principal.id,'collection-import');
  const raw=mutateRaw(legacyJson(state));db.prepare("INSERT INTO collect_inventories VALUES(?,?,?, ?,?,?,?,'synthetic-origin')").run(state.id,state.kind,state.tranche??null,state.kind==='season'?1700000000000:null,state.kind==='season'?'2023-11':null,state.version,raw);
  const {bundle,records}=await stateBundle(state),intake=createCollectionSourceIntake({...ports,repository:createCollectionSourceRepository(driver,ports)});

@@ -1,3 +1,4 @@
+// SQL clock below is pinned solely to this synthetic fixture's existing clock.
 // Synthetic historical local fixtures: retained originals are captured at publication.
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
@@ -16,7 +17,7 @@ export {legacyAdmissionWallet,START,DAY};
 export const stageSourceTables=['app_operator_scopes','collect_inventories','genesis_ballots','genesis_voters','app_command_receipts','app_collection_records','app_collection_list_seals','app_collection_source_seals','app_collection_eligibility_pages'];
 export function stageSourceScene(t,options={}){return legacyAdmissionFixture(t,options);}
 export async function retainStageSources(f,{omitIndex=false,omitOriginalSeal=false}={}){
- const {db,crypto}=f,driver=createNodeAtomicDriver(db),ports={crypto,ids:{next:randomUUID},clock:{nowMs:()=>START+30*DAY}},codec=createCollectionStateCodec({crypto}),artifacts=memoryArtifacts(),principal={kind:'operator',id:'synthetic-stage-source'},preimages=new Map(),identities=new Map(),originalLists=new Map();
+ const {db,crypto}=f,driver={...createNodeAtomicDriver(db),leaseNowSql:String(START+30*DAY)},ports={crypto,ids:{next:randomUUID},clock:{nowMs:()=>START+30*DAY}},codec=createCollectionStateCodec({crypto}),artifacts=memoryArtifacts(),principal={kind:'operator',id:'synthetic-stage-source'},preimages=new Map(),identities=new Map(),originalLists=new Map();
  db.prepare('INSERT OR IGNORE INTO app_operator_scopes VALUES(?,?,0,1)').run(principal.id,'collection-import');
  const row=db.prepare('SELECT * FROM collect_inventories WHERE id=?').get(f.inventoryId),state=JSON.parse(row.state,(_k,v)=>v&&typeof v==='object'&&Object.hasOwn(v,'$lamports')?BigInt(v.$lamports):v),bundle=await codec.encodeReferenceInventory(state),records=new Map([bundle.root,...bundle.listManifests,...bundle.pages].map(r=>[r.id,r])),lists=new Map(bundle.listManifests.map(r=>[r.id,r]));
  async function retain(value){const bytes=utf8(canonicalJson(value)),byteDigest=await crypto.sha256(bytes),identity={key:'private/'+byteDigest+'.json',byteDigest,size:bytes.length,semanticDigest:null,visibility:'private',contentType:'application/json'};await artifacts.putIfAbsent(identity,bytes);return identity;}

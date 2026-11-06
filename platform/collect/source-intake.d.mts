@@ -12,7 +12,11 @@ export interface CollectionSourceSeal {readonly id:string;readonly inventoryId:s
  readonly verification:'record-closure-only';readonly semanticStateDigestVerified:false;readonly economicsVerified:false;readonly provenanceVerified:false}
 export interface CollectionIntakeCommand {readonly operationKind:CollectionIntakeKind;readonly principal:OperatorPrincipal;readonly businessIdentity:string;readonly input:Readonly<{id:string}>;readonly requestKey:string;readonly expectedRevisions:Revisions;readonly nowMs:number;readonly requestDigest:string}
 export type CollectionIntakeResult=RepositoryOutcome<Readonly<{id:string;[key:string]:unknown}>>;
+export type CollectionIntakePreview=CollectionIntakeResult|{kind:'preview';value:Readonly<{id:string;[key:string]:unknown}>;expectedRevisions:Revisions};
 export interface CollectionSourceIntakeRepository {
+ previewRecord?(command:CollectionIntakeCommand,record:CollectionSourceRecord):Promise<CollectionIntakePreview>;
+ previewList?(command:CollectionIntakeCommand,seal:CollectionListSeal):Promise<CollectionIntakePreview>;
+ previewSource?(command:CollectionIntakeCommand,seal:CollectionSourceSeal):Promise<CollectionIntakePreview>;
  /** Raw bytes are copied and independently verified by the concrete adapter. */
  stageRecord(command:CollectionIntakeCommand,record:CollectionSourceRecord):Promise<CollectionIntakeResult>;
  /** Exact named set only, at most101 records and2MiB. Missing or extra rows fail closure validation. */
@@ -24,6 +28,9 @@ export interface CollectionSourceIntakeRepository {
 }
 export interface CollectionIntakeRequest {readonly requestKey:string;readonly expectedRevisions?:Revisions}
 export interface CollectionSourceIntakeService {
+ previewRecord(principal:OperatorPrincipal,input:CollectionIntakeRequest&Readonly<{record:CollectionSourceRecord}>):Promise<CollectionIntakePreview>;
+ previewList(principal:OperatorPrincipal,input:CollectionIntakeRequest&Readonly<{id:string}>):Promise<CollectionIntakePreview>;
+ previewSource(principal:OperatorPrincipal,input:CollectionIntakeRequest&Readonly<{id:string}>):Promise<CollectionIntakePreview>;
  stageRecord(principal:OperatorPrincipal,input:CollectionIntakeRequest&Readonly<{record:CollectionSourceRecord}>):Promise<CollectionIntakeResult>;
  sealList(principal:OperatorPrincipal,input:CollectionIntakeRequest&Readonly<{id:string}>):Promise<CollectionIntakeResult>;
  sealSource(principal:OperatorPrincipal,input:CollectionIntakeRequest&Readonly<{id:string}>):Promise<CollectionIntakeResult>;
@@ -36,3 +43,7 @@ export function collectionIntakeCommandBytes(command:Omit<CollectionIntakeComman
 export function createCollectionSourceIntake(ports:{repository:CollectionSourceIntakeRepository;crypto:CanonicalCrypto;clock:{nowMs():number}}):CollectionSourceIntakeService;
 
 export function collectionListClosureDigest(value:Omit<CollectionListSeal,'closureDigest'>|CollectionListSeal,crypto:CanonicalCrypto):Promise<string>;
+
+export function prepareCollectionIntakeCommand(kind:CollectionIntakeKind,value:Pick<CollectionIntakeCommand,'principal'|'requestKey'|'input'|'expectedRevisions'|'nowMs'>,crypto:CanonicalCrypto):Promise<CollectionIntakeCommand>;
+
+export class CollectionSourceDependencyError extends TypeError {readonly reason:string;readonly dependencyIds:readonly string[];constructor(reason:string,dependencyIds:readonly string[]);}

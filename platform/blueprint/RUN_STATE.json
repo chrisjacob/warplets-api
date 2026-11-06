@@ -5,9 +5,9 @@
   "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
   "currentTask": "B12",
-  "lastUpdatedAt": "2026-11-06T14:35:04.046935+00:00",
+  "lastUpdatedAt": "2026-11-06T14:50:38.286082+00:00",
   "migrationAllocation": {
-    "next": 61,
+    "next": 62,
     "reserved": [
       {
         "version": 31,
@@ -158,6 +158,11 @@
         "version": 60,
         "task": "B12",
         "purpose": "guarded future action configuration receipt and audit; no new tables"
+      },
+      {
+        "version": 61,
+        "task": "B12",
+        "purpose": "mandatory collection source intake/index audit; no new tables"
       }
     ],
     "historicalGap": 19
@@ -416,9 +421,10 @@
         "platform/validation/runs/2026-11-06-overnight/B12-06.json",
         "platform/validation/runs/2026-11-06-overnight/B12-07.json",
         "platform/validation/runs/2026-11-06-overnight/B12-08.json",
-        "platform/validation/runs/2026-11-06-overnight/B12-ci-02.json"
+        "platform/validation/runs/2026-11-06-overnight/B12-ci-02.json",
+        "platform/validation/runs/2026-11-06-overnight/B12-09.json"
       ],
-      "nextAction": "Push consolidated test-only checkpoint and follow CI; continue bounded source/draft/list intake and fixture observation commands.",
+      "nextAction": "Commit/push B12-09 audited source/index commands; implement separate bounded private source/cut upload path, fixture observations and remaining explicit publication lanes. Follow CI42235233410 on c02a47b.",
       "blocker": null
     },
     "B13": {

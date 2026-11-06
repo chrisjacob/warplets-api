@@ -20,7 +20,7 @@ const tables=['app_collection_records','app_collection_list_seals','app_collecti
 
 test('private recovery retains populated collection intake and exact receipts, including a maximum-sized staged root',async t=>{
  const source=openDatabase(),target=openDatabase();t.after(()=>{source.close();target.close();});
- const crypto=createNodeCrypto(),sourceDriver=createNodeAtomicDriver(source),rawTargetDriver=createNodeAtomicDriver(target),sourceStore=memoryArtifacts(),targetStore=memoryArtifacts(),now=200000001,measurements=[];
+ const crypto=createNodeCrypto(),sourceDriver={...createNodeAtomicDriver(source),leaseNowSql:'200000001'},rawTargetDriver=createNodeAtomicDriver(target),sourceStore=memoryArtifacts(),targetStore=memoryArtifacts(),now=200000001,measurements=[];
  const targetDriver={...rawTargetDriver,async batch(statements){measurements.push(measureBatch(statements));return rawTargetDriver.batch(statements);}};
  const ports={crypto,clock:{nowMs:()=>now},ids:{next:randomUUID}},principal={kind:'operator',id:'synthetic-intake-recovery'};
  source.prepare('INSERT INTO app_operator_scopes VALUES(?,?,0,1)').run(principal.id,'collection-import');

@@ -1,3 +1,5 @@
+import {SEAL_COLLECTION_LIST,SEAL_COLLECTION_SOURCE} from '../collect/source-intake.mjs';
+import {MATERIALIZE_ELIGIBILITY_PAGE} from '../collect/eligibility-index-service.mjs';
 import {CONFIGURE_ACTION} from '../earn/action-policy-service.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -41,7 +43,7 @@ test('local operator registry rejects member authority, extra fields, unknown co
  for(const badPrincipal of [{kind:'wallet',wallet:'synthetic'}, {...principal,sessionToken:'not-command-data'}, {kind:'operator',id:' '}])
   await assert.rejects(prepareOperatorCommand({principal:badPrincipal,request:staffing(),nowMs},counting),invalid);
  await assert.rejects(prepareOperatorCommand({principal,request:staffing(),nowMs:NaN},counting),invalid);
- assert.equal(hashes,0);assert.deepEqual(LOCAL_OPERATOR_COMMANDS,[CONFIGURE_ACTION,OPERATIONS.configureWorkload,OPERATIONS.changeScope,FINAL_REVIEW,PUBLISH_COLLECTION_STAGE,PUBLISH_BALLOT,RECORD_DECISION,BEGIN_COLLECTION_FREE_CUT,VALIDATE_COLLECTION_CUT_PAGE,SEAL_COLLECTION_FREE_CUT]);
+ assert.equal(hashes,0);assert.deepEqual(LOCAL_OPERATOR_COMMANDS,[SEAL_COLLECTION_LIST,SEAL_COLLECTION_SOURCE,MATERIALIZE_ELIGIBILITY_PAGE,CONFIGURE_ACTION,OPERATIONS.configureWorkload,OPERATIONS.changeScope,FINAL_REVIEW,PUBLISH_COLLECTION_STAGE,PUBLISH_BALLOT,RECORD_DECISION,BEGIN_COLLECTION_FREE_CUT,VALIDATE_COLLECTION_CUT_PAGE,SEAL_COLLECTION_FREE_CUT]);
 });
 
 test('final moderation keeps historical receipt identity while confirmation binds explicit revisions',async()=>{

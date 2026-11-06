@@ -1,3 +1,4 @@
+// SQL clock below is pinned solely to this synthetic fixture's existing clock.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
@@ -16,7 +17,7 @@ import {memoryArtifacts} from '../application/fixtures/memory-artifacts.mjs';
 import {readInstalledRecoverySchema} from './node-schema.mjs';
 import {measureBatch} from '../storage/atomic-driver.mjs';
 test('full32 distinct10000-member SQL source graphs, private indexes and1000 declared admissions capture without truncation',async t=>{
- const {crypto,codec,bundle,records}=await maximumSourceBundle(),db=openDatabase();t.after(()=>db.close());const base=createNodeAtomicDriver(db),principal={kind:'operator',id:'synthetic-maximum-source'},ports={crypto,ids:{next:randomUUID},clock:{nowMs:()=>1}};
+ const {crypto,codec,bundle,records}=await maximumSourceBundle(),db=openDatabase();t.after(()=>db.close());const base={...createNodeAtomicDriver(db),leaseNowSql:'1'},principal={kind:'operator',id:'synthetic-maximum-source'},ports={crypto,ids:{next:randomUUID},clock:{nowMs:()=>1}};
  db.prepare('INSERT INTO app_operator_scopes VALUES(?,?,0,1)').run(principal.id,'collection-import');const intake=createCollectionSourceIntake({...ports,repository:createCollectionSourceRepository(base,ports)}),indexer=createEligibilityIndexService({...ports,repository:createEligibilityIndexRepository(base,ports)});
  for(const record of records.values())assert.equal((await intake.stageRecord(principal,{record,requestKey:record.id})).kind,'committed');
  for(const list of bundle.listManifests)assert.equal((await intake.sealList(principal,{id:list.id,requestKey:list.id})).kind,'committed');

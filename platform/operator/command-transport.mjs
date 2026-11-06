@@ -1,3 +1,8 @@
+import {CollectionSourceDependencyError,SEAL_COLLECTION_LIST,SEAL_COLLECTION_SOURCE,createCollectionSourceIntake} from '../collect/source-intake.mjs';
+import {createCollectionSourceRepository} from '../collect/source-repository.mjs';
+import {MATERIALIZE_ELIGIBILITY_PAGE} from '../collect/eligibility-index-service.mjs';
+import {createEligibilityIndexRepository} from '../collect/eligibility-index-repository.mjs';
+import {projectCollectionSourceResult,projectCollectionSourceOutcome} from './source-summary.mjs';
 import {CONFIGURE_ACTION} from '../earn/action-policy-service.mjs';
 import {createActionPolicyRepository} from '../earn/action-policy-repository.mjs';
 import {createCollectionCutRepository} from '../collect/free-cut-repository.mjs';
@@ -48,11 +53,14 @@ export function createOperatorCommandTransport(db,{sessions,clock=Date.now,crypt
    const driver=createNodeAtomicDriver(db,{transactionGuard:authorization.guard});
    const stages=createStagePublicationRepository(driver,{crypto,ids,clock:{nowMs:clock}});
    const governance=createGovernanceOperatorRepository(driver,{crypto,ids,clock:{nowMs:clock}});
+   const sourceKind=[SEAL_COLLECTION_LIST,SEAL_COLLECTION_SOURCE,MATERIALIZE_ELIGIBILITY_PAGE].includes(body.operationKind),sourcePorts={crypto,ids,clock:{nowMs:clock}},sources=createCollectionSourceIntake({...sourcePorts,repository:createCollectionSourceRepository(driver,sourcePorts)}),index=createEligibilityIndexRepository(driver,sourcePorts);
+   const sourceRequest=c=>({id:c.input.id,requestKey:c.requestKey,expectedRevisions:c.expectedRevisions});
+   const project=r=>sourceKind?projectCollectionSourceOutcome(body.operationKind,r):r;
    const actions=createActionPolicyRepository(driver,{crypto,ids,clock:{nowMs:clock}});
    const cuts=createCollectionCutRepository(driver,{crypto,ids,clock:{nowMs:clock}});
    if(pathname.endsWith('/receipt')){
     const result=await createAtomicReceipts(driver,{crypto,ids}).replay(prepared.command);
-    return result?json(result,result.kind==='conflict'?409:200):failure(404,'receipt_not_found','No accepted receipt matches this command. No change was executed.');
+    return result?json(project(result),result.kind==='conflict'?409:200):failure(404,'receipt_not_found','No accepted receipt matches this command. No change was executed.');
    }
    if(pathname.endsWith('/preview')){
     const [version,scope]=await driver.batch([
@@ -62,6 +70,11 @@ export function createOperatorCommandTransport(db,{sessions,clock=Date.now,crypt
     if(!scope.rows[0]?.enabled)return failure(403,'operator_scope_required','Operator scope is unavailable.');
     const current=Object.fromEntries(version.rows.map(r=>[r.name,String(r.revision)]));
     if(Object.entries(body.expectedRevisions).some(([key,value])=>current[key]!==value))return failure(409,'revision_conflict','Refresh the current configuration before preview.');
+    if(sourceKind){
+     const c=prepared.command,derived=await (c.operationKind===SEAL_COLLECTION_LIST?sources.previewList(c.principal,sourceRequest(c)):c.operationKind===SEAL_COLLECTION_SOURCE?sources.previewSource(c.principal,sourceRequest(c)):index.previewPage(c));
+     if(derived.kind!=='preview')return json(project(derived),derived.kind==='conflict'?409:derived.kind==='pending'?202:200);
+     authorization.guard();return json({...prepared.preview,summary:{...prepared.preview.summary,result:projectCollectionSourceResult(c.operationKind,derived.value)}});
+    }
     if(prepared.command.operationKind===CONFIGURE_ACTION){
      const derived=await actions.previewAction(prepared.command);
      if(derived.kind!=='preview')return json(derived,derived.kind==='conflict'?409:derived.kind==='pending'?202:200);
@@ -94,9 +107,10 @@ export function createOperatorCommandTransport(db,{sessions,clock=Date.now,crypt
    }
    if(request.headers.get('x-operator-preview')!==prepared.preview.confirmationDigest)
     return failure(409,'preview_required','Confirm the exact command preview.');
-   const result=await dispatchOperatorCommand({...createAtomicOperationsRepository(driver,{crypto,ids}),recordFinalReview:createAtomicEarnRepository(driver,{crypto,ids}).recordFinalReview,publishStage:stages.publishStage,publishBallot:governance.publishBallot,recordDecision:governance.recordDecision,configureAction:actions.configureAction,beginCut:cuts.beginCut,validatePage:cuts.validatePage,sealCut:cuts.sealCut},prepared);
-   return json(result,result.kind==='conflict'?409:result.kind==='pending'?202:200);
+   const result=await dispatchOperatorCommand({...createAtomicOperationsRepository(driver,{crypto,ids}),recordFinalReview:createAtomicEarnRepository(driver,{crypto,ids}).recordFinalReview,publishStage:stages.publishStage,publishBallot:governance.publishBallot,recordDecision:governance.recordDecision,sealList:c=>sources.sealList(c.principal,sourceRequest(c)),sealSource:c=>sources.sealSource(c.principal,sourceRequest(c)),materializePage:index.materializePage,configureAction:actions.configureAction,beginCut:cuts.beginCut,validatePage:cuts.validatePage,sealCut:cuts.sealCut},prepared);
+   return json(project(result),result.kind==='conflict'?409:result.kind==='pending'?202:200);
   }catch(error){
+   if(error instanceof CollectionSourceDependencyError)return json({kind:'pending',reason:error.reason,dependencyIds:error.dependencyIds},202);
    if(error instanceof EarnError||error instanceof OperatorSessionError)return failure(error.status,error.code,error.message);
    if(error instanceof CollectionPolicyError)return failure(400,error.code,'Invalid local collection command.');
    if(error instanceof TypeError||error instanceof RangeError)return failure(400,'invalid_command','Invalid operator command.');

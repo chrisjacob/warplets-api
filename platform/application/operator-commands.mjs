@@ -1,3 +1,5 @@
+import {SEAL_COLLECTION_LIST,SEAL_COLLECTION_SOURCE,prepareCollectionIntakeCommand} from '../collect/source-intake.mjs';
+import {MATERIALIZE_ELIGIBILITY_PAGE,prepareEligibilityIndexCommand} from '../collect/eligibility-index-service.mjs';
 import {CONFIGURE_ACTION,buildActionPolicyCommand} from '../earn/action-policy-service.mjs';
 import {createOperationsCommand,OPERATIONS} from '../storage/atomic-operations.mjs';
 import {controlledScopes} from '../operations/portable-controls.mjs';
@@ -9,8 +11,8 @@ import {normalizeStagePublication} from '../collect/stage-plan.mjs';
 import {buildCollectionCutCommand,BEGIN_COLLECTION_FREE_CUT,VALIDATE_COLLECTION_CUT_PAGE,SEAL_COLLECTION_FREE_CUT} from '../collect/free-cut-service.mjs';
 import {prepareGovernanceOperatorCommand,PUBLISH_BALLOT,RECORD_DECISION} from '../governance/operator-service.mjs';
 
-export const LOCAL_OPERATOR_COMMANDS=Object.freeze([CONFIGURE_ACTION,OPERATIONS.configureWorkload,OPERATIONS.changeScope,FINAL_REVIEW,PUBLISH_COLLECTION_STAGE,PUBLISH_BALLOT,RECORD_DECISION,BEGIN_COLLECTION_FREE_CUT,VALIDATE_COLLECTION_CUT_PAGE,SEAL_COLLECTION_FREE_CUT]);
-export const LOCAL_OPERATOR_SCOPES=Object.freeze({[CONFIGURE_ACTION]:'earn-action-policy',[OPERATIONS.configureWorkload]:'operations',[OPERATIONS.changeScope]:'operations',[FINAL_REVIEW]:'earn-review',[PUBLISH_COLLECTION_STAGE]:'collection-publication',[PUBLISH_BALLOT]:'governance-publication',[RECORD_DECISION]:'governance-decision',[BEGIN_COLLECTION_FREE_CUT]:'collection-evidence',[VALIDATE_COLLECTION_CUT_PAGE]:'collection-evidence',[SEAL_COLLECTION_FREE_CUT]:'collection-evidence'});
+export const LOCAL_OPERATOR_COMMANDS=Object.freeze([SEAL_COLLECTION_LIST,SEAL_COLLECTION_SOURCE,MATERIALIZE_ELIGIBILITY_PAGE,CONFIGURE_ACTION,OPERATIONS.configureWorkload,OPERATIONS.changeScope,FINAL_REVIEW,PUBLISH_COLLECTION_STAGE,PUBLISH_BALLOT,RECORD_DECISION,BEGIN_COLLECTION_FREE_CUT,VALIDATE_COLLECTION_CUT_PAGE,SEAL_COLLECTION_FREE_CUT]);
+export const LOCAL_OPERATOR_SCOPES=Object.freeze({[SEAL_COLLECTION_LIST]:'collection-import',[SEAL_COLLECTION_SOURCE]:'collection-import',[MATERIALIZE_ELIGIBILITY_PAGE]:'collection-import',[CONFIGURE_ACTION]:'earn-action-policy',[OPERATIONS.configureWorkload]:'operations',[OPERATIONS.changeScope]:'operations',[FINAL_REVIEW]:'earn-review',[PUBLISH_COLLECTION_STAGE]:'collection-publication',[PUBLISH_BALLOT]:'governance-publication',[RECORD_DECISION]:'governance-decision',[BEGIN_COLLECTION_FREE_CUT]:'collection-evidence',[VALIDATE_COLLECTION_CUT_PAGE]:'collection-evidence',[SEAL_COLLECTION_FREE_CUT]:'collection-evidence'});
 export function operatorCommandScope(kind){requireValue(LOCAL_OPERATOR_COMMANDS.includes(kind),'This operator command is unavailable.');return LOCAL_OPERATOR_SCOPES[kind];}
 const exact=(value,keys)=>value&&typeof value==='object'&&!Array.isArray(value)
  &&Object.keys(value).length===keys.length&&keys.every(key=>Object.hasOwn(value,key));
@@ -33,10 +35,11 @@ export async function prepareOperatorCommand({principal,request,nowMs},crypto){
  requireValue(typeof r.requestKey==='string'&&/^[A-Za-z0-9._:-]{1,128}$/.test(r.requestKey),'Invalid request key.');
  requireValue(exact(r.expectedRevisions,['earn','source','control'])&&Object.values(r.expectedRevisions).every(value=>
   typeof value==='string'&&/^(0|[1-9][0-9]*)$/.test(value)&&Number.isSafeInteger(Number(value))),'Supply all three exact safe revision strings.');
- const i=r.input,action=r.operationKind===CONFIGURE_ACTION,staffing=r.operationKind===OPERATIONS.configureWorkload,review=r.operationKind===FINAL_REVIEW,stage=r.operationKind===PUBLISH_COLLECTION_STAGE,governance=r.operationKind===PUBLISH_BALLOT||r.operationKind===RECORD_DECISION,cut=Object.hasOwn(cutFields,r.operationKind);
+ const i=r.input,source=[SEAL_COLLECTION_LIST,SEAL_COLLECTION_SOURCE,MATERIALIZE_ELIGIBILITY_PAGE].includes(r.operationKind),action=r.operationKind===CONFIGURE_ACTION,staffing=r.operationKind===OPERATIONS.configureWorkload,review=r.operationKind===FINAL_REVIEW,stage=r.operationKind===PUBLISH_COLLECTION_STAGE,governance=r.operationKind===PUBLISH_BALLOT||r.operationKind===RECORD_DECISION,cut=Object.hasOwn(cutFields,r.operationKind);
+ if(source)requireValue(exact(i,['id'])&&typeof i.id==='string'&&/^[a-f0-9]{64}$/.test(i.id),'Supply one exact source identity.');
  if(cut)requireValue(exact(i,cutFields[r.operationKind]),'Invalid fixed-cut input fields.');
  if(governance)requireValue(exact(i,r.operationKind===PUBLISH_BALLOT?ballotFields:decisionFields),'Invalid governance input fields.');
- if(!action&&!stage&&!governance&&!cut){requireValue(exact(i,staffing?staffingFields:review?reviewFields:scopeFields),'Invalid operator input fields.');name(i.reason,'reason');}
+ if(!source&&!action&&!stage&&!governance&&!cut){requireValue(exact(i,staffing?staffingFields:review?reviewFields:scopeFields),'Invalid operator input fields.');name(i.reason,'reason');}
  if(stage){
   normalizeStagePublication(i);
   requireValue(i.inventoryOverrideReason===null&&i.ballotId===null,'Ballot and inventory override publication are unavailable here.');
@@ -53,21 +56,21 @@ export async function prepareOperatorCommand({principal,request,nowMs},crypto){
   name(i.submissionId,'submission');name(i.sourceRef,'source reference');
   requireValue(r.requestKey===i.submissionId,'Final review request key must equal its submission ID.');
   requireValue(Number.isInteger(i.score)&&i.score>=0&&i.score<=10,'Score must be 0-10.');
- }else if(!action&&!governance&&!cut){
+ }else if(!source&&!action&&!governance&&!cut){
   requireValue(controlledScopes.includes(i.scope),'Choose a controllable application scope. Claims, principal and recovery are protected.');
   requireValue(typeof i.paused==='boolean','Specify pause or resume.');
   requireValue(i.previousRevision===null||typeof i.previousRevision==='string'&&i.previousRevision.length>0&&i.previousRevision.length<=256&&i.previousRevision===i.previousRevision.trim(),'Invalid prior scope revision.');
   name(i.evidenceRef,'evidence reference');
  }
  freeze(p);freeze(r);
- const command=action?await buildActionPolicyCommand({principal:p,requestKey:r.requestKey,input:i,nowMs:at,expectedRevisions:r.expectedRevisions},crypto):cut?await buildCollectionCutCommand(r.operationKind,p,{requestKey:r.requestKey,...i,expectedRevisions:r.expectedRevisions},crypto):governance?await prepareGovernanceOperatorCommand(r.operationKind,{principal:p,requestKey:r.requestKey,input:i,nowMs:at,expectedRevisions:r.expectedRevisions},crypto):stage?await buildStagePublicationCommand(p,{requestKey:r.requestKey,input:i,expectedRevisions:r.expectedRevisions},crypto):review?{principal:p,operationKind:FINAL_REVIEW,businessIdentity:i.submissionId,requestKey:r.requestKey,input:i,nowMs:at,expectedRevisions:r.expectedRevisions,
+ const command=source?(r.operationKind===MATERIALIZE_ELIGIBILITY_PAGE?await prepareEligibilityIndexCommand({principal:p,requestKey:r.requestKey,input:i,nowMs:at,expectedRevisions:r.expectedRevisions},crypto):await prepareCollectionIntakeCommand(r.operationKind,{principal:p,requestKey:r.requestKey,input:i,nowMs:at,expectedRevisions:r.expectedRevisions},crypto)):action?await buildActionPolicyCommand({principal:p,requestKey:r.requestKey,input:i,nowMs:at,expectedRevisions:r.expectedRevisions},crypto):cut?await buildCollectionCutCommand(r.operationKind,p,{requestKey:r.requestKey,...i,expectedRevisions:r.expectedRevisions},crypto):governance?await prepareGovernanceOperatorCommand(r.operationKind,{principal:p,requestKey:r.requestKey,input:i,nowMs:at,expectedRevisions:r.expectedRevisions},crypto):stage?await buildStagePublicationCommand(p,{requestKey:r.requestKey,input:i,expectedRevisions:r.expectedRevisions},crypto):review?{principal:p,operationKind:FINAL_REVIEW,businessIdentity:i.submissionId,requestKey:r.requestKey,input:i,nowMs:at,expectedRevisions:r.expectedRevisions,
   requestDigest:await crypto.sha256(reviewRequestBytes({principal:p,input:i}))}:
   await createOperationsCommand(r.operationKind,{principal:p,requestKey:r.requestKey,input:i,nowMs:at,expectedRevisions:r.expectedRevisions},crypto);
  const confirmationDigest=await crypto.sha256(utf8(canonicalJson(['10x-local-operator-confirmation-v1',p.id,r])));
  // Current-time/state predicates stay in the repository, after accepted replay.
  const preview={operationKind:r.operationKind,requestKey:r.requestKey,requestDigest:command.requestDigest,confirmationDigest,
   expectedRevisions:r.expectedRevisions,financialExecution:false,
-  summary:action?{...i,futureOnly:true,financialExecution:false}:cut?{...i,financialExecution:false}:governance?{...i,advisory:true,financialExecution:false}:staffing?{...i,calculatedCapacity:Math.min(i.admissionLimit,Math.floor(i.staffedMinutes*60/i.secondsPerReview)),currentOrFutureEpoch:i.effectiveEpoch>=Math.floor(at/86400000)}:review?{...i,final:true}:{...i}};
+  summary:source?{...i,financialExecution:false,privateStaging:true}:action?{...i,futureOnly:true,financialExecution:false}:cut?{...i,financialExecution:false}:governance?{...i,advisory:true,financialExecution:false}:staffing?{...i,calculatedCapacity:Math.min(i.admissionLimit,Math.floor(i.staffedMinutes*60/i.secondsPerReview)),currentOrFutureEpoch:i.effectiveEpoch>=Math.floor(at/86400000)}:review?{...i,final:true}:{...i}};
  return freeze({command,preview});
 }
 
@@ -76,6 +79,9 @@ export async function prepareOperatorCommand({principal,request,nowMs},crypto){
 export function dispatchOperatorCommand(repository,prepared){
  const command=prepared?.command;
  requireValue(command&&LOCAL_OPERATOR_COMMANDS.includes(command.operationKind),'This operator command is unavailable.');
+ if(command.operationKind===SEAL_COLLECTION_LIST){requireValue(typeof repository.sealList==='function','List seal is unavailable.');return repository.sealList(command);}
+ if(command.operationKind===SEAL_COLLECTION_SOURCE){requireValue(typeof repository.sealSource==='function','Source seal is unavailable.');return repository.sealSource(command);}
+ if(command.operationKind===MATERIALIZE_ELIGIBILITY_PAGE){requireValue(typeof repository.materializePage==='function','Eligibility index is unavailable.');return repository.materializePage(command);}
  if(command.operationKind===CONFIGURE_ACTION){requireValue(typeof repository.configureAction==='function','Action policy configuration is unavailable.');return repository.configureAction(command);}
  if(command.operationKind===BEGIN_COLLECTION_FREE_CUT){requireValue(typeof repository.beginCut==='function','Fixed-cut begin is unavailable.');return repository.beginCut(command);}
  if(command.operationKind===VALIDATE_COLLECTION_CUT_PAGE){requireValue(typeof repository.validatePage==='function','Fixed-cut page validation is unavailable.');return repository.validatePage(command);}

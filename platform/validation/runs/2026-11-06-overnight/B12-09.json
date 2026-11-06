@@ -1,0 +1,146 @@
+{
+  "task": "B12",
+  "slice": "B12-09",
+  "status": "verified-slice",
+  "baseCommit": "c02a47b",
+  "scope": [
+    "Private source/list sealing and eligibility indexing through exact named operator commands",
+    "Mandatory061source/index audits and read-only previews with unchanged historical business digests",
+    "Audit change keys namespace operation kind to permit stage/seal/index of same ID/key",
+    "Safe response and approval-packet projections omit wallet bounds, rawrecords and retained outcomes",
+    "Typed missing dependency holds; explicit trusted synthetic clocks in test adapters"
+  ],
+  "checks": {
+    "auditNode": "6PASS11888.1768ms work/b12-source-audit-node.log",
+    "compatibility": "16PASS24419.5464ms work/b12-source-compat.log; max3245records16299312rawbytes;112table populated recovery",
+    "legacy": "9substantive casesPASS work/b12-source-legacy-compat.log and work/b12-source-mint-fixture.log",
+    "sourceD1": "2PASS25896.1202ms work/b12-source-index-edge.log;20pairedsourcecalls max16SQL165750B24params;121134Broot;101walletindex20714B29params",
+    "boundary": "28PASS2865.6667ms work/b12-source-boundary.log",
+    "summary": "2PASS184.73ms work/b12-source-summary.log",
+    "heldDependencies": "10PASS28715.5182ms work/b12-source-held.log",
+    "recoveryNode": "11PASS67854.2603ms work/b12-source-cut-recovery.log",
+    "recoveryD1": "2PASS140584.2099ms work/b12-source-cut-recovery-d1.log",
+    "capacity": "1PASS228116.3024ms work/b12-source-capacity.log;30988rows327audits1161calls,max24operations89705Bbatch960482Bworking",
+    "types": "Edge and direct declarations PASS; diffcheckPASS",
+    "browser": {
+      "scope": "B12 private source seal/index UI; no record upload or activation",
+      "capturedAt": "2026-11-06T14:48:49.280154+00:00",
+      "sourceHashes": {
+        "platform/operator/ui.mjs": "ca9034b265f194bbc1f55dc53f28825cafe452614a276fddfc5e5b6ffe176a89",
+        "platform/operator/index.html": "8dc1e62caff06fdb9916a2f369423f664c593edee2856481c87610556d801174",
+        "platform/operator/approval-packet.mjs": "825392d7090becd86dbc68caf5cf593791e325ff84928c51708cccfd352f0fe6",
+        "platform/operator/approval-packet.test.mjs": "c5b420b89d391c7ed2871026237490cfab907631259cb1e6900783749ac00bd6",
+        "platform/operator/source-browser-qa.mjs": "676d04cc6f5ec48deaa81d41bd8722d6fc4104a3cad847a21063fcf19391662d"
+      },
+      "commands": [
+        "node platform/operator/source-browser-qa.mjs",
+        "node platform/operator/browser-qa.mjs",
+        "node --test platform/operator/approval-packet.test.mjs",
+        "node --check platform/operator/ui.mjs",
+        "node --check platform/operator/approval-packet.mjs",
+        "node --check platform/operator/source-browser-qa.mjs",
+        "git diff --check -- platform/operator/ui.mjs platform/operator/index.html platform/operator/approval-packet.mjs platform/operator/approval-packet.test.mjs platform/operator/source-browser-qa.mjs"
+      ],
+      "results": [
+        {
+          "log": "work/b12-source-final-source-browser-qa.log",
+          "result": {
+            "passed": true,
+            "widths": [
+              360,
+              390,
+              768,
+              1440
+            ],
+            "source": "synthetic-local-operator-fixture",
+            "clock": "actual Date.now and database execution-time fence",
+            "missingListClosure": "source-records-missing",
+            "missingSourceClosureHeld": true,
+            "previewReadOnly": true,
+            "noUploadControl": true,
+            "exactProjectedReceiptIdentity": true,
+            "originalOutputDigestRetained": true,
+            "readOnlyReceiptProjectionAfterRevocation": true,
+            "noPrivateWalletBoundsRecordsOrOutcomes": true,
+            "threeSafePacketDownloads": true,
+            "threeLostAckScopeRevokedReplays": true,
+            "negativeAlteredProjectionRetained": true,
+            "auditEvents": 3,
+            "noAdoptionPublicationOrFinancialEffects": true,
+            "readOnlyPermissions": true,
+            "financialExecution": false,
+            "screenshots": "work/b12-source-operator"
+          }
+        },
+        {
+          "log": "work/b12-source-final-browser-qa.log",
+          "result": {
+            "passed": true,
+            "widths": [
+              360,
+              390,
+              768,
+              1440
+            ],
+            "realCommandExecutions": 14,
+            "auditEvents": 10,
+            "newAuditEvents": 9,
+            "baselineAuditEvents": 1,
+            "previewReadOnly": true,
+            "localReviewPacketDownload": true,
+            "packetNoAuthorityOrPrivateData": true,
+            "packetDisabledAfterAttempt": true,
+            "negativeResponseLoss": true,
+            "exactRetryAfterReload": true,
+            "expiredSessionReauthentication": true,
+            "stablePrincipalRetry": true,
+            "differentPrincipalIsolation": true,
+            "negativeStalePreview": true,
+            "readOnlySession": true,
+            "auditedFinalReview": true,
+            "immutableReviewConflict": true,
+            "reviewExactReplay": true,
+            "confirmationRevisionBinding": true,
+            "negativePreviewMismatch": true,
+            "legacyReceiptReadOnly": true,
+            "missingLegacyReceiptHeld": true,
+            "keyboardFocus": true,
+            "logoutClearsPrivateState": true,
+            "financialExecution": false,
+            "screenshots": "work/b12-operator"
+          }
+        }
+      ],
+      "packetTests": {
+        "passed": 9,
+        "failed": 0,
+        "durationMs": 266.0758,
+        "log": "work/b12-source-packet.log"
+      },
+      "fixture": "Genuine pure synthetic inventory/stage/pending admission encoded through035codec and staged through actual source service, installed061audit; actual Date.now and database clock. Browser uses real loopback operator routes.",
+      "coverage": [
+        "Three named commands with exact{id} input and collection-import session/scope authorization",
+        "No upload controls or arbitrary dispatch",
+        "Missing records and missing sealed lists return exact202typed holds, with no confirmation journal",
+        "All three readonly safe previews at360/390/768/1440; no writes or disclosure of wallet bounds/arrays/recordbytes/outcomes",
+        "Three actual safe packet downloads; thirteen known commands covered by nine unit tests",
+        "Three actual commits and each lost-ack recovery after scope revoke; one altered source projection retains exact journal",
+        "Receipt projection safe-source-summary-v1 verified against reviewed value",
+        "Original outputDigest matches SHA of canonical original stored result; safe projection is not misrepresented as that preimage",
+        "Read-only receipt lookup after grant revocation preserves projection and original commitment",
+        "Only three seal/index audit events; no active inventory, authority, stage, adoption or tx intent",
+        "Read-only session disables forms; logout clears identifiers; existing operator session/review/staff/pause/download regression passes"
+      ],
+      "visualInspection": "work/b12-source-operator/seal-source-360.png; explicit false semantic/economic/provenance flags and no horizontal overflow",
+      "limitations": [
+        "Private record closure only; source declared state digest is not semantically verified",
+        "No economic/provenance authentication, source adoption, publication, live eligibility or financial execution",
+        "No files uploaded; earlier staging is fixture setup through the existing backend service"
+      ],
+      "ownership": "UI/index/packet+test/newsourcebrowser only; coordinator owns typed missing-dependency mapping and transport projection"
+    }
+  },
+  "financialExecution": false,
+  "migration": "061-collection-source-audit.sql",
+  "remaining": "Private source/cut record upload, fixture observations, remaining explicit publication lanes and final B12 acceptance matrix."
+}

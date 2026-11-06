@@ -64,6 +64,6 @@ test('missing or inconsistent cut/stage audit metadata, child rows and predecess
   }
   assert.ok(metadata.seq>1);
  }
- const unknown=corruptDriver(f,'app_command_receipts',rows=>{for(const r of rows)if(r.operation_kind==='collection.stage-record.v1'){const input=JSON.parse(r.input_json);input.audit=JSON.parse(f.db.prepare("SELECT input_json FROM app_command_receipts WHERE operation_kind='collection.stage-cut-record.v1' LIMIT 1").get().input_json).audit;r.input_json=canonicalJson(input);}});
+ const unknown=corruptDriver(f,'app_command_receipts',rows=>{for(const r of rows)if(r.operation_kind==='collection.stage-record.v1'){r.operation_kind='unknown.operator.v1';const input=JSON.parse(r.input_json);input.audit=JSON.parse(f.db.prepare("SELECT input_json FROM app_command_receipts WHERE operation_kind='collection.stage-cut-record.v1' LIMIT 1").get().input_json).audit;r.input_json=canonicalJson(input);}});
  await assert.rejects(check(f,{driver:unknown}),/unsupported audited kind/);
 });
