@@ -1,0 +1,89 @@
+{
+  "checkpoint": "B11-68",
+  "title": "Durable pre-adoption observation current-state integration",
+  "status": "verified-partial-isolated-original-mint-prerequisite",
+  "lastConfirmedBaseCommit": "944a876375f0669e979d3e960b5708c5449349f9",
+  "implementationCommit": null,
+  "schemaThrough": 55,
+  "businessTables": 112,
+  "mainDispatchChanged": false,
+  "financialExecution": false,
+  "fullRecoveryReadiness": false,
+  "source": "synthetic-genuine-prepared-activated-precut-and-postcut041-fresh-Node-D1-R2",
+  "prerequisite": "explicit synthetic target original-mint proof isolates current orchestration; source preparation and activation genuine",
+  "helperCheckpoint": "B11-66-precut-observation-recovery.json",
+  "checks": [
+    {
+      "command": "node --test platform/recovery/v2-reconcile-precut-current.test.mjs platform/recovery/v2-reconcile-observed-current.test.mjs platform/recovery/v2-reconcile-legacy-current.test.mjs",
+      "passed": 5,
+      "failed": 0,
+      "durationMs": 177439.2651,
+      "log": "work/b11-precut-integration-node-first.log"
+    },
+    {
+      "command": "node --test platform/edge/test/recovery-precut-current.test.mjs platform/edge/test/recovery-observed-current.test.mjs",
+      "passed": 2,
+      "failed": 0,
+      "durationMs": 140775.7634,
+      "log": "work/b11-68-edge-first.log"
+    },
+    {
+      "command": "node platform/edge/node_modules/typescript/bin/tsc --noEmit --project platform/edge/tsconfig.json",
+      "result": "pass",
+      "log": "work/b11-68-types.log"
+    },
+    {
+      "command": "scoped git diff --check and five source LF/noBOM/trailing-whitespace checks",
+      "result": "pass"
+    }
+  ],
+  "measurements": {
+    "node": {
+      "maxSemanticSqlAndObjectOperations": 24,
+      "maxWorkingBytes": 487436,
+      "maxCheckpointBytes": 88227,
+      "note": "Node callback counts semantic reads; actual full invocation measured by D1 worker below"
+    },
+    "d1": {
+      "maxFullInvocationOperations": 34,
+      "maxWorkingBytes": 487850,
+      "maxBatchBytes": 103224,
+      "maxCheckpointBytes": 88365
+    }
+  },
+  "limits": {
+    "operations": 64,
+    "workingBytes": 1048576,
+    "batchBytes": 262144,
+    "checkpointBytes": 131072,
+    "precutContextBytes": 16384
+  },
+  "acceptance": [
+    "private pre-cut contexts retained only through existing restore CAS",
+    "omitted nonce clear rolls back context",
+    "lost committed acknowledgement replays accepted context",
+    "stale input cannot advance context twice",
+    "omitted final current proof rolls back cursor and context",
+    "final proof commits pre-cut chain and actual final raw graph",
+    "pre/post/legacy coverage exact",
+    "zero later-event profile still compares actual raw rows and coverage",
+    "existing54 legacy and58 post-cut current semantics pass",
+    "no-precut current proof preimages unchanged",
+    "target remains restoring and financial intents zero"
+  ],
+  "sourceHashes": {
+    "platform/recovery/v2-reconcile-legacy-current.mjs": "c20282677135ff4f05bd7d899320be42698cc23276f1f1c472a1d82d1548494e",
+    "platform/recovery/v2-reconcile-precut-current.test.mjs": "95c53a73ba4945b6f6431d582708d43dd48dac4a4b6d479fb3c734f186aa6bc2",
+    "platform/edge/test/recovery-precut-current.test.mjs": "0918a75f329ed4d824a9e2238ac7a26cd0d3bf4aff82ae147f10d2dee3f27682",
+    "platform/edge/test/fixtures/recovery-precut-current-worker.ts": "7b066fb2da77fdf6c19d6cf20855f145127cca32e939e0d2686bc088807f2cc4",
+    "platform/recovery/PRECUT_CURRENT_INTEGRATION.md": "ac5965be97472ffd65c2b2290a867d58b82f20a26515ee106b732c6e1f27d1af"
+  },
+  "frozenHelperHashes": {
+    "platform/recovery/v2-legacy-precut-observations.mjs": "493921f496f8f3e07c3a03c6c1ee170e1491b11f65e8c19834a9f5f18ef9cfde",
+    "platform/recovery/v2-legacy-precut-observations.d.mts": "6ae9f9e2daac2086c9ebdf6da590aa6dbc7782eab8ad3f364d398d5b517fdc7c"
+  },
+  "schemaHashes": {
+    "platform/storage/054-collection-legacy-adoption.sql": "5f82a5fafe536c65b9889ec05c6ea4986b1323db17067ceb99104f0a61a7620e",
+    "platform/storage/055-collection-imported-admission.sql": "0ed9b1b39bed9efee13bc739a48cdd7748d9dd1726e3869ae6f5dbbbf504b750"
+  }
+}
