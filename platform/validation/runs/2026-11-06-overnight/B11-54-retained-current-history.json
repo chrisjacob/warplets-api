@@ -1,0 +1,54 @@
+{
+  "task": "B11",
+  "slice": "B11-54 retained unchanged legacy current history",
+  "status": "verified-private-adapter; not dispatched; B11 partial",
+  "recordedAt": "2026-11-06T10:19:12.727889+00:00",
+  "baseCommit": "2e52faf9bdddf1ade30f43da6d73ffc1b9a5f439",
+  "sourceHashes": {
+    "platform/recovery/v2-legacy-current-history.mjs": "a19cffa5710bb07a818d68d18eccd4751c12a4522e4f6355ddbbda87d946df7b",
+    "platform/recovery/v2-legacy-current-history.test.mjs": "0bbd151bfd0709e4efe9e42522b002aa351c5bfbfc7a87e9f40f1e39e75298e9",
+    "platform/recovery/v2-reconcile-legacy-current.mjs": "85789134d0118c3d6b720e6d8438356055f62f7d97f4f74474954e5e57e740b4",
+    "platform/recovery/v2-reconcile-legacy-current.test.mjs": "a951b0291fad851c9e4c0d2f3e71af5810dea330773f74bf882159913ad4188c",
+    "platform/edge/test/fixtures/recovery-legacy-current-worker.ts": "a940f5cbb4283a4cc81bec2fdb5dffc00a1211dd1b8d0134dbf2e4dd34634946",
+    "platform/edge/test/recovery-legacy-current.test.mjs": "e1238141d09ba1349a3a3767aa36f6b769eeb92c1cdc1158d86bb62488ec186e"
+  },
+  "checks": [
+    {
+      "command": "node --test platform/recovery/v2-legacy-current-history.test.mjs platform/recovery/v2-reconcile-legacy-current.test.mjs",
+      "passed": 2,
+      "failed": 0,
+      "durationMs": 41423.0435,
+      "log": "work/b11-54-current-final-node.log"
+    },
+    {
+      "command": "node --test platform/edge/test/recovery-legacy-current.test.mjs",
+      "passed": 1,
+      "failed": 0,
+      "durationMs": 101006.6528,
+      "log": "work/b11-54-current-edge.log",
+      "note": "Before final input-cloning and default callback type annotation; final Node tests include these hardening edits."
+    }
+  ],
+  "measurements": {
+    "nodeCurrentMaximumWorkingBytes": 345856,
+    "nodeCurrentMaximumReadSql": 16,
+    "workingLimitBytes": 1048576,
+    "sourceObjectsInFreshD1Restore": 172
+  },
+  "verified": [
+    "Original traits digest, slot, expiry, bind and initial level history",
+    "Legacy transfer/reveal pairing, unique equal-time owner chains, final owner/version/clocks",
+    "Missing prerequisite proof and corrupted owner hold",
+    "Omitted current proof rolls back atomically",
+    "Mutation during reads holds",
+    "Fresh private Node and D1 restore targets retain restoring state"
+  ],
+  "limitations": [
+    "Tests explicitly inject a synthetic original-mint prerequisite proof; no claim of original-mint semantic recovery.",
+    "No main recovery dispatch integration yet.",
+    "Modern041 events, progressions, Vault claims and unresolved conflicts explicitly hold.",
+    "Completion moves only to pending closure phase, never ready.",
+    "Current helper compares accepted adoption-cut current commitment; later accepted commands require replay integration."
+  ],
+  "financialExecution": false
+}
