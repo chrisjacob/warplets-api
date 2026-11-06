@@ -52,7 +52,7 @@ export async function prepareNormalizedMintAdmission(value,crypto){
  fail(exact(c.input,c.principal?.kind==='operator'?['kind','inventoryId','stageId','expectedTermsDigest','wallet']:['kind','inventoryId','stageId','expectedTermsDigest'])&&c.input.kind==='mint'&&c.input.inventoryId===a.inventoryId&&c.input.stageId===s.id&&c.input.expectedTermsDigest===s.termsDigest,'mint-command-binding');
  const owner=c.principal?.kind==='wallet'?c.principal.wallet:c.input.wallet;wallet(owner);
  fail(c.principal?.kind==='wallet'&&s.type!=='founder'||c.principal?.kind==='operator'&&id(c.principal.id)&&s.type==='founder','mint-principal-lane');
- fail(s.type!=='free','mint-free-cut-pending');
+ if(s.type==='free'){const cut=f.freeCut;fail(cut&&exact(cut,['inventoryId','stageId','atMs','termsDigest','listId'])&&a.kind==='season'&&cut.inventoryId===a.inventoryId&&cut.stageId===s.id&&cut.atMs===s.opensAt&&cut.termsDigest===s.termsDigest&&hash(cut.listId)&&f.membership.sourceId===cut.listId,'mint-free-cut-pending');}
  fail(a.kind!=='genesis'||s.walletLimit===1,'mint-genesis-wallet-limit');
  fail(a.kind!=='season'||a.seasonStart<=c.nowMs,'mint-before-season');opening(a,f.opening,c.nowMs);
  fail(exact(f.membership,['wallet','stageId','eligible','sourceId'])&&f.membership.wallet===owner&&f.membership.stageId===s.id&&typeof f.membership.eligible==='boolean','mint-membership-binding');

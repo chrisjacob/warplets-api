@@ -1,0 +1,56 @@
+{
+  "taskId": "B11",
+  "substep": "private fixed-cut Season mint admission and bounded eligibility reads",
+  "baseCommit": "5b9d12113bea956a8cdc5a16313d4d6acf9482df",
+  "implementationCommit": null,
+  "status": "verified-private-slice",
+  "fixtureClassification": "synthetic local only; no payment, transaction or custody authority",
+  "commands": [
+    {
+      "command": "node --test platform/collect/free-mint.test.mjs",
+      "exitCode": 0,
+      "tests": 5,
+      "durationMs": 6500.6936
+    },
+    {
+      "command": "node --test platform/collect/mint-plan.test.mjs platform/collect/mint-repository.test.mjs platform/collect/inventory-read-model.test.mjs",
+      "exitCode": 0,
+      "tests": 22,
+      "durationMs": 31098.3462
+    },
+    {
+      "command": "node --test platform/edge/test/collection-free-mint.test.mjs",
+      "exitCode": 0,
+      "tests": 1,
+      "pairedCalls": 9,
+      "concurrentCalls": 2,
+      "durationMs": 25755.4932
+    },
+    {
+      "command": "node platform/edge/node_modules/typescript/bin/tsc --noEmit -p platform/edge/tsconfig.json",
+      "exitCode": 0
+    }
+  ],
+  "measuredD1": {
+    "maxStatements": 24,
+    "maxBatchBytes": 6873,
+    "maxResultBytes": 3104
+  },
+  "financialExecution": false,
+  "unresolved": [
+    "Historical fixed-cut semantic recovery revalidation is a separate B11 slice; v1 exact-record restore/replay passes",
+    "Public/member reviewed terms HTTP and browser/session acceptance",
+    "Safe legacy authority adoption"
+  ],
+  "sourceHashes": {
+    "platform/storage/049-collection-free-mint.sql": "26b9a8f6403a77d410eb18d4bd29a077471784c744d63e61aee55f2838b457a6",
+    "platform/collect/mint-plan.mjs": "eaa19c09368a19c1f271bf26868a60c935ea3daf85721ea6df2626ed46814380",
+    "platform/collect/mint-plan.d.mts": "ba1faeb9715203d91cda15a8111e6dc992e324da0c9378587611bc7cd50d3a8f",
+    "platform/collect/mint-repository.mjs": "507a4c86e9642ee280094c64c3bd11170934bec73a9c76d6ad5b350817f5c842",
+    "platform/collect/inventory-read-model.mjs": "8c1a564d07de5ab32d77e1316b43611ce0d4ac4586828e1331502bea9a9c9235",
+    "platform/collect/free-mint.test.mjs": "87ad29ca790de368993539b9a7dcb1ff3085d26ffe4bcf983a5d7b43477f58a7",
+    "platform/edge/test/collection-free-mint.test.mjs": "5288970d253a047bba5dfc8a2005108161e76b39ac3337cf62f6bbcc8b6288c1",
+    "platform/collect/FREE_MINT.md": "5f35de26d633b81704303625586191568afb7193a49dc208021c9a97c8d5ced2"
+  },
+  "recordedAt": "2026-11-06T04:30:41.663876+00:00"
+}

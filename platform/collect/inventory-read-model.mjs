@@ -27,9 +27,12 @@ const contextSql=`WITH h AS (
  FROM collect_inventories c LEFT JOIN app_collection_authorities a ON a.inventory_id=c.id WHERE c.id=?
 ), stages AS (
  SELECT s.ordinal,s.stage_id,CASE WHEN length(CAST(s.terms_json AS BLOB))<=8192 THEN ${publicTerms('s.terms_json')} END terms,
- s.eligibility_kind,s.list_id,
- CASE WHEN s.eligibility_kind='list' THEN EXISTS(SELECT 1 FROM app_collection_list_seals l JOIN json_each(l.page_ids_json) p JOIN app_collection_eligibility_pages e ON e.record_id=p.value JOIN json_each(e.entries_json) w WHERE l.id=s.list_id AND w.value=?) ELSE 0 END member
- FROM app_collection_stages s JOIN h ON h.id=s.inventory_id WHERE h.normalized IS NOT NULL
+ CASE WHEN c.list_id IS NOT NULL THEN 'list' ELSE s.eligibility_kind END eligibility_kind,COALESCE(c.list_id,s.list_id) list_id,
+ CASE WHEN s.eligibility_kind='list' OR c.list_id IS NOT NULL THEN EXISTS(SELECT 1 FROM app_collection_list_seals l JOIN json_each(l.page_ids_json) p JOIN app_collection_eligibility_pages e ON e.record_id=p.value JOIN json_each(e.entries_json) w WHERE l.id=COALESCE(c.list_id,s.list_id) AND w.value=?) ELSE 0 END member
+ FROM app_collection_stages s JOIN h ON h.id=s.inventory_id
+ LEFT JOIN app_collection_free_cuts c ON c.inventory_id=s.inventory_id AND c.stage_id=s.stage_id AND h.kind='season' AND s.stage_type='free' AND s.eligibility_kind='pending' AND s.list_id IS NULL AND c.cut_ms=s.opens_ms
+ AND EXISTS(SELECT 1 FROM app_collection_cut_records cr JOIN app_collection_list_seals l ON l.id=c.list_id AND l.member_count=c.eligible_count WHERE cr.id=c.root_id AND cr.format='collection-cut-root-v1' AND json_extract(cr.body_json,'$.inventoryId')=s.inventory_id AND json_extract(cr.body_json,'$.stageId')=s.stage_id AND json_extract(cr.body_json,'$.termsDigest')=s.terms_digest AND json_extract(cr.body_json,'$.atMs')=s.opens_ms AND json_extract(cr.body_json,'$.eligibilityListId')=c.list_id)
+ WHERE h.normalized IS NOT NULL
  UNION ALL
  SELECT CAST(e.key AS INTEGER),json_extract(e.value,'$.id'),CASE WHEN length(CAST(json_remove(e.value,'$.wallets') AS BLOB))<=8192 THEN ${publicTerms('e.value')} END,
  CASE WHEN json_extract(e.value,'$.type')='public' THEN 'unrestricted' WHEN json_type(e.value,'$.wallets')='null' THEN 'pending' ELSE 'list' END,NULL,

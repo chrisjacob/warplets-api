@@ -25,6 +25,7 @@ export interface NormalizedMintAdmissionFacts {
  readonly sourceKind:'synthetic-local-operator-fixture';readonly stageAdmissionCount:number;
  readonly walletAdmissionCount:number;readonly founderSpentLamports:string;readonly commitmentUsed:boolean;
  readonly membership:{readonly wallet:string;readonly stageId:string;readonly eligible:boolean;readonly sourceId:string|null};
+ readonly freeCut?:{readonly inventoryId:string;readonly stageId:string;readonly atMs:number;readonly termsDigest:string;readonly listId:string}|null;
  readonly opening:NormalizedMintOpening|null;readonly fairPolicy:MintFairPolicy|null;
 }
 type MemberMintCommand={readonly operationKind:'collection.reserve-operation.v1';readonly principal:{readonly kind:'wallet';readonly wallet:string};readonly nowMs:number;readonly input:{readonly kind:'mint';readonly inventoryId:string;readonly stageId:string;readonly expectedTermsDigest:string}};
