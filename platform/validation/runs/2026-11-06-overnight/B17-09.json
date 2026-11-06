@@ -1,0 +1,60 @@
+{
+  "milestone": "B17 normalized progression fairness disclosure",
+  "status": "partial-profile-verified",
+  "baseCommit": "a33a6d2",
+  "checks": [
+    {
+      "command": "node --test platform/collect/fairness-progression.test.mjs platform/collect/fairness-repository.test.mjs",
+      "passed": 8,
+      "durationMs": 9823.1697,
+      "log": "work/b17-progression-fairness.log"
+    },
+    {
+      "command": "node --test platform/collect/fairness-progression.test.mjs",
+      "passed": 3,
+      "durationMs": 3672.4529,
+      "log": "work/b17-progression-fairness-final.log",
+      "note": "Final additional original input/result/effect lineage checks"
+    },
+    {
+      "command": "node --test platform/edge/test/progression-fairness.test.mjs",
+      "passed": 1,
+      "durationMs": 61965.4881,
+      "log": "work/b17-progression-fairness-d1-final.log",
+      "scope": "Actual guarded D1 reservation/evidence/fulfillment, pinned BLS, upgrade and visual parity, read-only retry, post-BLS mutation hold"
+    },
+    {
+      "command": "edge TypeScript noEmit",
+      "passed": true
+    }
+  ],
+  "bounds": {
+    "statements": 9,
+    "maxBatchBytes": 2361,
+    "maxResultBytes": 6723,
+    "serializedWorkingBytes": 48205
+  },
+  "assertions": [
+    "No transcript before irreversible assignment",
+    "Original040 reservation and042 fulfillment command digests/participants/effects verified",
+    "Both upgrade participants must remain revealed consistently with original accepted effects",
+    "Visual and upgrade replay existing pinned beacon algorithm with no new entropy",
+    "Manual fixtures remain sealed",
+    "Owner isolation, changed source and corrupted receipt cannot disclose"
+  ],
+  "limitations": [
+    "Guarded local fixture lineage, not production payment/order or custody authority",
+    "Original public reveal facts are retained in committed progression effects; no live owner/proof claim",
+    "Future reserved map withheld; full policy closure remains trusted retained-policy precondition",
+    "HTTP/browser integration acceptance tracked separately"
+  ],
+  "sourceHashes": {
+    "platform/collect/fairness-progression-reader.mjs": "4926cffab2dcbc824e9d7c13c4191b62700b9efefd189342dea5c36689273969",
+    "platform/collect/fairness-progression.fixtures.mjs": "286a69c336a5a128f7903c534929055701f37313f7d202c4de9c7cbcec330b99",
+    "platform/collect/fairness-progression.test.mjs": "a8294412f4639e9d0717db18824dae9bdce58d630fec5e7942c177e836a65057",
+    "platform/collect/fairness-repository.mjs": "ecb213f7c1be8915261b29fc67bd8f9d87a205f5ee7de41d48df972ffff91e3b",
+    "platform/edge/test/progression-fairness.test.mjs": "91d717eb6e00863d330477611123a1d6615aee2583d34a91b2219fc435a0c181",
+    "platform/edge/test/fixtures/progression-fairness-worker.ts": "3cca6954ed94b18aec4684fd7ecb70e29c33ea17183d089b77fd6f6d1deddf63"
+  },
+  "financialExecution": false
+}
