@@ -1,0 +1,71 @@
+{
+  "task": "B11",
+  "slice": "B11.25 bounded historical legacy stage publication preimage audit",
+  "status": "verified-pure-audit-contract; B11 remains partial",
+  "baseCommit": "4ad499b6a7565b64ee11272d9dda6b388b6b937d",
+  "implementationCommit": null,
+  "recordedAt": "2026-11-06T04:59:51.266Z",
+  "sourceHashes": {
+    "platform/collect/legacy-stage-audit.mjs": "5b9a9da840603dcd2985a84d3aa6f6b5436c3ffdac41397f53375ce80f0b87b6",
+    "platform/collect/legacy-stage-audit.d.mts": "75aa33a72fb26a8c3acf921ea214927de0fa5e354fdb3f8550c448c49d8e3485",
+    "platform/collect/legacy-stage-audit.test.mjs": "406c0926bb6c9f5dc849a9d3224ddc2200a7ac974fb46108f13ebc72e80ac433",
+    "platform/collect/legacy-stage-audit.README.md": "c67b09ce5d0c638c8f1d665c468549f489a1f58a9ae944e4568db39e72e2c0ad"
+  },
+  "checks": [
+    {
+      "command": "node --test platform/collect/legacy-stage-audit.test.mjs",
+      "result": "PASS",
+      "tests": 9,
+      "durationMs": 9637.4068,
+      "log": "work/b11-legacy-stage-audit.log"
+    },
+    {
+      "command": "node platform/edge/node_modules/typescript/bin/tsc --noEmit --strict --skipLibCheck --module esnext --moduleResolution bundler --target es2022 platform/collect/legacy-stage-audit.d.mts",
+      "result": "PASS",
+      "log": "work/b11-legacy-stage-audit-types.log"
+    },
+    {
+      "command": "git diff --check -- platform/collect/legacy-stage-audit.mjs platform/collect/legacy-stage-audit.d.mts platform/collect/legacy-stage-audit.test.mjs platform/collect/legacy-stage-audit.README.md",
+      "result": "PASS"
+    }
+  ],
+  "maximum": {
+    "classification": "synthetic reference publication + actual sealed/indexed035 list; no activation",
+    "operations": 10,
+    "maxRows": 1000,
+    "chunkReads": 10,
+    "wallets": 10000,
+    "hashedBytes": 954818,
+    "maxWorkingBytes": 276657
+  },
+  "acceptance": [
+    "Exact existing ordered terms hash matches real reference-store Genesis whitelist/public/founder and Season paid/free/public/founder publications.",
+    "Null/default/zero/large original wallet limits and discarded founderApproved are not inferred from normalized stored fields; wrong preimage with identical scalar output holds.",
+    "Raw original order and duplicates are correctly recognized as uncommitted presentation: old store hash sorts/deduplicates; changed members, unsorted/duplicate stream entries, short chunks and bad metadata hold.",
+    "Explicit sealed empty original list succeeds; missing original header/list and unavailable native digest hold.",
+    "Original free-stage publication list remains unchanged before/after a different fixed-cut list; returned free membership always requires separate audit.",
+    "Maximum10000 wallets use actual035 staged/sealed records and038 immutable SQL indexes with10 chunk queries and at most1000 rows per query.",
+    "Bounded header/list/scalar projections and each wallet chunk are defensively copied before injected awaits.",
+    "Partial reader/native write failures abort both streams and cannot certify a prefix; even synchronous abort failure is contained.",
+    "Existing reducer is reused for exact scalar output, with isolated empty wallet sentinel; actual list membership commitment verified separately."
+  ],
+  "semantics": {
+    "runtimeFullListClone": false,
+    "rawStateMutation": false,
+    "nativeDigestPort": "fresh injected write/finish/abort; reuses existing Node/Worker recovery adapters without importing either implementation",
+    "workingBudgetBytes": 1048576,
+    "chunkWallets": 1000,
+    "maxChunkReads": 10,
+    "rawStateDigestVerified": false,
+    "chainProvenanceVerified": false,
+    "sqlSourceCompletenessVerified": false,
+    "publicationOrActivationAuthorized": false,
+    "financialExecution": false
+  },
+  "remaining": [
+    "No guarded SQL adapter/source watermark fence, audit persistence, recovery linkage or activation exists in this slice. Future adapter must independently prove immutable raw/index/seal closure and whole-call≤64SQL.",
+    "Actualworkerd integration for this helper remains future work; current conformance is reference Node with trusted native streaming digest.",
+    "Free-cut membership, initial raw-state relation, complete canonical stateDigest, admission/economic/fairness/history closure and legacy activation require separate audits.",
+    "Original input types outside the bounded canonical typed contract are held rather than coerced or fabricated."
+  ]
+}
