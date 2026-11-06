@@ -1,0 +1,27 @@
+{
+  "milestone": "Private Vault liability artifact persistence",
+  "status": "partial-component-verified",
+  "baseCommit": "b410c9e",
+  "checks": [
+    {
+      "command": "node --test platform/vault/archive.test.mjs platform/vault/manifest.test.mjs platform/validation/gates.test.mjs platform/validation/recorded-gates.test.mjs",
+      "passed": 9,
+      "failed": 0,
+      "durationMs": 247.5425
+    }
+  ],
+  "sourceHashes": {
+    "platform/vault/archive.mjs": "661ad033b1709b911059b9fd3a8713392bed3b795cb1bb7af1de963b886d165f",
+    "platform/vault/archive.test.mjs": "510002ca44c8e4be0e719491ebef56420ae974117ffbabcec407b7b22edf5ab7"
+  },
+  "assertions": [
+    "Unknown PUT acknowledgement retries identical byte identity",
+    "Restart reader verifies independent byte digest, size, inventory and market pins",
+    "Missing objects remain pending; corrupt bytes and changed scope reject"
+  ],
+  "limitations": [
+    "Liability component only, not binding/claim history restoration",
+    "Full v2 inventory composition and empty database restore acceptance still required"
+  ],
+  "financialExecution": false
+}

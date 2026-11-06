@@ -1,3 +1,9 @@
+# Latest B19 checkpoint: private liability persistence
+
+archive.mjs now saves and independently restores the PRIVATE liability component through ArtifactStore. Unknown writes retry identical bytes; missing objects stay pending; corrupted bytes and changed market/inventory pins reject. Nine focused tests pass247.5425ms; B19-05. Earlier source-report SHA was checked against actual committed blob and working bytes: identical12617bytes, no line-ending portability difference.
+
+Next: complete v2 recovery inventory composition with retained bindings/transfers/cumulative claims, then empty-database restore acceptance. This component explicitly lacks claim history and does not grant ownership/claim authority. Existing recovery/v2-codec.mjs verifyRoot and v2 capture/restore should be reused; do not regress to aggregate v1 recovery or increase checkpoint bounds. All118tables already retained. Full B19, B18 and B20-full remain unfinished. B17CI42308923046 still in reference checks. Usage99%; continue to exhaustion as user authorized.
+
 # Latest B19 checkpoint: compact liability component
 
 platform/vault/manifest.mjs now creates and verifies canonical byte-pinned PRIVATE liability components, max64KiB/12Seasons. Complete10000 Genesis reserves are represented by fixed quotas and cumulative-range arithmetic; all1000 positions perSeason remain in original launch snapshots. Eleven tests with economics pass214.3915ms; contract check passes. EvidenceB19-04. Inventory commitment remains explicitly unverified-reference, claimHistoryIncluded=false, bindingAuthority=false. This is not a complete archive or restore. Next compose inventory identity and binding/transfer/cumulative-claim history, independently verify all bytes and restore into empty local database. No migration added. B17CI42308923046 active in reference stage; B00-B16 verified. Usage99%, continue as authorized.
