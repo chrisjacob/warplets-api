@@ -5,9 +5,9 @@
   "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
   "currentTask": "B11",
-  "lastUpdatedAt": "2026-11-06T03:43:14.199822+00:00",
+  "lastUpdatedAt": "2026-11-06T04:08:31.176171+00:00",
   "migrationAllocation": {
-    "next": 48,
+    "next": 49,
     "reserved": [
       {
         "version": 31,
@@ -93,6 +93,11 @@
         "version": 47,
         "task": "B11",
         "purpose": "bounded immutable Season free-stage ownership-cut validation and fixed eligibility binding; draft design pending"
+      },
+      {
+        "version": 48,
+        "task": "B11",
+        "purpose": "bounded private recovery fragments for valid oversized fair_inventories policy rows; design pending, control storage only"
       }
     ],
     "historicalGap": 19
@@ -255,7 +260,7 @@
       "status": "in_progress",
       "owner": "coordinator",
       "baseCommit": "96cdfa1fb6334fcb27deb831d786243227b9d1a8",
-      "implementationCommit": "8257b95db1db899e5e498123f8032b35b5cc85ce",
+      "implementationCommit": "b260efe635c3a7bdb9aaee8250490b1dcea701df",
       "pushed": true,
       "evidence": [
         "platform/validation/runs/2026-11-06-overnight/B11-1.json",
@@ -275,9 +280,10 @@
         "platform/validation/runs/2026-11-06-overnight/B11-14-capture.json",
         "platform/validation/runs/2026-11-06-overnight/B11-15-mint-admission.json",
         "platform/validation/runs/2026-11-06-overnight/B11-16-inventory-reads.json",
-        "platform/validation/runs/2026-11-06-overnight/B11-17-mint-fulfillment.json"
+        "platform/validation/runs/2026-11-06-overnight/B11-17-mint-fulfillment.json",
+        "platform/validation/runs/2026-11-06-overnight/B11-18-free-cut.json"
       ],
-      "nextAction": "Commit/push tested046 fulfillment and follow CI; continue047 bounded free-cut workflow and v2restore maximum-capacity reconciliation. Inventory8257b95 CI42157017126 passed. B11 remains partial.",
+      "nextAction": "Checkpoint047 and follow CI; then checkpoint frozen B11-19 restore with workflow timeout30min. Implement048 bounded fair-policy fragments from draft; current311KiB capture gap explicit. Free admission/read activation and safe populated legacy adoption remain unfinished.",
       "blocker": null
     },
     "B12": {

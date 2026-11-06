@@ -1,0 +1,144 @@
+{
+  "task": "B11",
+  "checkpoint": "B11-18-free-cut",
+  "status": "locally-verified-fixed-cut-binding-partial-B11",
+  "implementationCommit": null,
+  "lastTestedBase": "b260efe635c3a7bdb9aaee8250490b1dcea701df",
+  "installedMigration": 47,
+  "financialExecution": false,
+  "publicRouteMounted": false,
+  "freeMintAdmissionEnabled": false,
+  "sourceKind": "synthetic-local-operator-fixture",
+  "commitmentKind": "paged-fixed-cut-v1",
+  "legacyFlatDigestClaimed": false,
+  "verification": [
+    {
+      "command": "node --test platform/collect/free-cut-codec.test.mjs platform/collect/free-cut-repository.test.mjs platform/collect/free-cut-recovery.test.mjs",
+      "tests": 16,
+      "passed": 16,
+      "failed": 0,
+      "durationMs": 23655.2419,
+      "log": "work/b11-free-cut-node-final.log"
+    },
+    {
+      "command": "node --test platform/edge/test/collection-free-cut.test.mjs",
+      "tests": 2,
+      "passed": 2,
+      "failed": 0,
+      "durationMs": 129522.3408,
+      "log": "work/b11-free-cut-edge-final.log"
+    },
+    {
+      "command": "node platform/edge/node_modules/typescript/bin/tsc --project platform/edge/tsconfig.json --noEmit",
+      "result": "pass",
+      "log": "work/b11-free-cut-types.log"
+    },
+    {
+      "command": "git diff --check",
+      "result": "pass"
+    }
+  ],
+  "normalTranscript": {
+    "pairedNodeD1Calls": 15,
+    "maxSqlStatements": 22,
+    "maxBatchBytes": 5333,
+    "maxParameters": 39,
+    "maxResultBytes": 1289
+  },
+  "capacity": {
+    "holdings": 10000,
+    "knownGenesisWithRetainedOwnerReveal": 100,
+    "externalSyntheticAdditions": 9900,
+    "realNodePageCommands": 100,
+    "retainedNodeChecksInD1Fixture": 99,
+    "actualD1MaximumPageCommands": 1,
+    "actualD1FinalSealCommands": 1,
+    "eligibleWallets": 10000,
+    "nodePage": {
+      "maxStatements": 22,
+      "maxAggregateReadBytes": 96526,
+      "maxBatchBytes": 73474
+    },
+    "nodeSeal": {
+      "statements": 19,
+      "aggregateReadBytes": 581052,
+      "maxBatchBytes": 41878
+    },
+    "d1Page": {
+      "statements": 22,
+      "maxBatchBytes": 64447,
+      "maxParameters": 39,
+      "maxResultBytes": 38471
+    },
+    "d1Seal": {
+      "statements": 19,
+      "maxBatchBytes": 41796,
+      "maxParameters": 35,
+      "maxResultBytes": 541369
+    },
+    "pureMaximum": {
+      "pages": 100,
+      "maxPageBytes": 24759,
+      "rootBytes": 36180,
+      "finalSummaryBytes": 536491
+    }
+  },
+  "recovery": {
+    "businessTables": 108,
+    "cutRecords": 2,
+    "attempts": 1,
+    "pageValidations": 1,
+    "freeCuts": 1,
+    "originalReceiptsRetained": true,
+    "heldTargetRejectsNewCutRecords": true,
+    "acceptedReplayAfterRevocationAndSourceObjectLoss": true
+  },
+  "coverage": [
+    "strict immutable canonical JSON/bytehash formats",
+    "first/between/tail/empty interval omission checks",
+    "retained owner/reveal/Level and local collection/bind matching",
+    "source frozen after all pages/list staged and indexed",
+    "source mutations require a new attempt",
+    "all four missing-child transactions rollback",
+    "independent mandatory SQL rejects omitted known-owner read results",
+    "bounded SQL scalar owner projection excludes unrelated JSON",
+    "malformed/oversized/wrong-time evidence holds",
+    "operating pause holds new work but preserves accepted replay",
+    "concurrent page/seal one accepted receipt",
+    "complete10k eligibility set equals independently sealed/indexed list",
+    "no mutation to published stage terms or legacy snapshots"
+  ],
+  "limitations": [
+    "synthetic transcript closure does not prove external chain completeness/finality",
+    "normalized free mint membership/read activation remains held until separate tested integration",
+    "no public cut route",
+    "coordinator broad regression and CI pending"
+  ],
+  "sourceHashes": {
+    "platform/collect/free-cut-capacity-fixture.mjs": "1d12dcf946b4e261d8d5a1835cd9fcca91fd9f4ee9b6de580c22301fd793613e",
+    "platform/collect/free-cut-codec.d.mts": "a9768b2856269ba1c160f4be3ff68971dcb839eef86e0ee1bae1f2d87f6fc3ab",
+    "platform/collect/free-cut-codec.mjs": "09c8e80ff67bf05682d56794bd8583847f48981e7f8250fae7e0c54f49e258c8",
+    "platform/collect/free-cut-codec.test.mjs": "e1308d2a03e2905876c364a3a67a68089e6702359782b27b4e37cf7d576f2feb",
+    "platform/collect/free-cut-recovery.test.mjs": "1c8a62dcb1d675aa2bc178ca88b8f98a326d7fbdd2b7888848109851f2de0391",
+    "platform/collect/free-cut-repository.d.mts": "780085f94e624adb00bb3396451d0f55d14fa1d4d8db2cc90ee1aca39ff93d5a",
+    "platform/collect/free-cut-repository.mjs": "53e9e52d463b501e01e382d7fdb30c39276ac8eb9e925516ce895119afc51f9a",
+    "platform/collect/free-cut-repository.test.mjs": "c846ca4723285fc18b0545ab8cf8cb966ae292da2878ccb29c5618da9348df34",
+    "platform/collect/free-cut-service.d.mts": "8dfdb80282c6dbf901981da229b93e9320c1b61d984d8642efda5739177686e4",
+    "platform/collect/free-cut-service.mjs": "1a32d8f53ccceeac5c91be077a058b006aca2aaede3ed7f6e0292f04a73ce75f",
+    "platform/collect/free-cut-test-fixture.mjs": "5198162e8a425b34dc47acee1a7d5ecfe3ca89b09f825846e3683c1b899762f0",
+    "platform/collect/free-cut-test-harness.mjs": "6d3802a7873350810f90ea9602bc2f8ecf2e1cb02098f1a41c8906642d12bdd1",
+    "platform/collect/free-cut.README.md": "7d7421a19a9564bcbe3dcc581ae324730f19dec4cf2ea9b53474e6a3c3881b78",
+    "platform/edge/test/collection-free-cut.test.mjs": "5d575c683d65dab2a532636950f498902a9763300a84412a614a4cad3880106c",
+    "platform/edge/test/fixtures/collection-free-cut-worker.ts": "eff61448f7039351840e4d9e4f9d395a4890bbc896db30fa3e82d481768e0952",
+    "platform/storage/047-collection-free-cuts.sql": "71196c4074c22e8758b8e47059a93778677bc87a71be5de9b6ce2718f7ca2883",
+    "platform/recovery/schema.mjs": "a66f22e8d51f3fa5711e52b59b6065cb9edee142b21911117dd17157bad67a63"
+  },
+  "checkpointReference": {
+    "command": "node work/b11-047-reference.mjs",
+    "tests": 569,
+    "passed": 569,
+    "durationMs": 295232.3377,
+    "log": "work/b11-047-reference.log",
+    "logSha256": "5d3cd4061b96dd55b033ec50c896a218c0202719b28ad68adcffcab73330d58c"
+  }
+}

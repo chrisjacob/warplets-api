@@ -1,0 +1,470 @@
+-- Draft047: private paged synthetic ownership cuts. Not installed.
+CREATE TABLE app_collection_cut_records (
+ id TEXT PRIMARY KEY CHECK(length(id)=64 AND id NOT GLOB '*[^a-f0-9]*'),
+ format TEXT NOT NULL CHECK(format IN ('collection-cut-page-v1','collection-cut-root-v1')),
+ size INTEGER NOT NULL CHECK(size BETWEEN 1 AND 65536),
+ body_json TEXT NOT NULL CHECK(json_valid(body_json) AND length(CAST(body_json AS BLOB))=size AND json_extract(body_json,'$.format')=format),
+ operation_id TEXT NOT NULL UNIQUE REFERENCES app_command_receipts(operation_id)
+) STRICT;
+CREATE TABLE app_collection_cut_attempts (
+ id TEXT PRIMARY KEY CHECK(length(id)=64 AND id NOT GLOB '*[^a-f0-9]*'),
+ root_id TEXT NOT NULL REFERENCES app_collection_cut_records(id),source_revision INTEGER NOT NULL CHECK(source_revision>=0),
+ created_ms INTEGER NOT NULL CHECK(created_ms>=0),operation_id TEXT NOT NULL UNIQUE REFERENCES app_command_receipts(operation_id),
+ UNIQUE(root_id,source_revision)
+) STRICT;
+CREATE TABLE app_collection_cut_pages (
+ attempt_id TEXT NOT NULL REFERENCES app_collection_cut_attempts(id),page_index INTEGER NOT NULL CHECK(page_index BETWEEN 0 AND 99),
+ page_id TEXT NOT NULL REFERENCES app_collection_cut_records(id),holding_count INTEGER NOT NULL CHECK(holding_count BETWEEN 0 AND 100),
+ tracked_count INTEGER NOT NULL CHECK(tracked_count BETWEEN 0 AND holding_count),first_asset TEXT,last_asset TEXT,
+ eligible_wallets_json TEXT NOT NULL CHECK(json_valid(eligible_wallets_json) AND json_type(eligible_wallets_json)='array' AND json_array_length(eligible_wallets_json)<=100 AND length(CAST(eligible_wallets_json AS BLOB))<=8192),
+ closure_digest TEXT NOT NULL CHECK(length(closure_digest)=64 AND closure_digest NOT GLOB '*[^a-f0-9]*'),
+ operation_id TEXT NOT NULL UNIQUE REFERENCES app_command_receipts(operation_id),PRIMARY KEY(attempt_id,page_index),
+ CHECK((holding_count=0 AND first_asset IS NULL AND last_asset IS NULL) OR (holding_count>0 AND first_asset IS NOT NULL AND last_asset IS NOT NULL AND first_asset<=last_asset))
+) STRICT;
+CREATE TABLE app_collection_free_cuts (
+ inventory_id TEXT NOT NULL,stage_id TEXT NOT NULL,attempt_id TEXT NOT NULL UNIQUE REFERENCES app_collection_cut_attempts(id),
+ root_id TEXT NOT NULL REFERENCES app_collection_cut_records(id),list_id TEXT NOT NULL REFERENCES app_collection_list_seals(id),
+ cut_ms INTEGER NOT NULL CHECK(cut_ms>=0),source_ref TEXT NOT NULL,source_revision INTEGER NOT NULL CHECK(source_revision>=0),
+ wallets_digest TEXT NOT NULL CHECK(length(wallets_digest)=64 AND wallets_digest NOT GLOB '*[^a-f0-9]*'),eligible_count INTEGER NOT NULL CHECK(eligible_count BETWEEN 0 AND 10000),
+ command_operation_id TEXT NOT NULL UNIQUE REFERENCES app_command_receipts(operation_id),PRIMARY KEY(inventory_id,stage_id),
+ FOREIGN KEY(inventory_id,stage_id) REFERENCES app_collection_stages(inventory_id,stage_id)
+) STRICT;
+CREATE TRIGGER recovery_guard_app_collection_cut_records_insert BEFORE INSERT ON app_collection_cut_records WHEN EXISTS(SELECT 1 FROM app_recovery_state WHERE (mode='public' OR status IN ('restoring','held')) AND write_nonce IS NULL) BEGIN SELECT RAISE(ABORT,'Recovery target is mutation-disabled'); END;
+CREATE TRIGGER recovery_watermark_app_collection_cut_records_insert AFTER INSERT ON app_collection_cut_records BEGIN UPDATE app_recovery_watermark SET revision=revision+1 WHERE id=1; END;
+CREATE TRIGGER recovery_guard_app_collection_cut_records_update BEFORE UPDATE ON app_collection_cut_records WHEN EXISTS(SELECT 1 FROM app_recovery_state WHERE (mode='public' OR status IN ('restoring','held')) AND write_nonce IS NULL) BEGIN SELECT RAISE(ABORT,'Recovery target is mutation-disabled'); END;
+CREATE TRIGGER recovery_watermark_app_collection_cut_records_update AFTER UPDATE ON app_collection_cut_records BEGIN UPDATE app_recovery_watermark SET revision=revision+1 WHERE id=1; END;
+CREATE TRIGGER recovery_guard_app_collection_cut_records_delete BEFORE DELETE ON app_collection_cut_records WHEN EXISTS(SELECT 1 FROM app_recovery_state WHERE (mode='public' OR status IN ('restoring','held')) AND write_nonce IS NULL) BEGIN SELECT RAISE(ABORT,'Recovery target is mutation-disabled'); END;
+CREATE TRIGGER recovery_watermark_app_collection_cut_records_delete AFTER DELETE ON app_collection_cut_records BEGIN UPDATE app_recovery_watermark SET revision=revision+1 WHERE id=1; END;
+CREATE TRIGGER app_collection_cut_records_no_update BEFORE UPDATE ON app_collection_cut_records BEGIN SELECT RAISE(ABORT,'Retain immutable collection cut'); END;
+CREATE TRIGGER app_collection_cut_records_no_delete BEFORE DELETE ON app_collection_cut_records BEGIN SELECT RAISE(ABORT,'Retain immutable collection cut'); END;
+CREATE TRIGGER recovery_guard_app_collection_cut_attempts_insert BEFORE INSERT ON app_collection_cut_attempts WHEN EXISTS(SELECT 1 FROM app_recovery_state WHERE (mode='public' OR status IN ('restoring','held')) AND write_nonce IS NULL) BEGIN SELECT RAISE(ABORT,'Recovery target is mutation-disabled'); END;
+CREATE TRIGGER recovery_watermark_app_collection_cut_attempts_insert AFTER INSERT ON app_collection_cut_attempts BEGIN UPDATE app_recovery_watermark SET revision=revision+1 WHERE id=1; END;
+CREATE TRIGGER recovery_guard_app_collection_cut_attempts_update BEFORE UPDATE ON app_collection_cut_attempts WHEN EXISTS(SELECT 1 FROM app_recovery_state WHERE (mode='public' OR status IN ('restoring','held')) AND write_nonce IS NULL) BEGIN SELECT RAISE(ABORT,'Recovery target is mutation-disabled'); END;
+CREATE TRIGGER recovery_watermark_app_collection_cut_attempts_update AFTER UPDATE ON app_collection_cut_attempts BEGIN UPDATE app_recovery_watermark SET revision=revision+1 WHERE id=1; END;
+CREATE TRIGGER recovery_guard_app_collection_cut_attempts_delete BEFORE DELETE ON app_collection_cut_attempts WHEN EXISTS(SELECT 1 FROM app_recovery_state WHERE (mode='public' OR status IN ('restoring','held')) AND write_nonce IS NULL) BEGIN SELECT RAISE(ABORT,'Recovery target is mutation-disabled'); END;
+CREATE TRIGGER recovery_watermark_app_collection_cut_attempts_delete AFTER DELETE ON app_collection_cut_attempts BEGIN UPDATE app_recovery_watermark SET revision=revision+1 WHERE id=1; END;
+CREATE TRIGGER app_collection_cut_attempts_no_update BEFORE UPDATE ON app_collection_cut_attempts BEGIN SELECT RAISE(ABORT,'Retain immutable collection cut'); END;
+CREATE TRIGGER app_collection_cut_attempts_no_delete BEFORE DELETE ON app_collection_cut_attempts BEGIN SELECT RAISE(ABORT,'Retain immutable collection cut'); END;
+CREATE TRIGGER recovery_guard_app_collection_cut_pages_insert BEFORE INSERT ON app_collection_cut_pages WHEN EXISTS(SELECT 1 FROM app_recovery_state WHERE (mode='public' OR status IN ('restoring','held')) AND write_nonce IS NULL) BEGIN SELECT RAISE(ABORT,'Recovery target is mutation-disabled'); END;
+CREATE TRIGGER recovery_watermark_app_collection_cut_pages_insert AFTER INSERT ON app_collection_cut_pages BEGIN UPDATE app_recovery_watermark SET revision=revision+1 WHERE id=1; END;
+CREATE TRIGGER recovery_guard_app_collection_cut_pages_update BEFORE UPDATE ON app_collection_cut_pages WHEN EXISTS(SELECT 1 FROM app_recovery_state WHERE (mode='public' OR status IN ('restoring','held')) AND write_nonce IS NULL) BEGIN SELECT RAISE(ABORT,'Recovery target is mutation-disabled'); END;
+CREATE TRIGGER recovery_watermark_app_collection_cut_pages_update AFTER UPDATE ON app_collection_cut_pages BEGIN UPDATE app_recovery_watermark SET revision=revision+1 WHERE id=1; END;
+CREATE TRIGGER recovery_guard_app_collection_cut_pages_delete BEFORE DELETE ON app_collection_cut_pages WHEN EXISTS(SELECT 1 FROM app_recovery_state WHERE (mode='public' OR status IN ('restoring','held')) AND write_nonce IS NULL) BEGIN SELECT RAISE(ABORT,'Recovery target is mutation-disabled'); END;
+CREATE TRIGGER recovery_watermark_app_collection_cut_pages_delete AFTER DELETE ON app_collection_cut_pages BEGIN UPDATE app_recovery_watermark SET revision=revision+1 WHERE id=1; END;
+CREATE TRIGGER app_collection_cut_pages_no_update BEFORE UPDATE ON app_collection_cut_pages BEGIN SELECT RAISE(ABORT,'Retain immutable collection cut'); END;
+CREATE TRIGGER app_collection_cut_pages_no_delete BEFORE DELETE ON app_collection_cut_pages BEGIN SELECT RAISE(ABORT,'Retain immutable collection cut'); END;
+CREATE TRIGGER recovery_guard_app_collection_free_cuts_insert BEFORE INSERT ON app_collection_free_cuts WHEN EXISTS(SELECT 1 FROM app_recovery_state WHERE (mode='public' OR status IN ('restoring','held')) AND write_nonce IS NULL) BEGIN SELECT RAISE(ABORT,'Recovery target is mutation-disabled'); END;
+CREATE TRIGGER recovery_watermark_app_collection_free_cuts_insert AFTER INSERT ON app_collection_free_cuts BEGIN UPDATE app_recovery_watermark SET revision=revision+1 WHERE id=1; END;
+CREATE TRIGGER cut_source_insert AFTER INSERT ON app_collection_free_cuts BEGIN UPDATE app_revisions SET revision=revision+1 WHERE name='source'; END;
+CREATE TRIGGER recovery_guard_app_collection_free_cuts_update BEFORE UPDATE ON app_collection_free_cuts WHEN EXISTS(SELECT 1 FROM app_recovery_state WHERE (mode='public' OR status IN ('restoring','held')) AND write_nonce IS NULL) BEGIN SELECT RAISE(ABORT,'Recovery target is mutation-disabled'); END;
+CREATE TRIGGER recovery_watermark_app_collection_free_cuts_update AFTER UPDATE ON app_collection_free_cuts BEGIN UPDATE app_recovery_watermark SET revision=revision+1 WHERE id=1; END;
+CREATE TRIGGER cut_source_update AFTER UPDATE ON app_collection_free_cuts BEGIN UPDATE app_revisions SET revision=revision+1 WHERE name='source'; END;
+CREATE TRIGGER recovery_guard_app_collection_free_cuts_delete BEFORE DELETE ON app_collection_free_cuts WHEN EXISTS(SELECT 1 FROM app_recovery_state WHERE (mode='public' OR status IN ('restoring','held')) AND write_nonce IS NULL) BEGIN SELECT RAISE(ABORT,'Recovery target is mutation-disabled'); END;
+CREATE TRIGGER recovery_watermark_app_collection_free_cuts_delete AFTER DELETE ON app_collection_free_cuts BEGIN UPDATE app_recovery_watermark SET revision=revision+1 WHERE id=1; END;
+CREATE TRIGGER cut_source_delete AFTER DELETE ON app_collection_free_cuts BEGIN UPDATE app_revisions SET revision=revision+1 WHERE name='source'; END;
+CREATE TRIGGER app_collection_free_cuts_no_update BEFORE UPDATE ON app_collection_free_cuts BEGIN SELECT RAISE(ABORT,'Retain immutable collection cut'); END;
+CREATE TRIGGER app_collection_free_cuts_no_delete BEFORE DELETE ON app_collection_free_cuts BEGIN SELECT RAISE(ABORT,'Retain immutable collection cut'); END;
+DROP TRIGGER app_receipt_mandatory_effects;
+CREATE TRIGGER app_receipt_mandatory_effects BEFORE UPDATE OF state ON app_command_receipts WHEN NEW.state='committed' BEGIN
+ SELECT RAISE(ABORT,'Missing mandatory submission') WHERE NEW.operation_kind='earn.admit-submission.v1' AND NOT EXISTS(
+  SELECT 1 FROM earn_submissions s WHERE s.id=NEW.result_ref AND s.wallet=json_extract(NEW.input_json,'$.wallet')
+   AND s.token_id=json_extract(NEW.input_json,'$.tokenId') AND s.url=json_extract(NEW.input_json,'$.url')
+   AND s.epoch=json_extract(NEW.input_json,'$.epoch') AND s.request_key=NEW.request_key
+   AND s.entry_read_id=json_extract(NEW.input_json,'$.entryReadId') AND s.submitted_ms=NEW.created_ms
+   AND EXISTS(SELECT 1 FROM earn_admission_counts c WHERE c.epoch=s.epoch AND c.admitted=(SELECT COUNT(*) FROM earn_submissions counted WHERE counted.epoch=s.epoch))
+ );
+ SELECT RAISE(ABORT,'Missing mandatory review') WHERE NEW.operation_kind='earn.final-review.v1' AND NOT EXISTS(
+  SELECT 1 FROM earn_reviews r WHERE r.submission_id=NEW.result_ref
+   AND r.content_score=json_extract(NEW.input_json,'$.score') AND r.reason=json_extract(NEW.input_json,'$.reason')
+   AND r.moderator=json_extract(NEW.input_json,'$.moderator') AND r.source_ref=json_extract(NEW.input_json,'$.sourceRef')
+   AND r.reviewed_ms=NEW.created_ms
+ );
+ SELECT RAISE(ABORT,'Missing scope or audit') WHERE NEW.operation_kind='ops.change-scope.v1' AND NOT EXISTS(
+ SELECT 1 FROM ops_scope_log r WHERE r.revision=NEW.result_ref AND r.revision=json_extract(NEW.input_json,'$.revision')
+ AND r.scope=json_extract(NEW.input_json,'$.scope') AND r.paused=json_extract(NEW.input_json,'$.paused') AND r.previous_revision IS json_extract(NEW.input_json,'$.previousRevision')
+ AND r.at_ms=NEW.created_ms AND r.actor=json_extract(NEW.input_json,'$.actor') AND r.reason=json_extract(NEW.input_json,'$.reason') AND r.evidence_ref=json_extract(NEW.input_json,'$.evidenceRef')
+ AND r.request_key=NEW.request_key AND EXISTS(SELECT 1 FROM ops_config_audit a WHERE a.seq=json_extract(NEW.input_json,'$.audit.seq')
+ AND a.previous_hash IS json_extract(NEW.input_json,'$.audit.previousHash') AND a.event_hash=json_extract(NEW.input_json,'$.audit.eventHash')
+ AND a.payload=json_extract(NEW.input_json,'$.audit.payload') AND a.category='scope-change' AND a.entity=json_extract(NEW.input_json,'$.scope') AND a.change_key=NEW.request_key
+ AND a.recorded_ms=NEW.created_ms AND a.actor=json_extract(NEW.input_json,'$.actor') AND a.evidence_ref=json_extract(NEW.input_json,'$.evidenceRef'))
+ );
+ SELECT RAISE(ABORT,'Missing staffing or audit') WHERE NEW.operation_kind='ops.configure-workload.v1' AND NOT EXISTS(
+ SELECT 1 FROM earn_workload_policies r WHERE r.revision=NEW.result_ref AND r.revision=json_extract(NEW.input_json,'$.revision')
+ AND r.effective_epoch=json_extract(NEW.input_json,'$.effectiveEpoch') AND r.recorded_ms=NEW.created_ms AND r.staffed_minutes=json_extract(NEW.input_json,'$.staffedMinutes')
+ AND r.seconds_per_review=json_extract(NEW.input_json,'$.secondsPerReview') AND r.admission_limit=json_extract(NEW.input_json,'$.admissionLimit')
+ AND r.operator=json_extract(NEW.input_json,'$.actor') AND r.reason=json_extract(NEW.input_json,'$.reason') AND EXISTS(SELECT 1 FROM ops_config_audit a WHERE a.seq=json_extract(NEW.input_json,'$.audit.seq')
+ AND a.previous_hash IS json_extract(NEW.input_json,'$.audit.previousHash') AND a.event_hash=json_extract(NEW.input_json,'$.audit.eventHash')
+ AND a.payload=json_extract(NEW.input_json,'$.audit.payload') AND a.category='staffing' AND a.entity='Earn' AND a.change_key=json_extract(NEW.input_json,'$.revision')
+ AND a.recorded_ms=NEW.created_ms AND a.actor=json_extract(NEW.input_json,'$.actor') AND a.evidence_ref=json_extract(NEW.input_json,'$.reason'))
+ );
+ SELECT RAISE(ABORT,'Missing cost reservation') WHERE NEW.operation_kind='ops.reserve-cost.v1' AND NOT EXISTS(
+ SELECT 1 FROM ops_optional_spend r WHERE r.request_key=NEW.result_ref AND r.request_key=NEW.request_key
+ AND r.scope=json_extract(NEW.input_json,'$.scope') AND r.period=json_extract(NEW.input_json,'$.period') AND r.at_ms=NEW.created_ms AND r.limit_usd_micros=json_extract(NEW.input_json,'$.upperUsdMicros')
+ AND r.actor=json_extract(NEW.input_json,'$.actor') AND r.quote_ref=json_extract(NEW.input_json,'$.quoteRef') AND r.status='reserved'
+ AND r.actual_usd_micros IS NULL AND r.settlement_ref IS NULL AND r.settled_ms IS NULL
+ );
+ SELECT RAISE(ABORT,'Missing cost settlement') WHERE NEW.operation_kind='ops.settle-cost.v1' AND NOT EXISTS(
+ SELECT 1 FROM ops_optional_spend r WHERE r.request_key=NEW.result_ref AND r.request_key=json_extract(NEW.input_json,'$.reservationKey')
+ AND r.status='settled' AND r.actual_usd_micros=json_extract(NEW.input_json,'$.actualUsdMicros') AND r.settlement_ref=json_extract(NEW.input_json,'$.evidenceRef')
+ AND r.settled_ms=NEW.created_ms
+ );
+ SELECT RAISE(ABORT,'Missing provider attempt or usage') WHERE NEW.operation_kind='ops.meter-attempt.v1' AND NOT EXISTS(
+ SELECT 1 FROM app_provider_attempts p JOIN ops_usage u ON u.receipt=p.usage_receipt
+ WHERE p.attempt_id=NEW.result_ref AND p.attempt_id=json_extract(NEW.input_json,'$.attemptId') AND p.provider=json_extract(NEW.input_json,'$.provider')
+ AND p.units=json_extract(NEW.input_json,'$.units') AND p.quota=json_extract(NEW.input_json,'$.quota') AND p.at_ms=NEW.created_ms AND p.actor=json_extract(NEW.input_json,'$.actor')
+ AND p.evidence_ref=json_extract(NEW.input_json,'$.evidenceRef') AND p.usage_receipt=json_extract(NEW.input_json,'$.usageReceipt')
+ AND u.provider=p.provider AND u.metric='daily-provider-units' AND u.period=json_extract(NEW.input_json,'$.period')
+ AND u.at_ms=NEW.created_ms AND u.measured=json_extract(NEW.input_json,'$.measured') AND u.quota=p.quota AND u.evidence_ref=p.evidence_ref
+ );
+ SELECT RAISE(ABORT,'Missing verified private reference') WHERE NEW.operation_kind='evidence.private-reference.v1' AND NOT EXISTS(
+ SELECT 1 FROM app_private_artifacts a WHERE a.object_key=NEW.result_ref AND a.object_key=json_extract(NEW.input_json,'$.key')
+ AND a.byte_digest=json_extract(NEW.input_json,'$.byteDigest') AND a.size=json_extract(NEW.input_json,'$.size') AND a.semantic_digest IS json_extract(NEW.input_json,'$.semanticDigest')
+ AND a.content_type=json_extract(NEW.input_json,'$.contentType') AND a.recorded_ms=NEW.created_ms AND a.operation_id=NEW.operation_id
+ );
+ SELECT RAISE(ABORT,'Missing sealed input reference') WHERE NEW.operation_kind='earn.seal-input.v1' AND NOT EXISTS(
+  SELECT 1 FROM app_complete_inputs i JOIN app_epoch_inputs p ON p.manifest_digest=i.manifest_digest
+  WHERE i.manifest_digest=NEW.result_ref AND i.manifest_digest=json_extract(NEW.input_json,'$.manifestDigest')
+   AND i.epoch=json_extract(NEW.input_json,'$.epoch') AND p.epoch=i.epoch
+   AND i.input_digest=json_extract(NEW.input_json,'$.inputDigest') AND i.object_key=json_extract(NEW.input_json,'$.objectKey')
+   AND i.byte_digest=json_extract(NEW.input_json,'$.byteDigest') AND i.as_of_ms=json_extract(NEW.input_json,'$.asOfMs')
+   AND i.source_ref=json_extract(NEW.input_json,'$.sourceRef') AND i.dependency_versions=NEW.expected_revisions
+   AND i.operation_id=NEW.operation_id
+ );
+ SELECT RAISE(ABORT,'Missing mandatory board') WHERE NEW.operation_kind='earn.commit-board.v1' AND NOT EXISTS(
+  SELECT 1 FROM earn_boards b WHERE b.epoch=json_extract(NEW.input_json,'$.epoch')
+   AND b.snapshot_hash=NEW.result_ref AND b.winners=json_extract(NEW.input_json,'$.winners')
+   AND b.finalized_ms=NEW.created_ms AND b.source_ref=json_extract(NEW.input_json,'$.sourceRef')
+ );
+ SELECT RAISE(ABORT,'Incomplete board decisions') WHERE NEW.operation_kind='earn.commit-board.v1' AND (
+  (SELECT COUNT(*) FROM earn_decisions WHERE epoch=json_extract(NEW.input_json,'$.epoch'))<>json_array_length(NEW.input_json,'$.decisions')
+  OR EXISTS(SELECT 1 FROM json_each(NEW.input_json,'$.decisions') e LEFT JOIN earn_decisions d ON d.submission_id=json_extract(e.value,'$.submissionId')
+    WHERE d.submission_id IS NULL OR d.epoch<>json_extract(NEW.input_json,'$.epoch') OR d.qualified<>json_extract(e.value,'$.qualified')
+     OR d.snapshot_read_id IS NOT json_extract(e.value,'$.cutoffEvidence'))
+ );
+ SELECT RAISE(ABORT,'Incomplete board facts') WHERE NEW.operation_kind='earn.commit-board.v1' AND (
+  (SELECT COUNT(*) FROM earn_member_facts WHERE epoch=json_extract(NEW.input_json,'$.epoch'))<>json_array_length(NEW.input_json,'$.facts')
+  OR EXISTS(SELECT 1 FROM json_each(NEW.input_json,'$.facts') e LEFT JOIN earn_member_facts f
+    ON f.epoch=json_extract(NEW.input_json,'$.epoch') AND f.wallet=json_extract(e.value,'$[0]')
+    WHERE f.wallet IS NULL OR f.source_ref<>json_extract(e.value,'$[1]') OR f.payload<>json_extract(e.value,'$[2]'))
+ );
+ SELECT RAISE(ABORT,'Incomplete board streaks') WHERE NEW.operation_kind='earn.commit-board.v1' AND (
+  (SELECT COUNT(*) FROM earn_streaks WHERE epoch=json_extract(NEW.input_json,'$.epoch'))<>json_array_length(NEW.input_json,'$.streaks')
+  OR EXISTS(SELECT 1 FROM json_each(NEW.input_json,'$.streaks') e LEFT JOIN earn_streaks s
+    ON s.epoch=json_extract(NEW.input_json,'$.epoch') AND s.wallet=json_extract(e.value,'$.wallet')
+    WHERE s.wallet IS NULL OR s.days<>json_extract(e.value,'$.days') OR s.last_approval_ms<>json_extract(e.value,'$.lastApprovalMs'))
+ );
+ SELECT RAISE(ABORT,'Missing allocation or awards') WHERE NEW.operation_kind='earn.commit-allocation.v1' AND (
+  NOT EXISTS(SELECT 1 FROM earn_allocations a WHERE a.token_id=json_extract(NEW.input_json,'$.tokenId') AND a.day=json_extract(NEW.input_json,'$.day')
+   AND a.epoch=json_extract(NEW.input_json,'$.boardEpoch') AND a.starts_ms=json_extract(NEW.input_json,'$.startsAtMs')
+   AND a.vests_from_ms=json_extract(NEW.input_json,'$.vestsFromMs') AND a.vests_through_ms=json_extract(NEW.input_json,'$.vestsThroughMs')
+   AND a.budget=json_extract(NEW.input_json,'$.budgetUnits') AND a.burn=json_extract(NEW.input_json,'$.burnUnits'))
+  OR (SELECT COUNT(*) FROM earn_awards WHERE token_id=json_extract(NEW.input_json,'$.tokenId') AND day=json_extract(NEW.input_json,'$.day'))<>json_array_length(NEW.input_json,'$.awards')
+  OR EXISTS(SELECT 1 FROM json_each(NEW.input_json,'$.awards') e LEFT JOIN earn_awards a ON a.token_id=json_extract(NEW.input_json,'$.tokenId')
+    AND a.day=json_extract(NEW.input_json,'$.day') AND a.wallet=json_extract(e.value,'$.wallet')
+    WHERE a.wallet IS NULL OR a.amount<>json_extract(e.value,'$.amountUnits'))
+ );
+ SELECT RAISE(ABORT,'Missing evidence source') WHERE NEW.operation_kind='evidence.register-source.v1' AND NOT EXISTS(
+  SELECT 1 FROM app_evidence_sources s WHERE s.source_id=json_extract(NEW.input_json,'$.sourceId')
+   AND s.source_revision=json_extract(NEW.input_json,'$.sourceRevision') AND s.config_digest=NEW.result_ref
+   AND s.config_digest=json_extract(NEW.input_json,'$.configDigest') AND s.config_json=json_extract(NEW.input_json,'$.configJson')
+   AND s.recorded_ms=NEW.created_ms AND s.operation_id=NEW.operation_id);
+ SELECT RAISE(ABORT,'Missing evidence receipt or head') WHERE NEW.operation_kind='evidence.record-receipt.v1' AND NOT EXISTS(
+  SELECT 1 FROM app_evidence_receipts r JOIN app_evidence_heads h ON h.stream_key=r.stream_key AND h.receipt_digest=r.receipt_digest
+  WHERE r.receipt_digest=NEW.result_ref AND r.receipt_digest=json_extract(NEW.input_json,'$.receiptDigest')
+   AND r.evidence_id=json_extract(NEW.input_json,'$.evidenceId') AND r.stream_key=json_extract(NEW.input_json,'$.streamKey')
+   AND r.source_id=json_extract(NEW.input_json,'$.sourceId') AND r.source_revision=json_extract(NEW.input_json,'$.sourceRevision')
+   AND r.object_key=json_extract(NEW.input_json,'$.objectKey') AND r.envelope_json=json_extract(NEW.input_json,'$.envelopeJson')
+   AND r.decision_json=json_extract(NEW.input_json,'$.decisionJson') AND r.status=json_extract(NEW.input_json,'$.status')
+   AND r.supersedes IS json_extract(NEW.input_json,'$.supersedes') AND r.recorded_ms=NEW.created_ms AND r.operation_id=NEW.operation_id);
+ SELECT RAISE(ABORT,'Missing epoch admission freeze') WHERE NEW.operation_kind='earn.freeze-epoch.v1' AND NOT EXISTS(
+  SELECT 1 FROM app_epoch_freezes f WHERE f.epoch=json_extract(NEW.input_json,'$.epoch') AND f.admission_digest=NEW.result_ref
+   AND f.admission_digest=json_extract(NEW.input_json,'$.admissionDigest') AND f.admission_count=json_extract(NEW.input_json,'$.admissionCount')
+   AND f.inventory_json=json_extract(NEW.input_json,'$.inventoryJson') AND f.closed_ms=NEW.created_ms AND f.operation_id=NEW.operation_id
+   AND f.admission_count=(SELECT COUNT(*) FROM earn_submissions s WHERE s.epoch=f.epoch));
+ SELECT RAISE(ABORT,'Missing snapshot attempt') WHERE NEW.operation_kind='earn.snapshot-attempt.v1' AND NOT EXISTS(
+  SELECT 1 FROM app_snapshot_attempts a WHERE a.manifest_digest=NEW.result_ref AND a.manifest_digest=json_extract(NEW.input_json,'$.manifestDigest')
+   AND a.epoch=json_extract(NEW.input_json,'$.epoch') AND a.status=json_extract(NEW.input_json,'$.status')
+   AND a.object_key=json_extract(NEW.input_json,'$.objectKey') AND a.byte_digest=json_extract(NEW.input_json,'$.byteDigest')
+   AND a.requirements_digest=json_extract(NEW.input_json,'$.requirementsDigest') AND a.evidence_digest=json_extract(NEW.input_json,'$.evidenceDigest')
+   AND a.input_digest IS json_extract(NEW.input_json,'$.inputDigest') AND a.dependency_versions=NEW.expected_revisions
+   AND a.created_ms=NEW.created_ms AND a.operation_id=NEW.operation_id);
+ SELECT RAISE(ABORT,'Missing signed action effects') WHERE NEW.operation_kind='earn.accept-action.v1' AND NOT EXISTS(
+  SELECT 1 FROM earn_signed_completions s JOIN earn_action_completions c ON c.wallet=s.wallet AND c.action_id=s.action_id
+  WHERE s.issuer_id=json_extract(NEW.input_json,'$.issuerId') AND s.nonce=json_extract(NEW.input_json,'$.nonce')
+   AND s.wallet=json_extract(NEW.input_json,'$.wallet') AND s.action_id=json_extract(NEW.input_json,'$.actionId')
+   AND s.proof_digest=NEW.result_ref AND s.proof_digest=json_extract(NEW.input_json,'$.proofDigest')
+   AND s.source_hash=json_extract(NEW.input_json,'$.sourceHash') AND s.accepted_ms=NEW.created_ms
+   AND c.verified_ms=NEW.created_ms AND c.verifier=json_extract(NEW.input_json,'$.verifier')
+   AND c.source_ref=json_extract(NEW.input_json,'$.sourceRef'));
+ SELECT RAISE(ABORT,'Missing planned publication or staging references') WHERE NEW.operation_kind='artifacts.plan-publication.v1' AND NOT EXISTS(
+  SELECT 1 FROM app_artifact_publications p WHERE p.id=NEW.result_ref AND p.id=json_extract(NEW.input_json,'$.id')
+   AND p.job_key=json_extract(NEW.input_json,'$.jobKey') AND p.epoch=json_extract(NEW.input_json,'$.epoch')
+   AND p.semantic_digest=json_extract(NEW.input_json,'$.identity.semanticDigest') AND p.byte_digest=json_extract(NEW.input_json,'$.identity.byteDigest')
+   AND p.object_key=json_extract(NEW.input_json,'$.identity.key') AND p.size_bytes=json_extract(NEW.input_json,'$.identity.size')
+   AND p.source_digest=json_extract(NEW.input_json,'$.sourceDigest') AND p.selections_json=json_extract(NEW.input_json,'$.selectionsJson')
+   AND p.staging_json=json_extract(NEW.input_json,'$.stagingJson') AND p.source_revisions=NEW.expected_revisions
+   AND p.plan_request_digest=NEW.request_digest AND p.created_ms=NEW.created_ms AND p.plan_operation_id=NEW.operation_id AND p.state='planned'
+   AND json_array_length(p.staging_json)>0 AND NOT EXISTS(SELECT 1 FROM json_each(p.staging_json) e LEFT JOIN app_private_artifacts a
+    ON a.object_key=json_extract(e.value,'$.key') WHERE a.object_key IS NULL OR a.byte_digest<>json_extract(e.value,'$.byteDigest')
+     OR a.size<>json_extract(e.value,'$.size') OR a.content_type<>json_extract(e.value,'$.contentType'))
+ );
+ SELECT RAISE(ABORT,'Missing verified public catalog reference') WHERE NEW.operation_kind='artifacts.publish-publication.v1' AND NOT EXISTS(
+  SELECT 1 FROM app_artifact_publications p JOIN manifest_catalog c ON c.byte_digest=p.byte_digest WHERE p.id=NEW.result_ref
+   AND p.id=json_extract(NEW.input_json,'$.id') AND p.state='published' AND p.published_operation_id=NEW.operation_id
+   AND p.verified_ms=NEW.created_ms AND p.published_ms=NEW.created_ms AND c.object_key=p.object_key AND c.size_bytes=p.size_bytes AND c.kind='earn-archive-v1'
+ );
+ SELECT RAISE(ABORT,'Missing held publication') WHERE NEW.operation_kind='artifacts.hold-publication.v1' AND NOT EXISTS(
+  SELECT 1 FROM app_artifact_publications p WHERE p.id=NEW.result_ref AND p.id=json_extract(NEW.input_json,'$.id') AND p.state='held'
+   AND p.held_reason=json_extract(NEW.input_json,'$.reason') AND p.hold_operation_id=NEW.operation_id
+ );
+ SELECT RAISE(ABORT,'Missing quote binding') WHERE NEW.operation_kind='quotes.bind-source.v1' AND NOT EXISTS(
+ SELECT 1 FROM app_quote_bindings b JOIN app_quote_heads h ON h.binding_digest=b.binding_digest AND h.market_id=b.market_id
+ WHERE b.binding_digest=NEW.result_ref AND b.binding_digest=json_extract(NEW.input_json,'$.bindingDigest')
+ AND b.market_id=json_extract(NEW.input_json,'$.marketId') AND b.source_id=json_extract(NEW.input_json,'$.sourceId')
+ AND b.source_revision=json_extract(NEW.input_json,'$.sourceRevision') AND b.source_config_digest=json_extract(NEW.input_json,'$.sourceConfigDigest')
+ AND b.stream_key=json_extract(NEW.input_json,'$.streamKey') AND b.metadata_json=json_extract(NEW.input_json,'$.metadataJson')
+ AND b.created_ms=NEW.created_ms AND b.operation_id=NEW.operation_id);
+ SELECT RAISE(ABORT,'Missing quote input') WHERE NEW.operation_kind='quotes.record-input.v1' AND NOT EXISTS(
+ SELECT 1 FROM app_quote_inputs i WHERE i.input_digest=NEW.result_ref AND i.input_digest=json_extract(NEW.input_json,'$.inputDigest')
+ AND i.binding_digest=json_extract(NEW.input_json,'$.bindingDigest') AND i.market_id=json_extract(NEW.input_json,'$.marketId')
+ AND i.receipt_digest=json_extract(NEW.input_json,'$.receiptDigest') AND i.context_slot IS json_extract(NEW.input_json,'$.contextSlot')
+ AND i.body_json=json_extract(NEW.input_json,'$.bodyJson') AND i.accounts_json=json_extract(NEW.input_json,'$.accountsJson')
+ AND i.status=json_extract(NEW.result_json,'$.status') AND i.reason=json_extract(NEW.result_json,'$.reason')
+ AND i.created_ms=NEW.created_ms AND i.operation_id=NEW.operation_id
+ AND NOT EXISTS(SELECT 1 FROM json_each(i.accounts_json) e LEFT JOIN app_quote_account_slots a
+ ON a.market_id=i.market_id AND a.account_kind=e.key AND a.context_slot=i.context_slot
+ WHERE a.byte_digest IS NULL OR (a.byte_digest<>e.value AND a.conflict_input_digest IS NULL)));
+ SELECT RAISE(ABORT,'Unknown guarded operation') WHERE NEW.operation_kind NOT IN (
+  'earn.admit-submission.v1','earn.final-review.v1','ops.change-scope.v1','ops.configure-workload.v1',
+  'ops.reserve-cost.v1','ops.settle-cost.v1','ops.meter-attempt.v1','evidence.private-reference.v1',
+  'earn.seal-input.v1','earn.commit-board.v1','earn.commit-allocation.v1','evidence.register-source.v1','evidence.record-receipt.v1','earn.freeze-epoch.v1','earn.snapshot-attempt.v1','earn.accept-action.v1','artifacts.plan-publication.v1','artifacts.publish-publication.v1','artifacts.hold-publication.v1','quotes.bind-source.v1','quotes.record-input.v1','collection.stage-record.v1','collection.seal-list.v1','collection.seal-source.v1','governance.cast-vote.v1','collection.issue-quote.v1','collection.materialize-eligibility-page.v1','governance.publish-ballot.v1','governance.record-decision.v1','collection.reserve-operation.v1','collection.observe-asset.v1','collection.fulfill-operation.v1','collection.publish-stage.v1','collection.stage-cut-record.v1','collection.begin-free-cut.v1','collection.validate-cut-page.v1','collection.seal-free-cut.v1');
+END;
+CREATE TRIGGER cut_record_mandatory BEFORE UPDATE OF state ON app_command_receipts WHEN NEW.state='committed' AND NEW.operation_kind='collection.stage-cut-record.v1' BEGIN
+ SELECT RAISE(ABORT,'Missing atomic collection cut effect') WHERE NOT EXISTS(
+ SELECT 1 FROM app_collection_cut_records r WHERE r.operation_id=NEW.operation_id
+ AND substr(NEW.principal_key,1,9)='operator:'
+ AND EXISTS(SELECT 1 FROM app_operator_scopes WHERE operator=substr(NEW.principal_key,10) AND scope='collection-evidence' AND enabled=1)
+ AND json_extract(NEW.result_json,'$.source')='local-fixture'
+ AND json_extract(NEW.result_json,'$.executable')=0
+ AND r.id=json_extract(NEW.input_json,'$.id')
+ AND r.id=NEW.result_ref AND r.id=NEW.business_key
+ AND r.id=json_extract(NEW.result_json,'$.id'));
+ SELECT RAISE(ABORT,'Missing atomic collection cut effect') WHERE NOT EXISTS(
+ SELECT 1 FROM app_collection_cut_records r WHERE r.operation_id=NEW.operation_id
+ AND r.format=json_extract(NEW.result_json,'$.format')
+ AND r.size=json_extract(NEW.result_json,'$.size'));
+END;
+CREATE TRIGGER cut_attempt_mandatory BEFORE UPDATE OF state ON app_command_receipts WHEN NEW.state='committed' AND NEW.operation_kind='collection.begin-free-cut.v1' BEGIN
+ SELECT RAISE(ABORT,'Missing atomic collection cut effect') WHERE NOT EXISTS(
+ SELECT 1 FROM app_collection_cut_attempts a JOIN app_collection_cut_records r ON r.id=a.root_id
+ JOIN app_collection_stages s ON s.inventory_id=json_extract(r.body_json,'$.inventoryId') AND s.stage_id=json_extract(r.body_json,'$.stageId')
+ JOIN collect_inventories ci ON ci.id=s.inventory_id
+ JOIN app_collection_list_seals l ON l.id=json_extract(r.body_json,'$.eligibilityListId') WHERE a.operation_id=NEW.operation_id
+ AND substr(NEW.principal_key,1,9)='operator:'
+ AND EXISTS(SELECT 1 FROM app_operator_scopes WHERE operator=substr(NEW.principal_key,10) AND scope='collection-evidence' AND enabled=1)
+ AND json_extract(NEW.result_json,'$.source')='local-fixture'
+ AND json_extract(NEW.result_json,'$.executable')=0
+ AND r.format='collection-cut-root-v1'
+ AND ci.kind='season' AND s.stage_type='free'
+ AND s.opens_ms=json_extract(r.body_json,'$.atMs') AND s.terms_digest=json_extract(r.body_json,'$.termsDigest'));
+ SELECT RAISE(ABORT,'Missing atomic collection cut effect') WHERE NOT EXISTS(
+ SELECT 1 FROM app_collection_cut_attempts a JOIN app_collection_cut_records r ON r.id=a.root_id
+ JOIN app_collection_stages s ON s.inventory_id=json_extract(r.body_json,'$.inventoryId') AND s.stage_id=json_extract(r.body_json,'$.stageId')
+ JOIN collect_inventories ci ON ci.id=s.inventory_id
+ JOIN app_collection_list_seals l ON l.id=json_extract(r.body_json,'$.eligibilityListId') WHERE a.operation_id=NEW.operation_id
+ AND json_extract(r.body_json,'$.sourceKind')='synthetic-local-operator-fixture'
+ AND a.created_ms<=NEW.created_ms AND s.opens_ms<=a.created_ms
+ AND a.source_revision=CAST(json_extract(NEW.expected_revisions,'$.source') AS INTEGER)
+ AND a.source_revision=(SELECT revision FROM app_revisions WHERE name='source')
+ AND NOT EXISTS(SELECT 1 FROM json_each(l.page_ids_json) j LEFT JOIN app_collection_eligibility_pages p ON p.record_id=j.value WHERE p.record_id IS NULL)
+ AND l.member_count=(SELECT COALESCE(SUM(p.entry_count),0) FROM json_each(l.page_ids_json) j JOIN app_collection_eligibility_pages p ON p.record_id=j.value)
+ AND a.root_id=json_extract(NEW.input_json,'$.rootId'));
+ SELECT RAISE(ABORT,'Missing atomic collection cut effect') WHERE NOT EXISTS(
+ SELECT 1 FROM app_collection_cut_attempts a JOIN app_collection_cut_records r ON r.id=a.root_id
+ JOIN app_collection_stages s ON s.inventory_id=json_extract(r.body_json,'$.inventoryId') AND s.stage_id=json_extract(r.body_json,'$.stageId')
+ JOIN collect_inventories ci ON ci.id=s.inventory_id
+ JOIN app_collection_list_seals l ON l.id=json_extract(r.body_json,'$.eligibilityListId') WHERE a.operation_id=NEW.operation_id
+ AND NEW.business_key=json_array(a.root_id,NEW.request_key)
+ AND a.id=NEW.result_ref
+ AND a.id=json_extract(NEW.result_json,'$.attemptId')
+ AND a.root_id=json_extract(NEW.result_json,'$.rootId')
+ AND CAST(a.source_revision AS TEXT)=CAST(json_extract(NEW.result_json,'$.sourceRevision') AS TEXT)
+ AND s.inventory_id=json_extract(NEW.result_json,'$.inventoryId') AND s.stage_id=json_extract(NEW.result_json,'$.stageId') AND s.opens_ms=json_extract(NEW.result_json,'$.atMs')
+ AND NOT EXISTS(SELECT 1 FROM json_each(r.body_json,'$.pages') j LEFT JOIN app_collection_cut_records p ON p.id=json_extract(j.value,'$.id') WHERE p.id IS NULL OR p.format<>'collection-cut-page-v1'));
+ SELECT RAISE(ABORT,'Missing complete staged cut pages') WHERE NOT EXISTS(
+ SELECT 1 FROM app_collection_cut_attempts a JOIN app_collection_cut_records r ON r.id=a.root_id
+ JOIN app_collection_stages s ON s.inventory_id=json_extract(r.body_json,'$.inventoryId') AND s.stage_id=json_extract(r.body_json,'$.stageId')
+ JOIN collect_inventories ci ON ci.id=s.inventory_id
+ JOIN app_collection_list_seals l ON l.id=json_extract(r.body_json,'$.eligibilityListId') WHERE a.operation_id=NEW.operation_id
+ AND json_array_length(r.body_json,'$.pages') BETWEEN 1 AND 100);
+ SELECT RAISE(ABORT,'Missing complete staged cut pages') WHERE NOT EXISTS(
+ SELECT 1 FROM app_collection_cut_attempts a JOIN app_collection_cut_records r ON r.id=a.root_id
+ JOIN app_collection_stages s ON s.inventory_id=json_extract(r.body_json,'$.inventoryId') AND s.stage_id=json_extract(r.body_json,'$.stageId')
+ JOIN collect_inventories ci ON ci.id=s.inventory_id
+ JOIN app_collection_list_seals l ON l.id=json_extract(r.body_json,'$.eligibilityListId') WHERE a.operation_id=NEW.operation_id
+ AND NOT EXISTS(SELECT 1 FROM json_each(r.body_json,'$.pages') j LEFT JOIN app_collection_cut_records p ON p.id=json_extract(j.value,'$.id') WHERE p.id IS NULL OR p.format<>'collection-cut-page-v1' OR json_extract(p.body_json,'$.index')<>j.key OR json_extract(j.value,'$.index')<>j.key OR json_array_length(p.body_json,'$.holdings')<>json_extract(j.value,'$.count')));
+ SELECT RAISE(ABORT,'Missing complete staged cut pages') WHERE NOT EXISTS(
+ SELECT 1 FROM app_collection_cut_attempts a JOIN app_collection_cut_records r ON r.id=a.root_id
+ JOIN app_collection_stages s ON s.inventory_id=json_extract(r.body_json,'$.inventoryId') AND s.stage_id=json_extract(r.body_json,'$.stageId')
+ JOIN collect_inventories ci ON ci.id=s.inventory_id
+ JOIN app_collection_list_seals l ON l.id=json_extract(r.body_json,'$.eligibilityListId') WHERE a.operation_id=NEW.operation_id
+ AND (SELECT SUM(json_extract(j.value,'$.count')) FROM json_each(r.body_json,'$.pages') j)=json_extract(r.body_json,'$.holdingCount'));
+END;
+CREATE TRIGGER cut_page_mandatory BEFORE UPDATE OF state ON app_command_receipts WHEN NEW.state='committed' AND NEW.operation_kind='collection.validate-cut-page.v1' BEGIN
+ SELECT RAISE(ABORT,'Missing atomic collection cut effect') WHERE NOT EXISTS(
+ SELECT 1 FROM app_collection_cut_attempts a JOIN app_collection_cut_records r ON r.id=a.root_id
+ JOIN app_collection_stages s ON s.inventory_id=json_extract(r.body_json,'$.inventoryId') AND s.stage_id=json_extract(r.body_json,'$.stageId')
+ JOIN collect_inventories ci ON ci.id=s.inventory_id
+ JOIN app_collection_list_seals l ON l.id=json_extract(r.body_json,'$.eligibilityListId') JOIN app_collection_cut_pages p ON p.attempt_id=a.id JOIN app_collection_cut_records pr ON pr.id=p.page_id
+ WHERE p.operation_id=NEW.operation_id
+ AND substr(NEW.principal_key,1,9)='operator:'
+ AND EXISTS(SELECT 1 FROM app_operator_scopes WHERE operator=substr(NEW.principal_key,10) AND scope='collection-evidence' AND enabled=1)
+ AND json_extract(NEW.result_json,'$.source')='local-fixture'
+ AND json_extract(NEW.result_json,'$.executable')=0
+ AND r.format='collection-cut-root-v1'
+ AND ci.kind='season' AND s.stage_type='free'
+ AND s.opens_ms=json_extract(r.body_json,'$.atMs') AND s.terms_digest=json_extract(r.body_json,'$.termsDigest'));
+ SELECT RAISE(ABORT,'Missing atomic collection cut effect') WHERE NOT EXISTS(
+ SELECT 1 FROM app_collection_cut_attempts a JOIN app_collection_cut_records r ON r.id=a.root_id
+ JOIN app_collection_stages s ON s.inventory_id=json_extract(r.body_json,'$.inventoryId') AND s.stage_id=json_extract(r.body_json,'$.stageId')
+ JOIN collect_inventories ci ON ci.id=s.inventory_id
+ JOIN app_collection_list_seals l ON l.id=json_extract(r.body_json,'$.eligibilityListId') JOIN app_collection_cut_pages p ON p.attempt_id=a.id JOIN app_collection_cut_records pr ON pr.id=p.page_id
+ WHERE p.operation_id=NEW.operation_id
+ AND json_extract(r.body_json,'$.sourceKind')='synthetic-local-operator-fixture'
+ AND a.created_ms<=NEW.created_ms AND s.opens_ms<=a.created_ms
+ AND a.source_revision=CAST(json_extract(NEW.expected_revisions,'$.source') AS INTEGER)
+ AND a.source_revision=(SELECT revision FROM app_revisions WHERE name='source')
+ AND NOT EXISTS(SELECT 1 FROM json_each(l.page_ids_json) j LEFT JOIN app_collection_eligibility_pages p ON p.record_id=j.value WHERE p.record_id IS NULL)
+ AND l.member_count=(SELECT COALESCE(SUM(p.entry_count),0) FROM json_each(l.page_ids_json) j JOIN app_collection_eligibility_pages p ON p.record_id=j.value)
+ AND a.id=json_extract(NEW.input_json,'$.attemptId') AND p.page_index=json_extract(NEW.input_json,'$.pageIndex'));
+ SELECT RAISE(ABORT,'Missing atomic collection cut effect') WHERE NOT EXISTS(
+ SELECT 1 FROM app_collection_cut_attempts a JOIN app_collection_cut_records r ON r.id=a.root_id
+ JOIN app_collection_stages s ON s.inventory_id=json_extract(r.body_json,'$.inventoryId') AND s.stage_id=json_extract(r.body_json,'$.stageId')
+ JOIN collect_inventories ci ON ci.id=s.inventory_id
+ JOIN app_collection_list_seals l ON l.id=json_extract(r.body_json,'$.eligibilityListId') JOIN app_collection_cut_pages p ON p.attempt_id=a.id JOIN app_collection_cut_records pr ON pr.id=p.page_id
+ WHERE p.operation_id=NEW.operation_id
+ AND NEW.business_key=json_array(a.id,p.page_index)
+ AND a.id=json_extract(NEW.result_json,'$.attemptId') AND p.page_index=json_extract(NEW.result_json,'$.pageIndex')
+ AND p.page_id=json_extract(NEW.result_json,'$.pageId') AND p.holding_count=json_extract(NEW.result_json,'$.holdingCount') AND p.tracked_count=json_extract(NEW.result_json,'$.trackedCount') AND p.closure_digest=json_extract(NEW.result_json,'$.closureDigest')
+ AND pr.format='collection-cut-page-v1' AND json_extract(pr.body_json,'$.index')=p.page_index
+ AND p.page_id=json_extract(r.body_json,'$.pages['||p.page_index||'].id') AND p.page_index=json_extract(r.body_json,'$.pages['||p.page_index||'].index') AND p.holding_count=json_extract(r.body_json,'$.pages['||p.page_index||'].count')
+ AND p.first_asset IS json_extract(r.body_json,'$.pages['||p.page_index||'].firstAsset') AND p.last_asset IS json_extract(r.body_json,'$.pages['||p.page_index||'].lastAsset')
+ AND p.holding_count=json_array_length(pr.body_json,'$.holdings'));
+ SELECT RAISE(ABORT,'Missing atomic collection cut effect') WHERE NOT EXISTS(
+ SELECT 1 FROM app_collection_cut_attempts a JOIN app_collection_cut_records r ON r.id=a.root_id
+ JOIN app_collection_stages s ON s.inventory_id=json_extract(r.body_json,'$.inventoryId') AND s.stage_id=json_extract(r.body_json,'$.stageId')
+ JOIN collect_inventories ci ON ci.id=s.inventory_id
+ JOIN app_collection_list_seals l ON l.id=json_extract(r.body_json,'$.eligibilityListId') JOIN app_collection_cut_pages p ON p.attempt_id=a.id JOIN app_collection_cut_records pr ON pr.id=p.page_id
+ WHERE p.operation_id=NEW.operation_id
+ AND json_array_length(p.eligible_wallets_json)=(SELECT COUNT(DISTINCT json_extract(h.value,'$.owner')) FROM json_each(pr.body_json,'$.holdings') h WHERE json_extract(h.value,'$.collection')='solana-genesis' AND json_extract(h.value,'$.level')=1 AND json_extract(h.value,'$.revealedAt')<=s.opens_ms)
+ AND NOT EXISTS(SELECT 1 FROM json_each(p.eligible_wallets_json) w WHERE NOT EXISTS(SELECT 1 FROM json_each(pr.body_json,'$.holdings') h WHERE json_extract(h.value,'$.owner')=w.value AND json_extract(h.value,'$.collection')='solana-genesis' AND json_extract(h.value,'$.level')=1 AND json_extract(h.value,'$.revealedAt')<=s.opens_ms)));
+ SELECT RAISE(ABORT,'Missing complete fixed-cut holdings') WHERE NOT EXISTS(
+ SELECT 1 FROM app_collection_cut_attempts a JOIN app_collection_cut_records r ON r.id=a.root_id
+ JOIN app_collection_stages s ON s.inventory_id=json_extract(r.body_json,'$.inventoryId') AND s.stage_id=json_extract(r.body_json,'$.stageId')
+ JOIN collect_inventories ci ON ci.id=s.inventory_id
+ JOIN app_collection_list_seals l ON l.id=json_extract(r.body_json,'$.eligibilityListId') JOIN app_collection_cut_pages p ON p.attempt_id=a.id JOIN app_collection_cut_records pr ON pr.id=p.page_id
+ WHERE p.operation_id=NEW.operation_id
+ AND p.holding_count=(SELECT COUNT(DISTINCT json_extract(h.value,'$.id')) FROM json_each(pr.body_json,'$.holdings') h));
+ SELECT RAISE(ABORT,'Missing complete fixed-cut holdings') WHERE NOT EXISTS(
+ SELECT 1 FROM app_collection_cut_attempts a JOIN app_collection_cut_records r ON r.id=a.root_id
+ JOIN app_collection_stages s ON s.inventory_id=json_extract(r.body_json,'$.inventoryId') AND s.stage_id=json_extract(r.body_json,'$.stageId')
+ JOIN collect_inventories ci ON ci.id=s.inventory_id
+ JOIN app_collection_list_seals l ON l.id=json_extract(r.body_json,'$.eligibilityListId') JOIN app_collection_cut_pages p ON p.attempt_id=a.id JOIN app_collection_cut_records pr ON pr.id=p.page_id
+ WHERE p.operation_id=NEW.operation_id
+ AND ((p.holding_count=0 AND p.first_asset IS NULL AND p.last_asset IS NULL) OR (p.holding_count>0 AND p.first_asset=json_extract(pr.body_json,'$.holdings[0].id') AND p.last_asset=json_extract(pr.body_json,'$.holdings['||MAX(p.holding_count-1,0)||'].id'))));
+ SELECT RAISE(ABORT,'Missing complete fixed-cut holdings') WHERE NOT EXISTS(
+ SELECT 1 FROM app_collection_cut_attempts a JOIN app_collection_cut_records r ON r.id=a.root_id
+ JOIN app_collection_stages s ON s.inventory_id=json_extract(r.body_json,'$.inventoryId') AND s.stage_id=json_extract(r.body_json,'$.stageId')
+ JOIN collect_inventories ci ON ci.id=s.inventory_id
+ JOIN app_collection_list_seals l ON l.id=json_extract(r.body_json,'$.eligibilityListId') JOIN app_collection_cut_pages p ON p.attempt_id=a.id JOIN app_collection_cut_records pr ON pr.id=p.page_id
+ WHERE p.operation_id=NEW.operation_id
+ AND NOT EXISTS(SELECT 1 FROM json_each(pr.body_json,'$.holdings') h WHERE h.key>0 AND json_extract(h.value,'$.id')<=json_extract(pr.body_json,'$.holdings['||(h.key-1)||'].id')));
+ SELECT RAISE(ABORT,'Missing complete fixed-cut holdings') WHERE NOT EXISTS(
+ SELECT 1 FROM app_collection_cut_attempts a JOIN app_collection_cut_records r ON r.id=a.root_id
+ JOIN app_collection_stages s ON s.inventory_id=json_extract(r.body_json,'$.inventoryId') AND s.stage_id=json_extract(r.body_json,'$.stageId')
+ JOIN collect_inventories ci ON ci.id=s.inventory_id
+ JOIN app_collection_list_seals l ON l.id=json_extract(r.body_json,'$.eligibilityListId') JOIN app_collection_cut_pages p ON p.attempt_id=a.id JOIN app_collection_cut_records pr ON pr.id=p.page_id
+ WHERE p.operation_id=NEW.operation_id
+ AND p.tracked_count=(SELECT COUNT(*) FROM collect_assets k JOIN collect_inventories ki ON ki.id=k.inventory_id WHERE ki.kind='genesis' AND k.bind_ms<=s.opens_ms AND (p.page_index=0 OR k.id>json_extract(r.body_json,'$.pages['||(p.page_index-1)||'].lastAsset')) AND (p.page_index=json_array_length(r.body_json,'$.pages')-1 OR k.id<=p.last_asset)));
+ SELECT RAISE(ABORT,'Missing complete fixed-cut holdings') WHERE NOT EXISTS(
+ SELECT 1 FROM app_collection_cut_attempts a JOIN app_collection_cut_records r ON r.id=a.root_id
+ JOIN app_collection_stages s ON s.inventory_id=json_extract(r.body_json,'$.inventoryId') AND s.stage_id=json_extract(r.body_json,'$.stageId')
+ JOIN collect_inventories ci ON ci.id=s.inventory_id
+ JOIN app_collection_list_seals l ON l.id=json_extract(r.body_json,'$.eligibilityListId') JOIN app_collection_cut_pages p ON p.attempt_id=a.id JOIN app_collection_cut_records pr ON pr.id=p.page_id
+ WHERE p.operation_id=NEW.operation_id
+ AND NOT EXISTS(SELECT 1 FROM collect_assets k JOIN collect_inventories ki ON ki.id=k.inventory_id WHERE ki.kind='genesis' AND k.bind_ms<=s.opens_ms AND (p.page_index=0 OR k.id>json_extract(r.body_json,'$.pages['||(p.page_index-1)||'].lastAsset')) AND (p.page_index=json_array_length(r.body_json,'$.pages')-1 OR k.id<=p.last_asset) AND NOT EXISTS(SELECT 1 FROM json_each(pr.body_json,'$.holdings') h WHERE json_extract(h.value,'$.id')=k.id AND json_extract(h.value,'$.collection')='solana-genesis' AND json_extract(h.value,'$.owner')=(SELECT COALESCE(json_extract(o.body,'$.to'),json_extract(o.body,'$.owner')) FROM vault_observations o WHERE o.asset_id=k.id AND o.observed_ms<=s.opens_ms AND o.kind IN ('bind','transfer') ORDER BY o.observed_ms DESC,o.rowid DESC LIMIT 1) AND ((k.reveal_ms IS NOT NULL AND k.reveal_ms<=s.opens_ms AND json_extract(h.value,'$.revealedAt')=k.reveal_ms AND json_extract(h.value,'$.level')=json_extract(k.asset,'$.level')) OR ((k.reveal_ms IS NULL OR k.reveal_ms>s.opens_ms) AND (json_type(h.value,'$.revealedAt')='null' OR json_extract(h.value,'$.revealedAt')>s.opens_ms))))));
+ SELECT RAISE(ABORT,'Missing complete fixed-cut holdings') WHERE NOT EXISTS(
+ SELECT 1 FROM app_collection_cut_attempts a JOIN app_collection_cut_records r ON r.id=a.root_id
+ JOIN app_collection_stages s ON s.inventory_id=json_extract(r.body_json,'$.inventoryId') AND s.stage_id=json_extract(r.body_json,'$.stageId')
+ JOIN collect_inventories ci ON ci.id=s.inventory_id
+ JOIN app_collection_list_seals l ON l.id=json_extract(r.body_json,'$.eligibilityListId') JOIN app_collection_cut_pages p ON p.attempt_id=a.id JOIN app_collection_cut_records pr ON pr.id=p.page_id
+ WHERE p.operation_id=NEW.operation_id
+ AND NOT EXISTS(SELECT 1 FROM json_each(pr.body_json,'$.holdings') h JOIN collect_assets k ON k.id=json_extract(h.value,'$.id') JOIN collect_inventories ki ON ki.id=k.inventory_id WHERE json_extract(h.value,'$.collection')='solana-genesis' AND (ki.kind<>'genesis' OR k.bind_ms>s.opens_ms)));
+ SELECT RAISE(ABORT,'Missing collection cut result reference') WHERE NOT EXISTS(
+ SELECT 1 FROM app_collection_cut_attempts a JOIN app_collection_cut_records r ON r.id=a.root_id
+ JOIN app_collection_stages s ON s.inventory_id=json_extract(r.body_json,'$.inventoryId') AND s.stage_id=json_extract(r.body_json,'$.stageId')
+ JOIN collect_inventories ci ON ci.id=s.inventory_id
+ JOIN app_collection_list_seals l ON l.id=json_extract(r.body_json,'$.eligibilityListId') JOIN app_collection_cut_pages p ON p.attempt_id=a.id JOIN app_collection_cut_records pr ON pr.id=p.page_id
+ WHERE p.operation_id=NEW.operation_id
+ AND p.closure_digest=NEW.result_ref);
+END;
+CREATE TRIGGER free_cut_mandatory BEFORE UPDATE OF state ON app_command_receipts WHEN NEW.state='committed' AND NEW.operation_kind='collection.seal-free-cut.v1' BEGIN
+ SELECT RAISE(ABORT,'Missing atomic collection cut effect') WHERE NOT EXISTS(
+ SELECT 1 FROM app_collection_cut_attempts a JOIN app_collection_cut_records r ON r.id=a.root_id
+ JOIN app_collection_stages s ON s.inventory_id=json_extract(r.body_json,'$.inventoryId') AND s.stage_id=json_extract(r.body_json,'$.stageId')
+ JOIN collect_inventories ci ON ci.id=s.inventory_id
+ JOIN app_collection_list_seals l ON l.id=json_extract(r.body_json,'$.eligibilityListId') JOIN app_collection_free_cuts f ON f.attempt_id=a.id
+ WHERE f.command_operation_id=NEW.operation_id
+ AND substr(NEW.principal_key,1,9)='operator:'
+ AND EXISTS(SELECT 1 FROM app_operator_scopes WHERE operator=substr(NEW.principal_key,10) AND scope='collection-evidence' AND enabled=1)
+ AND json_extract(NEW.result_json,'$.source')='local-fixture'
+ AND json_extract(NEW.result_json,'$.executable')=0
+ AND r.format='collection-cut-root-v1'
+ AND ci.kind='season' AND s.stage_type='free'
+ AND s.opens_ms=json_extract(r.body_json,'$.atMs') AND s.terms_digest=json_extract(r.body_json,'$.termsDigest'));
+ SELECT RAISE(ABORT,'Missing atomic collection cut effect') WHERE NOT EXISTS(
+ SELECT 1 FROM app_collection_cut_attempts a JOIN app_collection_cut_records r ON r.id=a.root_id
+ JOIN app_collection_stages s ON s.inventory_id=json_extract(r.body_json,'$.inventoryId') AND s.stage_id=json_extract(r.body_json,'$.stageId')
+ JOIN collect_inventories ci ON ci.id=s.inventory_id
+ JOIN app_collection_list_seals l ON l.id=json_extract(r.body_json,'$.eligibilityListId') JOIN app_collection_free_cuts f ON f.attempt_id=a.id
+ WHERE f.command_operation_id=NEW.operation_id
+ AND json_extract(r.body_json,'$.sourceKind')='synthetic-local-operator-fixture'
+ AND a.created_ms<=NEW.created_ms AND s.opens_ms<=a.created_ms
+ AND NOT EXISTS(SELECT 1 FROM json_each(l.page_ids_json) j LEFT JOIN app_collection_eligibility_pages p ON p.record_id=j.value WHERE p.record_id IS NULL)
+ AND l.member_count=(SELECT COALESCE(SUM(p.entry_count),0) FROM json_each(l.page_ids_json) j JOIN app_collection_eligibility_pages p ON p.record_id=j.value)
+ AND a.source_revision+1=(SELECT revision FROM app_revisions WHERE name='source')
+ AND a.source_revision=CAST(json_extract(NEW.expected_revisions,'$.source') AS INTEGER)
+ AND a.id=json_extract(NEW.input_json,'$.attemptId') AND a.id=NEW.business_key);
+ SELECT RAISE(ABORT,'Missing atomic collection cut effect') WHERE NOT EXISTS(
+ SELECT 1 FROM app_collection_cut_attempts a JOIN app_collection_cut_records r ON r.id=a.root_id
+ JOIN app_collection_stages s ON s.inventory_id=json_extract(r.body_json,'$.inventoryId') AND s.stage_id=json_extract(r.body_json,'$.stageId')
+ JOIN collect_inventories ci ON ci.id=s.inventory_id
+ JOIN app_collection_list_seals l ON l.id=json_extract(r.body_json,'$.eligibilityListId') JOIN app_collection_free_cuts f ON f.attempt_id=a.id
+ WHERE f.command_operation_id=NEW.operation_id
+ AND a.id=json_extract(NEW.result_json,'$.attemptId') AND a.root_id=json_extract(NEW.result_json,'$.rootId')
+ AND f.root_id=a.root_id AND f.source_revision=a.source_revision
+ AND f.inventory_id=s.inventory_id AND f.stage_id=s.stage_id AND f.cut_ms=s.opens_ms
+ AND f.inventory_id=json_extract(NEW.result_json,'$.inventoryId') AND f.stage_id=json_extract(NEW.result_json,'$.stageId') AND f.cut_ms=json_extract(NEW.result_json,'$.atMs')
+ AND f.list_id=l.id AND f.list_id=json_extract(NEW.result_json,'$.eligibilityListId')
+ AND f.eligible_count=l.member_count AND f.eligible_count=json_extract(NEW.result_json,'$.eligibleWallets')
+ AND f.wallets_digest=l.wallets_digest AND f.source_ref=json_extract(r.body_json,'$.sourceRef'));
+ SELECT RAISE(ABORT,'Missing atomic collection cut effect') WHERE NOT EXISTS(
+ SELECT 1 FROM app_collection_cut_attempts a JOIN app_collection_cut_records r ON r.id=a.root_id
+ JOIN app_collection_stages s ON s.inventory_id=json_extract(r.body_json,'$.inventoryId') AND s.stage_id=json_extract(r.body_json,'$.stageId')
+ JOIN collect_inventories ci ON ci.id=s.inventory_id
+ JOIN app_collection_list_seals l ON l.id=json_extract(r.body_json,'$.eligibilityListId') JOIN app_collection_free_cuts f ON f.attempt_id=a.id
+ WHERE f.command_operation_id=NEW.operation_id
+ AND json_extract(NEW.result_json,'$.commitmentKind')='paged-fixed-cut-v1'
+ AND (SELECT COUNT(*) FROM app_collection_cut_pages WHERE attempt_id=a.id)=json_array_length(r.body_json,'$.pages')
+ AND (SELECT SUM(holding_count) FROM app_collection_cut_pages WHERE attempt_id=a.id)=json_extract(r.body_json,'$.holdingCount')
+ AND NOT EXISTS(SELECT 1 FROM json_each(r.body_json,'$.pages') j LEFT JOIN app_collection_cut_pages p ON p.attempt_id=a.id AND p.page_index=j.key WHERE p.page_id IS NULL OR p.page_id<>json_extract(j.value,'$.id'))
+ AND f.eligible_count=(SELECT COUNT(DISTINCT w.value) FROM app_collection_cut_pages p,json_each(p.eligible_wallets_json) w WHERE p.attempt_id=a.id)
+ AND NOT EXISTS(SELECT w.value FROM app_collection_cut_pages p,json_each(p.eligible_wallets_json) w WHERE p.attempt_id=a.id EXCEPT SELECT member.value FROM json_each(l.page_ids_json) ids JOIN app_collection_eligibility_pages ep ON ep.record_id=ids.value,json_each(ep.entries_json) member));
+ SELECT RAISE(ABORT,'Missing collection cut result reference') WHERE NOT EXISTS(
+ SELECT 1 FROM app_collection_cut_attempts a JOIN app_collection_cut_records r ON r.id=a.root_id
+ JOIN app_collection_stages s ON s.inventory_id=json_extract(r.body_json,'$.inventoryId') AND s.stage_id=json_extract(r.body_json,'$.stageId')
+ JOIN collect_inventories ci ON ci.id=s.inventory_id
+ JOIN app_collection_list_seals l ON l.id=json_extract(r.body_json,'$.eligibilityListId') JOIN app_collection_free_cuts f ON f.attempt_id=a.id
+ WHERE f.command_operation_id=NEW.operation_id
+ AND f.root_id=NEW.result_ref);
+END;

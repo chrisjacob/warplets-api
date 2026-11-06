@@ -2,7 +2,7 @@
   "task": "B11",
   "checkpoint": "B11-17-normalized-mint-fulfillment",
   "status": "locally-verified-fulfillment-partial-B11",
-  "implementationCommit": null,
+  "implementationCommit": "15c2628dc0c0bdb795b466cdf7ab88247078d752",
   "lastTestedBase": "8257b95db1db899e5e498123f8032b35b5cc85ce",
   "fixtureLabels": [
     "synthetic-local-operator-fixture",
@@ -115,5 +115,12 @@
     "platform/evidence/envelope.mjs": "0ec9109329f09321920d251a2d49967178dbfb706239fb1a6cbeead4ab90edb3",
     "platform/recovery/schema.mjs": "97f30c0a3a38bd298ac70ef3cf186dcfaa7aac79190e54c7cba3075afc7d92e2"
   },
-  "priorBroadFailure": "Old admission rejection message assertion changed to exact installed046 message; initial549/550 then final552/552 pass. No acceptance criteria relaxed."
+  "priorBroadFailure": "Old admission rejection message assertion changed to exact installed046 message; initial549/550 then final552/552 pass. No acceptance criteria relaxed.",
+  "ci": {
+    "repairCommit": "b260efe635c3a7bdb9aaee8250490b1dcea701df",
+    "id": 42159591702,
+    "result": "success",
+    "initialFailedRun": 42158256759,
+    "repair": "Exact installed guard error assertion only; product unchanged"
+  }
 }
