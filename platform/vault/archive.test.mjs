@@ -23,3 +23,12 @@ test('independent digest and scope pins reject lying reads and changed inventory
  await assert.rejects(archive.restore(saved.pin));
  f.objects.delete(saved.pin.identity.key);assert.equal((await archive.restore(saved.pin)).reason,'vault-liability-object-missing');
 });
+
+test('captures independent pin data before asynchronous reads and refuses accessor identities',async()=>{
+ const f=fixture(),saved=await createVaultLiabilityArchive({crypto,store:f.store}).save(bytes());
+ let release,entered;const gate=new Promise(r=>release=r),started=new Promise(r=>entered=r);
+ const archive=createVaultLiabilityArchive({crypto,store:{...f.store,async getVerified(i){entered();await gate;return f.store.getVerified(i);}}});
+ const pin=structuredClone(saved.pin),pending=archive.restore(pin);await started;pin.marketId='changed';pin.identity.byteDigest='b'.repeat(64);release();assert.equal((await pending).manifest.marketId,'synthetic-vault');
+ let reads=0;const malicious=structuredClone(saved.pin);Object.defineProperty(malicious.identity,'byteDigest',{enumerable:true,get(){reads++;return saved.pin.identity.byteDigest;}});
+ await assert.rejects(archive.restore(malicious),/data fields/);assert.equal(reads,0);
+});

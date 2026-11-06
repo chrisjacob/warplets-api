@@ -1,0 +1,56 @@
+{
+  "milestone": "B19 local acceptance: compact complete archive references, recovery and financial dossiers",
+  "baseCommit": "10f6b30",
+  "status": "local-acceptance-passed-ci-pending",
+  "checks": [
+    {
+      "command": "B19 final focused suite (listed in work/b19-final-focused.log)",
+      "passed": 32,
+      "failed": 0,
+      "durationMs": 580.0532,
+      "log": "work/b19-final-focused.log"
+    },
+    {
+      "command": "node --test platform/vault/recovery.test.mjs",
+      "passed": 1,
+      "failed": 0,
+      "durationMs": 44474.5885,
+      "log": "work/b19-vault-index-recovery.log"
+    }
+  ],
+  "archiveIndex": {
+    "requiredTableReferences": 15,
+    "maximumBytes": 65536,
+    "maximumIndexReads": 64,
+    "encodedIndexCacheBytes": 262144,
+    "duplicatesRows": false
+  },
+  "restore": {
+    "objects": 185,
+    "steps": 1149,
+    "peakCheckpointBytes": 129652
+  },
+  "assertions": [
+    "Actual full root archive-index save/restore and empty database recovery passed",
+    "Omitted cumulative claims, rehashed shortened index, wrong independent scope, tampered bytes and conflicting cached identity reject",
+    "Private tables and entropy stay separate from public commitment",
+    "Same-mint combined farm arithmetic explicitly does not prove individual vault backing",
+    "Missing Rewards Merkle vectors and unresolved production custody remain explicit"
+  ],
+  "sourceHashes": {
+    "platform/vault/archive-index.mjs": "f8303df57fabb74a905d069113a66d9cbf324fab07ab4e32212264bdd1ae6665",
+    "platform/vault/archive-index-reader.mjs": "4e17c3ed227271f5948c4ecb9851170fb809bbea159522152e82e3476e1a0a98",
+    "platform/vault/archive-index.fixtures.mjs": "cc53a28c463c9d5d9a7e80ed4f58170a3148ac9414473d5661396c66abba038d",
+    "platform/vault/archive-index.test.mjs": "e5288259b4a8ad074f2232c80e30420c91702bfb64785cdba3fff49d341b16b3",
+    "platform/vault/archive.mjs": "d8d72ce98e5952ced7c9b6ddacaf8cf46f4f53095206e8108573afa73c7e7a75",
+    "platform/vault/archive.test.mjs": "b4176e21060380270fae88f55ceb4b197bdbf13fc3c532126292e814038376d0",
+    "platform/vault/manifest-from-recovery.mjs": "3f08a6ea65130c95be802ab2b06c82b5b90df5e65096ba98d359da6255e5abea",
+    "platform/vault/recovery.test.mjs": "4e8a685287646b6e5e2716391c2d8b6cc878e95c4a45dc0358b2c7302640c480",
+    "platform/stake/readiness.mjs": "398a34986896267fcacc4ddb0525f2a357ccbed5f51666c49fb5abb368c228b3",
+    "platform/stake/readiness.test.mjs": "1a28fef21e1358d29fc9f2505d4da61ac4eb0f465387c2f1e3f1ffce7aa9b45e"
+  },
+  "financialExecution": false,
+  "remaining": [
+    "Full reference integration and test-only CI acceptance before verified status"
+  ]
+}

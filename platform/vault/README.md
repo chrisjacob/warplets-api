@@ -14,6 +14,8 @@ These are local recorded-evidence tools. No function signs, funds or broadcasts 
 
 `createVaultLiabilityArchive({crypto,store})` saves the component through the existing immutable ArtifactStore. Retain its returned pin separately from the object directory. After an unknown write acknowledgement, retry identical input or restore that same pin. A missing object stays pending; corrupted bytes or changed market/inventory scope reject. This API restores the liability component only, not a database or spent-claim ledger.
 
+`createVaultArchiveIndexStore({crypto,store})` adds a compact private index. Its `save` input contains the exact root bytes/digest, liability bytes/digest and source page index. It verifies fifteen required table descriptors covering original collection identities, immutable binding evidence, ownership/progression history and all four Vault tables, then persists the root, liability component and index as immutable objects. Retain the returned index pin independently. `restore(pin)` rebuilds the expected coverage and rejects omitted spent-claim tables even if someone rehashes a shortened index. It references the whole snapshot without duplicating rows. `fullRecoveryVerified` stays false until the separate full v2 restoration completes.
+
 ## Complete private recovery
 
 1. Use the existing bounded v2 capture service (`createRecoveryV2Capture`) to capture the complete application database and retained objects. Preserve the root bytes and root digest independently. Keep the source commit and exact migration descriptor. Do not replace the full snapshot with the compact liability component.
@@ -27,7 +29,7 @@ The complete recovery test uses an independently pinned actual v2 capture, resto
 Run from the repository root:
 
 ```text
-node --test platform/vault/manifest.test.mjs platform/vault/archive.test.mjs platform/vault/manifest-from-recovery.test.mjs
+node --test platform/vault/manifest.test.mjs platform/vault/archive.test.mjs platform/vault/manifest-from-recovery.test.mjs platform/vault/archive-index.test.mjs
 node --test platform/vault/recovery.test.mjs
 ```
 

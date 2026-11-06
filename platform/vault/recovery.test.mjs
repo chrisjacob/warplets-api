@@ -12,6 +12,7 @@ import {encode58} from '../server/base58.mjs';
 import {recordVaultManifest,observeAsset,readAsset} from './ledger.mjs';
 import {vaultLiabilityFromRecoveryPage} from './manifest-from-recovery.mjs';
 import {projectVaultReserve} from './manifest.mjs';
+import {createVaultArchiveIndexStore} from './archive-index.mjs';
 const base=Date.UTC(2026,10,1),hour=3600000,key=n=>encode58(Buffer.alloc(32,n)),at=h=>new Date(base+h*hour).toISOString();
 
 test('independently pinned full restore preserves unminted liability and spent claims through transfer and Season expiry',async t=>{
@@ -31,6 +32,8 @@ test('independently pinned full restore preserves unminted liability and spent c
  for(let n=0;n<3000&&captured.kind!=='captured';n++){assert.ok(['started','progress','replayed'].includes(captured.kind),JSON.stringify(captured));captured=await capture.step({captureId:captured.captureId,expectedRevision:captured.revision});}
  assert.equal(captured.kind,'captured');
  const encoded=await codec.encodeRoot(captured.value),liability=await vaultLiabilityFromRecoveryPage({rootBytes:encoded.bytes,rootDigest:captured.digest,marketId,pageIndex:0},{crypto:f.crypto,store:f.store});
+ const archive=createVaultArchiveIndexStore({crypto:f.crypto,store:f.store}),saved=await archive.save({rootBytes:encoded.bytes,rootDigest:captured.digest,liabilityBytes:liability.bytes,liabilityDigest:liability.sha256,pageIndex:0});
+ assert.equal(saved.kind,'saved',JSON.stringify(saved));assert.ok(saved.index.tables.some(r=>r.name==='vault_claim_totals'));assert.equal(saved.index.fullRecoveryVerified,false);assert.equal((await archive.restore(saved.pin)).kind,'restored');
  const unminted=projectVaultReserve(liability.manifest,{...slot,ordinal:1},base+36*hour);assert.equal(unminted.vestedUnits,'500');assert.equal(unminted.claimAuthority,false);
  const db=openDatabase();t.after(()=>db.close());const store=memoryArtifacts(),restore=createRecoveryV2Restore({...f,driver:createNodeAtomicDriver(db),artifacts:store,sourceArtifacts:f.store,v2Codec:codec,createDigest:createNodeRecoveryDigest}),input={root:captured.value,pinnedDigest:captured.digest};
  await assert.rejects(restore.start({...input,pinnedDigest:'b'.repeat(64)}));

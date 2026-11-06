@@ -5,9 +5,13 @@ import {createVaultLiabilityManifest,verifyVaultLiabilityManifest,VAULT_MANIFEST
 /** Private liability-component persistence. Full inventory, binding and claim
  * restoration is a separate requirement; this store never grants authority. */
 export function createVaultLiabilityArchive({crypto,store}){
+ const data=(input,keys)=>{
+  if(!input||![Object.prototype,null].includes(Object.getPrototypeOf(input))||Reflect.ownKeys(input).length!==keys.length)throw new TypeError('Vault archive: exact data pin required');
+  const value={};for(const key of keys){const field=Object.getOwnPropertyDescriptor(input,key);if(!field?.enumerable||!Object.hasOwn(field,'value'))throw new TypeError('Vault archive: data fields required');value[key]=field.value;}return value;
+ };
  const capturePin=input=>{
-  if(!input||Object.keys(input).sort().join(',')!=='identity,inventoryCommitment,marketId')throw new TypeError('Vault archive: exact pin required');
-  const pin={identity:privateIdentity(input.identity),inventoryCommitment:input.inventoryCommitment,marketId:input.marketId};
+  const value=data(input,['identity','inventoryCommitment','marketId']);
+  const pin={identity:privateIdentity(data(value.identity,['key','byteDigest','size','semanticDigest','visibility','contentType'])),inventoryCommitment:value.inventoryCommitment,marketId:value.marketId};
   if(pin.identity.size>VAULT_MANIFEST_MAX_BYTES||pin.identity.contentType!=='application/json'||pin.identity.semanticDigest!==null||typeof pin.inventoryCommitment!=='string'||!/^[a-f0-9]{64}$/.test(pin.inventoryCommitment)||typeof pin.marketId!=='string'||!/^[A-Za-z0-9._:-]{1,128}$/.test(pin.marketId))throw new TypeError('Vault archive: invalid pin');
   return pin;
  };

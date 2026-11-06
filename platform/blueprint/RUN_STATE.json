@@ -5,7 +5,7 @@
   "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
   "currentTask": "B19",
-  "lastUpdatedAt": "2026-11-06T23:39:05.043611+00:00",
+  "lastUpdatedAt": "2026-11-06T23:43:16.342683+00:00",
   "migrationAllocation": {
     "next": 70,
     "reserved": [
@@ -605,7 +605,7 @@
       "status": "in_progress",
       "owner": "coordinator",
       "baseCommit": "f873021",
-      "implementationCommit": "aff515e",
+      "implementationCommit": "10f6b30",
       "pushed": true,
       "evidence": [
         "platform/validation/runs/2026-11-06-overnight/B19-01.json",
@@ -615,9 +615,10 @@
         "platform/validation/runs/2026-11-06-overnight/B19-05.json",
         "platform/validation/runs/2026-11-06-overnight/B19-06.json",
         "platform/validation/runs/2026-11-06-overnight/B19-07.json",
-        "platform/validation/runs/2026-11-06-overnight/B19-08.json"
+        "platform/validation/runs/2026-11-06-overnight/B19-08.json",
+        "platform/validation/runs/2026-11-06-overnight/B19-acceptance.json"
       ],
-      "nextAction": "Claim wire-shape codecs, farm readiness and seven decision dossiers tested. Finish explicit compact archive-index references to ownership/claim tables, integrate actual restore acceptance, then B19 final CI after active B17CI42308923046 finishes. Guide agent active;50% usage cap.",
+      "nextAction": "All B19 local acceptance passed33 focused/full-restore tests. Run full reference integration; after B17CI42308923046 completes trigger test-only B19 checkpoint CI. Do not markverified before integration/CI. B18 awaitsB17. GuidePDF/HTML drafted and visuallychecked, updatefinalstatuslater. Usercap50%.",
       "blocker": null
     },
     "B20": {

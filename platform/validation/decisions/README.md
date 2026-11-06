@@ -22,6 +22,8 @@ The release decision needs one exact asset **and collection** policy, with every
 
 `platform/stake/readiness.mjs` checks bounded caller-supplied accounting assertions. It never authenticates provider balances or configuration. It requires exactly 5% gross funding and separates principal, earned-unclaimed liability and idle rewards. A proposed idle withdrawal fails the arithmetic check if it consumes protected liabilities or exceeds isolated idle funds. This is necessary accounting, not transaction approval.
 
+The calculator explicitly requires `same-mint-combined-vaults`, matching the recorded same-mint fixture. Never add balances of different token mints. Even a consistent combined balance cannot establish that the principal and reward vaults are individually backed; `individualVaultBacking` remains unverified and is a separate release requirement.
+
 Required upkeep includes reward refresh, prescribed default-curve transition at campaign end and isolated idle recovery. Forbidden powers include principal redirection/withdrawal, reassigning authority to regain that power, and premature cancellation of funded emissions. The recorded unrestricted-admin counterexample remains a failed release condition.
 
 The successful curve used 1,000,000 whole reward base units per second. Fractional rates, decimals, arbitrary supply, refresh frequency and protocol rounding remain unproven. The selected global fee must be verified; a dated zero fee is not a guarantee. A nonzero fee reduces disclosed net receipts and never authorizes another allocation's top-up. The module's hypothetical fee floor is illustrative and cannot replace reconciliation of cumulative fees already charged.
