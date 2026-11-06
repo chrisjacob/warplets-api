@@ -1,3 +1,7 @@
+# Latest B19 checkpoint: pinned historical findings
+
+Two recorded incompatibility findings now verify the exact retained protocol-status.md SHA-256 before indexing: unrestricted Kamino admin principal custody and direct wallet-bound Rewards leaf used for NFT ownership. Four focused tests pass (186.0776ms), including altered/missing/oversized evidence rejection. Source identity is not provider or review authority. B19-02 records hashes and checks. B19 remains partial; next extend recorded gate coverage, then Vault manifests/recovery, supported claim codecs and dossiers. B17 CI42308923046 remains active in reference checks; B00-B16 verified. Account99%, continue as authorized. Financial execution remains disabled.
+
 # Latest continuation: B16 verified, B17 CI active, B19 started
 
 B16 fullCI42299274676 SUCCESS at751e37af8a3cc4f106f14c4f27c217911ebb8a9d:1132reference+30viewer+3beacon+162edge=1327passes,0failures; allbuild/type/contract/recovery stagespassed. B00-B16nowverified(17tasks,343points). B17localacceptancecomplete at1e4497f; finalintegrationCI42308923046 ACTIVE one80941ef56adf46af01b5d9be46fcb4029e7ec35. Watchsession20498/logwork/ci-42308923046.log. Do notcancelwithanothermarker. Followtofinalandresolvefailures.

@@ -1,0 +1,26 @@
+{
+  "milestone": "B19 pinned recorded incompatibility evidence",
+  "status": "partial-source-records-verified",
+  "baseCommit": "48bee13",
+  "checks": [
+    {
+      "command": "node --test platform/validation/gates.test.mjs platform/validation/recorded-gates.test.mjs",
+      "passed": 4,
+      "failed": 0,
+      "durationMs": 186.0776
+    },
+    {
+      "command": "node platform/blueprint/validate-plan.mjs --next --self-check",
+      "result": "passed"
+    }
+  ],
+  "sourceHashes": {
+    "platform/validation/recorded-gates.mjs": "dfc4145c8d582ac5f75d7d05e8e1f235dc84926f491b69d3121c3ba881499dfe",
+    "platform/validation/recorded-gates.test.mjs": "f6f457f3f8b70d79dbaccf2cd29e574340170fe3ff8a0c009317d9dd814506ea"
+  },
+  "limitations": [
+    "Pinned report bytes authenticate artifact identity, not provider truth, reviewer authority or current configuration.",
+    "Two historical incompatibilities only; remaining gate records, Vault manifests, recovery, claim codecs and dossiers unfinished."
+  ],
+  "financialExecution": false
+}
