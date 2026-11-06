@@ -1,0 +1,18 @@
+{
+  "run": 42242947709,
+  "head": "5aa1d4ba90811c0608973611cbd0af91522d60d7",
+  "status": "failed",
+  "reference": {
+    "tests": 974,
+    "passed": 968,
+    "failed": 6
+  },
+  "failureLog": "work/ci-42242947709-failed.log",
+  "resolution": [
+    "One operator governance fixture expected zero initial audits; fixed8ec58b3 with exact12source+2governance checks.",
+    "Five governance audit cases assumed governance rows started at index0/count0; now select exact governance events while verifying full chain and exact12source ancestry. Lost-ack injection now targets governance audit inserts, preserving intended fault after new source audits."
+  ],
+  "verification": "7PASS8392.2952ms work/b13-ci-governance-audit-fix.log",
+  "acceptance": "Ordered preimages, full chain/hash checks, contention, rollback, historical replay and lost-ack assertions retained; no product guard weakened.",
+  "next": "Consolidated checkpoint after current B13 tested slices; downstream stages skipped by failed reference step still need completion."
+}
