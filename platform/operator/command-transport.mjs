@@ -95,7 +95,7 @@ export function createOperatorCommandTransport(db,{sessions,clock=Date.now,crypt
      if(derived.kind!=='preview')return json(derived,derived.kind==='conflict'?409:derived.kind==='pending'?202:200);
      authorization.guard();
      return json({...prepared.preview,summary:{...prepared.preview.summary,termsDigest:derived.value.termsDigest,
-      eligibility:derived.value.eligibility,costUncertainty:derived.value.costUncertainty}});
+      eligibility:derived.value.eligibility,costUncertainty:derived.value.costUncertainty,opening:derived.value.opening}});
     }
     if([PUBLISH_BALLOT,RECORD_DECISION].includes(prepared.command.operationKind)){
      const derived=await (prepared.command.operationKind===PUBLISH_BALLOT?governance.previewBallot(prepared.command):governance.previewDecision(prepared.command));

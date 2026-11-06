@@ -22,6 +22,15 @@ export function normalizeStagePublication(input){
  requirePolicy(['whitelist','founder'].includes(i.type)?hash(i.eligibilityListId):i.eligibilityListId===null,'invalid_stage_eligibility_binding');
  requirePolicy(i.sourceKind==='synthetic-local-operator-fixture','stage_source_kind');return freeze(i);
 }
+/** Live publication policy, deliberately separate from historical terms
+ * reconstruction: old accepted receipts retain their original exact preimage. */
+export function validateNewStageOpeningPolicy(input,header,stages){
+ const i=normalizeStagePublication(input);
+ requirePolicy(header&&Array.isArray(stages),'stage_header_invalid');
+ const firstLater=header.kind==='genesis'&&header.tranche>1&&stages.length===0;
+ requirePolicy(firstLater||i.ballotId===null&&i.inventoryOverrideReason===null,'stage_opening_policy_inapplicable');
+ return i;
+}
 /** Pure bounded stage derivation. Facts must come from the repository, whose
  * final claim must recheck revisions, scope, header and sealed list identity.
  * Passing this plan grants neither publication nor mint admission authority. */

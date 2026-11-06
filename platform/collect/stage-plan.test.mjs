@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {openDatabase} from '../storage/database.mjs';
 import {createCollection,publishCollectionStage} from './store.mjs';
 import {createNodeCrypto} from '../security/node-crypto.mjs';
-import {prepareStagePublication,normalizeStagePublication} from './stage-plan.mjs';
+import {prepareStagePublication,normalizeStagePublication,validateNewStageOpeningPolicy} from './stage-plan.mjs';
 import {encode58} from '../server/base58.mjs';
 const crypto=createNodeCrypto(),start=Date.parse('2026-11-01T00:00:00.000Z'),day=86400000;
 const wallets=Array.from({length:3},(_,i)=>encode58(Uint8Array.from({length:32},(_,j)=>i+j+1))).sort();
@@ -40,4 +40,18 @@ test('next-tranche publication binds the prior opening ballot while actual openi
  const plan=await prepareStagePublication(i,facts,crypto);assert.equal(plan.stage.ballotId,i.ballotId);assert.equal(plan.stage.priceLamports.$lamports,'200000000');
  await assert.rejects(()=>prepareStagePublication(i,{...facts,ballot:{...facts.ballot,trancheOpeningMs:start}},crypto),/wrong_ballot/);
  await assert.rejects(()=>prepareStagePublication(i,{...facts,previous:null},crypto),/missing_previous_tranche/);
+});
+
+
+test('live opening policy belongs only to the first later Genesis stage; historical reconstruction remains unchanged',async()=>{
+ const input={...initial,inventoryId:'synthetic-genesis-two',ballotId:'synthetic-ballot',inventoryOverrideReason:'Explicit local inventory override.'};
+ const header={id:input.inventoryId,kind:'genesis',tranche:2,seasonStart:null,revision:0};
+ assert.deepEqual(validateNewStageOpeningPolicy(input,header,[]),input);
+ for(const [h,stages] of [[{...header,tranche:1},[]],[{...header,kind:'season',tranche:null},[]],[header,[{id:'retained-first'}]]]){
+  for(const change of [{ballotId:null},{inventoryOverrideReason:null},{}])assert.throws(()=>validateNewStageOpeningPolicy({...input,...change},h,stages),/stage_opening_policy_inapplicable/);
+  assert.doesNotThrow(()=>validateNewStageOpeningPolicy({...input,ballotId:null,inventoryOverrideReason:null},h,stages));
+ }
+ const facts=fact(input,{header,stages:[{id:'historical-first',type:'whitelist',closesAt:start+day}]});
+ const historical=await prepareStagePublication(input,facts,crypto);
+ assert.equal(historical.stage.ballotId,input.ballotId);assert.equal(historical.stage.inventoryOverrideReason,input.inventoryOverrideReason);
 });

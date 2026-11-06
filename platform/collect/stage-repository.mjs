@@ -7,11 +7,36 @@ import {createInventory} from '../domain/collections/inventory.mjs';
 import {LEVEL_QUOTAS} from '../domain/collections/policy.mjs';
 import {readGovernanceElectorates} from '../governance/operator-source.mjs';
 import {buildStagePublicationCommand,PUBLISH_COLLECTION_STAGE} from './stage-service.mjs';
-import {prepareStagePublication} from './stage-plan.mjs';
+import {prepareStagePublication,validateNewStageOpeningPolicy} from './stage-plan.mjs';
 const clone=v=>JSON.parse(canonicalJson(v));
 const pending=reason=>({kind:'pending',reason,dependencyIds:[]}),conflict=code=>({kind:'conflict',code});
 const grant="EXISTS(SELECT 1 FROM app_operator_scopes WHERE operator=? AND scope='collection-publication' AND enabled=1)";
 const founderGrant="EXISTS(SELECT 1 FROM app_operator_scopes WHERE operator=? AND scope='collection-founder' AND enabled=1)";
+// These are local allocation counts, never payment or chain ownership evidence.
+function openingPreview(i,h,stages,authority,previous,decisions,nowMs){
+ const empty={applicable:false,firstStageId:null,ballotId:null,previousInventoryId:null,previousTranche:null,
+  previousAdmitted:null,previousRemaining:null,decisionStatus:'missing',decisionEarliestMs:null,defaultPostponed:false,
+  inventoryOverrideReason:null,effectiveEarliestMs:null,holds:[],financialExecution:false};
+ if(h.kind!=='genesis'||h.tranche<=1)return empty;
+ const admitted=authority?.admitted??0;
+ if(!Number.isInteger(admitted)||admitted<0||admitted>1000||previous.length>1||decisions.length>1)throw new TypeError('Invalid opening facts.');
+ const first=stages[0]??{id:i.stageId,ballotId:i.ballotId,inventoryOverrideReason:i.inventoryOverrideReason},p=previous[0],d=decisions[0];
+ const validPrevious=p&&p.tranche===h.tranche-1&&Number.isInteger(p.admitted)&&p.admitted>=0&&p.admitted<=1000;
+ const validDecision=d&&d.ballot_id===first.ballotId&&Number.isSafeInteger(d.earliest_ms)&&d.earliest_ms>=0&&d.earliest_ms<=8640000000000000;
+ if(d&&!validDecision)throw new TypeError('Invalid decision.');
+ const applicable=admitted===0,holds=[];
+ if(applicable){
+  if(nowMs<i.opensAt)holds.push('stage-not-open');
+  if(!validDecision)holds.push('decision-missing');else if(nowMs<d.earliest_ms)holds.push('decision-not-due');
+  if(!validPrevious)holds.push('previous-inventory-missing');
+  else if(p.admitted<1000&&first.inventoryOverrideReason===null)holds.push('previous-inventory-remaining');
+ }
+ return {...empty,applicable,firstStageId:first.id,ballotId:first.ballotId,
+  previousInventoryId:p?.id??null,previousTranche:p?.tranche??null,previousAdmitted:validPrevious?p.admitted:null,
+  previousRemaining:validPrevious?1000-p.admitted:null,decisionStatus:validDecision?'recorded':'missing',
+  decisionEarliestMs:validDecision?d.earliest_ms:null,defaultPostponed:applicable&&(!validPrevious||p.admitted<1000),
+  inventoryOverrideReason:first.inventoryOverrideReason,effectiveEarliestMs:applicable&&validDecision?Math.max(i.opensAt,d.earliest_ms):null,holds};
+}
 /** Private normalized stage authority. An initial empty reference header can be
  * adopted exactly; populated legacy state requires a separately verified import.
  * Neither a source seal nor a caller approval boolean substitutes for scope. */
@@ -33,14 +58,21 @@ export function createStagePublicationRepository(driver,ports){
    sql('SELECT stage_id,ordinal,terms_digest,CASE WHEN length(CAST(terms_json AS BLOB))<=8192 THEN terms_json ELSE NULL END terms_json FROM app_collection_stages WHERE inventory_id=? ORDER BY ordinal LIMIT 33',i.inventoryId),
    sql(`SELECT p.id,p.tranche,
     CASE WHEN EXISTS(SELECT 1 FROM app_collection_authorities WHERE inventory_id=p.id)
+     THEN (SELECT admitted FROM app_collection_authorities WHERE inventory_id=p.id)
+     ELSE CASE WHEN length(CAST(p.state AS BLOB))<=33554432 AND json_valid(p.state) AND json_type(p.state,'$.admissions')='array' THEN json_array_length(p.state,'$.admissions') ELSE NULL END END admitted,
+    CASE WHEN EXISTS(SELECT 1 FROM app_collection_authorities WHERE inventory_id=p.id)
      THEN (SELECT json_group_array(opens_ms) FROM (SELECT opens_ms FROM app_collection_stages WHERE inventory_id=p.id ORDER BY ordinal LIMIT 33))
      ELSE CASE WHEN length(CAST(p.state AS BLOB))<=33554432 AND json_valid(p.state) THEN (SELECT json_group_array(json_extract(value,'$.opensAt')) FROM (SELECT value FROM json_each(p.state,'$.stages') LIMIT 33)) ELSE NULL END END openings_json
     FROM collect_inventories p WHERE p.tranche=(SELECT tranche-1 FROM collect_inventories WHERE id=?)`,i.inventoryId),
    sql('SELECT id,tranche_open_ms FROM genesis_ballots WHERE id=?',i.ballotId),sql(importedCollectionRuntimeSql),
    sql('SELECT seq,event_hash FROM ops_config_audit ORDER BY seq DESC LIMIT 1'),
+   sql(`SELECT ballot_id,earliest_ms FROM genesis_decisions WHERE ballot_id=CASE
+    WHEN EXISTS(SELECT 1 FROM app_collection_stages WHERE inventory_id=? AND ordinal=0)
+    THEN (SELECT json_extract(terms_json,'$.ballotId') FROM app_collection_stages WHERE inventory_id=? AND ordinal=0 AND length(CAST(terms_json AS BLOB))<=8192)
+    ELSE ? END LIMIT 1`,i.inventoryId,i.inventoryId,i.ballotId),
   ]);
   if(utf8(canonicalJson(captured)).length>262144)return pending('stage-context-byte-bound');
-  const [rs,grants,headers,authorities,stages,previous,ballots,runtimes,heads]=captured,h=headers[0],authority=authorities[0];
+  const [rs,grants,headers,authorities,stages,previous,ballots,runtimes,heads,decisions]=captured,h=headers[0],authority=authorities[0];
   if(!grants.some(g=>g.scope==='collection-publication'&&g.enabled===1)||needsFounder&&!grants.some(g=>g.scope==='collection-founder'&&g.enabled===1))return conflict('operator_scope_required');
   if(!h)return pending('stage-inventory-missing');if(stages.some(s=>s.stage_id===i.stageId))return conflict('stage_already_published');
   if(rs.length!==3||rs.some(r=>!['earn','source','control'].includes(r.name)||typeof r.revision!=='string'||!/^(0|[1-9][0-9]*)$/.test(r.revision)))return pending('stage-revisions-unavailable');
@@ -60,12 +92,18 @@ export function createStagePublicationRepository(driver,ports){
   }catch{return pending('stage-reference-invalid');}
   let eligibility=null;
   if(i.eligibilityListId!==null){const lists=await readGovernanceElectorates(read,[i.eligibilityListId],crypto);if(lists.kind!=='ready')return lists;eligibility={id:i.eligibilityListId,wallets:lists.lists.get(i.eligibilityListId).wallets};}
-  let plan;try{plan=await prepareStagePublication(i,{header:{id:h.id,kind:h.kind,tranche:h.tranche,seasonStart:h.season_start,revision:authority?.revision??0},stages:stageFacts,nowMs,eligibility,
+  let plan;try{validateNewStageOpeningPolicy(i,h,stageFacts);plan=await prepareStagePublication(i,{header:{id:h.id,kind:h.kind,tranche:h.tranche,seasonStart:h.season_start,revision:authority?.revision??0},stages:stageFacts,nowMs,eligibility,
    previous:previous[0]?{tranche:previous[0].tranche,openings:JSON.parse(previous[0].openings_json)}:null,ballot:ballots[0]?{id:ballots[0].id,trancheOpeningMs:ballots[0].tranche_open_ms}:null},crypto);}catch(error){return pending(typeof error.code==='string'?error.code:'stage-policy-invalid');}
   const result={inventoryId:h.id,stageId:i.stageId,termsDigest:plan.stage.termsDigest,publicationRevision:plan.expectedInventoryRevision+1,eligibility:plan.eligibility,source:'local-fixture',executable:false},stageJson=canonicalJson(plan.stage);
+  let opening;
+  if(previewOnly){
+   try{opening=openingPreview(i,h,stageFacts,authority,previous,decisions,nowMs);}catch{return pending('stage-opening-context-invalid');}
+   const [current]=await read([sql('SELECT name,CAST(revision AS TEXT) revision FROM app_revisions ORDER BY name')]);
+   if(current.length!==3||!matchesExpectedRevisions(version,revisions(current)))return conflict('revision_conflict');
+  }
   if(previewOnly)return {kind:'preview',value:{...result,expectedRevisions:version,stageType:i.type,publishedAt:i.publishedAt,
    opensAt:i.opensAt,closesAt:i.closesAt,priceLamports:i.priceLamports,costLamports:i.costLamports,
-   allocation:i.allocation,walletLimit:i.walletLimit,sourceKind:i.sourceKind,
+   allocation:i.allocation,walletLimit:i.walletLimit,sourceKind:i.sourceKind,opening,
    costUncertainty:'Synthetic local estimate; no payment or execution authorized.',financialExecution:false}};
   const event={category:'collection-stage',entity:h.id,changeKey:c.businessIdentity,atMs:nowMs,actor:c.principal.id,
    evidenceRef:i.eligibilityListId??i.sourceKind,payload:{inventoryId:h.id,stageId:i.stageId,termsDigest:plan.stage.termsDigest,

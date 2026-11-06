@@ -49,7 +49,6 @@ export async function prepareOperatorCommand({principal,request,nowMs},crypto){
  if(!observation&&!source&&!action&&!stage&&!governance&&!cut){requireValue(exact(i,staffing?staffingFields:review?reviewFields:scopeFields),'Invalid operator input fields.');name(i.reason,'reason');}
  if(stage){
   normalizeStagePublication(i);
-  requireValue(i.inventoryOverrideReason===null&&i.ballotId===null,'Ballot and inventory override publication are unavailable here.');
   requireValue(i.type==='public'?i.founderApproved===true&&i.approvedSpendLamports===null:
    i.type==='founder'?i.founderApproved===true&&i.approvedSpendLamports!==null:
    i.founderApproved===false&&i.approvedSpendLamports===null,'Supply only the explicit fixture approvals required by this stage type.');

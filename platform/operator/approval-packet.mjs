@@ -26,7 +26,7 @@ const INPUTS=Object.freeze({
  [STAFF]:{effectiveEpoch:nat,staffedMinutes:v=>nat(v,1440),secondsPerReview:v=>nat(v,3600)&&v>=1,admissionLimit:v=>nat(v,100),reason:text},
  [SCOPE]:{scope,paused:bool,previousRevision:v=>v===null||text(v),reason:text,evidenceRef:text},
  [REVIEW]:{submissionId:text,score:v=>nat(v,10),reason:text,sourceRef:text},
- [STAGE]:{inventoryId:id,stageId:id,type:v=>['whitelist','free','public','founder'].includes(v),publishedAt:time,opensAt:time,closesAt:time,priceLamports:money,costLamports:money,allocation:v=>nat(v,1000)&&v>0,walletLimit:v=>v===null||nat(v,1000)&&v>0,founderApproved:bool,approvedSpendLamports:v=>v===null||money(v),ballotId:isNull,inventoryOverrideReason:isNull,eligibilityListId:v=>v===null||hex(v),sourceKind:fixed('synthetic-local-operator-fixture')},
+ [STAGE]:{inventoryId:id,stageId:id,type:v=>['whitelist','free','public','founder'].includes(v),publishedAt:time,opensAt:time,closesAt:time,priceLamports:money,costLamports:money,allocation:v=>nat(v,1000)&&v>0,walletLimit:v=>v===null||nat(v,1000)&&v>0,founderApproved:bool,approvedSpendLamports:v=>v===null||money(v),ballotId:v=>v===null||id(v),inventoryOverrideReason:v=>v===null||text(v,500),eligibilityListId:v=>v===null||hex(v),sourceKind:fixed('synthetic-local-operator-fixture')},
  [BALLOT]:{ballotId:id,opensMs:time,previousTrancheOpeningMs:time,electorateSourceId:id,electorateDigest:hex,cutoffMs:time,sourceKind:fixed('synthetic-local-operator-fixture'),holdersListId:hex,nextWhitelistListId:hex,unionListId:hex},
  [DECISION]:{ballotId:id,choice:v=>['ASAP','7','14','30'].includes(v),decidedMs:time,noticeMs:time,rationale:v=>text(v,1000)},
  [BEGIN]:{rootId:hex},[PAGE]:{attemptId:hex,pageIndex:v=>nat(v,99)},[SEAL]:{attemptId:hex}
@@ -41,6 +41,13 @@ function cutSummary(kind,input,summary){
  if(kind===PAGE){if(result.attemptId!==input.attemptId||result.pageIndex!==input.pageIndex||result.pageIndex>=context.pageCount)fail();}
  else if(result.inventoryId!==context.inventoryId||result.stageId!==context.stageId||result.atMs!==context.cutMs||kind===BEGIN&&result.rootId!==input.rootId||kind===SEAL&&(result.attemptId!==input.attemptId||result.eligibilityListId!==context.eligibilityListId))fail();
  return {...input,financialExecution:false,context,result};
+}
+function openingSummary(input,raw){
+ const out=select(raw,{applicable:bool,firstStageId:v=>v===null||id(v),ballotId:v=>v===null||id(v),previousInventoryId:v=>v===null||id(v),previousTranche:v=>v===null||nat(v,1000)&&v>0,previousAdmitted:v=>v===null||nat(v,1000),previousRemaining:v=>v===null||nat(v,1000),decisionStatus:v=>['missing','recorded'].includes(v),decisionEarliestMs:v=>v===null||time(v),defaultPostponed:bool,inventoryOverrideReason:v=>v===null||text(v,500),effectiveEarliestMs:v=>v===null||time(v),financialExecution:fixed(false)});
+ const holds=field(raw,'holds'),allowed=['stage-not-open','decision-missing','decision-not-due','previous-inventory-missing','previous-inventory-remaining'];if(!Array.isArray(holds)||holds.length>5||new Set(holds).size!==holds.length||holds.some(v=>!allowed.includes(v)))fail();out.holds=[...holds];
+ if((out.previousAdmitted===null)!==(out.previousRemaining===null)||out.previousAdmitted!==null&&out.previousAdmitted+out.previousRemaining!==1000||(out.decisionStatus==='missing')!==(out.decisionEarliestMs===null)||out.applicable&&out.firstStageId===null||!out.applicable&&(out.holds.length||out.defaultPostponed||out.effectiveEarliestMs!==null)||out.applicable&&out.decisionStatus==='recorded'&&out.effectiveEarliestMs!==Math.max(input.opensAt,out.decisionEarliestMs)||out.applicable&&out.decisionStatus==='missing'&&(out.effectiveEarliestMs!==null||!out.holds.includes('decision-missing'))||out.inventoryOverrideReason!==null&&out.holds.includes('previous-inventory-remaining'))fail();
+ if(out.firstStageId===input.stageId){if(out.ballotId!==input.ballotId||out.inventoryOverrideReason!==input.inventoryOverrideReason)fail();}else if(input.ballotId!==null||input.inventoryOverrideReason!==null)fail();
+ return out;
 }
 /** Inputs must be an already validated, unsubmitted console preview. Digests are
  * retained identities, not independently recomputed signatures or authorization. */
@@ -70,7 +77,7 @@ export function createOperatorApprovalPacket({request,preview}){
  else if(operationKind===STAGE){
   const listed=['whitelist','founder'].includes(input.type),founder=['public','founder'].includes(input.type),eligibility=select(field(rawSummary,'eligibility'),{kind:fixed(listed?'list':input.type==='free'?'pending':'unrestricted'),listId:listed?hex:isNull,count:listed?v=>nat(v,10000):isNull});
   if(eligibility.listId!==input.eligibilityListId||input.closesAt<=input.opensAt||input.founderApproved!==founder||(['free','founder'].includes(input.type)&&input.priceLamports!=='0')||(input.type==='founder'?!money(input.approvedSpendLamports):input.approvedSpendLamports!==null))fail();
-  Object.assign(summary,select(rawSummary,{termsDigest:hex,costUncertainty:v=>text(v,1000)}),{eligibility});
+  Object.assign(summary,select(rawSummary,{termsDigest:hex,costUncertainty:v=>text(v,1000)}),{eligibility,opening:openingSummary(input,field(rawSummary,'opening'))});
  }
  else if(operationKind===BALLOT){Object.assign(summary,select(rawSummary,{advisory:fixed(true),financialExecution:fixed(false),snapshotHash:hex,eligibleCount:v=>nat(v,10000),closesAt:time}));if(input.cutoffMs!==input.opensMs||summary.closesAt!==input.opensMs+172800000)fail();}
  else if(operationKind===DECISION){Object.assign(summary,select(rawSummary,{advisory:fixed(true),financialExecution:fixed(false),earliestMs:time,ballotSnapshotHash:hex}));if(summary.earliestMs<input.decidedMs||summary.earliestMs<input.noticeMs+172800000)fail();}

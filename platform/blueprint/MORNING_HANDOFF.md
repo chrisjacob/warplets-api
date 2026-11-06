@@ -17,3 +17,9 @@ CI42235233410 SUCCESS all stages in35m07s, headc02a47b (through060). Previous CI
 Commit/push tested draft paths, excluding active stage backend changes. Backend agent snapshot_acceptance owns stage-plan/repository and their tests: live-only rejection of inapplicable/subsequent ballot/override fields, read-only first-opening preview, missing/not-due decisions remain admission holds rather than publication blockers. Historical planner/recovery must stay compatible. Coordinator owns declarations, registry, transport and commits. Frontend agent frontend_b09 is idle after frozen draft UI; assign explicit ballot/override UI and acceptance after draft commit. Finish B12 command/scope matrix before marking complete and moving to B13.
 
 Mandatory budgets and exact fixture limits remain unchanged. Recovery evidence is local and supplies no production/release authority.
+
+## B12-13 checkpoint
+
+Later-tranche explicit ballot/override UI, read-only first-admission holds and live-only policy validation passed25Node,24boundary,2transport tests; Edge/direct types passed. Four-width stage/draft/operator browser journeys and12packet tests passed. ActualD1 10000-wallet publication passed with207audit events,29statements,7651Bbatch and34parameters. Its fixture now retains genuine061 source audit ancestry; exact whole-chain comparison stays strict.
+
+CI42242947709 head5aa1d4b active, watchsession59021. It predates opening/ancestry fixes. Governance D1 fixture has same ancestry omission; focused regression session99510 pending. Acceptance audit found unstaffed operator board misleading100-place fallback despite guarded admission correctly closed: backend agent fixes scoped console projection; frontend agent will update reason wording. Final17-kind matrix is in work/b12-acceptance-audit.json; README refreshed. B12 not yet complete. Usage32%.

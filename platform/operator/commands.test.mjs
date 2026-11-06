@@ -79,7 +79,7 @@ test('whitelist publication preserves historical digest and carries exact review
  const accepted={kind:'replayed',receipt:{operationId:'synthetic-stage-receipt'},value:{executable:false}};let seen;
  assert.equal(await dispatchOperatorCommand({publishStage(command){seen=command;return Promise.resolve(accepted);}},prepared),accepted);assert.equal(seen,prepared.command);
  for(const input of [{...request.input,type:'public',eligibilityListId:null},{...request.input,type:'free',eligibilityListId:null},{...request.input,type:'founder'},
-  {...request.input,founderApproved:true},{...request.input,approvedSpendLamports:'1'},{...request.input,inventoryOverrideReason:'explicit override'},{...request.input,ballotId:'synthetic-ballot'}])await assert.rejects(prepare({...request,input}),invalid);
+  {...request.input,founderApproved:true},{...request.input,approvedSpendLamports:'1'}])await assert.rejects(prepare({...request,input}),invalid);
  for(const input of [{...request.input,extra:true},{...request.input,eligibilityListId:'invalid'},{...request.input,priceLamports:'-1'}])await assert.rejects(prepare({...request,input}));
  await assert.rejects(prepare({...request,expectedRevisions:{earn:'0',source:'12'}}),invalid);
 });
@@ -245,7 +245,7 @@ test('stage registry expands only explicit local free, public and founder approv
  const publicInput=cases[1],publicPreview=await prepare({...stage(),input:publicInput}),whitelistPreview=await prepare(stage());assert.notEqual(publicPreview.preview.confirmationDigest,whitelistPreview.preview.confirmationDigest);
 });
 
-test('stage approval combinations reject inferred founder authority, extra budgets, invalid prices and unavailable ballot or override lanes',async()=>{
+test('stage approval combinations reject inferred founder authority, extra budgets, invalid prices and malformed ballot or override inputs',async()=>{
  let hashes=0;const counting={...crypto,async sha256(bytes){hashes++;return crypto.sha256(bytes);}},base=stage().input;
  const inputs=[
   {...base,founderApproved:true}, {...base,approvedSpendLamports:'0'},
@@ -258,7 +258,7 @@ test('stage approval combinations reject inferred founder authority, extra budge
  for(const approvedSpendLamports of ['-1','01','18446744073709551616',0])inputs.push({...base,type:'founder',priceLamports:'0',founderApproved:true,approvedSpendLamports});
  for(const type of ['whitelist','free','public','founder']){
   const input={...base,type,priceLamports:['free','founder'].includes(type)?'0':base.priceLamports,founderApproved:['public','founder'].includes(type),approvedSpendLamports:type==='founder'?'0':null,eligibilityListId:['public','free'].includes(type)?null:base.eligibilityListId};
-  inputs.push({...input,ballotId:'synthetic-ballot'},{...input,inventoryOverrideReason:'synthetic override'},{...input,spendAuthorized:true});
+  inputs.push({...input,ballotId:'invalid ballot'},{...input,inventoryOverrideReason:' '},{...input,inventoryOverrideReason:'x'.repeat(501)},{...input,spendAuthorized:true});
  }
  for(const input of inputs)await assert.rejects(prepareOperatorCommand({principal,request:{...stage(),input},nowMs},counting));assert.equal(hashes,0);
 });
@@ -279,4 +279,12 @@ test('record upload kinds cannot bypass the separate bounded route',async()=>{
 
 test('readonly draft kinds cannot enter the mutation dispatcher',async()=>{
  for(const operationKind of LOCAL_OPERATOR_DRAFTS){const request={operationKind,requestKey:'synthetic-draft',input:{},expectedRevisions:{earn:'0',source:'0',control:'0'}};await assert.rejects(prepareOperatorCommand({principal:{kind:'operator',id:'synthetic-draft'},request,nowMs:1},createNodeCrypto()),/read-only whitelist draft route/);assert.throws(()=>dispatchOperatorCommand({},{command:{operationKind}}),/read-only whitelist draft route/);}
+});
+
+test('explicit opening policy is bound to preview and historical digest without implying founder approval',async()=>{
+ const request=stage(),base=await prepare(request);
+ for(const input of [{...request.input,ballotId:'synthetic-ballot'},{...request.input,inventoryOverrideReason:'Explicit local inventory exception'}]){
+  const prepared=await prepare({...request,input});assert.deepEqual(prepared.preview.summary,input);assert.equal(prepared.command.input.founderApproved,false);
+  assert.notEqual(prepared.command.requestDigest,base.command.requestDigest);assert.notEqual(prepared.preview.confirmationDigest,base.preview.confirmationDigest);
+ }
 });

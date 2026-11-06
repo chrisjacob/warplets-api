@@ -5,7 +5,7 @@
   "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
   "currentTask": "B12",
-  "lastUpdatedAt": "2026-11-06T15:25:24.023211+00:00",
+  "lastUpdatedAt": "2026-11-06T15:32:02.047314+00:00",
   "migrationAllocation": {
     "next": 63,
     "reserved": [
@@ -415,7 +415,7 @@
       "status": "in_progress",
       "owner": "coordinator",
       "baseCommit": "b9efc0c8c97896a286c5f78ac4bf03e3a52727be",
-      "implementationCommit": "62b9d77",
+      "implementationCommit": "5aa1d4b",
       "pushed": true,
       "evidence": [
         "platform/validation/runs/2026-11-06-overnight/B12-01.json",
@@ -431,9 +431,10 @@
         "platform/validation/runs/2026-11-06-overnight/B12-10.json",
         "platform/validation/runs/2026-11-06-overnight/B12-11.json",
         "platform/validation/runs/2026-11-06-overnight/B12-12.json",
-        "platform/validation/runs/2026-11-06-overnight/B12-ci-03.json"
+        "platform/validation/runs/2026-11-06-overnight/B12-ci-03.json",
+        "platform/validation/runs/2026-11-06-overnight/B12-13.json"
       ],
-      "nextAction": "Commit/push draft checkpoint and follow new consolidated CI. Complete live-only later-tranche ballot/override preview/UI and final B12 acceptance matrix. Preserve historical recovery policy.",
+      "nextAction": "Finish capacity board display and final acceptance matrix. CI42242947709 on5aa1d4b in progress. Stage opening local checks passed; governance D1 ancestry fixture regression running. Budget32%.",
       "blocker": null
     },
     "B13": {

@@ -65,6 +65,7 @@ test('stage preview derives exact sealed terms without writes and fences reviewe
  const versions=()=>Object.fromEntries(f.db.prepare('SELECT name,revision FROM app_revisions').all().map(r=>[r.name,String(r.revision)]));
  const request={requestKey:'previewed-stage',input:f.input,expectedRevisions:versions()},before=f.db.prepare('SELECT COUNT(*) n FROM app_command_receipts').get().n;
  const preview=await service.previewStage(principal,request);assert.equal(preview.kind,'preview');assert.equal(preview.value.financialExecution,false);assert.equal(preview.value.eligibility.listId,f.input.eligibilityListId);
+ assert.deepEqual(preview.value.opening,{applicable:false,firstStageId:null,ballotId:null,previousInventoryId:null,previousTranche:null,previousAdmitted:null,previousRemaining:null,decisionStatus:'missing',decisionEarliestMs:null,defaultPostponed:false,inventoryOverrideReason:null,effectiveEarliestMs:null,holds:[],financialExecution:false});
  assert.equal(f.db.prepare('SELECT COUNT(*) n FROM app_collection_stages').get().n,0);assert.equal(f.db.prepare('SELECT COUNT(*) n FROM app_command_receipts').get().n,before);
  f.db.prepare('UPDATE app_operator_scopes SET revision=revision+1 WHERE operator=?').run(principal.id);
  assert.equal((await service.publishStage(principal,request)).code,'revision_conflict');
@@ -85,4 +86,90 @@ test('publication audit binds derived terms and list; competing inventory public
  for(const row of rows){const body=JSON.parse(row.payload),stage=f.db.prepare('SELECT terms_digest,list_id,eligible_count FROM app_collection_stages WHERE inventory_id=? AND stage_id=?').get(body.inventoryId,body.stageId);
   assert.equal(body.termsDigest,stage.terms_digest);assert.equal(body.eligibility.listId,stage.list_id);assert.equal(body.eligibility.count,stage.eligible_count);assert.equal(row.actor,principal.id);}
  assert.equal((await f.publish()).kind,'replayed');assert.equal(f.db.prepare("SELECT COUNT(*) n FROM ops_config_audit WHERE category='collection-stage'").get().n,2);
+});
+
+
+// Explicit synthetic retained reference counters: these tests exercise bounded
+// preview selection, not verification of payment or historic mint admissions.
+async function laterSetup(t,{admitted=999,override=null,normalizedPrevious=false}={}){
+ const f=await setup(t),previousId=f.input.inventoryId,priorOpen=f.input.opensAt;
+ if(normalizedPrevious){
+  assert.equal((await f.publish()).kind,'committed');
+  // Synthetic allocation count on a genuinely published normalized authority;
+  // the old reference JSON remains empty and must not win source selection.
+  f.db.prepare('UPDATE app_collection_authorities SET admitted=? WHERE inventory_id=?').run(admitted,previousId);
+ }else{
+  publishCollectionStage(f.db,{inventoryId:previousId,stage:{id:'synthetic-previous-opening',type:'whitelist',publishedAt:f.getNow(),opensAt:priorOpen,closesAt:priorOpen+86400000,priceLamports:'100000000',costLamports:'500000',allocation:1000,wallets:f.holders}},f.getNow());
+  const state=JSON.parse(f.db.prepare('SELECT state FROM collect_inventories WHERE id=?').get(previousId).state);
+  state.admissions=Array.from({length:admitted},(_,n)=>({operationId:'synthetic-count-only-'+n}));
+  f.db.prepare('UPDATE collect_inventories SET state=? WHERE id=?').run(JSON.stringify(state),previousId);
+ }
+ const inventoryId='synthetic-genesis-two';createCollection(f.db,{id:inventoryId,kind:'genesis',tranche:2});
+ const ballotId='synthetic-opening-ballot';f.db.prepare('INSERT INTO genesis_ballots VALUES(?,?,?,?,?,?)').run(ballotId,priorOpen,priorOpen+172800000,priorOpen,'a'.repeat(64),0);
+ const input={...f.input,inventoryId,ballotId,inventoryOverrideReason:override,priceLamports:'200000000'};
+ if(override!==null)f.db.prepare('INSERT INTO app_operator_scopes VALUES(?,?,0,1)').run(principal.id,'collection-founder');
+ const service=createStagePublicationService({...f.ports,repository:createStagePublicationRepository(f.base,f.ports)});
+ return {...f,input,previousId,ballotId,preview:(changes={},extra={})=>service.previewStage(principal,{requestKey:changes.stageId??'later-stage',input:{...input,...changes},...extra}),publishLater:(changes={},extra={})=>service.publishStage(principal,{requestKey:changes.stageId??'later-stage',input:{...input,...changes},...extra}),decision:at=>f.db.prepare('INSERT INTO genesis_decisions VALUES(?,?,?,?,?,?)').run(ballotId,'7',f.getNow(),f.getNow(),at,'Synthetic retained decision fixture.')};
+}
+
+test('later-tranche preview reports authoritative local 999/1000 allocations and missing decision without forbidding publication',async t=>{
+ for(const admitted of [999,1000]){
+  const f=await laterSetup(t,{admitted}),before=f.db.prepare('SELECT COUNT(*) n FROM app_command_receipts').get().n;
+  const preview=await f.preview();assert.equal(preview.kind,'preview',JSON.stringify(preview));const o=preview.value.opening;
+  assert.deepEqual(o,{applicable:true,firstStageId:f.input.stageId,ballotId:f.ballotId,previousInventoryId:f.previousId,previousTranche:1,previousAdmitted:admitted,previousRemaining:1000-admitted,decisionStatus:'missing',decisionEarliestMs:null,defaultPostponed:admitted<1000,inventoryOverrideReason:null,effectiveEarliestMs:null,holds:['stage-not-open','decision-missing',...(admitted<1000?['previous-inventory-remaining']:[])],financialExecution:false});
+  assert.equal(f.db.prepare('SELECT COUNT(*) n FROM app_command_receipts').get().n,before);
+  const published=await f.publishLater();assert.equal(published.kind,'committed');assert.equal(published.value.termsDigest,preview.value.termsDigest);
+ }
+});
+
+test('retained decision boundary and explicit scoped override remove only the previous inventory hold',async t=>{
+ const f=await laterSetup(t,{override:'  Explicit synthetic local tranche override.  '}),earliest=f.input.opensAt+86400000;
+ f.decision(earliest);
+ const first=await f.preview();assert.equal(first.kind,'preview');assert.equal(first.value.opening.defaultPostponed,true);assert.deepEqual(first.value.opening.holds,['stage-not-open','decision-not-due']);assert.equal(first.value.opening.effectiveEarliestMs,earliest);
+ f.setNow(earliest-1);assert.deepEqual((await f.preview()).value.opening.holds,['decision-not-due']);
+ f.setNow(earliest);assert.deepEqual((await f.preview()).value.opening.holds,[]);
+ f.db.prepare("UPDATE app_operator_scopes SET enabled=0 WHERE operator=? AND scope='collection-founder'").run(principal.id);
+ assert.equal((await f.preview()).code,'operator_scope_required');assert.equal((await f.publishLater()).code,'operator_scope_required');
+ f.db.prepare("UPDATE app_operator_scopes SET enabled=1 WHERE operator=? AND scope='collection-founder'").run(principal.id);
+ const accepted=await f.publishLater();assert.equal(accepted.kind,'committed');
+ f.db.prepare('UPDATE app_operator_scopes SET enabled=0 WHERE operator=?').run(principal.id);
+ const replay=await f.publishLater();assert.equal(replay.kind,'replayed');assert.deepEqual(replay.receipt,accepted.receipt);assert.deepEqual(replay.value,accepted.value);
+ assert.equal((await f.publishLater({inventoryOverrideReason:'Changed override.'})).code,'idempotency_conflict');
+});
+
+test('subsequent publication shows immutable first-stage policy, rejects attempted amendment and reports latched opening without phantom holds',async t=>{
+ const f=await laterSetup(t,{override:'Original retained override.'});assert.equal((await f.publishLater()).kind,'committed');
+ const next={stageId:'synthetic-later-stage',ballotId:null,inventoryOverrideReason:null,opensAt:f.input.closesAt,closesAt:f.input.closesAt+86400000};
+ assert.equal((await f.preview({...next,ballotId:f.ballotId})).reason,'stage_opening_policy_inapplicable');
+ assert.equal((await f.preview({...next,inventoryOverrideReason:'Attempted replacement.'})).reason,'stage_opening_policy_inapplicable');
+ const before=await f.preview(next);assert.equal(before.kind,'preview');assert.equal(before.value.opening.firstStageId,f.input.stageId);assert.equal(before.value.opening.ballotId,f.ballotId);assert.equal(before.value.opening.inventoryOverrideReason,'Original retained override.');assert.equal(before.value.opening.applicable,true);
+ // Synthetic counter projection models the already-latched first admission.
+ f.db.prepare('UPDATE app_collection_authorities SET admitted=1 WHERE inventory_id=?').run(f.input.inventoryId);
+ const latched=await f.preview(next);assert.equal(latched.kind,'preview');assert.equal(latched.value.opening.applicable,false);assert.deepEqual(latched.value.opening.holds,[]);assert.equal(latched.value.opening.defaultPostponed,false);assert.equal(latched.value.opening.effectiveEarliestMs,null);assert.equal(latched.value.opening.inventoryOverrideReason,'Original retained override.');
+});
+
+test('opening facts reject missing/wrong ballot, fence decision changes, and normalized counters override old reference state',async t=>{
+ const f=await laterSetup(t);
+ assert.equal((await f.preview({ballotId:null})).reason,'missing_previous_tranche');
+ assert.equal((await f.preview({ballotId:'synthetic-wrong-ballot'})).reason,'wrong_ballot');
+ const preview=await f.preview(),versions=preview.value.expectedRevisions;
+ f.decision(f.input.opensAt);assert.equal((await f.publishLater({}, {expectedRevisions:versions})).code,'revision_conflict');
+ const fresh=await f.preview();assert.equal(fresh.value.opening.decisionStatus,'recorded');assert.equal(fresh.value.opening.effectiveEarliestMs,f.input.opensAt);
+ const normalized=await laterSetup(t,{admitted:1000,normalizedPrevious:true});
+ const out=await normalized.preview();assert.equal(out.kind,'preview',JSON.stringify(out));assert.equal(out.value.opening.previousAdmitted,1000);assert.equal(out.value.opening.previousRemaining,0);
+});
+
+
+test('preview cannot return opening facts from revisions changed across awaited terms hashing',async t=>{
+ const f=await laterSetup(t);let changed=false;
+ const crypto={...f.ports.crypto,async sha256(bytes){
+  const result=await f.ports.crypto.sha256(bytes);
+  if(!changed&&new TextDecoder().decode(bytes).startsWith('["'+f.input.inventoryId+'","'+f.input.stageId+'",')){
+   changed=true;f.decision(f.input.opensAt);
+  }
+  return result;
+ }};
+ const ports={...f.ports,crypto},service=createStagePublicationService({...ports,repository:createStagePublicationRepository(f.base,ports)});
+ const result=await service.previewStage(principal,{requestKey:'synthetic-preview-race',input:f.input});
+ assert.equal(changed,true);assert.equal(result.code,'revision_conflict');assert.equal(f.db.prepare('SELECT COUNT(*) n FROM app_collection_stages WHERE inventory_id=?').get(f.input.inventoryId).n,0);
 });

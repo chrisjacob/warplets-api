@@ -1,0 +1,188 @@
+{
+  "task": "B12",
+  "slice": "B12-13",
+  "status": "verified-slice",
+  "baseCommit": "5aa1d4b",
+  "scope": [
+    "Explicit later-tranche ballot and scoped inventory override",
+    "Retained first-opening policy, fixture allocation and decision timing preview",
+    "Live-only validation preserves historical planner/recovery receipts"
+  ],
+  "checks": {
+    "node": "25PASS17417.5363ms work/b12-stage-opening-final.log",
+    "boundary": "24PASS1376.1279ms work/b12-opening-boundary.log",
+    "transport": "2PASS1760.4672ms work/b12-opening-transport.log",
+    "types": "Edge project and direct changed declarations PASS",
+    "d1": "1PASS67233.3281ms work/b12-opening-edge-final.log;10000wallets,207audit events,29statements7651Bbatch34parameters; exactNode/D1 audit ancestry, fault rollback and historical terms parity",
+    "browser": {
+      "task": "B12 explicit later-tranche stage opening policy UI",
+      "createdAt": "2026-11-06T15:31:10.616899+00:00",
+      "sourceHashes": {
+        "platform/operator/ui.mjs": "eb7a03101ed01eb6f2e276154d5d4ce18ae2ca697c2a49d3cdbbebaf9b0f2393",
+        "platform/operator/index.html": "541283d5933b400d81ea8f04dc32da97c3c07246bd90db66c7ea2f6134fd1b05",
+        "platform/operator/approval-packet.mjs": "e2ea9b5e7836a635f2ad109ed5e5c08053d5a44a590ae0c309b4e46431dae1ce",
+        "platform/operator/approval-packet.test.mjs": "215c5d32b57cc25fb346f503022b6406b03d1c1c98e735bdbab92fc4047a9b05",
+        "platform/operator/stage-browser-qa.mjs": "a3b7204e58d07ab3b70d4b172034a47cb5db10d32ed19b2de5c3c695e0b56f7c"
+      },
+      "checks": [
+        {
+          "command": "node --test platform/operator/approval-packet.test.mjs",
+          "passed": 12,
+          "failed": 0,
+          "durationMs": 275.2394,
+          "log": "work/b12-opening-packet.log"
+        },
+        {
+          "command": "node platform/operator/stage-browser-qa.mjs",
+          "passed": true,
+          "log": "work/b12-opening-stage-browser.log"
+        },
+        {
+          "command": "node platform/operator/draft-browser-qa.mjs",
+          "passed": true,
+          "log": "work/b12-opening-draft-browser-qa.log"
+        },
+        {
+          "command": "node platform/operator/browser-qa.mjs",
+          "passed": true,
+          "log": "work/b12-opening-browser-qa.log"
+        },
+        {
+          "command": "node --check ui.mjs, approval-packet.mjs and stage-browser-qa.mjs",
+          "passed": true
+        },
+        {
+          "command": "git diff --check -- five owned source paths",
+          "passed": true
+        }
+      ],
+      "browserResults": {
+        "work/b12-opening-stage-browser.log": {
+          "passed": true,
+          "widths": [
+            360,
+            390,
+            768,
+            1440
+          ],
+          "clock": "actual Date.now with database execution-time fence",
+          "source": "synthetic-local-operator-fixture",
+          "missingListHold": "Preview held: electorate-seal-missing. No publication has been confirmed.",
+          "missingTrancheHeld": true,
+          "noLaunchDefaults": true,
+          "exactUtcTimes": true,
+          "derivedTerms": true,
+          "eligibilityCount": 3,
+          "previewReadOnly": true,
+          "staleConfirmationRejected": true,
+          "negativeLostResponse": true,
+          "negativeResponseIdentity": true,
+          "exactReplayAfterScopeRevocation": true,
+          "immutablePublishedTerms": true,
+          "auditEvents": 8,
+          "laterTrancheFirstPolicy": true,
+          "explicitBallotAndOverride": true,
+          "localAllocationNotSales": true,
+          "missingDecisionPublicationOnly": true,
+          "defaultPostponementVisible": true,
+          "overrideRequiresFounderScope": true,
+          "overrideDoesNotWaiveDecision": true,
+          "subsequentPolicyImmutable": true,
+          "decisionChangeInvalidatesPreview": true,
+          "recordedFutureDecisionHold": true,
+          "expandedStageTypes": [
+            "free",
+            "public",
+            "founder"
+          ],
+          "missingPaidPhasesHeld": true,
+          "explicitFounderApproval": true,
+          "missingFounderScopeRejected": true,
+          "freeEligibilityPending": true,
+          "expandedPacketDownloads": true,
+          "readOnlyPermission": true,
+          "financialExecution": false,
+          "screenshots": "work/b12-stage-operator"
+        },
+        "work/b12-opening-draft-browser-qa.log": {
+          "passed": true,
+          "widths": [
+            360,
+            390,
+            768,
+            1440
+          ],
+          "source": "synthetic-local-operator-fixture",
+          "duplicateAndInvalidCorrection": true,
+          "codecListIdentityExact": true,
+          "safeSummaryWithoutAddresses": true,
+          "editingInvalidatesResultAndMatchingCopiedId": true,
+          "unrelatedManualListPreserved": true,
+          "pricesSchedulesUnchanged": true,
+          "missingSealedListHeld": true,
+          "zeroDraftDatabaseWrites": true,
+          "noCommandJournal": true,
+          "revokedScopeRejected": true,
+          "expiredSessionClearsEntries": true,
+          "reloadLogoutClearEntries": true,
+          "explicitPermissionRequired": true,
+          "financialExecution": false,
+          "staged": false,
+          "isAuthorization": false,
+          "screenshots": "work/b12-draft-operator"
+        },
+        "work/b12-opening-browser-qa.log": {
+          "passed": true,
+          "widths": [
+            360,
+            390,
+            768,
+            1440
+          ],
+          "realCommandExecutions": 14,
+          "auditEvents": 10,
+          "newAuditEvents": 9,
+          "baselineAuditEvents": 1,
+          "previewReadOnly": true,
+          "localReviewPacketDownload": true,
+          "packetNoAuthorityOrPrivateData": true,
+          "packetDisabledAfterAttempt": true,
+          "negativeResponseLoss": true,
+          "exactRetryAfterReload": true,
+          "expiredSessionReauthentication": true,
+          "stablePrincipalRetry": true,
+          "differentPrincipalIsolation": true,
+          "negativeStalePreview": true,
+          "readOnlySession": true,
+          "auditedFinalReview": true,
+          "immutableReviewConflict": true,
+          "reviewExactReplay": true,
+          "confirmationRevisionBinding": true,
+          "negativePreviewMismatch": true,
+          "legacyReceiptReadOnly": true,
+          "missingLegacyReceiptHeld": true,
+          "keyboardFocus": true,
+          "logoutClearsPrivateState": true,
+          "financialExecution": false,
+          "screenshots": "work/b12-operator"
+        }
+      },
+      "boundaries": [
+        "Optional explicit ballot ID and bounded nonblank inventory override reason retain exact16field publication request; prices and schedule fields have no new defaults.",
+        "First-opening projection is safe-allowlisted in new packets. Existing attempted journals without this new projection remain exact-retryable; earlier projection is not invented.",
+        "Actual publication requests and scope checks execute through production local console. Previous admitted999 counter and retained ballot/decision rows are explicitly synthetic projection fixtures, never verified sales, payments or historical mint evidence.",
+        "Four-width later-tranche preview demonstrates default remaining-inventory postponement, explicit scoped override, missing-decision and future-time first-admission holds. Publication before a decision leaves normalized admitted0.",
+        "Subsequent stage inputs must leave ballot/override null; original first-stage policy remains visible. Attempted amendments hold. Decision change invalidates old confirmation; refreshed preview shows recorded future decision and effective earliest.",
+        "Override does not set founderApproved for a whitelist stage and removes only the previous-inventory-remaining hold; decision and time gates remain.",
+        "Existing six stage flows and all their lost-response, scope, finality and payment-disabled assertions retained; two later-tranche publications produce8stage audits total.",
+        "Draft and existing operator browser regression suites rerun after final UI changes. No backend/schema changes in this slice."
+      ],
+      "visualInspection": "later-opening-360.png inspected for layout; explicit no-overflow assertions pass360/390/768/1440.",
+      "financialExecution": false,
+      "completion": "Owned slice frozen; coordinator owns B12 acceptance/commit."
+    }
+  },
+  "fixtureCorrection": "Initial D1 parity failed because fixture copied source receipts without genuine061 audit ancestry. Copy audit rows too; preserve exact whole-chain equality and explicit baseline count.",
+  "financialExecution": false,
+  "remaining": "Correct unstaffed board capacity display; complete B12 acceptance matrix; finish active consolidated CI and governance ancestry regression."
+}
