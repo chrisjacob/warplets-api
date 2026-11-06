@@ -1,0 +1,32 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {randomUUID} from 'node:crypto';
+import {openDatabase} from '../storage/database.mjs';
+import {createNodeAtomicDriver} from '../storage/node/atomic-driver.mjs';
+import {createNodeCrypto} from '../security/node-crypto.mjs';
+import {seedCollectionContext} from '../application/fixtures/collection-context.mjs';
+import {createCollectionQuoteService} from './quote-service.mjs';
+import {createCollectionQuoteRepository} from './quote-repository.mjs';
+import {createProgressionReservationService} from './reservation-service.mjs';
+import {createProgressionReservationRepository} from './reservation-repository.mjs';
+import {reviewedReservation} from './reservation-test-harness.mjs';
+import {canonicalJson} from '../security/canonical.mjs';
+import {createManifestCodec} from '../artifacts/manifest-codec.mjs';
+import {memoryArtifacts} from '../application/fixtures/memory-artifacts.mjs';
+import {readInstalledRecoverySchema} from '../recovery/node-schema.mjs';
+import {createRecoveryExporter} from '../recovery/export.mjs';
+import {createPrivateRecovery} from '../recovery/restore.mjs';
+
+test('private recovery preserves configured pending reservation, both locks, quote, original draw and replay after expiry',async t=>{
+ const source=openDatabase(),target=openDatabase();t.after(()=>{source.close();target.close();});const f=seedCollectionContext(source),crypto=createNodeCrypto(),sourceDriver={...createNodeAtomicDriver(source),leaseNowSql:String(f.nowMs)},targetDriver=createNodeAtomicDriver(target),sourceStore=memoryArtifacts(),targetStore=memoryArtifacts();let now=f.nowMs;
+ source.prepare('INSERT INTO fair_inventories VALUES(?,?,?,?)').run(f.inventoryId,'a'.repeat(64),'{}',f.start);
+ const ports={crypto,clock:{nowMs:()=>now},ids:{next:randomUUID}},principal={kind:'wallet',wallet:f.wallet},quotes=createCollectionQuoteService({crypto,repository:createCollectionQuoteRepository(sourceDriver,ports)}),q=await quotes.issueQuote(principal,{requestKey:'synthetic-recovery-quote',inventoryId:f.inventoryId,...f.request(2)});assert.equal(q.kind,'committed');
+ const input=reviewedReservation(q.value,'synthetic-recovery-reserve'),service=createProgressionReservationService({crypto,repository:createProgressionReservationRepository(sourceDriver,ports)}),accepted=await service.reserve(principal,input);assert.equal(accepted.kind,'committed');now=q.value.expiresMs+1;
+ const schema=await readInstalledRecoverySchema(crypto),recoveryPorts={...ports,schema,codec:createManifestCodec({crypto})},capture=await createRecoveryExporter({...recoveryPorts,driver:sourceDriver,artifacts:sourceStore,sourceCommit:'0'.repeat(40)}).capturePrivate();assert.equal(capture.kind,'captured',JSON.stringify(capture));assert.equal(capture.inventory.tables.find(t=>t.name==='app_collection_reservations').rowCount,1);
+ const pin={inventory:structuredClone(capture.inventory),pinnedDigest:capture.digest},recovery=createPrivateRecovery({...recoveryPorts,driver:targetDriver,artifacts:targetStore,sourceArtifacts:sourceStore});assert.equal((await recovery.restore(pin)).kind,'restored');
+ for(const table of ['collect_assets','collect_operations','app_collection_quotes','app_collection_reservations','fair_inventories','fair_requests','app_command_receipts'])assert.equal(canonicalJson(target.prepare('SELECT * FROM '+table).all()),canonicalJson(source.prepare('SELECT * FROM '+table).all()),table);
+ const restored=createProgressionReservationService({crypto,repository:createProgressionReservationRepository(targetDriver,ports)}),replay=await restored.reserve(principal,input);assert.equal(replay.kind,'replayed');assert.deepEqual(replay.value,accepted.value);assert.deepEqual(replay.receipt,accepted.receipt);
+ for(const id of [input.targetId,input.materialId])assert.equal(JSON.parse(target.prepare('SELECT asset FROM collect_assets WHERE id=?').get(id).asset).pending,accepted.value.operationId);
+ assert.equal(target.prepare('SELECT COUNT(*) n FROM tx_intents').get().n,0);assert.equal(target.prepare('SELECT COUNT(*) n FROM collect_level_history').get().n,0);
+ t.diagnostic(JSON.stringify({tables:capture.inventory.tables.length,reservations:1,participantLocks:2,fairRequests:1,exactReceipts:2,expiryReplay:true,financialExecution:false}));
+});

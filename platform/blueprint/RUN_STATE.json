@@ -5,9 +5,9 @@
   "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
   "currentTask": "B11",
-  "lastUpdatedAt": "2026-11-06T00:50:16.872580+00:00",
+  "lastUpdatedAt": "2026-11-06T00:54:32.888238+00:00",
   "migrationAllocation": {
-    "next": 41,
+    "next": 42,
     "reserved": [
       {
         "version": 31,
@@ -58,6 +58,11 @@
         "version": 40,
         "task": "B11",
         "purpose": "quote-required progression reservation linkage, asset locks and configured fairness effects"
+      },
+      {
+        "version": 41,
+        "task": "B11",
+        "purpose": "guarded collection reveal/transfer observations and explicit external-transfer reservation evidence holds"
       }
     ],
     "historicalGap": 19
@@ -220,7 +225,7 @@
       "status": "in_progress",
       "owner": "coordinator",
       "baseCommit": "96cdfa1fb6334fcb27deb831d786243227b9d1a8",
-      "implementationCommit": "1734e3bd7b5b7b8cd583a743e45d6dd9b5d42678",
+      "implementationCommit": "a118aa19e65c72ef8d76036b02918968061bfe31",
       "pushed": true,
       "evidence": [
         "platform/validation/runs/2026-11-06-overnight/B11-1.json",
@@ -229,9 +234,10 @@
         "platform/validation/runs/2026-11-06-overnight/B11-4-governance.json",
         "platform/validation/runs/2026-11-06-overnight/B11-5-quotes.json",
         "platform/validation/runs/2026-11-06-overnight/B11-6-index.json",
-        "platform/validation/runs/2026-11-06-overnight/B11-7-governance-publication.json"
+        "platform/validation/runs/2026-11-06-overnight/B11-7-governance-publication.json",
+        "platform/validation/runs/2026-11-06-overnight/B11-8-reservations.json"
       ],
-      "nextAction": "039 guarded publication/founder decisions passed8Node/2fullD1+1targetedD1/412reference and populated96-table recovery. Commit/push and followCI, then install040draft and enable final reservation Node/D1/recoverytests. Next shared quote-required memberHTTP/contracts and Reactbrowser lifecycle. FullB11 still needs collection stage/mint/observation authority and larger bounded recovery.",
+      "nextAction": "040 installed private reservation verified17Node/33pairedD1/97-table recovery/428reference/legacy10 tests. Commit/push and followCI. Then coordinator mounts sharedHTTP+contracts inNode/Worker whilefrontendfinishes reviewedquote lifecycle/browser. Snapshotagent prepares041externaltransferconflict/observation+fulfillmenthold. Stillremaining normalizedcollectionstage/mintauthority andboundedlargerecovery.",
       "blocker": null
     },
     "B12": {

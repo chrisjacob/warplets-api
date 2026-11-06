@@ -3,7 +3,7 @@
   "slice": "B11.7 command-only frozen electorate publication and founder decisions",
   "status": "partial",
   "baseCommit": "1734e3b",
-  "implementationCommit": null,
+  "implementationCommit": "a118aa19e65c72ef8d76036b02918968061bfe31",
   "recordedAt": "2026-11-06T00:49:15.807Z",
   "sourceHashes": {
     "platform/governance/operator-service.mjs": "52484e7510aa6c9ca978eeca1637aba08893d99b63f9b4d1a1648883ed7b9e76",
@@ -114,5 +114,11 @@
     "Recovery tested with4voters. Current RECOVERY_LIMITS.tableRows8192 prevents restoring the full legal10000-voter table; bounded recovery-capacity work remains required before B11 completion.",
     "The existing24MiB aggregate recovery bound remains a separate capacity limitation for maximum32x10000 collection lists.",
     "Authoritative collection stage publication, complete legacy adoption/migration, mint/observation transitions and progression acceptance remain unfinished; B11 remains in progress."
-  ]
+  ],
+  "ci": {
+    "runId": 42139747263,
+    "headSha": "a118aa19e65c72ef8d76036b02918968061bfe31",
+    "conclusion": "success",
+    "url": "https://github.com/chrisjacob/warplets-api/actions/runs/42139747263"
+  }
 }

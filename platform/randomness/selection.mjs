@@ -3,15 +3,10 @@ import {decode58} from '../server/base58.mjs';
 import {transaction} from '../storage/database.mjs';
 import {canonical} from '../transactions/canonical.mjs';
 import {LEVEL_QUOTAS,drawLevel} from '../domain/collections/policy.mjs';
+import {CHAIN,genesisMs,periodMs,leadMs,roundTime,futureRound,drawRequestPreimage} from './request-plan.mjs';
 
-export const CHAIN='52db9ba70e0cc0f6eaf7803dd07447a1f5477735fd3f661792ba94600c84e971';
-export const genesisMs=1692803367000,periodMs=3000,leadMs=30000;
+export {CHAIN,genesisMs,periodMs,leadMs,roundTime,futureRound};
 export const sha=value=>createHash('sha256').update(canonical(value)).digest('hex');
-export const roundTime=round=>genesisMs+(round-1)*periodMs;
-export function futureRound(createdMs) {
- if(!Number.isSafeInteger(createdMs)||createdMs<genesisMs)throw Error('Commitment predates pinned beacon.');
- return 1+Math.ceil((createdMs+leadMs-genesisMs)/periodMs);
-}
 const traitFields=['model','backdrop','symbol'];
 function validateTraits(rows){
  for(const field of traitFields){
@@ -43,10 +38,8 @@ export function publishDrawPolicy(db,{inventoryId,assets,traitChoices,at},now=Da
 export function bindDraw(db,op){
  const rules=db.prepare('SELECT policy_hash,registered_ms FROM fair_inventories WHERE inventory_id=?').get(op.inventoryId);
  if(!rules)return;
- if(op.now<rules.registered_ms)throw Error('Reservation predates draw terms.');
- const round=futureRound(op.now);
- const context=sha(['10x-draw-context-v1',rules.policy_hash,op.inventoryId,op.opId,op.kind,op.owner,op.commitment,op.now,round]);
- db.prepare('INSERT INTO fair_requests VALUES(?,?,?)').run(op.opId,round,context);
+ const {targetRound,preimage}=drawRequestPreimage(rules,op);
+ db.prepare('INSERT INTO fair_requests VALUES(?,?,?)').run(op.opId,targetRound,sha(preimage));
 }
 // A draw configured for verified entropy cannot fall back to the manual fixture path.
 export function requireBoundResult(db,op,fixture){

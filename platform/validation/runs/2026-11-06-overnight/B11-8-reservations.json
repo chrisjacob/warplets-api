@@ -1,0 +1,141 @@
+{
+  "taskId": "B11",
+  "substep": "B11.8-guarded-progression-reservations",
+  "status": "partial",
+  "classification": "Locally verified private quote-required reservation; fixture database locks do not establish chain custody",
+  "lastTestedBaseCommit": "a118aa19e65c72ef8d76036b02918968061bfe31",
+  "implementationCommit": null,
+  "commands": [
+    {
+      "command": "node --test platform/collect/reservation-service.test.mjs platform/collect/reservation-repository.test.mjs platform/collect/reservation-recovery.test.mjs",
+      "tests": 17,
+      "failed": 0,
+      "skipped": 0,
+      "exitCode": 0,
+      "durationMs": 2288.9653,
+      "log": "work/b11-reservation-node.log"
+    },
+    {
+      "command": "node --test platform/edge/test/collection-reservations.test.mjs",
+      "tests": 1,
+      "failed": 0,
+      "skipped": 0,
+      "exitCode": 0,
+      "durationMs": 19118.8938,
+      "log": "work/b11-reservation-edge.log"
+    },
+    {
+      "command": "node platform/edge/node_modules/typescript/bin/tsc --noEmit -p platform/edge/tsconfig.json",
+      "exitCode": 0
+    },
+    {
+      "command": "git diff --check",
+      "exitCode": 0
+    },
+    {
+      "command": "node --test platform/collect/collect.test.mjs platform/beacon/tests/draw.spec.mjs",
+      "tests": 10,
+      "failed": 0,
+      "skipped": 0,
+      "exitCode": 0,
+      "durationMs": 2239.8507,
+      "log": "work/b11-reservation-legacy.log"
+    },
+    {
+      "command": "node platform/scripts/test-reference.mjs",
+      "tests": 428,
+      "failed": 0,
+      "skipped": 0,
+      "exitCode": 0,
+      "durationMs": 38052.75,
+      "log": "work/b11-reservation-reference.log",
+      "scope": "Includes three uncommitted unmounted shared progression HTTP tests"
+    }
+  ],
+  "sourceHashes": {
+    "platform/collect/reservation-service.mjs": "54d724b8c427ddd3101a33c5c238646e937c882cf17196f261cbb74d5efabafc",
+    "platform/collect/reservation-service.d.mts": "60527ed25f915f8f9efb94d4a5505883346a99246b5303c334b509c385663ea0",
+    "platform/collect/reservation-service.test.mjs": "f726e4694ec55c2394df2141267971beea51e87bce8d6aae12d3621b04721adc",
+    "platform/collect/reservation-repository.mjs": "00d639a1d9669566266d83e668d1585c3acbfabd8c97b40069e595914eceab5c",
+    "platform/collect/reservation-repository.d.mts": "1af75240fb46c60e9d6122e9bfe020527c4bc4fea1d8a9b674f8e48605fbdc71",
+    "platform/collect/reservation-repository.test.mjs": "54f763e4977a989bb8fa503149418f4d98f4a423c133210ad8a95aa4b8ea4064",
+    "platform/collect/reservation-recovery.test.mjs": "aeefcb76c7eee97eb68f2fc6e0ccd742efbc50f39c6ee447ba2640ef3db4f946",
+    "platform/collect/reservation-test-harness.mjs": "37ae65f79cf6827d5ab14c863f2c6549e39012792b45fbb1697e8c272a49bfca",
+    "platform/collect/reservation-contract.md": "aff9a93c14daf4fd4a0944b26770c3878a8b57a40885cf74d80fce771555cc6f",
+    "platform/randomness/request-plan.mjs": "5c6656e7e183ce5c3c4413468fad366dd0edc76c26c20648913ffc1f2f0397c2",
+    "platform/randomness/request-plan.d.mts": "7e910b60e76bb24c7c3b5342ec3b01eb7786a0db2df145f32bdf3e0fabb6bd10",
+    "platform/randomness/selection.mjs": "067f2e9a487476b39c91785b0dabdf3161621bad07048a996dd6c2e8fc4f89cf",
+    "platform/edge/test/collection-reservations.test.mjs": "7daf18c0101a19eeefaac3ec8348ff80a6cae71600c77b13ae5e88fb122781d0",
+    "platform/edge/test/fixtures/collection-reservations-worker.ts": "18aedad67d6ec0dbc0627ee1e406f9df30186d3f859fc6b006eaf17f54de15ba",
+    "platform/storage/040-collection-reservations.sql": "566ca9af162d9933a6e93e3c55d8aecc5a1d4da23f8e9b080cc80b1daf2093ed"
+  },
+  "measurements": {
+    "pairedNodeD1Calls": 33,
+    "acceptedReservations": 5,
+    "maxStatementsPerCall": 18,
+    "maxBatchBytes": 13136,
+    "maxParameters": 54,
+    "contextAndAuthoritySnapshotStatements": 8,
+    "participantLimit": 2,
+    "authorityReadByteLimit": 131072
+  },
+  "recovery": {
+    "businessTables": 97,
+    "acceptedReservations": 1,
+    "preservedParticipantLocks": 2,
+    "preservedFairRequests": 1,
+    "exactCommandReceipts": 2,
+    "originalQuoteDrawAndExpiry": true,
+    "acceptedReplayAfterExpiry": true,
+    "aggregateInventoryHydrated": false
+  },
+  "checks": [
+    "Exact reviewed stored quote fields, strict private request input, request mutation isolation and independent fresh rederivation",
+    "Atomic operation, one/two asset locks, configured fair request and immutable quote linkage",
+    "Each omitted child rolls back receipt and all effects",
+    "Accepted replay before pause/expiry and after legacy fulfillment; changed-body conflicts; no legacy receipt adoption",
+    "Concurrent pair use accepts one operation; race winner may differ with arrival order",
+    "Source, ownership, pause and fairness configuration mutation fencing",
+    "Existing future pause/budget event becoming effective at SQL commit holds",
+    "Malformed operating evidence holds",
+    "Production millisecond SQL clock on Node and D1",
+    "Configured round exact-boundary refusal during SQL claim and final receipt hash, with no effects; fresh unaccepted retry chooses future round and accepted replay retains it",
+    "Accepted fair request, operation identity and referenced fair policy tamper guards",
+    "Legacy fulfillment compatibility; configured draws refuse manual proof fallback",
+    "Visual reroll Level/traits/expiry unchanged by reservation; count/cooldown start on fulfillment and next fee doubles exactly",
+    "Vault slot/bind/reveal coordinates and historical allocations unchanged; no financial intents"
+  ],
+  "responseExample": {
+    "classification": "synthetic fixture, configured offline beacon request only",
+    "reservation": {
+      "bindingDigest": "3309abc2eaa431be51ac8dd6cb1de0dc3f2bf1ab935d7680777ab7a2a6a58c89",
+      "createdMs": 1771113600000,
+      "executable": false,
+      "fairness": "configured-offline-beacon",
+      "feeLamports": "20000000",
+      "inventoryId": "synthetic-context-season",
+      "kind": "upgrade",
+      "materialId": "synthetic-l02-material",
+      "maxTotalLamports": "20000000",
+      "operationId": "synthetic-evidence-reserve-1",
+      "quoteId": "synthetic-evidence-quote-1",
+      "source": "local-fixture",
+      "status": "awaiting-evidence",
+      "targetId": "synthetic-l02-target",
+      "wallet": "US517G5965aydkZ46HS38QLi7UQiSojurfbQfKCELFx"
+    }
+  },
+  "boundaries": {
+    "publicRoutesMounted": false,
+    "transactionIntentsCreated": 0,
+    "financialExecution": false,
+    "externalProviderCalls": false,
+    "remoteMutation": false
+  },
+  "remaining": [
+    "Coordinator broader regression and checkpoint/CI evidence",
+    "Guarded external observation conflict and fulfillment remain next B11 work",
+    "Public progression HTTP/client migration remains unmounted in this milestone",
+    "Maximum accumulated-data recovery capacity remains separately tracked; this test covers populated reservation recovery"
+  ]
+}
