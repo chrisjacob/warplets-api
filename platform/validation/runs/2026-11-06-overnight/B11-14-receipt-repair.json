@@ -1,0 +1,26 @@
+{
+  "task": "B11",
+  "slice": "B11.14 receipt result classification repair",
+  "failedCI": 42154791491,
+  "baseCommit": "9980617041aabfbb481d87da5bbe3561af390700",
+  "reason": "Repeated injected attempt IDs need a positive claim write plus durable attempt identity; trigger-inclusive changes need not equal one. Exactly one effect and one committed outcome are retained.",
+  "checks": [
+    {
+      "tests": 8,
+      "durationMs": 2149.1161,
+      "result": "PASS",
+      "log": "work/b11-044-ci-repair-node.log"
+    },
+    {
+      "tests": 1,
+      "pairedCalls": 25,
+      "durationMs": 23939.5045,
+      "result": "PASS",
+      "log": "work/b11-044-ci-repair.log"
+    }
+  ],
+  "sourceHashes": {
+    "platform/storage/atomic-receipts.mjs": "1066b574963204a97442d2eb61f0ded90e7f0f849af76dc2d9d56d62eaf32491",
+    "platform/storage/atomic-operations.test.mjs": "eb15dab262b29415adc881fe83de57c612c5fdbe977912b7ef1201c19d8e2432"
+  }
+}

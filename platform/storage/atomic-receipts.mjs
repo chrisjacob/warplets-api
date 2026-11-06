@@ -39,7 +39,8 @@ export function createAtomicReceipts(driver,{crypto,ids,telemetry={record(){}}})
     const effects=child(gate,[operationId,nonce]);
     const statements=[claim,...(Array.isArray(effects)?effects:[effects]),sql("UPDATE app_command_receipts SET state='committed' WHERE operation_id=? AND claim_nonce=? AND state='staging'",operationId,nonce)];
     telemetry.record('atomic-batch',measureBatch(statements));
-    try {await driver.batch(statements);}
+    let results;
+    try {results=await driver.batch(statements);}
     catch(error) {
       // A response can be lost after commit; resolve the stable identity before
       // surfacing the transport error. Never invent success on missing receipt.
@@ -49,8 +50,9 @@ export function createAtomicReceipts(driver,{crypto,ids,telemetry={record(){}}})
     }
     const row=(await read([selectedReceipt(command)]))[0][0],outcome=recovered(row,command);
     // D1 can include trigger writes in meta.changes. The durable attempt nonce,
-    // rather than a runtime-specific row count, identifies the winning claim.
-    if(outcome?.kind==='replayed')return {...outcome,kind:row.operation_id===operationId&&row.claim_nonce===nonce?'committed':'replayed'};
+    // plus a positive claim write distinguishes this attempt from a no-op retry.
+      // A zero claim remains a replay even if an injected ID factory repeats IDs.
+    if(outcome?.kind==='replayed')return {...outcome,kind:results[0].changes>0&&row.operation_id===operationId&&row.claim_nonce===nonce?'committed':'replayed'};
     if(outcome)return outcome;
     return conflict('revision_conflict');
   }
