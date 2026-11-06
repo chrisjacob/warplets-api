@@ -48,3 +48,12 @@ test('every durable reconciliation check requires its pinned target watermark an
  assert.equal((await f.repository.advance(await f.repository.load(f.pin),request)).kind,'progress');assert.equal(f.db.prepare('SELECT COUNT(*) n FROM app_recovery_reconcile_checks').get().n,1);
  f.db.exec("BEGIN;UPDATE app_recovery_state SET write_nonce='synthetic-outside-change';INSERT INTO app_operator_scopes VALUES('changed','scope',0,1);UPDATE app_recovery_state SET write_nonce=NULL;COMMIT;");const changed=await f.repository.advance(await f.repository.load(f.pin),{delta:{checkedTables:2},targetWatermark:watermark,check:{...check,ordinal:1}});assert.equal(changed.kind,'held');assert.equal(changed.reason,'recovery-target-changed');assert.equal(f.db.prepare('SELECT COUNT(*) n FROM app_recovery_reconcile_checks').get().n,1);
 });
+
+test('private checkpoint packing resumes legacy objects, retains exact raw CAS input and clears on retirement',async t=>{
+ const f=await setup(t),table={name:'app_revisions',columns:['name','revision'],primaryKey:['name'],hasRowid:true,rowCount:0,pages:{identity:null,count:0},tableDigest:'f'.repeat(64)};
+ let loaded=await f.repository.load(f.pin),old=JSON.parse(loaded.run.checkpoint_json);delete old.tablesPackedV1;old.tables=[table];f.db.prepare('UPDATE app_recovery_runs SET checkpoint_json=? WHERE id=?').run(canonicalJson(old),f.pin);
+ loaded=await f.repository.load(f.pin);const raw=loaded.run.checkpoint_json;assert.equal((await f.repository.advance(loaded,{delta:{tables:[table]}})).kind,'progress');assert.equal(loaded.run.checkpoint_json,raw);
+ const packed=JSON.parse((await f.repository.load(f.pin)).run.checkpoint_json);assert.equal(packed.tables,null);assert.equal(packed.tablesPackedV1.length,1);assert.equal((await f.repository.advance(loaded,{delta:{phase:'wrong-stale'}})).kind,'replayed');assert.notEqual(JSON.parse((await f.repository.load(f.pin)).run.checkpoint_json).phase,'wrong-stale');
+ await assert.rejects(f.repository.advance(await f.repository.load(f.pin),{delta:{tablesPackedV1:[]}}),/direct packed/);
+ assert.equal((await f.repository.advance(await f.repository.load(f.pin),{delta:{tables:null}})).kind,'progress');const retired=JSON.parse((await f.repository.load(f.pin)).run.checkpoint_json);assert.equal(retired.tables,null);assert.equal(retired.tablesPackedV1,null);
+});

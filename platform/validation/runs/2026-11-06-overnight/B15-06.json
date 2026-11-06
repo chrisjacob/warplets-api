@@ -1,0 +1,78 @@
+{
+  "status": "partial-B15-frozen-economic-persistence",
+  "implementationCommit": null,
+  "baseCommit": "78c4c68ff7f416f2f20968fbb214e54f574a8347",
+  "fixture": "actual B04 synthetic capture plus installed065; actual Node/localD1/R2",
+  "checks": [
+    {
+      "command": "node --test platform/storage/economic-plans.test.mjs platform/transactions/plan-contracts.test.mjs platform/transactions/swap-plan-service.test.mjs",
+      "passed": 12,
+      "durationMs": 5216.4213,
+      "log": "work/b15-economic-plans-final.log"
+    },
+    {
+      "command": "node --test platform/edge/test/economic-plans.test.mjs platform/edge/test/swap-plan.test.mjs",
+      "passed": 2,
+      "durationMs": 26491.9793,
+      "log": "work/b15-economic-plans-edge.log"
+    },
+    {
+      "command": "node platform/edge/node_modules/typescript/bin/tsc --noEmit -p platform/edge/tsconfig.json",
+      "status": "passed",
+      "log": "work/b15-economic-plans-types.log"
+    }
+  ],
+  "metrics": {
+    "persistenceCalls": 16,
+    "maximumSqlStatements": 15,
+    "maximumBatchBytes": 15824,
+    "maximumParameters": 46,
+    "maximumObjectReads": 1,
+    "swapCalls": 5,
+    "swapMaximumSql": 5,
+    "swapMaximumResultBytes": 4659
+  },
+  "cases": [
+    "exact owner and caller-input capture",
+    "stable economic identity with separate repeat-trade intentKey",
+    "same immutable preparation new requestKey creates new compact receipt",
+    "changed samekey protections conflict; newkey changed economics sameintent conflict",
+    "samekey accepted replay after source loss/expiry/held target without writes",
+    "owner-only immutable review; expired flag separate from original receipt",
+    "missing intent/preparation child rollback",
+    "concurrent duplicate and distinct request keys",
+    "committed response lost and resolved by original receipt",
+    "actual SQL clock/source/generation fences",
+    "read target generation/watermark before and after awaited hashes",
+    "no tx_intents or tx_attempts created"
+  ],
+  "swapCommitmentAddendum": {
+    "reason": "historical recovery cannot reproduce mutable display metadata",
+    "market_body": "canonical JSON string {id:market_id,attMint,ogMint,poolAddress,activationMs} matching retained binding.metadata_json.market",
+    "helper": "swapPlanContextDigest",
+    "operationalUUID": "excluded as before",
+    "liveFence": "full original source row equality and exact SQL market body unchanged",
+    "compatibility": "pre-persistence uncommitted change; no previously durable economic records migrated"
+  },
+  "ownedFiles": {
+    "platform/storage/economic-plans.mjs": "064d07fabc9f2eca6a627b1a1f34d65e456aa3e6ab959f4bb3f570eb30272bb4",
+    "platform/storage/economic-plans.d.mts": "1248bd7d4646737ddc326d015995a4c4a637ac771c9631b780a8815f49f88aac",
+    "platform/storage/economic-plans.test.mjs": "3be4353e79e30302f0c0a7120c0f09c084ba8378d6f1ce0177bea460a16a1c16",
+    "platform/storage/economic-plans.fixtures.mjs": "328131ea5c934b97cae3ac8f9899c44379360a00c03410123d9dec5920750947",
+    "platform/edge/test/economic-plans.test.mjs": "ca04f04494b460cfad8ce3e6c1844adaa458f99b3f0bc23d7dae617690632608",
+    "platform/edge/test/fixtures/economic-plan-worker.ts": "c23db4276745c284a7e407fb93efb4697be57a1bee116cc83326d7b7e687019e",
+    "platform/transactions/swap-plan-service.mjs": "589e1a50d3140cc992ae397fc2fd6c1383239e4c72670446e97aec2e4bb96551",
+    "platform/transactions/swap-plan-service.d.mts": "b791d516dc1918708c5a73904650ee38c16bcbf8ed94c1d14265818752aad285"
+  },
+  "sharedDependencies": {
+    "platform/application/action-plans.ts": "53a520fff041b5232fcc6a7b23e3a948d279cbdd4d8ae74dddecd084b34d304c",
+    "platform/application/economic-plans.ts": "648a910c478f107af7c314998a6792786f25c740925da009a22968f8d7338d32",
+    "platform/storage/065-economic-preparations.sql": "2cd2fc020392cebf2eba8f2288f217951d6a5212c2b3b1c09738172a43b1f1c3"
+  },
+  "limitations": [
+    "read-only economic preview and private guarded persistence only",
+    "wire null; executable/financialExecution/serverSigning/broadcast false",
+    "no public route, wallet signing, transaction packet, payment or broadcast",
+    "V2 recovery semantic acceptance owned by separate agent; not claimed here"
+  ]
+}

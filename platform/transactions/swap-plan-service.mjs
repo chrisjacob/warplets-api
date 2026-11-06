@@ -8,6 +8,14 @@ const pending=reason=>freeze({kind:'pending',reason,dependencyIds:[],wire:null,e
 class Hold extends Error{}
 const check=(v,reason)=>{if(!v)throw new Hold(reason);};
 const time=v=>Number.isSafeInteger(v)&&v>=0;
+/** The commitment uses retained authority fields, not mutable display metadata.
+ * Live fencing still compares the complete source row. */
+export async function swapPlanContextDigest(value,crypto){
+ const text=canonicalJson(value);check(utf8(text).length<=SWAP_PLAN_LIMITS.contextBytes,'quote_context_bound');
+ const {operation_id,...row}=JSON.parse(text),market=JSON.parse(row.market_body);
+ row.market_body=canonicalJson({id:row.market_id,attMint:market.attMint,ogMint:market.ogMint,poolAddress:market.poolAddress,activationMs:Date.parse(market.activatedAt)});
+ return crypto.sha256(utf8(canonicalJson(row)));
+}
 /** Read-only economic preparation. The injected quote service must be the actual
  * provenance-verifying B14 service; callers cannot supply a QuoteDto or sources. */
 export function createSwapPlanService({quoteService,quoteRepository,crypto,clock}){
@@ -28,8 +36,8 @@ export function createSwapPlanService({quoteService,quoteRepository,crypto,clock
    check(time(now)&&time(quotedAtMs)&&time(expiresAtMs)&&now>=quotedAtMs&&now<expiresAtMs,'quote_expired');
    // Operational receipt UUIDs are not semantic source identities. The complete
    // row still participates in the before/after equality fence below.
-   const {operation_id,...semanticContext}=row;
-   const bindings={contextDigest:await hash(semanticContext),bindingDigest:row.binding_digest,inputDigest:row.input_digest,receiptDigest:row.receipt_digest,
+
+   const bindings={contextDigest:await swapPlanContextDigest(row,crypto),bindingDigest:row.binding_digest,inputDigest:row.input_digest,receiptDigest:row.receipt_digest,
     sourceId:row.source_id,sourceRevision:row.source_revision,sourceConfigDigest:row.source_config_digest,policyDigest:e.policyDigest,manifestDigest:row.manifest_digest,
     originalSupplyUnits:row.original_units,activationMs,attMint:market.attMint,ogMint:market.ogMint,poolAddress:market.poolAddress,poolProgram:source.policy.poolProgram,programBinaryDigest:null,accountByteDigests:e.accountByteDigests};
    const plan={kind:'prepared-economic-plan',format:'10x.swap-economic-plan.v1',principal:bound.principal,economicIntentDigest:bound.economicIntentDigest,requestDigest:bound.requestDigest,request:bound.request,quote,bindings,quotedAtMs,expiresAtMs,

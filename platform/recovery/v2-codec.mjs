@@ -61,3 +61,6 @@ export function createRecoveryV2Codec({crypto}){
   async verifyRoot(input,pin){const bytes=new Uint8Array(input);need(bytes.length<=RECOVERY_V2_LIMITS.rootBytes&&digest(pin)&&await crypto.sha256(bytes)===pin,'V2 independently pinned root mismatch.');const text=new TextDecoder('utf-8',{fatal:true}).decode(bytes),value=JSON.parse(text);need(canonicalJson(value)===text,'V2 root is not canonical JSON.');root(value);need((await schemaDescriptor(value.schema.migrations,crypto)).fingerprint===value.schema.fingerprint,'V2 schema fingerprint mismatch.');return freeze(value);},
  });
 }
+
+// Internal checkpoint encoding reuses the archive descriptor shape contract.
+export {table as validateRecoveryV2TableDescriptor};

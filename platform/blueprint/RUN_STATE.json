@@ -5,9 +5,9 @@
   "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
   "currentTask": "B13",
-  "lastUpdatedAt": "2026-11-06T16:45:46.813549+00:00",
+  "lastUpdatedAt": "2026-11-06T17:25:07.242350+00:00",
   "migrationAllocation": {
-    "next": 65,
+    "next": 66,
     "reserved": [
       {
         "version": 31,
@@ -178,6 +178,11 @@
         "version": 64,
         "task": "B13",
         "purpose": "private deterministic enqueue/local inbox delivery mandatory effects and immutable event content"
+      },
+      {
+        "version": 65,
+        "task": "B15",
+        "purpose": "immutable local economic intent/preparation records, guarded receipts and recovery inventory"
       }
     ],
     "historicalGap": 19
@@ -454,7 +459,7 @@
       "status": "in_progress",
       "owner": "coordinator",
       "baseCommit": "1979d9a",
-      "implementationCommit": "0d0fdab",
+      "implementationCommit": "f870e19",
       "pushed": true,
       "evidence": [
         "platform/validation/runs/2026-11-06-overnight/B13-01.json",
@@ -469,7 +474,7 @@
         "platform/validation/runs/2026-11-06-overnight/B13-10.json",
         "platform/validation/runs/2026-11-06-overnight/B13-acceptance.json"
       ],
-      "nextAction": "All four final local acceptance gaps resolved and pushed through f870e19. Follow active CI42250589528, then trigger latest full test-only checkpoint; mark verified after pass.",
+      "nextAction": "Full test-only CI42256820304 at78c4c68 running; mark verified after success. Previous42250589528 succeeded through local inbox runtime.",
       "blocker": null
     },
     "B14": {
@@ -490,14 +495,18 @@
       "status": "in_progress",
       "owner": "snapshot_acceptance",
       "baseCommit": "24d2b4266ead2bab6f1338f5a33013b62557a57e",
-      "implementationCommit": "28d5ea91d1878e011630097fc0b0584fc6d29287",
+      "implementationCommit": "5cf3f5c",
       "pushed": true,
       "evidence": [
         "platform/validation/runs/2026-11-06-overnight/B15-01.json",
         "platform/validation/runs/2026-11-06-overnight/B15-02.json",
-        "platform/validation/runs/2026-11-06-overnight/B15-03.json"
+        "platform/validation/runs/2026-11-06-overnight/B15-03.json",
+        "platform/validation/runs/2026-11-06-overnight/B15-04.json",
+        "platform/validation/runs/2026-11-06-overnight/B15-05.json",
+        "platform/validation/runs/2026-11-06-overnight/B15-06.json",
+        "platform/validation/runs/2026-11-06-overnight/B15-07.json"
       ],
-      "nextAction": "Bounded owner request vocabulary and legacy preparation async snapshot fix pushed. Agent implementing evidence-derived swap preview with real B14 retained sources; no wire factory or preparation persistence yet.",
+      "nextAction": "065 economic persistence and original-evidence Node/D1 restore verified; checkpoint packing preserves old resume and128KiB limit. Next install/test draft066 recorded outcomes, then remaining portable height-expiry and compatible recorded packet preparation. No signing/broadcast or completed-B15 claim.",
       "blocker": null
     },
     "B16": {

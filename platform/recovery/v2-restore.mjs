@@ -1,3 +1,4 @@
+import {parseRecoveryV2Checkpoint} from './v2-checkpoint.mjs';
 import {sql} from '../storage/atomic-driver.mjs';
 import {canonicalJson,utf8} from '../security/canonical.mjs';
 import {BUSINESS_TABLES,AUTH_TABLES,quote,objectRow} from './schema.mjs';
@@ -97,7 +98,7 @@ export function createRecoveryV2Restore({driver,artifacts,sourceArtifacts=artifa
  }
  async function start(value){const {root,id}=await input(value),old=await repository.load(id);if(old.run)return repository.outcome(old,'replayed');const descriptor=await readRecoveryV2SourceMetadata(driver,{schema,crypto});return repository.start({root,pinnedDigest:id,descriptor});}
  async function step(value){
-  const request=await input(value);need(Number.isSafeInteger(request.expectedRevision)&&request.expectedRevision>=0,'Private v2 continuation revision required.');const loaded=await repository.load(request.id);if(!loaded.run||loaded.state.active_restore_id!==request.id)return conflict('recovery-not-started');const c=JSON.parse(loaded.run.checkpoint_json);
+  const request=await input(value);need(Number.isSafeInteger(request.expectedRevision)&&request.expectedRevision>=0,'Private v2 continuation revision required.');const loaded=await repository.load(request.id);if(!loaded.run||loaded.state.active_restore_id!==request.id)return conflict('recovery-not-started');const c=parseRecoveryV2Checkpoint(loaded.run.checkpoint_json);
   if(c.format!=='10x.local.recovery.restore.v2')return conflict('recovery-format-conflict');if(loaded.run.state!=='restoring'||c.revision>request.expectedRevision)return repository.outcome(loaded,'replayed');if(c.revision!==request.expectedRevision)return conflict('recovery-revision-conflict');
   try{
    if(c.phase==='metadata')return await metadata(loaded,c);if(c.phase==='objects')return await objects(loaded,c);if(c.phase==='publications')return await publications(loaded,c);if(c.phase==='tables')return await tables(loaded,c);if(c.phase==='fences')return await fences(loaded,c);
@@ -105,5 +106,5 @@ export function createRecoveryV2Restore({driver,artifacts,sourceArtifacts=artifa
    if(c.phase.startsWith('reconcile-'))return await reconciler.step(loaded);if(c.phase==='final-ready')return await repository.finish(loaded);return conflict('recovery-phase-unavailable');
   }catch(error){return error instanceof MissingObject?conflict(error.message):repository.hold(loaded,'recovery-import-invalid:'+error.message);}
  }
- return Object.freeze({start,step,async finish(value){const request=await input(value),loaded=await repository.load(request.id);if(!loaded.run||loaded.state.active_restore_id!==request.id)return conflict('recovery-not-started');if(loaded.run.state==='ready')return repository.outcome(loaded,'replayed');const c=JSON.parse(loaded.run.checkpoint_json);if(c.phase!=='final-ready')return conflict('recovery-reconciliation-incomplete');if(request.expectedRevision!==c.revision)return conflict('recovery-revision-conflict');return repository.finish(loaded);}});
+ return Object.freeze({start,step,async finish(value){const request=await input(value),loaded=await repository.load(request.id);if(!loaded.run||loaded.state.active_restore_id!==request.id)return conflict('recovery-not-started');if(loaded.run.state==='ready')return repository.outcome(loaded,'replayed');const c=parseRecoveryV2Checkpoint(loaded.run.checkpoint_json);if(c.phase!=='final-ready')return conflict('recovery-reconciliation-incomplete');if(request.expectedRevision!==c.revision)return conflict('recovery-revision-conflict');return repository.finish(loaded);}});
 }

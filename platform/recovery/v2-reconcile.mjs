@@ -1,3 +1,5 @@
+import {parseRecoveryV2Checkpoint} from './v2-checkpoint.mjs';
+import {createRecoveryV2EconomicPlanReconciler,economicPreparationCountsSql} from './v2-reconcile-economic-plans.mjs';
 import {createRecoveryV2ActionPolicyReconciler} from './v2-reconcile-action-policies.mjs';
 import {createRecoveryV2LegacyMintReconciler} from './v2-reconcile-legacy-mints.mjs';
 import {createRecoveryV2LegacyEconomicsReconciler} from './v2-reconcile-legacy-economics.mjs';
@@ -24,6 +26,7 @@ class MissingObject extends Error {}
 export function createRecoveryV2Reconciler({driver,artifacts,crypto,v2Codec,codec,repository,beaconVerifier,createDigest}){
  const legacyPorts={driver,artifacts,crypto,repository,createDigest,beaconVerifier},legacyAdoptions=createRecoveryV2LegacyAdoptionReconciler({...legacyPorts,nextStagePhase:'reconcile-legacy-adoption-mints'}),legacyMints=createRecoveryV2LegacyMintReconciler({...legacyPorts,nextPhase:'reconcile-legacy-adoption-economics'}),legacyEconomics=createRecoveryV2LegacyEconomicsReconciler(legacyPorts),legacyCurrent=createRecoveryV2LegacyCurrentReconciler(legacyPorts),legacyObjects=createRecoveryV2LegacyObjectReconciler(legacyPorts),legacyAggregate=createRecoveryV2LegacyAggregateReconciler(legacyPorts);
  const collection=createRecoveryV2CollectionReconciler({driver,artifacts,crypto,beaconVerifier,repository,nextPhase:'reconcile-free-cut-records'});
+ const economicPlans=createRecoveryV2EconomicPlanReconciler({driver,artifacts,crypto,repository});
  const actionPolicies=createRecoveryV2ActionPolicyReconciler({driver,crypto,repository});
  const freeCuts=createRecoveryV2FreeCutReconciler({driver,crypto,repository,createDigest});
  const fragmentCodec=createRecoveryV2FragmentCodec({crypto}),fragments=createRecoveryV2FragmentRestore({driver,artifacts,crypto,repository});
@@ -37,7 +40,7 @@ export function createRecoveryV2Reconciler({driver,artifacts,crypto,v2Codec,code
  }
  async function metadata(loaded,c){
   const result=await walk('tables',c.root.tables,c.tableCursor),delta={tableCursor:result.cursor};if(result.kind==='entry'){await v2Codec.verifyTableDescriptor(result.value);need(same(result.value,c.tables[c.checkedTableDescriptors]),'Reconciled table descriptor mismatch.');delta.checkedTableDescriptors=c.checkedTableDescriptors+1;}
-  if(result.kind==='done'){need(c.checkedTableDescriptors===c.tables.length,'Reconciled table descriptor count mismatch.');Object.assign(delta,{phase:'reconcile-tables',tableIndex:0,pageCursor:null,pageIndex:0,lastCursor:null,reconciledRows:0,activePage:null,checkedTables:0,auditSequence:0,auditHash:null});}
+  if(result.kind==='done'){need(c.checkedTableDescriptors===c.tables.length,'Reconciled table descriptor count mismatch.');Object.assign(delta,{phase:'reconcile-tables',objectCursor:null,publicationCursor:null,tableCursor:null,tableIndex:0,pageCursor:null,pageIndex:0,lastCursor:null,reconciledRows:0,activePage:null,checkedTables:0,auditSequence:0,auditHash:null});}
   return checked(loaded,c,delta,result.metadata?await objectCheck(result.metadata.identity):null);
  }
  function targetRows(table,entry){
@@ -101,12 +104,18 @@ export function createRecoveryV2Reconciler({driver,artifacts,crypto,v2Codec,code
   need(foreignKeys.length===0,'Recovery foreign-key conflict.');need(Object.values(auth[0]).every(n=>n===0),'Recovery authentication not revoked.');need(objects[0].n===c.root.totals.objects&&objects[0].bytes===c.root.totals.bytes&&copied[0].n===c.root.totals.objects,'Recovery exact object graph totals mismatch.');need(c.tables===null&&c.checkedTableDescriptors===c.root.tables.count&&tables[0].n===c.root.tables.count&&tables[0].rows===c.root.totals.rows&&c.checkedTables===c.root.tables.count&&retired.length===1&&retired[0].item_count===c.root.tables.count&&retired[0].result_digest===await hashJson(crypto,['v2-reconciled-table-inventory',c.root.tables,c.root.totals.rows]),'Recovery complete table reconciliation missing.');need(publications[0].n===c.root.publications.count&&c.checkedPublications===c.root.publications.count,'Recovery complete publication checks missing.');
   const [actionPolicyProofs]=await read([sql("SELECT (SELECT COUNT(*) FROM app_command_receipts WHERE operation_kind='earn.configure-action.v1') expected,COUNT(*) checked,COALESCE(SUM(item_count),0) items FROM app_recovery_reconcile_checks WHERE restore_id=? AND phase='action-policy' AND target_watermark=?",loaded.run.id,c.targetWatermark)]);
   need(actionPolicyProofs[0].expected===actionPolicyProofs[0].checked&&actionPolicyProofs[0].expected===actionPolicyProofs[0].items,'Recovery action policy proofs incomplete.');
+  const [economicCounts,economicProofs,economicComplete]=await read([economicPreparationCountsSql(),sql("SELECT COUNT(*) n,COALESCE(SUM(item_count),0) items FROM app_recovery_reconcile_checks WHERE restore_id=? AND phase='economic-preparation' AND target_watermark=?",loaded.run.id,c.targetWatermark),sql("SELECT result_digest,item_count FROM app_recovery_reconcile_checks WHERE restore_id=? AND phase='economic-preparation-count' AND scope='complete' AND ordinal=0 AND target_watermark=?",loaded.run.id,c.targetWatermark)]);
+  const n=economicCounts[0];need(c.economicPreparationsComplete===true&&c.checkedEconomicPreparations===n.receipts&&n.preparations===n.preparation_origins&&n.intents===n.intent_origins&&economicProofs[0].n===n.receipts&&economicProofs[0].items===n.receipts&&economicComplete.length===1&&economicComplete[0].item_count===n.receipts&&economicComplete[0].result_digest===await hashJson(crypto,['v2-economic-preparation-count',n]),'Recovery economic preparation proofs incomplete.');
   const report={kind:'verified',mode:'private',objects:c.root.totals.objects,publications:c.root.publications.count,tables:c.root.tables.count,sessionsRevoked:true,leasesFenced:true,financialExecution:false,chainStatus:'unproven'},digest=await hashJson(crypto,['v2-reconciled-target',loaded.run.id,loaded.state.generation,c.targetWatermark,report]);
   return checked(loaded,c,{phase:'final-ready',finalDigest:digest,finalReport:report},{phase:'final',scope:'target',ordinal:0,resultDigest:digest,itemCount:c.root.totals.rows});
  }
- async function step(loaded){const c=JSON.parse(loaded.run.checkpoint_json);try{
+ async function step(loaded){const c=parseRecoveryV2Checkpoint(loaded.run.checkpoint_json);try{
   // Resume old post-table checkpoints by proving completion before retirement.
   if(Array.isArray(c.tables)&&!['reconcile-objects','reconcile-table-metadata','reconcile-tables'].includes(c.phase))return await retireTables(loaded,c,c.phase);
+  // These traversals are complete before table reconciliation. Their immutable
+  // object/descriptor proofs remain retained; later publication replay starts anew.
+  if(c.phase==='reconcile-objects'&&[c.publicationCursor,c.tableCursor].some(v=>v!=null))return await checked(loaded,c,{publicationCursor:null,tableCursor:null});
+  if(c.phase==='reconcile-tables'&&[c.objectCursor,c.publicationCursor,c.tableCursor].some(v=>v!=null))return await checked(loaded,c,{objectCursor:null,publicationCursor:null,tableCursor:null});
   if(c.phase==='reconcile-legacy-adoption-mints')return await legacyMints.step(loaded,c);
    if(c.phase==='reconcile-legacy-adoption-economics')return await legacyEconomics.step(loaded,c);
    if(c.phase==='reconcile-legacy-adoption-current')return await legacyCurrent.step(loaded,c);
@@ -119,6 +128,8 @@ export function createRecoveryV2Reconciler({driver,artifacts,crypto,v2Codec,code
   if(c.phase==='reconcile-action-policies')return await actionPolicies.step(loaded,c);
   if(c.phase==='reconcile-audit')return await checked(loaded,c,{phase:'reconcile-action-policies',actionPolicyCursor:-9007199254740991,checkedActionPolicies:0},{phase:'audit',scope:'config',ordinal:0,resultDigest:await hashJson(crypto,['v2-reconciled-audit',c.auditSequence,c.auditHash]),itemCount:c.auditSequence});
   if(c.phase==='reconcile-checkpoints'){const object=await verifyObject(artifacts,c.root.checkpoints,crypto);if(object.kind!=='verified')throw new MissingObject(object.reason);const text=new TextDecoder('utf-8',{fatal:true}).decode(object.bytes),checkpoint=JSON.parse(text);need(canonicalJson(checkpoint)===text&&Object.keys(checkpoint).length===6&&checkpoint.format==='10x.local.recovery.checkpoints.v2'&&checkpoint.sourceGeneration===c.root.snapshot.generation&&same(checkpoint.tables,c.root.tables)&&checkpoint.sessionsRevoked===true&&checkpoint.financialExecution===false&&checkpoint.sourceRecovery&&Object.keys(checkpoint.sourceRecovery).length===3&&['live','private'].includes(checkpoint.sourceRecovery.mode)&&['live','ready'].includes(checkpoint.sourceRecovery.status),'Recovery source checkpoint binding mismatch.');return await checked(loaded,c,{phase:'reconcile-final'},await objectCheck(c.root.checkpoints));}
+  if(c.phase==='reconcile-economic-preparations')return await economicPlans.step(loaded,c);
+  if(c.phase==='reconcile-economics'&&!c.economicPreparationsComplete)return await checked(loaded,c,{phase:'reconcile-economic-preparations',economicPreparationCursor:-9007199254740991,checkedEconomicPreparations:0});
   if(c.phase==='reconcile-economics')return await economics(loaded,c);if(c.phase==='reconcile-publications')return await publications(loaded,c);if(c.phase==='reconcile-final')return await final(loaded,c);return {kind:'conflict',code:'recovery-not-reconciling'};
  }catch(error){return error instanceof MissingObject?{kind:'conflict',code:error.message}:repository.hold(loaded,'recovery-reconciliation-invalid:'+error.message);}}
  return Object.freeze({step});
