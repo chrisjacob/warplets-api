@@ -48,7 +48,7 @@ export const receiptModel=z.object({
   id:text,kind:text,inventoryId:text,owner:text,status:text,createdAt:date,stageId:text.nullable(),
   targetId:text.nullable(),materialId:text.nullable(),assetId:text.nullable(),
   priceLamports:units.nullable(),feeLamports:units.nullable(),costLamports:units.nullable(),
-  quoteId:text.optional(),bindingDigest:text.regex(/^[a-f0-9]{64}$/).optional(),
+  quoteId:text.optional(),bindingDigest:text.regex(/^[a-f0-9]{64}$/).optional(),termsDigest:text.regex(/^[a-f0-9]{64}$/).optional(),
   reconciliation:z.object({status:z.literal('held'),reason:z.literal('external-transfer'),observedAt:date}).optional(),
 });
 export const quoteModel=z.object({

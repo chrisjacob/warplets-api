@@ -1,5 +1,5 @@
 {
   "policy": "prd-1.2",
   "scope": "local",
-  "checkpoint": "blueprint-b11-historical-free-cut-recovery"
+  "checkpoint": "blueprint-b11-reviewed-member-mint"
 }

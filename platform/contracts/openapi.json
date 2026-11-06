@@ -5478,6 +5478,15 @@
             "application/json": {
               "schema": {
                 "type": "object",
+                "properties": {
+                  "expectedTermsDigest": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  }
+                },
+                "required": [
+                  "expectedTermsDigest"
+                ],
                 "additionalProperties": false
               }
             }
@@ -7981,6 +7990,10 @@
           },
           "executable": {
             "type": "boolean"
+          },
+          "termsDigest": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
           },
           "quoteId": {
             "type": "string"

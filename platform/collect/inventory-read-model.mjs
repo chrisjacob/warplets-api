@@ -66,7 +66,7 @@ SELECT h.id,h.kind,h.tranche,h.season_start,h.revision,h.normalized,
 FROM h`;
 
 function units(value){check(value&&Object.keys(value).length===1&&typeof value.$lamports==='string'&&/^(0|[1-9][0-9]{0,19})$/.test(value.$lamports)&&BigInt(value.$lamports)<(1n<<64n),'inventory-stage-units');return value.$lamports;}
-function project(row,q,normalizedAdmissionAvailable){
+function project(row,q,normalizedAdmissionAvailable,legacyAdmissionAvailable){
  check(row.valid===1&&id(row.id)&&['genesis','season'].includes(row.kind)&&Number.isSafeInteger(row.revision)&&row.revision>=0,'inventory-header-unavailable');
  check(row.kind==='genesis'?Number.isInteger(row.tranche)&&row.tranche>=1&&row.tranche<=10&&row.season_start===null:row.tranche===null&&time(row.season_start),'inventory-header-unavailable');
  check(count(row.admitted)&&count(row.fulfilled)&&row.fulfilled<=row.admitted&&row.actual_admitted===row.admitted&&row.actual_fulfilled===row.fulfilled&&row.unknown_stages===0,'inventory-admission-count-unavailable');
@@ -91,7 +91,7 @@ function project(row,q,normalizedAdmissionAvailable){
   const fact=sourceStages[n];let status='open';if(q.nowMs<s.opensAt)status='scheduled';else if(q.nowMs>=s.closesAt)status='closed';else if(fact.admitted>=s.allocation||counts.unsold===0)status='sold-out';else if(openingHold)status='postponed';else if(s.type==='free'&&s.wallets===null)status='awaiting-snapshot';
   const eligibility=stageEligibility(s,q.wallet),used=q.wallet?fact.mine:null;
   const reservationStatus=stageReservationStatus(s,q.wallet,{now:q.nowMs,status,used,openingHold,snapshotId:fact.snapshotId});
-  if(row.normalized!==null&&!normalizedAdmissionAvailable&&reservationStatus.status==='available'){reservationStatus.status='unavailable';reservationStatus.reason='admission-unavailable';}
+  if((row.normalized!==null?!normalizedAdmissionAvailable:!legacyAdmissionAvailable)&&reservationStatus.status==='available'){reservationStatus.status='unavailable';reservationStatus.reason='admission-unavailable';}
   return {id:s.id,type:s.type,status,opensAt:iso(s.opensAt),closesAt:iso(s.closesAt),publishedAt:iso(s.publishedAt),priceLamports:s.priceLamports,costLamports:s.costLamports,allocation:s.allocation,available:Math.min(counts.unsold,s.allocation-fact.admitted),walletLimit:s.walletLimit,eligibility,eligible:eligibility.status==='unknown'?null:eligibility.status==='eligible',walletReservations:used,termsDigest:s.termsDigest,openingHold,reservationStatus};
  });
  const revealedLevelCounts=Array(10).fill(0);let concealedCount=0,total=0;
@@ -102,8 +102,8 @@ function project(row,q,normalizedAdmissionAvailable){
 
 /** Two bounded batches share a source revision. A changed source returns pending;
  * no mixed-era list, partial stage inventory or concealed asset body is returned. */
-export function createInventoryReadRepository(driver,{normalizedAdmissionAvailable=false}={}){
- check(typeof normalizedAdmissionAvailable==='boolean','invalid-inventory-read-composition');
+export function createInventoryReadRepository(driver,{normalizedAdmissionAvailable=false,legacyAdmissionAvailable=true}={}){
+ check(typeof normalizedAdmissionAvailable==='boolean'&&typeof legacyAdmissionAvailable==='boolean','invalid-inventory-read-composition');
  async function read(q,single){
   try{
    const first=(await driver.batch([sql(revision),single?sql('SELECT CASE WHEN length(CAST(id AS BLOB))<=128 THEN id ELSE NULL END id FROM collect_inventories WHERE id=?',q.inventoryId):sql('SELECT CASE WHEN length(CAST(id AS BLOB))<=128 THEN id ELSE NULL END id FROM collect_inventories WHERE id>? ORDER BY id LIMIT 26',q.after??'')])).map(r=>r.rows);
@@ -112,7 +112,7 @@ export function createInventoryReadRepository(driver,{normalizedAdmissionAvailab
    const data=(await driver.batch(statements)).map(r=>r.rows);
    check(data[0].length===1&&data.at(-1).length===1&&canonicalJson(data[0][0])===canonicalJson(first[0][0])&&canonicalJson(data.at(-1)[0])===canonicalJson(first[0][0]),'inventory-read-revision-changed');
    check(utf8(canonicalJson(data)).length<=INVENTORY_READ_LIMITS.contextBytes,'inventory-read-byte-bound');
-   const items=data.slice(1,-1).map((rows,n)=>{check(rows.length===1&&rows[0].id===ids[n],'inventory-read-context-unavailable');return project(rows[0],q,normalizedAdmissionAvailable);});
+   const items=data.slice(1,-1).map((rows,n)=>{check(rows.length===1&&rows[0].id===ids[n],'inventory-read-context-unavailable');return project(rows[0],q,normalizedAdmissionAvailable,legacyAdmissionAvailable);});
    if(single)return items.length?{kind:'ready',value:items[0]}:{kind:'missing'};
    return {kind:'ready',value:{items,nextCursor:first[1].length>25?ids.at(-1):null,source:'local-fixture'}};
   }catch(error){if(typeof error.code==='string')return {kind:'pending',reason:error.code};return {kind:'pending',reason:'inventory-read-unavailable'};}

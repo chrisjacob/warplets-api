@@ -55,8 +55,8 @@ export const sdk={
   positions:async(cursor?:string,signal?:AbortSignal)=>{const options={signal,query:queryCursor(cursor)};
     return rows(positionModel,await client.getStakePositions(options));},
   farm:async(id:string,signal?:AbortSignal)=>one(farmModel,await client.getFarm({path:{id},signal})),
-  mint:async(id:string,stage:string,idempotencyKey:string)=>{
-    const options={path:{id,stage},idempotencyKey,body:{}};
+  mint:async(id:string,stage:string,expectedTermsDigest:string,idempotencyKey:string)=>{
+    const options={path:{id,stage},idempotencyKey,body:{expectedTermsDigest}};
     return one(z.object({operation:receiptModel}),await client.reserveLocalMint(options)).operation;
   },
   quote:async(id:string,body:ProgressionRequest,idempotencyKey:string,signal?:AbortSignal)=>{

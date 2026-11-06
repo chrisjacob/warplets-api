@@ -42,7 +42,7 @@ export const shapes={
 };
 // Quote links are present on guarded progression responses; legacy/mint reads
 // retain the existing shape; held guarded operations add private reconciliation.
-Object.assign(shapes.CollectionOperation.properties,{quoteId:str,bindingDigest:str,fairness:{enum:['manual-fixture','configured-offline-beacon']},reconciliation:object({status:{const:'held'},reason:{const:'external-transfer'},observedAt:iso})});
+Object.assign(shapes.CollectionOperation.properties,{termsDigest:{type:'string',pattern:'^[a-f0-9]{64}$'},quoteId:str,bindingDigest:str,fairness:{enum:['manual-fixture','configured-offline-beacon']},reconciliation:object({status:{const:'held'},reason:{const:'external-transfer'},observedAt:iso})});
 export const success={
  listMarkets:page(ref('Market')),getMarket:enriched(ref('Market')),
  getFeeSchedule:enriched(object({points:array(ref('FeePoint')),unit:str,clock:str})),
@@ -106,7 +106,7 @@ const progression=object({kind:{enum:['visual','upgrade']},targetId:str,expected
 const reviewedProgression=object({...progression.properties,materialId:nullable(str),expectedMaterialVersion:nullable(integer),quoteId:str,bindingDigest:str,policyVersion:str,reviewedFeeLamports:units,reviewedMaxTotalLamports:units,quoteExpiresMs:integer},[...progression.required,'quoteId','bindingDigest','policyVersion','reviewedFeeLamports','reviewedMaxTotalLamports','quoteExpiresMs']);
 const quoteRequest=object({...progression.properties,materialId:nullable(str),expectedMaterialVersion:nullable(integer),maxTotalLamports:nullable(units)},progression.required);
 reviewedProgression.additionalProperties=false;quoteRequest.additionalProperties=false;
-const bodies={reserveLocalMint:{type:'object',additionalProperties:false},reserveLocalProgression:reviewedProgression,quoteLocalProgression:quoteRequest};
+const bodies={reserveLocalMint:{...object({expectedTermsDigest:{type:'string',pattern:'^[a-f0-9]{64}$'}}),additionalProperties:false},reserveLocalProgression:reviewedProgression,quoteLocalProgression:quoteRequest};
 export function describeResponses(paths) {
  // Build a new tree so producing docs never mutates shared route definitions.
  const result=structuredClone(paths);

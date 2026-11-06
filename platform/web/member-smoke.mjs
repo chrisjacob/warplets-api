@@ -7,7 +7,8 @@ import { observeFarm, seedFarm } from '../stake/farms.mjs';
 import { seedBallot } from '../governance/ballots.mjs';
 import { addCampaign, recordStakeRead } from '../earn/workflow.mjs';
 import {configureWorkload} from '../earn/operations.mjs';
-import { createCollection, fulfillMint, fulfillProgression, inspectOperation, observeCollectionAsset,
+import {createGuardedFulfillmentFixture} from '../application/fixtures/guarded-fulfillment.mjs';
+import { createCollection, fulfillMint, inspectOperation, observeCollectionAsset,
   publishCollectionStage, reserveMint, listOwnOperations } from '../collect/store.mjs';
 
 /** Disposable key signs only local QA challenges for this one browser and origin.
@@ -78,8 +79,7 @@ export async function checkMemberPages({ browser, db, origin }) {
     await page.getByText('Awaiting committed draw evidence.').first().waitFor();
     const pending=listOwnOperations(db,wallet).items.find(op=>op.kind==='upgrade' && op.status==='awaiting-evidence');
     assert.ok(pending);
-    fulfillProgression(db,{operationId:pending.id,commitment:inspectOperation(db,pending.id).commitment,
-      proofId:'browser-upgrade',finalized:true,at:Date.now(),ticket:999});
+    await createGuardedFulfillmentFixture(db)(pending.id,{proofId:'browser-upgrade',atMs:Date.now(),ticket:999});
     await page.reload();
     await page.getByRole('heading',{name:'Operation receipt',exact:true}).waitFor();
     assert.equal(inspectOperation(db,pending.id).status,'fulfilled');

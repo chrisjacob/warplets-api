@@ -24,7 +24,7 @@ test('runtime inventories describe only scoped local routes and never advertise 
  assert.ok(worker.features.some(f=>f.id==='earn-admission'));
  assert.ok(worker.features.some(f=>f.id==='earn-actions'));
  assert.ok(worker.features.some(f=>f.id==='quote-preview'));
- assert.ok(!worker.features.some(f=>['local-inbox','collection-fixture-requests'].includes(f.id)));
+ assert.ok(!worker.features.some(f=>['local-inbox','launch-plan-preview'].includes(f.id)));
  assert.ok(worker.features.some(f=>f.id==='verified-manifest-read'));
  const advertised=new Set(node.features.flatMap(f=>f.routes.map(r=>r.method+' '+r.path.slice(7))));
  for(const [path,item] of Object.entries(spec.paths))for(const method of ['get','post','put','patch','delete']){
@@ -43,3 +43,5 @@ test('anonymous Node discovery is available through generated client and cannot 
  const denied=await app(new Request('http://localhost/api/v1/capabilities',{method:'POST'}));
  assert.equal(denied.status,405);
 });
+
+test('guarded member mint is a shared local capability with financial execution disabled',()=>{for(const runtime of ['node-reference','workerd-local']){const c=makeCapabilities(runtime);assert.equal(c.features.flatMap(f=>f.routes).filter(r=>r.method==='POST'&&r.path==='/api/v1/collect/inventories/{id}/stages/{stage}/reservations').length,1);assert.equal(c.production.financialExecution,false);}});

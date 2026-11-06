@@ -1,0 +1,304 @@
+{
+  "task": "B11",
+  "slice": "B11.23 reviewed member mint HTTP and UI",
+  "status": "verified-member-http-and-ui-slice; B11 remains partial",
+  "baseCommit": "250e07f73f7dd7d6194b1408274f094da80dfb0c",
+  "implementationCommit": null,
+  "recordedAt": "2026-11-06T04:48:46.998Z",
+  "sourceHashes": {
+    "platform/application/fixtures/mint-review.mjs": "a236b3c4c2530cd9742e108717b2a7f80c3ed4995d1af047ffe151bf1504972f",
+    "platform/site/src/collect.tsx": "b01fcaa9efe1f4b2c5f5f3df2ad5852a942243b4a87a364886a853ec959dff73",
+    "platform/site/src/models.ts": "b09bb748541e082218db2ea10e6a5ba9e210d3e7f2cf9c6a2f99191674de742d",
+    "platform/site/src/sdk.ts": "483a6eabb395f2207ddbd8ac3e64ec8b08b826bb5c6d046a1aa8229850853871",
+    "platform/site/src/mint-intent.ts": "56b18ed10e07814998c688b516bde2192b81845256c1c284db975624af4935a8",
+    "platform/site/tests/capabilities.spec.mjs": "26d062b0d9e26e430eeceac63dd1fe7f84a9476fde94c8f0f58c59ffcdd98e43",
+    "platform/site/tests/runtime-qa.mjs": "2d5aa71e78ac4b119aa8f40803f954d210b1b98a5daf9fffef7947ed03d7d84d",
+    "platform/site/tests/mint-intent.spec.mjs": "e594b9624ebe6692e41041ff6dd688dd5f14997a1188334262d8b19254d17e2f",
+    "platform/site/tests/mint-lifecycle-qa.mjs": "12a74c25494b3f3c43b0fdaeffc6fa535a673afcefe2fe412894d2109f0f2644",
+    "platform/web/member-smoke.mjs": "d0aa552cc9f946e1c71cae407abede8dadf4c3703af019492f6a1b3994d293de",
+    "platform/site/MINT_REVIEW.md": "c60f47a6e3e169f9b8f3c31f610e22d5a1be90c45c6f5e4a9c56b126bf35e642",
+    "platform/collect/http.mjs": "29c26077c53ab68f3f7ecc9b9e65ab67f2e0edabefcda51a0b718cb4fb84a140",
+    "platform/collect/inventory-read-model.d.mts": "b1161953c965ae1f49fca85f8c1d38a6ad253895de0f42bc60880386b015dded",
+    "platform/collect/inventory-read-model.mjs": "3abe5503ccf78362afe784c873649006e9b79507b4e34747700274efa19aa027",
+    "platform/collect/read-model.mjs": "080c30dcbc17b42860dff68888b06ad23dcdc480fc048661e631e2ac8b6eee8e",
+    "platform/collect/store.mjs": "373b43aa4ec8338b9b7912652d9c719891577de460f4752462a6310d271dd014",
+    "platform/collect/mint-http.d.mts": "4fdfc6c6b9cbfa87dcb56fbc3ff2c377966b9185d1635510dbaa4e4f281e63a6",
+    "platform/collect/mint-http.mjs": "4bd3ec0c04f06f3e8a68d93745a3a937ec42a443f787f94acc8af250ce94b7d7",
+    "platform/collect/mint-http.test.mjs": "6ecc49dfeaecc899aa42293b89ece3cc3db7513bdec1c642244a7a4c274f02b9",
+    "platform/collect/node-mint.mjs": "660fb655c7d581e748e4d4090f2ec3a30082152429d92285bdb8f7ee1b9706c7",
+    "platform/collect/MINT_HTTP.md": "25da0a2e0ab87b93d8da73945fc3f68ad1ca7a94fa1c1dfd6fdff386a7997e00",
+    "platform/contracts/capabilities.mjs": "32f93784f13d8d755d6846e68a61ec54dcefa7e6920f62ee7b1c88cc1c8ef22d",
+    "platform/contracts/capabilities.test.mjs": "3cdf460534fffa7e90320e3740212e8aeb4692992386f76555e2f7a415dd7b1d",
+    "platform/contracts/client.d.mts": "4706c93e941bd3e6bcca79477193ef351c100cd9d406df196b25562d4adc45f0",
+    "platform/contracts/openapi.json": "c6d2e5d410d3038291bdca041703264ac04c47202509e137fd55fa28616e3fb2",
+    "platform/contracts/shapes.mjs": "09983917036c13966fa10033d0c25eaf6f482d545f4367a55bddad378bb92bdc",
+    "platform/edge/src/collection-reads.ts": "2d439f8fd91af97f307aa15c65a68a748e5187819382ba3acbaf225558490140",
+    "platform/edge/src/worker.ts": "7cd11bacda49655f19fcc2173a6320cee2b4f79ecc1f24f5d34e59077cfd333e",
+    "platform/edge/src/mint.ts": "aa0c839b4d74a3f0dec6e44ccb05f6b3cc1f2f50da18138e468f4837cea3c004",
+    "platform/edge/test/inventory-reads.test.mjs": "acd34784b0c67824260344f3c929eab489db4d9477418a154d325dff090bab9c",
+    "platform/edge/test/mint-http.test.mjs": "e5de6d526e9a4b6d93a0b06412fa8027f3e043d31281e2367699353028dd0681"
+  },
+  "checks": [
+    {
+      "command": "node --test platform/site/tests/*.spec.mjs",
+      "result": "PASS",
+      "tests": 29,
+      "durationMs": 9439.5744,
+      "log": "work/b11-mint-ui-spec.log"
+    },
+    {
+      "command": "node platform/site/node_modules/typescript/bin/tsc --noEmit -p platform/site",
+      "result": "PASS",
+      "log": "work/b11-mint-ui-type.log"
+    },
+    {
+      "command": "node platform/site/node_modules/vite/bin/vite.js build platform/site",
+      "result": "PASS",
+      "durationSeconds": 3.88,
+      "log": "work/b11-mint-ui-build.log",
+      "notes": "Pinned Zod pure-annotation warnings only; collect chunk34.82 kB / gzip10.26 kB."
+    },
+    {
+      "command": "node platform/site/tests/mint-lifecycle-qa.mjs",
+      "result": "PASS",
+      "log": "work/b11-mint-lifecycle.log",
+      "cases": [
+        {
+          "width": 360,
+          "classification": "synthetic normalized stage and private clock; production Node HTTP/repositories; genuine Ed25519 auth; negative-only response fault injection",
+          "reviewedDigest": true,
+          "networkCost": "unknown",
+          "totalCost": "unknown",
+          "financialExecution": false,
+          "unknownRetryAfterCloseAndPauseExactBodyAndKey": true,
+          "reloadRecovery": true,
+          "ownerSessionIsolation": true,
+          "lostCommittedResponseRecovered": true,
+          "admissions": 1
+        },
+        {
+          "width": 390,
+          "classification": "synthetic normalized stage and private clock; production Node HTTP/repositories; genuine Ed25519 auth; negative-only response fault injection",
+          "reviewedDigest": true,
+          "networkCost": "unknown",
+          "totalCost": "unknown",
+          "financialExecution": false,
+          "unknownRetryAfterCloseAndPauseExactBodyAndKey": true,
+          "reloadRecovery": true,
+          "ownerSessionIsolation": true,
+          "lostCommittedResponseRecovered": true,
+          "admissions": 1
+        },
+        {
+          "width": 768,
+          "classification": "synthetic normalized stage and private clock; production Node HTTP/repositories; genuine Ed25519 auth; negative-only response fault injection",
+          "reviewedDigest": true,
+          "networkCost": "unknown",
+          "totalCost": "unknown",
+          "financialExecution": false,
+          "unknownRetryAfterCloseAndPauseExactBodyAndKey": true,
+          "reloadRecovery": true,
+          "ownerSessionIsolation": true,
+          "lostCommittedResponseRecovered": true,
+          "admissions": 1
+        },
+        {
+          "width": 1440,
+          "classification": "synthetic normalized stage and private clock; production Node HTTP/repositories; genuine Ed25519 auth; negative-only response fault injection",
+          "reviewedDigest": true,
+          "networkCost": "unknown",
+          "totalCost": "unknown",
+          "financialExecution": false,
+          "unknownRetryAfterCloseAndPauseExactBodyAndKey": true,
+          "reloadRecovery": true,
+          "ownerSessionIsolation": true,
+          "lostCommittedResponseRecovered": true,
+          "admissions": 1
+        }
+      ],
+      "reuseNote": "Four-width acceptance preceded final stricter receipt status/asset consistency check. Final unit suite covers all receipt fields; final wrong-response case and full smoke exercise the tightened matching path."
+    },
+    {
+      "command": "node platform/site/tests/mint-lifecycle-qa.mjs --expiry",
+      "result": "PASS",
+      "log": "work/b11-mint-lifecycle-expiry.log",
+      "cases": [
+        {
+          "width": 390,
+          "classification": "synthetic normalized stage and private clock; production Node HTTP/repositories; genuine Ed25519 auth; negative-only response fault injection",
+          "reviewedDigest": true,
+          "networkCost": "unknown",
+          "totalCost": "unknown",
+          "financialExecution": false,
+          "expiredFreshConfirmationBlocked": true,
+          "admissions": 0
+        }
+      ]
+    },
+    {
+      "command": "node platform/site/tests/mint-lifecycle-qa.mjs --server-reject",
+      "result": "PASS",
+      "log": "work/b11-mint-lifecycle-reject.log",
+      "cases": [
+        {
+          "width": 390,
+          "classification": "synthetic normalized stage and private clock; production Node HTTP/repositories; genuine Ed25519 auth; negative-only response fault injection",
+          "reviewedDigest": true,
+          "networkCost": "unknown",
+          "totalCost": "unknown",
+          "financialExecution": false,
+          "serverClosedBeforeConfirmationRejected": true,
+          "knownRejectionCleared": true,
+          "admissions": 0
+        }
+      ]
+    },
+    {
+      "command": "node platform/site/tests/mint-lifecycle-qa.mjs --wrong-response",
+      "result": "PASS",
+      "log": "work/b11-mint-lifecycle-wrong.log",
+      "cases": [
+        {
+          "width": 390,
+          "classification": "synthetic normalized stage and private clock; production Node HTTP/repositories; genuine Ed25519 auth; negative-only response fault injection",
+          "reviewedDigest": true,
+          "networkCost": "unknown",
+          "totalCost": "unknown",
+          "financialExecution": false,
+          "unknownRetryAfterCloseAndPauseExactBodyAndKey": true,
+          "reloadRecovery": true,
+          "ownerSessionIsolation": true,
+          "negativeCorruptedResponseRetained": true,
+          "admissions": 1
+        }
+      ]
+    },
+    {
+      "command": "node platform/site/tests/progression-lifecycle-qa.mjs --wrong-response",
+      "result": "PASS",
+      "log": "work/b11-mint-progression-compat.log",
+      "cases": [
+        {
+          "width": 390,
+          "classification": "synthetic private clock; actual HTTP/repositories; genuine Ed25519 auth; response-loss fault injection",
+          "quoteRetriesSameKey": true,
+          "expiredFreshConfirmationBlocked": true,
+          "explicitRefreshNewQuote": true,
+          "unknownRetryAfterExpiryExactBodyAndKey": true,
+          "ownerSessionIsolation": true,
+          "staleOwnerRejected": true,
+          "negativeCorruptedResponseRetained": true,
+          "reservations": 2,
+          "networkCost": "unknown",
+          "totalCost": "unknown",
+          "financialExecution": false
+        }
+      ]
+    },
+    {
+      "command": "node platform/site/tests/browser-qa.mjs",
+      "result": "PASS",
+      "log": "work/b11-member-mint-browser-full.log",
+      "cases": [
+        "20 public page/width checks",
+        "Real wallet advisory vote, reviewed legacy mint, guarded progression fulfillment, Earn/Vault/Stake and logout",
+        "Public initial HTML, canonical URLs, private noindex, social image and404",
+        "Four-width material review/stale pair",
+        "Four-width real Earn and Vault evidence",
+        "Four-width fixed-cut eligibility and historical per-asset Vault continuity",
+        "Four-width stale financial cursor recovery",
+        "Wallet Standard lifecycle and private recovery",
+        "Four-width explicitly restricted capability negative fixture",
+        "Failed capability discovery gating",
+        "Both quote directions with evidence-bound actual API"
+      ]
+    },
+    {
+      "command": "git diff --check -- platform/site platform/application/fixtures/mint-review.mjs platform/web/member-smoke.mjs",
+      "result": "PASS"
+    },
+    {
+      "command": "node platform/scripts/test-reference.mjs",
+      "result": "PASS",
+      "tests": 616,
+      "durationMs": 829167.4945,
+      "log": "work/b11-member-recovery-reference.log",
+      "scope": "Member HTTP/UI and historical free-cut recovery; discovery preceded later legacy audit modules."
+    },
+    {
+      "command": "node --test platform/edge/test/mint-http.test.mjs",
+      "result": "PASS",
+      "tests": 2,
+      "durationMs": 24583.6866,
+      "assertions": [
+        "mounted Node and D1 genuine Ed25519 sessions",
+        "identical concurrent retries one admission",
+        "changed reviewed terms conflict",
+        "accepted replay after pause",
+        "owner-isolated receipts",
+        "logout and expiry reject",
+        "zero transactions"
+      ]
+    },
+    {
+      "command": "node --test platform/edge/test/inventory-reads.test.mjs",
+      "result": "PASS",
+      "tests": 1,
+      "durationMs": 52217.9363
+    },
+    {
+      "command": "node --test platform/collect/mint-http.test.mjs platform/collect/read-model.test.mjs platform/contracts/capabilities.test.mjs",
+      "result": "PASS",
+      "tests": 12,
+      "durationMs": 2692.4131
+    },
+    {
+      "command": "node platform/edge/node_modules/typescript/bin/tsc --noEmit -p platform/edge/tsconfig.json",
+      "result": "PASS"
+    },
+    {
+      "command": "node platform/contracts/generate.mjs --check",
+      "result": "PASS"
+    }
+  ],
+  "acceptance": {
+    "sdkSignature": "mint(id,stage,expectedTermsDigest,idempotencyKey)",
+    "requestBody": {
+      "expectedTermsDigest": "exact reviewed immutable stage digest"
+    },
+    "capture": "Synchronous validated defensive copy before first request; public stage projection only, never full inventory state or eligibility wallet lists",
+    "unknownOutcome": "Original inventory/stage/digest/key persists across reload, wallet reconnection, stage close and admission pause. No replacement key or body is generated for a retained attempt.",
+    "receiptBinding": [
+      "wallet",
+      "mint kind",
+      "inventory",
+      "stage",
+      "termsDigest",
+      "priceLamports",
+      "costLamports",
+      "null target/material/fee",
+      "consistent accepted status/asset"
+    ],
+    "walletIsolation": "Journal prefixes and private query lifecycle are authenticated-wallet scoped; other wallet cannot see or resolve retained original request",
+    "negativeResponses": "Lost committed response and corrupted returned digest are negative-only transport faults after real commit; actual retry recovers original receipt without duplicate admission",
+    "freshValidation": "Expired local review prevents POST; actual server closure between review and POST returns known rejection, clears unaccepted journal and requires fresh review",
+    "costs": {
+      "mintPrice": "exact local terms",
+      "creationCost": "disclosed local component",
+      "networkCost": "unknown",
+      "totalCost": "unknown",
+      "financialExecution": false
+    },
+    "capabilities": "Shared mint capability asserted; restricted-profile negative fixture explicitly removes collection capabilities rather than pretending current Worker lacks mounted methods"
+  },
+  "fixtureRepair": {
+    "path": "platform/web/member-smoke.mjs",
+    "reason": "Existing test invoked legacy direct fulfillment for a guarded040 reservation, correctly rejected by042. It now retains synthetic B04 evidence and invokes the real guarded fulfillment fixture. Existing behavior assertions unchanged."
+  },
+  "limitations": [
+    "Production Node browser acceptance and mounted Node/workerd API parity both verified; local synthetic data only.",
+    "Synthetic local fixture only; no verified sales, chain ownership proof, payment, broadcast, deployment or live provider request.",
+    "Legacy collection adoption and remaining B11 authority work remain incomplete.",
+    "Session storage is tab-local; a destroyed browser storage context requires recovery through owner operation receipts."
+  ]
+}

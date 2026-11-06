@@ -1,3 +1,5 @@
+import {createNodeMintServices} from './node-mint.mjs';
+import {handleMintReservation} from './mint-http.mjs';
 import {createInventoryReadRepository} from './inventory-read-model.mjs';
 import {handleInventoryReads} from './inventory-read-http.mjs';
 import {createNodeAtomicDriver} from '../storage/node/atomic-driver.mjs';
@@ -31,13 +33,17 @@ async function bodyOf(request) {
 export async function handleCollect(db,request,peer,now) {
   const url=new URL(request.url),path=url.pathname;
   if(path!==base && !path.startsWith(base+'/')) return null;
-  if(patterns.inventory.test(path)||path===base+'/inventories')return handleInventoryReads(request,{reads:createInventoryReadRepository(createNodeAtomicDriver(db)),clock:{nowMs:()=>now},
+  if(patterns.inventory.test(path)||path===base+'/inventories')return handleInventoryReads(request,{reads:createInventoryReadRepository(createNodeAtomicDriver(db),{normalizedAdmissionAvailable:true}),clock:{nowMs:()=>now},
     authenticate:async req=>{const session=currentSession(db,req,now);return session?{kind:'wallet',wallet:session.wallet}:null;},
     consumeQuota:async(bucket,limit)=>consumeQuota(db,bucket,now,limit)});
   if(patterns.progress.test(path))return handleProgression(request,{...createNodeProgressionServices(db,{clock:{nowMs:()=>now}}),
     authenticate:async req=>{const session=currentSession(db,req,now);return session?{kind:'wallet',wallet:session.wallet}:null;},
     consumeQuota:async(bucket,limit)=>consumeQuota(db,bucket,now,limit)});
   if(patterns.asset.test(path)||patterns.receipt.test(path)||path===base+'/me/assets'||path===base+'/me/operations')return handleCollectionReads(request,{reads:createCollectionReadRepository(createNodeAtomicDriver(db)),clock:{nowMs:()=>now},
+    authenticate:async req=>{const session=currentSession(db,req,now);return session?{kind:'wallet',wallet:session.wallet}:null;},
+    consumeQuota:async(bucket,limit)=>consumeQuota(db,bucket,now,limit)});
+  const normalizedMint=patterns.reserve.exec(path);
+  if(normalizedMint&&db.prepare('SELECT 1 FROM app_collection_authorities WHERE inventory_id=?').get(normalizedMint[1]))return handleMintReservation(request,{...createNodeMintServices(db,{clock:{nowMs:()=>now}}),
     authenticate:async req=>{const session=currentSession(db,req,now);return session?{kind:'wallet',wallet:session.wallet}:null;},
     consumeQuota:async(bucket,limit)=>consumeQuota(db,bucket,now,limit)});
   try {
@@ -54,8 +60,8 @@ export async function handleCollect(db,request,peer,now) {
     const input=await bodyOf(request);
     let result;
     if(mint) {
-      need(Object.keys(input).length===0,'unexpected_fields','State, price and account come from the server.');
-      result=reserveMint(db,{inventoryId:mint[1],stageId:mint[2],wallet:session.wallet,requestKey,now});
+      need(Object.keys(input).every(key=>key==='expectedTermsDigest'),'unexpected_fields','Supply only the reviewed terms digest.');
+      result=reserveMint(db,{inventoryId:mint[1],stageId:mint[2],wallet:session.wallet,requestKey,expectedTermsDigest:input.expectedTermsDigest,now});
     }
     return json(result,result.replayed?200:201);
   } catch(error) {

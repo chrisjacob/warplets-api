@@ -17,12 +17,12 @@ function setup(runtime='workerd-local') {
  return {calls,transport,client:createClient({fetchImpl:transport.fetch}),
    advance:()=>{time+=30001;},breakDiscovery:()=>{broken=true;}};
 }
-test('Worker allows mounted inventory reads and blocks unsupported mint writes and transaction reads',async()=>{
+test('Worker allows mounted inventory reads and reviewed fixture mint requests but blocks transaction reads',async()=>{
  const {calls,client}=setup();
  await client.listLocalInventories();
- await assert.rejects(client.reserveLocalMint({path:{id:'a',stage:'b'},body:{}}),/unavailable/);
+ await client.reserveLocalMint({path:{id:'a',stage:'b'},idempotencyKey:'synthetic-capability-check',body:{expectedTermsDigest:'a'.repeat(64)}});
  await assert.rejects(client.getTransaction({path:{id:'unknown'}}),/unavailable/);
- assert.deepEqual(calls,[['/api/v1/capabilities','GET'],['/api/v1/collect/inventories','GET']]);
+ assert.deepEqual(calls,[['/api/v1/capabilities','GET'],['/api/v1/collect/inventories','GET'],['/api/v1/collect/inventories/a/stages/b/reservations','POST']]);
 });
 test('Node routes remain usable and concurrent discovery is deduplicated',async()=>{
  const {calls,client}=setup('node-reference');

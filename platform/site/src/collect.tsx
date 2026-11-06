@@ -8,8 +8,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { rootRoute } from './routes';
 import { client, sdk, PlatformApiError, type ProgressionRequest } from './sdk';
 import {progressionJournal,matchesProgressionReceipt,type ProgressionAttempt,type ProgressionJournalEntry} from './progression-intent';
+import {mintJournal,mintReviewAvailable,matchesMintReceipt,type MintAttempt,type MintJournalEntry} from './mint-intent';
 import type { Asset, Ballot, Inventory, ProgressQuote, Receipt, Stage } from './models';
-import { Empty, Facts, friendlyError, Hero, intentKey, Loaded, Modal, Panel, pretty, Signal, sol, usePageMeta, utc } from './common';
+import { Empty, Facts, friendlyError, Hero, Loaded, Modal, Panel, pretty, Signal, sol, usePageMeta, utc } from './common';
 import { useSession } from './session';
 
 const choiceLabel=(value:string)=>value==='ASAP'?'As soon as possible':value+' days';
@@ -34,15 +35,18 @@ export function BallotCard({ballot,wallet}:{ballot:Ballot;wallet:string|null}){
       Earliest opening: {utc(ballot.decision.earliestOpening)}.</p>}
   </article>;
 }
-type Review={kind:'mint';inventory:Inventory;stage:Stage} | {kind:'progress';asset:Asset;materialId?:string};
+type Review={kind:'mint';inventory:Pick<Inventory,'id'>;stage:Stage} | {kind:'progress';asset:Asset;materialId?:string};
 type QuoteSelection={req:ProgressionRequest;target:Asset;material?:Asset};
 function ReviewOperation({review,wallet,onClose}:{review:Review;wallet:string;onClose:()=>void}){
-  const navigate=useNavigate(),cache=useQueryClient(),mounted=useRef(true),attempt=useRef<ProgressionAttempt|null>(null);
+  const navigate=useNavigate(),cache=useQueryClient(),mounted=useRef(true),attempt=useRef<ProgressionAttempt|null>(null),mintAttempt=useRef<MintAttempt|null>(null);
   const journal=useMemo(()=>typeof sessionStorage==='undefined'?null:progressionJournal(sessionStorage,wallet),[wallet]);
   const [pending,setPending]=useState<ProgressionJournalEntry|null>(()=>review.kind==='progress'?journal?.read(review.asset.inventoryId,review.asset.id,review.materialId)??null:null);
+  const mintRequests=useMemo(()=>typeof sessionStorage==='undefined'?null:mintJournal(sessionStorage,wallet),[wallet]);
+  const [pendingMint,setPendingMint]=useState<MintJournalEntry|null>(()=>review.kind==='mint'?mintRequests?.read(review.inventory.id,review.stage.id)??null:null);
   const [quoteSession,setQuoteSession]=useState<{key:string;allowUpdated:boolean;captured?:QuoteSelection}>(()=>({key:crypto.randomUUID(),allowUpdated:false}));
   const [now,setNow]=useState(Date.now),[needsRefresh,setNeedsRefresh]=useState(false);
   const reserveCapability=useCapability('POST','/api/v1/collect/inventories/{id}/progression');
+  const mintCapability=useCapability('POST','/api/v1/collect/inventories/{id}/stages/{stage}/reservations');
   useEffect(()=>{mounted.current=true;const interval=setInterval(()=>setNow(Date.now()),500);return()=>{mounted.current=false;clearInterval(interval);};},[]);
   const quote=useRuntimeQuery('/api/v1/collect/assets/{id}',{queryKey:['private',wallet,'solana','progression-quote',quoteSession.key],enabled:review.kind==='progress'&&!pending,staleTime:Infinity,retry:false,refetchOnWindowFocus:false,refetchOnMount:false,
     queryFn:async({signal})=>{
@@ -65,10 +69,14 @@ function ReviewOperation({review,wallet,onClose}:{review:Review;wallet:string;on
   const reviewed=pending?.kind==='pending'?pending.attempt.quote:quote.data?.result,expired=!!reviewed&&now>=reviewed.quoteExpiresMs;
   const confirm=useMutation({mutationFn:async():Promise<Receipt>=>{
     if(review.kind==='mint'){
-      const body={inventory:review.inventory.id,stage:review.stage.id};
-      const intent=intentKey(wallet,'mint',body);
-      const receipt=await sdk.mint(body.inventory,body.stage,intent.key);
-      intent.done();return receipt;
+      if(!mintRequests)throw Error('This browser cannot retain a recoverable request.');
+      if(pendingMint?.kind==='invalid')throw Error('The retained mint request is unreadable. Review existing operation receipts.');
+      if(needsRefresh)throw Error('Refresh the published stage before reviewing a new reservation.');
+      const captured=pendingMint?.kind==='pending'?pendingMint.attempt:mintRequests.capture(review.inventory.id,review.stage);
+      mintAttempt.current=captured;setPendingMint({kind:'pending',name:'',attempt:captured});
+      const receipt=await sdk.mint(captured.inventoryId,captured.stageId,captured.body.expectedTermsDigest,captured.key);
+      if(!matchesMintReceipt(captured,receipt))throw Error('The response did not match the retained mint request. Retry the original request.');
+      mintRequests.complete(captured);return receipt;
     }
     if(!journal)throw Error('This browser cannot retain a recoverable request.');
     if(pending?.kind==='invalid')throw Error('The retained request is unreadable. Review existing operation receipts.');
@@ -84,13 +92,17 @@ function ReviewOperation({review,wallet,onClose}:{review:Review;wallet:string;on
     if(!mounted.current)return;
     onClose();await navigate({to:'/collect',search:{receipt:op.id}});
   },onError:error=>{
+    const mintRejected=error instanceof PlatformApiError&&((error.status===409&&['stage_unavailable','stage_wallet_limit','sold_out','mint-window-expired'].includes(error.code))||(error.status===403&&error.code==='wallet_ineligible'));
+    if(review.kind==='mint'&&mintRejected&&mintAttempt.current){mintRequests?.complete(mintAttempt.current);mintAttempt.current=null;if(mounted.current){setPendingMint(null);setNeedsRefresh(true);}return;}
     const definitive=error instanceof PlatformApiError&&error.status===409&&(error.code.startsWith('quote-')||['wrong_owner','stale_asset_version','asset_reserved','reroll_cooldown','ineligible_upgrade_level','owner-changed','asset-version-changed','asset-reserved'].includes(error.code));
     if(definitive&&attempt.current){journal?.complete(attempt.current);attempt.current=null;if(mounted.current){setPending(null);setNeedsRefresh(true);}}
   }});
   return <Modal id="collection-dialog" title={review.kind==='mint'?'Review mint reservation':review.materialId?'Review Level upgrade':'Review visual reroll'} onClose={onClose}>
-    {review.kind==='mint'?<><Facts items={[['Collection',review.inventory.id],['Stage',review.stage.id],['Mint price',sol(review.stage.priceLamports)],
-      ['Creation and network quote',sol(review.stage.costLamports)],['Wallet limit',review.stage.walletLimit]]}/>
-      <p>Reserve one local slot and wait for its committed draw. Your wallet pays no SOL in this preview.</p></>
+    {review.kind==='mint'?pendingMint?.kind==='invalid'?<Signal>A stored mint request is unreadable. Review existing operation receipts before creating a new request.</Signal>:<>
+      <MintTerms inventoryId={review.inventory.id} stage={pendingMint?.kind==='pending'?pendingMint.attempt.stage:review.stage}/>
+      {pendingMint?.kind==='pending'?<><Signal>The result of this original mint request is unresolved. Retry its retained key and reviewed terms to recover the result.</Signal>
+        {now>=Date.parse(pendingMint.attempt.stage.closesAt)&&<p>The original stage has closed. An identical retry can still recover an already accepted reservation.</p>}</>
+        :(needsRefresh||!mintReviewAvailable(review.stage,now))&&<Signal>The stage is no longer available for a new reservation. Close this review and refresh the published stage.</Signal>}</>
       :pending?.kind==='invalid'?<Signal>A stored request is unreadable. Review your existing operation receipts before creating a new request.</Signal>
       :pending?.kind==='pending'?<><QuoteDetails quote={pending.attempt.quote}/><Signal>The result of this original reviewed request is unresolved. Retry its retained key and terms to recover the result.</Signal>
         {expired&&<p>The original quote has expired. An identical retry can still recover an already accepted request.</p>}</>
@@ -101,11 +113,29 @@ function ReviewOperation({review,wallet,onClose}:{review:Review;wallet:string;on
     {review.kind==='progress'&&!pending&&<>{expired&&<Signal>This quote has expired. Refresh it and review the new terms before confirming.</Signal>}
       {needsRefresh&&<Signal>The request was not accepted. Refresh the quote and review current ownership and terms.</Signal>}
       <button disabled={confirm.isPending} onClick={()=>{confirm.reset();setNeedsRefresh(false);setQuoteSession({key:crypto.randomUUID(),allowUpdated:true});}}>Refresh quote</button></>}
-    <button disabled={confirm.isPending || (review.kind==='progress' && (!reserveCapability.allowed||pending?.kind==='invalid'||(!pending&&(!quote.data||quote.isError||expired||needsRefresh))))} onClick={()=>confirm.mutate()}>
-      {review.kind==='mint'?'Reserve preview slot':pending?'Retry original request':'Record preview request'}</button>
+    <button disabled={confirm.isPending || (review.kind==='mint'?(!mintCapability.allowed||pendingMint?.kind==='invalid'||needsRefresh||(!pendingMint&&!mintReviewAvailable(review.stage,now))):(!reserveCapability.allowed||pending?.kind==='invalid'||(!pending&&(!quote.data||quote.isError||expired||needsRefresh))))} onClick={()=>confirm.mutate()}>
+      {review.kind==='mint'?pendingMint?'Retry original request':'Reserve preview slot':pending?'Retry original request':'Record preview request'}</button>
+    {review.kind==='mint'&&!mintCapability.allowed&&<Signal>{mintCapability.reason}</Signal>}
     {review.kind==='progress'&&!reserveCapability.allowed&&<Signal>{reserveCapability.reason}</Signal>}
     {confirm.error&&<Signal>{friendlyError(confirm.error)}</Signal>}
   </Modal>;
+}
+function MintTerms({inventoryId,stage}:{inventoryId:string;stage:Stage}){
+ return <><Facts items={[
+   ['Collection',inventoryId],['Stage',stage.id],['Mint price',sol(stage.priceLamports)],['Local creation cost',sol(stage.costLamports)],
+   ['Network cost','Unknown'],['Total cost','Unknown'],['Wallet limit',stage.walletLimit],['Stage closes',utc(stage.closesAt)]
+ ]}/><p>These are the disclosed local components. Network and total costs are unknown. No SOL is sent by this preview.</p>
+ <p>Reserve one local slot and wait for its committed draw.</p></>;
+}
+function PendingMint({wallet,review}:{wallet:string;review:(value:Review)=>void}){
+ const journal=useMemo(()=>typeof sessionStorage==='undefined'?null:mintJournal(sessionStorage,wallet),[wallet]),[entries,setEntries]=useState<MintJournalEntry[]>(()=>journal?.list()??[]);
+ useEffect(()=>{const refresh=()=>setEntries(journal?.list()??[]);window.addEventListener('10x:mint-journal',refresh);refresh();return()=>window.removeEventListener('10x:mint-journal',refresh);},[journal]);
+ if(!entries.length)return null;
+ return <Panel title="Mint requests awaiting a result">{entries.map(entry=><article className="record" key={entry.name}>
+  {entry.kind==='invalid'?<Signal>A stored mint request is unreadable. Review existing operation receipts before starting another request.</Signal>:<>
+   <p>Original reviewed reservation for {entry.attempt.inventoryId} · {entry.attempt.stageId}. Its key and terms are retained for this wallet.</p>
+   <Capability method="POST" path="/api/v1/collect/inventories/{id}/stages/{stage}/reservations"><button onClick={()=>review({kind:'mint',inventory:{id:entry.attempt.inventoryId},stage:entry.attempt.stage})}>Review original mint request</button></Capability>
+  </>}</article>)}</Panel>;
 }
 function QuoteDetails({quote:q}:{quote:ProgressQuote}){
   const facts:Array<[string,React.ReactNode]>=[['Target',q.targetId],['Fee quote',sol(q.feeLamports)],['Reviewed local-component ceiling',sol(q.maxTotalLamports)],['Network cost','Unknown'],['Total cost','Unknown'],['Quote expires',utc(q.expiresAt)]];
@@ -151,10 +181,10 @@ export function PublishedStage({inventory,stage,review}:{inventory:Inventory;sta
   const eligible=stage.eligibility?stage.eligibility.status==='eligible':stage.eligible===true;
   const canReserve=stage.status==='open' && stage.type!=='founder' && stage.available>0;
   return <article className="stage"><div className="entry-head"><h4>{stage.id}</h4><span>{stage.status}</span></div>
-    <Facts items={[['Mint price',sol(stage.priceLamports)],['Creation and network quote',sol(stage.costLamports)],
+    <Facts items={[['Mint price',sol(stage.priceLamports)],['Local creation cost',sol(stage.costLamports)],['Network cost','Unknown'],['Total cost','Unknown'],
       ['Slots available',stage.available],['Limit per wallet',stage.walletLimit],['Opens',utc(stage.opensAt)],['Closes',utc(stage.closesAt)]]}/>
     <StageEvidence stage={stage}/>{canReserve && review && <Capability method="POST" path="/api/v1/collect/inventories/{id}/stages/{stage}/reservations">{(wallet?(eligible?(stage.walletReservations??0)<stage.walletLimit?
-      <button onClick={()=>review({kind:'mint',inventory,stage})}>Review reservation</button>:<p>The wallet limit for this stage has been reached.</p>
+      stage.termsDigest&&(!stage.reservationStatus||stage.reservationStatus.status==='available')?<button onClick={()=>review({kind:'mint',inventory,stage})}>Review reservation</button>:<p>Reviewed reservation terms are unavailable in the connected runtime.</p>:<p>The wallet limit for this stage has been reached.</p>
       :<p>{stage.eligible===null||stage.eligibility?.status==='unknown'?'Eligibility is unknown until complete evidence is available.':'This wallet is outside the published stage eligibility list.'}</p>):<button onClick={open}>Connect wallet</button>)}</Capability>}
     {stage.openingHold&&<p>{stage.openingHold}</p>}</article>;
 }
@@ -223,7 +253,7 @@ export function Collect(){
         {inv.stages.map(s=><PublishedStage key={s.id} inventory={inv} stage={s} review={setReview}/>)}</article>)}
       {page.nextCursor!==null&&<Link to="/collect" search={{inventories:String(page.nextCursor)}}>Next collections →</Link>}
     </>}</Loaded></Panel>
-    {wallet&&<><PendingProgression key={'pending:'+wallet} wallet={wallet} review={setReview}/><MemberAssets key={wallet} wallet={wallet} review={setReview}/></>}
+    {wallet&&<><PendingMint key={'mint-pending:'+wallet} wallet={wallet} review={setReview}/><PendingProgression key={'pending:'+wallet} wallet={wallet} review={setReview}/><MemberAssets key={wallet} wallet={wallet} review={setReview}/></>}
     <Panel title="Genesis ballots"><Loaded query={ballots}>{page=>page.items.length?page.items.map(b=>
       <BallotCard key={b.id+(wallet??'')} wallet={wallet} ballot={b}/>):<Empty title="No published ballots"/>}</Loaded></Panel>
     {wallet&&review&&<Capability method="POST" path={review.kind==='mint'?'/api/v1/collect/inventories/{id}/stages/{stage}/reservations':'/api/v1/collect/inventories/{id}/progression/quote'}>

@@ -182,16 +182,22 @@ function opView(row) {
     priceLamports:op.priceLamports??null,costLamports:op.costLamports??null,feeLamports:op.feeLamports??null,
     assetId:row.receipt?decode(row.receipt).assetId??null:null,source:'local-fixture',executable:false});
 }
-export function reserveMint(db,{inventoryId,stageId,wallet,requestKey,now=Date.now()}) {
+export function reserveMint(db,{inventoryId,stageId,wallet,requestKey,expectedTermsDigest,now=Date.now()}) {
   const digest=hash(['mint',id(inventoryId),id(stageId)]);
   return transaction(db,()=>{
     const prior=checkRetry(db,wallet,requestKey,digest);
-    if(prior) return {operation:opView(prior),replayed:true};
+    if(expectedTermsDigest!==undefined){
+      need(typeof expectedTermsDigest==='string'&&/^[a-f0-9]{64}$/.test(expectedTermsDigest),'invalid_input','Supply the reviewed published terms digest.');
+      const terms=db.prepare("SELECT json_extract(s.value,'$.termsDigest') digest FROM collect_inventories h JOIN json_each(h.state,'$.stages') s WHERE h.id=? AND json_extract(s.value,'$.id')=? LIMIT 2").all(inventoryId,stageId);
+      need(terms.length===1&&terms[0].digest===expectedTermsDigest,'mint-command-binding','The reviewed stage terms do not match.',409);
+    }
+    const reviewed=result=>expectedTermsDigest===undefined?result:{...result,operation:{...result.operation,termsDigest:expectedTermsDigest}};
+    if(prior) return reviewed({operation:opView(prior),replayed:true});
     const row=inventory(db,inventoryId),state=decode(row.state);
     const stage=state.stages.find(s=>s.id===stageId);
     need(stage,'stage_not_found','Unknown mint stage.',404);
     need(stage.type!=='founder','operator_only','Founder inventory requires an operator reservation.',403);
-    return createReservation(db,row,state,stage,wallet,requestKey,digest,now);
+    return reviewed(createReservation(db,row,state,stage,wallet,requestKey,digest,now));
   });
 }
 export function reserveFounderMint(db,{inventoryId,stageId,wallet,requestKey,now=Date.now()}) {

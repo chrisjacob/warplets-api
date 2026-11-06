@@ -7,4 +7,4 @@ export interface InventoryReadRepository {
  listInventories(query:{nowMs:number;principal?:Principal|null;after?:string}):Promise<InventoryReadOutcome<{items:Inventory[];nextCursor:string|null;source:'local-fixture'}>>;
 }
 export const INVENTORY_READ_LIMITS:Readonly<{page:25;stages:32;legacyBytes:524288;contextBytes:2097152}>;
-export function createInventoryReadRepository(driver:AtomicDriver,options?:{normalizedAdmissionAvailable?:boolean}):InventoryReadRepository;
+export function createInventoryReadRepository(driver:AtomicDriver,options?:{normalizedAdmissionAvailable?:boolean;legacyAdmissionAvailable?:boolean}):InventoryReadRepository;
