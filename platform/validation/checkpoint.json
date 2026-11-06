@@ -1,5 +1,5 @@
 {
   "policy": "prd-1.2",
   "scope": "local",
-  "checkpoint": "blueprint-b11-capture-receipt-race-repair"
+  "checkpoint": "blueprint-b11-guarded-normalized-mint-admission"
 }

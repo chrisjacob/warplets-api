@@ -5,7 +5,7 @@
   "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
   "currentTask": "B11",
-  "lastUpdatedAt": "2026-11-06T03:06:36.796690+00:00",
+  "lastUpdatedAt": "2026-11-06T03:17:35.580526+00:00",
   "migrationAllocation": {
     "next": 47,
     "reserved": [
@@ -250,7 +250,7 @@
       "status": "in_progress",
       "owner": "coordinator",
       "baseCommit": "96cdfa1fb6334fcb27deb831d786243227b9d1a8",
-      "implementationCommit": "0c2b97cd16f552406a2f50b81550c379f0d1ab3a",
+      "implementationCommit": "e88dc378a713d1806d826df606d988f5a3f0a714",
       "pushed": true,
       "evidence": [
         "platform/validation/runs/2026-11-06-overnight/B11-1.json",
@@ -269,7 +269,7 @@
         "platform/validation/runs/2026-11-06-overnight/B11-13-stages.json",
         "platform/validation/runs/2026-11-06-overnight/B11-14-capture.json"
       ],
-      "nextAction": "Checkpoint044 private v2 capture, then install045 guarded normalized mint admission and continue046 fulfillment plus v2restore. Inventory GET/UI lane remains separately uncommitted. B11 partial; B20 skipped until full prerequisites.",
+      "nextAction": "Follow repairCI42155580341; checkpoint installed045 admission after final evidence review; then inventory reads and046 fulfillment. V2restore ongoing. Do not repeat B20 until full prerequisites.",
       "blocker": null
     },
     "B12": {

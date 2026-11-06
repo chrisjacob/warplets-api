@@ -1,0 +1,106 @@
+{
+  "task": "B11",
+  "slice": "normalized-mint-admission",
+  "migration": 45,
+  "status": "locally-verified-admission-partial-B11",
+  "implementationCommit": null,
+  "lastTestedBase": "e88dc378a713d1806d826df606d988f5a3f0a714",
+  "source": "synthetic-local-fixture",
+  "financialExecution": false,
+  "publicRouteMounted": false,
+  "node": {
+    "tests": 18,
+    "passed": 18,
+    "durationMs": 21531.205,
+    "log": "work/b11-mint-node-final.log",
+    "actualAdmissionsCapacity": 1000,
+    "pureAdmissionAndDrawParitySlots": 1000,
+    "command": "node --test platform/collect/mint-plan.test.mjs platform/collect/mint-repository.test.mjs platform/collect/mint-recovery.test.mjs"
+  },
+  "d1": {
+    "tests": 2,
+    "passed": 2,
+    "durationMs": 265295.2398,
+    "log": "work/b11-mint-edge-final.log",
+    "pairedCalls": 17,
+    "concurrentCalls": 4,
+    "eligibleWallets": 10000,
+    "reservedAssets": 1000,
+    "acceptedAdmissions": 2,
+    "maxStatements": 24,
+    "maxBatchBytes": 7432,
+    "maxParameters": 42,
+    "maxReadResultBytes": 79285,
+    "command": "node --test platform/edge/test/collection-mint.test.mjs",
+    "diagnosticNote": "Both tests ran installed045 with all draft loaders removed; log retained a stale draft045 diagnostic label, now corrected to installedMigration:45. This was only a diagnostic-label change."
+  },
+  "typecheck": "pass",
+  "diffCheck": "pass",
+  "pending": [
+    "coordinator broad regression and CI",
+    "Remaining B11 fulfillment/free-cut/import and public integration tasks"
+  ],
+  "limitations": [
+    "No public mint route or money moved.",
+    "No mint fulfillment authority until046.",
+    "Free admission pending independent exact-opening eligibility.",
+    "Pure configured draw uses explicitly labeled trusted verifier stub, not new BLS verification evidence."
+  ],
+  "sourceHashes": {
+    "platform/storage/045-collection-mint-admission.sql": "5f2a53a6073b70577783d5ebfa3cebd1082edc96146c1b81f9f8845307c02932",
+    "platform/storage/atomic-receipts.mjs": "1066b574963204a97442d2eb61f0ded90e7f0f849af76dc2d9d56d62eaf32491",
+    "platform/collect/mint-plan.mjs": "cdd46bfe0938c06a1f8416e078733dd852f67d056217a7f41dfece49c574574a",
+    "platform/collect/mint-plan.d.mts": "c87922aa2927d79f505af4df8001e8bf831b9329cd0ae909add74a6fe46079eb",
+    "platform/collect/mint-service.mjs": "8d78d5db2527f40c37fe295b169f4bdfb9849a77adb139aac140b7f9117781fd",
+    "platform/collect/mint-service.d.mts": "77a2b54f625cbb1b9087407889851a3fc99a18372117698175249d126aa0c75f",
+    "platform/collect/mint-repository.mjs": "a70db2e2671fc9e3fc98b02dffe7f02d6cc926fa13cb103865b53d7b0f1b7eb5",
+    "platform/collect/mint-repository.d.mts": "65f90370771441d1c7f627ab4d9e8eaf55688824385e26c1ba901dddb4c37ca3",
+    "platform/collect/mint-test-fixture.mjs": "72d2b61477cc7cafa7afdcc0d69a4a0f207658b52f845e90f1d7f4864f3a403b",
+    "platform/collect/mint-test-harness.mjs": "f003d923147d436efd20c76b1a66afc3a62df546eaba5da10a0c4a1ceac7c222",
+    "platform/collect/mint-repository.test.mjs": "1a174db562c4ad33784b89b69835a4314cf9da0d0e6d0d78b3b189e9b5834ef0",
+    "platform/collect/mint-plan.test.mjs": "450bae2bdc1b2a5fe8609b12137acb75a7de19efb384a1654bd630d1e4774ac3",
+    "platform/collect/mint-recovery.test.mjs": "ee1503dea50c92443563bf4c918e4aecc8748453e30d8f77761df9d393d04268",
+    "platform/edge/test/collection-mint.test.mjs": "ba7b1b72727953c741f7930682af512f655c9cb10f15b2b9dbb8c321555b2cd5",
+    "platform/edge/test/fixtures/collection-mint-worker.ts": "3c9c873417f73cb3fb9bb95d46cda5c8def774b45b7c84972a8f19df9cc73032",
+    "platform/recovery/schema.mjs": "69fda1654017adbb8661862091aafe30bf0d8db6c1c1cb59c128140d6121aeff"
+  },
+  "d1InventoryCapacity": {
+    "tests": 1,
+    "passed": 1,
+    "durationMs": 169846.6249,
+    "log": "work/b11-mint-edge-final.log",
+    "sourceGenuineGuardedAdmissions": 999,
+    "targetGenuineGuardedAdmissions": 1000,
+    "concurrentFinalInventoryWinners": 1,
+    "maxStatements": 23,
+    "maxBatchBytes": 6915,
+    "assets": 0,
+    "transactionIntents": 0
+  },
+  "installedMigration": 45,
+  "recovery": {
+    "tests": 1,
+    "passed": 1,
+    "businessTables": 103,
+    "admissions": 1,
+    "pendingFairRequests": 1,
+    "reservedAssets": 1000,
+    "exactReplayAfterCloseAndSourceLoss": true,
+    "log": "work/b11-mint-recovery-final.log",
+    "includedInNodeTotal": true
+  },
+  "sharedReceiptRepair": {
+    "commit": "e88dc378a713d1806d826df606d988f5a3f0a714",
+    "coordinatorReportedNodeTests": 8,
+    "coordinatorReportedD1PairedCalls": 25,
+    "note": "Positive claim changes plus exact retained operation and nonce distinguish fresh commit from retry; trigger-inclusive counts need not equal1. Own final Node suite uses this repair; installed D1 mint acceptance also separately covers the earlier nonce fix and concurrent winners."
+  },
+  "checkpointReference": {
+    "tests": 534,
+    "passed": 534,
+    "durationMs": 212397.9457,
+    "command": "node work/b11-045-reference.mjs",
+    "log": "work/b11-045-reference.log",
+    "logSha256": "705f6d8145cceab8219fd093186d90e515039ae8a41fa362ed75709d148d037f"
+  }
+}
