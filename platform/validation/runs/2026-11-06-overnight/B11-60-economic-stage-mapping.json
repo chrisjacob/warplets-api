@@ -1,0 +1,78 @@
+{
+  "task": "B11",
+  "slice": "B11-60 completed-stage proof mapping and original membership",
+  "status": "verified-private-reader; no economic cursor dispatch",
+  "recordedAt": "2026-11-06T10:41:12.902175+00:00",
+  "sourceHashes": {
+    "platform/recovery/v2-legacy-economic-stage.mjs": "ed7e0d5a9098332a33c3ceebdce72ca1f16556c28cd8b24853453cc36015fb9e",
+    "platform/recovery/v2-legacy-economic-stage.test.mjs": "78005d13b105ffab3d375eb2c69b6b9233ad9ff440507457ea37b3b9012793b1",
+    "platform/edge/test/recovery-economic-stage.test.mjs": "b5e3da639a9fc494e368c0735c1a5c559dfb19296c896d4255fbd4bd3cbc0881",
+    "platform/edge/test/fixtures/recovery-economic-stage-worker.ts": "853bd05606bc4933c350fc61f7eadc616fa39461dd0fc8504ff3f83142fa6da1",
+    "platform/collect/legacy-economic-repository.fixtures.mjs": "6836b2c4d0bb1a180d77467fee0aafbb90e4c4da06350af167b00f9fe5e2383d"
+  },
+  "checks": [
+    {
+      "command": "node --test platform/recovery/v2-legacy-economic-stage.test.mjs",
+      "passed": 1,
+      "profiles": [
+        "mixed",
+        "public"
+      ],
+      "durationMs": 93444.3625,
+      "log": "work/b11-60-stage-final-node.log"
+    },
+    {
+      "command": "node --test platform/edge/test/recovery-economic-stage.test.mjs",
+      "passed": 1,
+      "profiles": [
+        "mixed",
+        "public"
+      ],
+      "durationMs": 192644.1183,
+      "log": "work/b11-60-stage-edge.log"
+    },
+    {
+      "command": "node --test --test-name-pattern='private durable phases' platform/collect/legacy-economic-repository.test.mjs",
+      "passed": 1,
+      "profiles": [
+        "mixed",
+        "public",
+        "founder",
+        "empty",
+        "unadmitted"
+      ],
+      "durationMs": 15151.9093,
+      "log": "work/b11-60-fixture-defaults.log"
+    }
+  ],
+  "measurements": {
+    "whitelist": {
+      "sql": 8,
+      "objects": 1,
+      "maxBatchBytes": 1726,
+      "workingBytes": 351524
+    },
+    "public": {
+      "sql": 6,
+      "objects": 1,
+      "maxBatchBytes": 1726,
+      "workingBytes": 347822
+    },
+    "outerCheckpointReserve": 267264
+  },
+  "verified": [
+    "Genuine adoption and completed original-stage reconciliation on fresh Node/D1 targets",
+    "Reconstruct every field in durable51b stage semantic result and verify its exact hash under same target watermark",
+    "Retained original artifact identity, canonical bytes and object proof",
+    "Actual original list metadata and unique indexed membership page for wallet",
+    "Reject missing/wrong durable completion proof and missing original artifact",
+    "Target mutation holds; target stays restoring",
+    "Optional settleAll fixture parameter completes genuine original settlement before source sealing; defaults unchanged"
+  ],
+  "limitations": [
+    "Independent previously verified certificate/anchor and stage proof required.",
+    "Free-cut semantic prerequisite still explicitly held.",
+    "Reader does not advance economic prefix or grant recovery readiness."
+  ],
+  "financialExecution": false
+}
