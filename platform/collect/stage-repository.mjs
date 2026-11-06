@@ -1,3 +1,4 @@
+import {readImportedCollectionContext,importedCollectionSnapshotMatches,importedCollectionRuntimeSql,importedCollectionClaim} from './imported-context.mjs';
 import {createAtomicReceipts} from '../storage/atomic-receipts.mjs';
 import {sql,revisions} from '../storage/atomic-driver.mjs';
 import {canonicalJson,utf8} from '../security/canonical.mjs';
@@ -17,7 +18,7 @@ export function createStagePublicationRepository(driver,ports){
  const {crypto,clock}=ports,{read,replay,execute}=createAtomicReceipts(driver,ports),nowSql=driver.leaseNowSql??"CAST(unixepoch('subsec')*1000 AS INTEGER)";
  return Object.freeze({async publishStage(value){
   const c=clone(value);if(c.operationKind!==PUBLISH_COLLECTION_STAGE||canonicalJson(c)!==canonicalJson(await buildStagePublicationCommand(c.principal,{requestKey:c.requestKey,input:c.input},crypto)))throw new TypeError('Invalid stage publication command.');
-  const prior=await replay(c);if(prior)return prior;const i=c.input,nowMs=clock.nowMs(),needsFounder=i.type==='public'||i.type==='founder'||i.inventoryOverrideReason!==null;
+  const prior=await replay(c);if(prior)return prior;const i=c.input,imported=await readImportedCollectionContext(driver,crypto,{inventoryId:i.inventoryId,stageId:null,wallet:null});if(imported.kind==='pending')return imported;const nowMs=clock.nowMs(),needsFounder=i.type==='public'||i.type==='founder'||i.inventoryOverrideReason!==null;
   if(!Number.isSafeInteger(nowMs)||nowMs<0||nowMs>8640000000000000)return pending('stage-clock-unavailable');
   const captured=await read([
    sql('SELECT name,CAST(revision AS TEXT) revision FROM app_revisions ORDER BY name'),
@@ -34,10 +35,10 @@ export function createStagePublicationRepository(driver,ports){
      THEN (SELECT json_group_array(opens_ms) FROM (SELECT opens_ms FROM app_collection_stages WHERE inventory_id=p.id ORDER BY ordinal LIMIT 33))
      ELSE CASE WHEN length(CAST(p.state AS BLOB))<=33554432 AND json_valid(p.state) THEN (SELECT json_group_array(json_extract(value,'$.opensAt')) FROM (SELECT value FROM json_each(p.state,'$.stages') LIMIT 33)) ELSE NULL END END openings_json
     FROM collect_inventories p WHERE p.tranche=(SELECT tranche-1 FROM collect_inventories WHERE id=?)`,i.inventoryId),
-   sql('SELECT id,tranche_open_ms FROM genesis_ballots WHERE id=?',i.ballotId),
+   sql('SELECT id,tranche_open_ms FROM genesis_ballots WHERE id=?',i.ballotId),sql(importedCollectionRuntimeSql),
   ]);
   if(utf8(canonicalJson(captured)).length>262144)return pending('stage-context-byte-bound');
-  const [rs,grants,headers,authorities,stages,previous,ballots]=captured,h=headers[0],authority=authorities[0];
+  const [rs,grants,headers,authorities,stages,previous,ballots,runtimes]=captured,h=headers[0],authority=authorities[0];
   if(!grants.some(g=>g.scope==='collection-publication'&&g.enabled===1)||needsFounder&&!grants.some(g=>g.scope==='collection-founder'&&g.enabled===1))return conflict('operator_scope_required');
   if(!h)return pending('stage-inventory-missing');if(stages.some(s=>s.stage_id===i.stageId))return conflict('stage_already_published');
   if(rs.length!==3||rs.some(r=>!['earn','source','control'].includes(r.name)||typeof r.revision!=='string'||!/^(0|[1-9][0-9]*)$/.test(r.revision)))return pending('stage-revisions-unavailable');
@@ -50,7 +51,8 @@ export function createStagePublicationRepository(driver,ports){
     if(h.origin_digest!==await crypto.sha256(utf8(JSON.stringify([h.id,h.kind,h.tranche,h.season_start]))))return pending('stage-reference-origin-conflict');
     if(h.kind==='season'&&h.season_month!==new Date(h.season_start).toISOString().slice(0,7))return pending('stage-reference-season-conflict');
     initialStateDigest=await crypto.sha256(utf8(expected));
-   }else if(authority.origin_kind!=='empty-reference'||authority.initial_revision!==h.revision||!Number.isSafeInteger(authority.revision)||authority.revision<0||authority.revision>=Number.MAX_SAFE_INTEGER)return pending('stage-authority-unavailable');
+   }else if(!['empty-reference','verified-source-import'].includes(authority.origin_kind)||authority.initial_revision!==h.revision||!Number.isSafeInteger(authority.revision)||authority.revision<0||authority.revision>=Number.MAX_SAFE_INTEGER)return pending('stage-authority-unavailable');
+   if(authority?.origin_kind==='verified-source-import'?!importedCollectionSnapshotMatches(imported,{revision:version.source,watermark:runtimes[0]?.revision,generation:runtimes[0]?.generation,authority}):imported.kind!=='absent')return pending('stage-imported-authority-changed');
    if(stages.length>=32||stages.some((s,n)=>s.ordinal!==n||s.terms_json===null))return pending('stage-context-invalid');
    stageFacts=stages.map(row=>{const terms=JSON.parse(row.terms_json);if(canonicalJson(terms)!==row.terms_json||terms.id!==row.stage_id||terms.termsDigest!==row.terms_digest)throw new TypeError('Stage binding mismatch.');return terms;});
   }catch{return pending('stage-reference-invalid');}
@@ -64,6 +66,8 @@ export function createStagePublicationRepository(driver,ports){
    authority?'EXISTS(SELECT 1 FROM app_collection_authorities WHERE inventory_id=? AND revision=?)':"NOT EXISTS(SELECT 1 FROM app_collection_authorities WHERE inventory_id=?) AND EXISTS(SELECT 1 FROM collect_inventories WHERE id=? AND state=?) AND NOT EXISTS(SELECT 1 FROM collect_assets WHERE inventory_id=?) AND NOT EXISTS(SELECT 1 FROM collect_operations WHERE inventory_id=?)",
    ...(needsFounder?[founderGrant]:[])];
   const values=[c.principal.id,nowMs,i.publishedAt,h.id,h.origin_digest,h.revision,h.id,stages.length,...(authority?[h.id,authority.revision]:[h.id,h.id,h.initial_state,h.id,h.id]),...(needsFounder?[c.principal.id]:[])];
+  if(imported.kind==='ready'&&nowMs<imported.acceptedAtMs)return pending('imported-authority-not-yet-created');
+  if(imported.kind==='ready'){const bound=importedCollectionClaim(imported,h.id);conditions.push(bound.text);values.push(...bound.values);}
   return execute({...c,nowMs,expectedRevisions:version},{businessKey:c.businessIdentity,input:i,result,resultRef:canonicalJson([h.id,i.stageId]),version,authoritySql:conditions.join(' AND '),authorityValues:values,child:(gate,p)=>[
    ...(!authority?[sql(`INSERT INTO app_collection_authorities(inventory_id,origin_kind,initial_state_digest,initial_revision,revision,admitted,fulfilled,remaining_json,activation_command_id) SELECT ?,'empty-reference',?,0,0,0,0,?,operation_id FROM app_command_receipts WHERE operation_id=? AND claim_nonce=? AND state='staging' AND ${gate}`,h.id,initialStateDigest,canonicalJson(LEVEL_QUOTAS),...p,...p)]:[]),
    sql(`UPDATE app_collection_authorities SET revision=revision+1 WHERE inventory_id=? AND revision=? AND ${gate}`,h.id,plan.expectedInventoryRevision,...p),

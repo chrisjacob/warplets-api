@@ -1,3 +1,4 @@
+import {createNodeCrypto} from '../security/node-crypto.mjs';
 import {createNodeMintServices} from './node-mint.mjs';
 import {handleMintReservation} from './mint-http.mjs';
 import {createInventoryReadRepository} from './inventory-read-model.mjs';
@@ -33,7 +34,7 @@ async function bodyOf(request) {
 export async function handleCollect(db,request,peer,now) {
   const url=new URL(request.url),path=url.pathname;
   if(path!==base && !path.startsWith(base+'/')) return null;
-  if(patterns.inventory.test(path)||path===base+'/inventories')return handleInventoryReads(request,{reads:createInventoryReadRepository(createNodeAtomicDriver(db),{normalizedAdmissionAvailable:true}),clock:{nowMs:()=>now},
+  if(patterns.inventory.test(path)||path===base+'/inventories')return handleInventoryReads(request,{reads:createInventoryReadRepository(createNodeAtomicDriver(db),{normalizedAdmissionAvailable:true,crypto:createNodeCrypto()}),clock:{nowMs:()=>now},
     authenticate:async req=>{const session=currentSession(db,req,now);return session?{kind:'wallet',wallet:session.wallet}:null;},
     consumeQuota:async(bucket,limit)=>consumeQuota(db,bucket,now,limit)});
   if(patterns.progress.test(path))return handleProgression(request,{...createNodeProgressionServices(db,{clock:{nowMs:()=>now}}),

@@ -1,0 +1,6 @@
+import type {CanonicalCrypto,OperatorPrincipal} from '../application/ports';
+import type {AtomicDriver} from '../storage/atomic-earn.mjs';
+export interface LegacyActivationMetrics {readonly sql:number;readonly maxBatchBytes:number;readonly maxParameters:number;readonly workingBytes:number}
+export interface LegacyActivationValue {readonly adoptionId:string;readonly inventoryId:string;readonly rootId:string;readonly certificateDigest:string;readonly authorityRevision:0;readonly stageCount:number;readonly admitted:number;readonly fulfilled:number;readonly remaining:readonly number[];readonly imported:true;readonly historicalEconomics:true;readonly originalOperatorAuthentication:false;readonly paymentVerified:false;readonly source:'local-fixture';readonly executable:false}
+export type LegacyActivationResult=Readonly<{kind:'pending';reason:string}>|Readonly<{kind:'conflict';code:string}>|Readonly<{kind:'committed'|'replayed';operationId:string;value:LegacyActivationValue}>;
+export function createLegacyAdoptionActivation(ports:{driver:AtomicDriver;crypto:CanonicalCrypto;clock:{nowMs():number};ids:{next():string};onMeasure?:(measurement:LegacyActivationMetrics)=>void}):Readonly<{activate(operator:OperatorPrincipal,input:Readonly<{adoptionId:string;requestKey:string}>):Promise<LegacyActivationResult>}>;

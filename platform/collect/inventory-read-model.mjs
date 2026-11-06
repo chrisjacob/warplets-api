@@ -1,3 +1,4 @@
+import {readImportedCollectionContext} from './imported-context.mjs';
 import {sql,measureBatch} from '../storage/atomic-driver.mjs';
 import {canonicalJson,utf8} from '../security/canonical.mjs';
 import {decode58} from '../server/base58.mjs';
@@ -10,7 +11,7 @@ const time=v=>Number.isSafeInteger(v)&&v>=0&&v<=8640000000000000;
 const count=v=>Number.isSafeInteger(v)&&v>=0&&v<=1000;
 const hash=v=>typeof v==='string'&&/^[a-f0-9]{64}$/.test(v);
 const iso=v=>new Date(v).toISOString();
-const revision="SELECT CAST(v.revision AS TEXT) revision,r.generation,r.mode,r.status FROM app_revisions v CROSS JOIN app_recovery_state r WHERE v.name='source' AND r.id=1";
+const revision="SELECT CAST(v.revision AS TEXT) revision,r.generation,r.mode,r.status,r.write_nonce,w.revision watermark FROM app_revisions v CROSS JOIN app_recovery_state r CROSS JOIN app_recovery_watermark w WHERE v.name='source' AND r.id=1 AND w.id=1";
 function check(ok,reason){if(!ok){const error=new TypeError(reason);error.code=reason;throw error;}}
 function query(value){
  const q=JSON.parse(canonicalJson(value));check(time(q.nowMs)&&(q.inventoryId===undefined||id(q.inventoryId))&&(q.after===undefined||q.after===''||id(q.after)),'invalid-inventory-query');
@@ -102,19 +103,29 @@ function project(row,q,normalizedAdmissionAvailable,legacyAdmissionAvailable){
 
 /** Two bounded batches share a source revision. A changed source returns pending;
  * no mixed-era list, partial stage inventory or concealed asset body is returned. */
-export function createInventoryReadRepository(driver,{normalizedAdmissionAvailable=false,legacyAdmissionAvailable=true}={}){
+export function createInventoryReadRepository(driver,{normalizedAdmissionAvailable=false,legacyAdmissionAvailable=true,crypto=null}={}){
  check(typeof normalizedAdmissionAvailable==='boolean'&&typeof legacyAdmissionAvailable==='boolean','invalid-inventory-read-composition');
  async function read(q,single){
   try{
-   const first=(await driver.batch([sql(revision),single?sql('SELECT CASE WHEN length(CAST(id AS BLOB))<=128 THEN id ELSE NULL END id FROM collect_inventories WHERE id=?',q.inventoryId):sql('SELECT CASE WHEN length(CAST(id AS BLOB))<=128 THEN id ELSE NULL END id FROM collect_inventories WHERE id>? ORDER BY id LIMIT 26',q.after??'')])).map(r=>r.rows);
+   const first=(await driver.batch([sql(revision),single?sql('SELECT CASE WHEN length(CAST(c.id AS BLOB))<=128 THEN c.id ELSE NULL END id,a.origin_kind FROM collect_inventories c LEFT JOIN app_collection_authorities a ON a.inventory_id=c.id WHERE c.id=?',q.inventoryId):sql('SELECT CASE WHEN length(CAST(c.id AS BLOB))<=128 THEN c.id ELSE NULL END id,a.origin_kind FROM collect_inventories c LEFT JOIN app_collection_authorities a ON a.inventory_id=c.id WHERE c.id>? ORDER BY c.id LIMIT 26',q.after??'')])).map(r=>r.rows);
    check(first[0].length===1&&/^(0|[1-9][0-9]*)$/.test(first[0][0].revision)&&typeof first[0][0].generation==='string'&&((first[0][0].mode==='live'&&first[0][0].status==='live')||(['private','public'].includes(first[0][0].mode)&&first[0][0].status==='ready'))&&first[1].length<=26&&first[1].every(r=>id(r.id)),'inventory-read-source-unavailable');
-   const ids=first[1].slice(0,25).map(r=>r.id),statements=[sql(revision),...ids.map(inventoryId=>sql(contextSql,inventoryId,q.wallet,q.wallet,q.wallet,q.nowMs)),sql(revision)];measureBatch(statements);
+   const selected=[];let importedSeen=false;
+   for(const row of first[1].slice(0,25)){if(row.origin_kind==='verified-source-import'){if(importedSeen)break;importedSeen=true;}selected.push(row);}
+   // One imported authority per page bounds its independently verified receipt
+   // graph. The cursor is the final included ID, so the next prefix loses none.
+   for(const row of selected.filter(r=>r.origin_kind==='verified-source-import')){
+    check(crypto&&typeof crypto.sha256==='function','inventory-imported-authority-unavailable');
+    const imported=await readImportedCollectionContext(driver,crypto,{inventoryId:row.id,stageId:null,wallet:q.wallet});
+    check(imported.kind==='ready','inventory-imported-authority-unavailable');
+    check(imported.fence.sourceRevision===first[0][0].revision&&imported.fence.watermark===first[0][0].watermark&&imported.fence.generation===first[0][0].generation&&first[0][0].write_nonce===null,'inventory-imported-authority-changed');
+   }
+   const ids=selected.map(r=>r.id),statements=[sql(revision),...ids.map(inventoryId=>sql(contextSql,inventoryId,q.wallet,q.wallet,q.wallet,q.nowMs)),sql(revision)];measureBatch(statements);
    const data=(await driver.batch(statements)).map(r=>r.rows);
    check(data[0].length===1&&data.at(-1).length===1&&canonicalJson(data[0][0])===canonicalJson(first[0][0])&&canonicalJson(data.at(-1)[0])===canonicalJson(first[0][0]),'inventory-read-revision-changed');
    check(utf8(canonicalJson(data)).length<=INVENTORY_READ_LIMITS.contextBytes,'inventory-read-byte-bound');
    const items=data.slice(1,-1).map((rows,n)=>{check(rows.length===1&&rows[0].id===ids[n],'inventory-read-context-unavailable');return project(rows[0],q,normalizedAdmissionAvailable,legacyAdmissionAvailable);});
    if(single)return items.length?{kind:'ready',value:items[0]}:{kind:'missing'};
-   return {kind:'ready',value:{items,nextCursor:first[1].length>25?ids.at(-1):null,source:'local-fixture'}};
+   return {kind:'ready',value:{items,nextCursor:first[1].length>ids.length?ids.at(-1):null,source:'local-fixture'}};
   }catch(error){if(typeof error.code==='string')return {kind:'pending',reason:error.code};return {kind:'pending',reason:'inventory-read-unavailable'};}
  }
  return Object.freeze({readInventory:input=>read(query(input),true),listInventories:input=>read(query(input),false)});

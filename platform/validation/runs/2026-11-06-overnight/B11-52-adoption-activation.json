@@ -1,0 +1,80 @@
+{
+  "checkpoint": "B11-52",
+  "status": "verified-local-node-and-d1",
+  "title": "Genuine prepared legacy adoption with atomic current receipts and retained original effects",
+  "schemaThrough": 55,
+  "financialExecution": false,
+  "publicImportRoute": false,
+  "checks": [
+    {
+      "command": "node --test platform/collect/legacy-adoption-activation.test.mjs",
+      "passed": 8,
+      "failed": 0,
+      "durationMs": 70554.1535,
+      "log": "work/b11-52-activation-clock-final-node.log"
+    },
+    {
+      "command": "node --test platform/edge/test/legacy-adoption-activation.test.mjs",
+      "passed": 1,
+      "failed": 0,
+      "profiles": [
+        "manual",
+        "configured-real-pinned-BLS-round30000000"
+      ],
+      "durationMs": 156056.55,
+      "log": "work/b11-52-activation-clock-final-edge.log"
+    },
+    {
+      "command": "node --test platform/collect/imported-authority-integration.test.mjs",
+      "passed": 3,
+      "failed": 0,
+      "durationMs": 14398.232,
+      "log": "work/b11-50-final-activation-clock-compat.log"
+    },
+    {
+      "command": "edge TypeScript, generated contracts, git diff --check",
+      "status": "passed"
+    }
+  ],
+  "assertions": [
+    "Genuine035/050/051/052/053 preparation promoted through guarded054current import receipts, never fabricated historical045/046 effects.",
+    "Accepted replay precedes excluded-control/source/current-scope reads and preserves immutable caller identity across awaits.",
+    "All child omissions and parent finalization omission roll back; lost acknowledgement and competing activation resolve one receipt.",
+    "Fresh source/scope/schema/clock changes reject. Current pause, budget limit and overflow inputs hold. Scheduled controls are rechecked with atomic DB clock.",
+    "Original collect inventory/operations/assets and Vault observations/bindings unchanged.",
+    "Set-based copies avoid hydration of historical child arrays; dedicated references preserve private recovery discovery.",
+    "055preserves049predicates and counts historical anchors plus modern admissions; new commands require accepted origin and cannot predate activation."
+  ],
+  "measurements": {
+    "representativeNodeActivation": {
+      "sql": 18,
+      "maxBatchBytes": 18157,
+      "maxParameters": 33,
+      "workingBytes": 105535
+    },
+    "actualD1EntirePreparationAndActivation": {
+      "maxOperations": 50,
+      "maxBatchBytes": 64386,
+      "maxWorkingBytes": 441008
+    },
+    "configuredPolicyDescriptorAndParts": {
+      "objects": 8,
+      "bytes": 250432
+    }
+  },
+  "limitations": [
+    "Full32stage1000mint activation profile is still running on an earlier activation variant; no capacity acceptance claimed here.",
+    "Independent populated imported-source recovery and fullD1adoption-to-newfulfillment integration remain separate work.",
+    "No public route, financial execution, chain/payment truth or original operator-authentication claim."
+  ],
+  "sourceHashes": {
+    "platform/collect/legacy-adoption-activation.mjs": "2207fb5ff6bc2c80e4b73af53c4d15d446df92b285bb6f9ed38e6cdc1a3c52a2",
+    "platform/collect/legacy-adoption-activation.d.mts": "0a489d93ce0124680414fbb14831845f6c164b1da8429083404bc349df25ba58",
+    "platform/collect/legacy-adoption-activation.fixtures.mjs": "f6922a7d8f190543c4b6ec5a1aaa0e03e35979b8a80a89bc3f48b5f8dd1d4641",
+    "platform/collect/legacy-adoption-activation.test.mjs": "9cef71699fb553ec211350f4cd81a0b2d0b660280ab3f7aa4f6db39277307127",
+    "platform/collect/legacy-adoption-activation.README.md": "ec9baf329457b4f1598e7e2c6430df899fdfdf5549b988d1b748100f7982e85f",
+    "platform/edge/test/legacy-adoption-activation.test.mjs": "08b104d5c279be02f2b41c381cab3376540e033ce2067a7a3360e463099d9189",
+    "platform/edge/test/fixtures/legacy-adoption-activation-worker.ts": "17de63c50a1728fbb0395d82a18848ce6457cdbd8652d43bb3d19a0d644d8d1c",
+    "platform/storage/055-collection-imported-admission.sql": "0ed9b1b39bed9efee13bc739a48cdd7748d9dd1726e3869ae6f5dbbbf504b750"
+  }
+}

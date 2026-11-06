@@ -1,0 +1,106 @@
+{
+  "task": "B11",
+  "slice": "B11.50 imported collection command and bounded read compatibility",
+  "status": "verified-local; B11 remains partial",
+  "baseCommit": "8fbd4d750715adf417b858d860174932846c65a2",
+  "implementationCommit": null,
+  "recordedAt": "2026-11-06T09:48:13.082881+00:00",
+  "sourceHashes": {
+    "platform/collect/imported-context.mjs": "fd85d3146250a494844cad9ffc8baa4425786cb6bf8dbe970506c26d96be160e",
+    "platform/collect/IMPORTED_AUTHORITY.md": "4774c4a1d90709c12a2932204f4afbf3513024c5b1f3ccc692db21b151bfc72a",
+    "platform/collect/mint-repository.mjs": "76dce58d669b5a4a4c04431dda3d791617f025381f0c45e298bd0930d9a8a63b",
+    "platform/collect/stage-repository.mjs": "6b5030d249dc0e64e2b30406a7cef73c989ab51ed6b0fc10d640007b203d40b6",
+    "platform/collect/inventory-read-model.mjs": "7d1d3aa2352d6397c7e7a832899e236eeb634c87444a61de9b284c7973497431",
+    "platform/collect/inventory-read-model.d.mts": "fcc9e72354694986b7bdb332dedc380cfaaea2414e76ed02669dad4b3d789000",
+    "platform/collect/http.mjs": "0712c24ddcc6f1526b9cdfb1625feb898c327f9c470044002004d78a4a0f75bc",
+    "platform/edge/src/collection-reads.ts": "3cb981a94d22ab0baf39a6f608b4b8fed32b1f49a44008a33c461b18b446ac9b",
+    "platform/collect/legacy-admission-audit.fixtures.mjs": "b2e00dfdc0e20b44ab56889bd458799f03b653f780e5a69da5cfd8bf6bab58aa",
+    "platform/collect/legacy-economic-repository.fixtures.mjs": "0cd138779cbe6aa05b304a34799bada7cc869d1b86e6ffa8ed8307d3acdabce4",
+    "platform/collect/legacy-stage-source.fixtures.mjs": "edf7658b9d10054ce2a5e8fb72a2e21648e3310064e49c79e39538dfe65cf411",
+    "platform/collect/imported-authority-integration.test.mjs": "e0ef262acc17ccba85b5af3f9cc9d0aace32d3eb494796db60cc6fe8a60ab2cf",
+    "platform/edge/test/imported-collection.test.mjs": "1979eba25583fc2bfd398336c9c987c93ec0ebecad529fd8b89d885ee6fee705",
+    "platform/edge/test/fixtures/imported-collection-worker.ts": "f8273d4c45cc2c350b2de55e9eb9ba2cc064c593562076e54e26ddf06ff35bad"
+  },
+  "sharedDependencies": {
+    "platform/storage/055-collection-imported-admission.sql": "0ed9b1b39bed9efee13bc739a48cdd7748d9dd1726e3869ae6f5dbbbf504b750",
+    "platform/collect/legacy-adoption-authority.mjs": "986b6fdf0b610ea4454fceddd5b77cc2a53b5587090fe467e2f629aac8dc7c6d",
+    "platform/collect/legacy-adoption-activation.fixtures.mjs": "f6922a7d8f190543c4b6ec5a1aaa0e03e35979b8a80a89bc3f48b5f8dd1d4641"
+  },
+  "installedSchema": {
+    "last": "055-collection-imported-admission.sql",
+    "migrationFiles": 54
+  },
+  "checks": [
+    {
+      "command": "node --test platform/collect/imported-authority-integration.test.mjs platform/collect/mint-repository.test.mjs platform/collect/stage-repository.test.mjs platform/collect/inventory-read-model.test.mjs",
+      "passed": 24,
+      "failed": 0,
+      "durationMs": 42456.4517,
+      "log": "work/b11-50-focused-final.log"
+    },
+    {
+      "command": "node --test platform/collect/imported-authority-integration.test.mjs",
+      "passed": 3,
+      "failed": 0,
+      "durationMs": 15489.6674,
+      "log": "work/b11-50-node-last.log",
+      "note": "Final custom fixture prefix and all-imported traversal delta; default identities unchanged."
+    },
+    {
+      "command": "node --test --test-name-pattern='private durable phases|real52/43 source prepares|original Genesis/Season private traits' platform/collect/legacy-economic-repository.test.mjs platform/collect/legacy-adoption-preparation.test.mjs platform/collect/legacy-current-asset-audit.test.mjs",
+      "passed": 3,
+      "failed": 0,
+      "durationMs": 14308.739,
+      "log": "work/b11-50-fixture-regression.log",
+      "profiles": [
+        "mixed",
+        "public",
+        "founder",
+        "empty",
+        "unadmitted",
+        "prepared-original-closure",
+        "Genesis/Season-current-assets"
+      ]
+    },
+    {
+      "command": "node --test platform/edge/test/imported-collection.test.mjs",
+      "passed": 1,
+      "failed": 0,
+      "durationMs": 30990.9164,
+      "log": "work/b11-50-d1-final.log",
+      "runtime": "installed local Miniflare/workerd D1, loopback only"
+    },
+    {
+      "command": "node platform/edge/node_modules/typescript/bin/tsc -p platform/edge/tsconfig.json --noEmit",
+      "status": "passed"
+    },
+    {
+      "command": "git diff --check",
+      "status": "passed"
+    }
+  ],
+  "d1Measurements": {
+    "maxSql": 37,
+    "maxBatchBytes": 12458,
+    "maxParameters": 48,
+    "readSql": 18,
+    "acceptedReplaySql": 1
+  },
+  "acceptance": [
+    "Genuine Node053 preparation/054 activation followed by actual imported open-stage mint admission at combined ordinal1.",
+    "Combined historical/current owner counts and exact original/new stage terms without double-counting anchors.",
+    "New stage publication plus concurrent final stage slot: exactly one command committed.",
+    "Accepted mint/stage replay before current scope, stage close and pause controls.",
+    "Fresh before-activation clock, stale source watermark and missing admission children cannot commit.",
+    "All-imported pages and mixed legacy/imported contiguous prefixes retain every sorted ID exactly once; absent crypto holds imported availability.",
+    "Actual D1 subsequent commands/read parity after explicit test-only copying of genuinely activated Node rows.",
+    "Node and Worker production read composition use their existing crypto adapters."
+  ],
+  "limitations": [
+    "No public import endpoint, financial execution, remote resources or deployment.",
+    "D1 seed copy uses an explicitly synthetic private nonce and is not a verified recovery claim. Genuine D1 activation belongs to separate B11.52 acceptance.",
+    "B11.52 activation sources and fixture are coordinator-owned dependencies currently pending their checkpoint; final atomic-clock fixture patch preserves the clock used by these tests.",
+    "Original operator authentication, payment proof and chain completeness remain unverified fixture properties.",
+    "No repeated maximum legacy source/capacity graphs; bounded authority capacity evidence from B11.45 is reused."
+  ]
+}
