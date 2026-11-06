@@ -5,7 +5,7 @@
   "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
   "currentTask": "B11",
-  "lastUpdatedAt": "2026-11-06T11:18:17.869245+00:00",
+  "lastUpdatedAt": "2026-11-06T11:25:53.753905+00:00",
   "migrationAllocation": {
     "next": 56,
     "reserved": [
@@ -362,9 +362,10 @@
         "platform/validation/runs/2026-11-06-overnight/B11-57-original-mint-recovery.json",
         "platform/validation/runs/2026-11-06-overnight/B11-64-imported-authority-recovery.json",
         "platform/validation/runs/2026-11-06-overnight/B11-62-economic-recovery.json",
-        "platform/validation/runs/2026-11-06-overnight/B11-63-retained-objects.json"
+        "platform/validation/runs/2026-11-06-overnight/B11-63-retained-objects.json",
+        "platform/validation/runs/2026-11-06-overnight/B11-66-precut-observation-recovery.json"
       ],
-      "nextAction": "63originalobjectclosure Node4+D1two pass, genuine84KiBcontrolpipeline913-989KiB.65stageProofChain+aggregate+normaldispatch next;67fullreadyacceptance preparing.66precut041active. CI42206476286next81cef38.",
+      "nextAction": "65 aggregate and mounted recovery runtime tests active;67 full normal acceptance active;66 verified helper being integrated into current phase. CI42206476286 passed;81cef38 pushed CI42209934517 running,next6bbebac.",
       "blocker": null
     },
     "B12": {

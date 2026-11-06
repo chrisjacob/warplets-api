@@ -1,0 +1,110 @@
+{
+  "checkpoint": "B11-66",
+  "title": "Private pre-adoption accepted observation replay",
+  "status": "verified-partial-unmounted-helper",
+  "lastConfirmedBaseCommit": "b0feaaa9f6fdb3fbfcd7ce955ad88ea9c3edb43b",
+  "implementationCommit": null,
+  "schemaThrough": 55,
+  "businessTables": 112,
+  "financialExecution": false,
+  "mainDispatchChanged": false,
+  "currentReconcilerChanged": false,
+  "fullRecoveryReadiness": false,
+  "source": "synthetic-genuine-original-mint-legacy-prefix-B04-041-original-audits-preparation-activation-fresh-Node-D1-R2",
+  "syntheticPrerequisite": {
+    "phase": "legacy-adoption-mint",
+    "purpose": "isolated downstream replay test; genuine source audits and activation retained, upstream target semantic proof independently tested in57",
+    "targetStatus": "restoring"
+  },
+  "limits": {
+    "operationsIncludingOuterReserve": 64,
+    "outerOperationReserve": 12,
+    "workingBytesIncludingCheckpoint": 1048576,
+    "batchBytes": 262144,
+    "contextBytes": 16384,
+    "legacyPrefixBytes": 98304,
+    "legacyPrefixRows": 1000,
+    "normalizedEvents": 1000
+  },
+  "checks": [
+    {
+      "command": "node --test platform/recovery/v2-legacy-precut-observations.test.mjs platform/recovery/v2-legacy-current-observation.test.mjs platform/recovery/v2-legacy-current-history.test.mjs",
+      "passed": 8,
+      "failed": 0,
+      "durationMs": 98274.5184,
+      "log": "work/b11-66-node-final.log",
+      "scope": "combined replay compatibility before final narrower SQL transport bounds"
+    },
+    {
+      "command": "node --test platform/recovery/v2-legacy-precut-observations.test.mjs",
+      "passed": 2,
+      "failed": 0,
+      "durationMs": 97064.3618,
+      "log": "work/b11-66-bounded-node.log",
+      "scope": "final bounded helper and genuine interleaving hold"
+    },
+    {
+      "command": "node --test platform/edge/test/recovery-precut-observations.test.mjs",
+      "passed": 1,
+      "failed": 0,
+      "durationMs": 140040.0218,
+      "log": "work/b11-66-bounded-edge.log",
+      "scope": "final actual D1/R2 and fresh Node exact baseline/chain parity with later041 handoff"
+    },
+    {
+      "command": "node platform/edge/node_modules/typescript/bin/tsc --noEmit --project platform/edge/tsconfig.json",
+      "result": "pass",
+      "log": "work/b11-66-types-final.log"
+    },
+    {
+      "command": "all seven source UTF-8/no-BOM/LF/trailing-whitespace checks",
+      "result": "pass"
+    }
+  ],
+  "measurements": {
+    "node": {
+      "maxOperationsIncludingReserve": 31,
+      "maxWorkingBytes": 410997,
+      "maxBatchBytes": 4605
+    },
+    "d1": {
+      "maxOperationsIncludingReserve": 31,
+      "maxWorkingBytes": 411405,
+      "maxBatchBytes": 103224
+    },
+    "precutAcceptedEvents": 2,
+    "legacyPrefixTransfers": 1,
+    "laterAcceptedTransfers": 1,
+    "financialIntents": 0
+  },
+  "acceptance": [
+    "genuine043 preparation accepts pre-adoption041 and exact current anchor",
+    "original mint and legacy prefix independently validate first raw before-image",
+    "one041 per step verifies immutable B04 source/evidence/command/effect/artifact",
+    "strict numeric source order bounded by activation source and fixed preparation clock",
+    "exact adoption-cut raw asset/Vault digest,current summary,counts",
+    "exact Node/D1 baseline and chain",
+    "later041 replay reaches actual final asset/Vault",
+    "missing prerequisite,wrong before-image,wrong time,missing object and target mutation hold",
+    "genuine interleaved unbound legacy history explicitly unsupported",
+    "no current source digest rehash,public activation,receipt fabrication or readiness claim"
+  ],
+  "remaining": [
+    "caller-owned durable context CAS and main current-phase integration",
+    "mixed legacy events after normalized sequence starts",
+    "progression,claims and conflicts require separate adapters"
+  ],
+  "sourceHashes": {
+    "platform/recovery/v2-legacy-precut-observations.mjs": "493921f496f8f3e07c3a03c6c1ee170e1491b11f65e8c19834a9f5f18ef9cfde",
+    "platform/recovery/v2-legacy-precut-observations.d.mts": "6ae9f9e2daac2086c9ebdf6da590aa6dbc7782eab8ad3f364d398d5b517fdc7c",
+    "platform/recovery/v2-legacy-precut-observations.fixtures.mjs": "f275446bd7d39694f841fca4dbda47e5b96c1d8fce1ec803db19764a01ab820b",
+    "platform/recovery/v2-legacy-precut-observations.test.mjs": "dc1971c0e1f6b5c6123e10fbcd7c57e4beba78b22bcffc142b693a773108dcf3",
+    "platform/edge/test/fixtures/recovery-precut-observations-worker.ts": "14469621ddb5f3a827cf7e8a2bc1429d0ec8b244fbbc737b43ee7d941ef3a6b3",
+    "platform/edge/test/recovery-precut-observations.test.mjs": "42ae858e1b5d2d0cc24dd91486415c68ee0a390f15c1aaa6aad2b7765c563ff6",
+    "platform/recovery/PRE_ADOPTION_OBSERVATION_RECOVERY.md": "a1c6446faa7dd54945c0db593194f154ee924dcab2a6b604ef10f2a4455462dd"
+  },
+  "schemaHashes": {
+    "platform/storage/054-collection-legacy-adoption.sql": "5f82a5fafe536c65b9889ec05c6ea4986b1323db17067ceb99104f0a61a7620e",
+    "platform/storage/055-collection-imported-admission.sql": "0ed9b1b39bed9efee13bc739a48cdd7748d9dd1726e3869ae6f5dbbbf504b750"
+  }
+}
