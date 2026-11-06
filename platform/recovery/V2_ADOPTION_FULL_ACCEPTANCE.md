@@ -1,0 +1,11 @@
+# Full adopted-source private recovery acceptance
+
+B11-67 exercises only the normal `createRecoveryV2Restore.start`, `step` and `finish` entry points. Each call constructs a fresh service over the same durable database/object store. Positive cases insert no semantic proofs, change no recovery phases and do not bypass reconciliation.
+
+The source fixtures run genuine local original-source audits, preparation, activation and private capture. The matrix covers settled manual, public, founder and empty histories; accepted post-adoption observations; accepted pre-cut and post-cut observations; and imported history followed by a new045 admission, retained B04 evidence,046 fulfillment, a new stage and a pending admission tail. Fixture evidence remains synthetic local evidence and does not establish on-chain provenance or financial execution.
+
+Fresh Node and actual workerd/D1/R2 targets must traverse the mounted stage, original-mint, economic, current-asset, original-object and aggregate phases before the existing collection reconciliation can accept imported authority. The resulting `legacy-adoption-complete` check is produced by the real aggregate phase. Every source business table is compared byte-for-byte as JSON row values after applying only the existing documented `fenceRow` transforms. Authentication tables must be empty, the generation must change, every retained original object must match its source bytes, and the final report must retain `financialExecution:false` and `chainStatus:'unproven'`.
+
+A missing final adoption-completion child must leave the checkpoint unchanged and prevent readiness. Retrying through the normal entry point must complete it. A lost final-ready acknowledgement must return the retained result on retry. A stale continuation revision must replay the saved state without repeating work. A deliberately corrupted stage-proof response must hold the target, which continues to reject business mutations. Private-ready policy is preserved; these tests add no permissions.
+
+The final evidence file records per-profile calls, exact rows/originals, operation counts, SQL batch bytes and checkpoint bytes. Per-phase working-memory guards remain active in the production implementations. No deployment, remote resource mutation, transaction, spending or release approval is part of this acceptance.

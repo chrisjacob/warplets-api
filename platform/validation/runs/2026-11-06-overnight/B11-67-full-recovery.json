@@ -1,0 +1,303 @@
+{
+  "task": "B11",
+  "slice": "B11.67 full normal adopted-source private recovery acceptance",
+  "status": "verified-local-full-recovery-matrix; B11 completion remains coordinator-owned",
+  "baseCommit": "d9f62eb963b5e3942be3f92620102daa6f07b6ad",
+  "implementationCommit": null,
+  "recordedAt": "2026-11-06T11:53:08.691820+00:00",
+  "sourceHashes": {
+    "platform/recovery/v2-adoption-full.fixtures.mjs": "883cd8b463d18b6af88faffde747e8b6dd1b745dd96b164ee457613b5b13bdbb",
+    "platform/recovery/v2-adoption-full.test.mjs": "1d353a408aeb5adae4c2117af65b5a7bce41ba5d86441e54fb9bc2de7f79b94a",
+    "platform/recovery/V2_ADOPTION_FULL_ACCEPTANCE.md": "b9b545abf061ee9b721ac4dc9ea1aa5d097c1572e2918428b804a012eac8eaee",
+    "platform/edge/test/recovery-adoption-full.test.mjs": "7c2b1c568357478a0e01c6121e109810c2f04adca001236e10505c77fd2ee4a9",
+    "platform/edge/test/fixtures/recovery-adoption-full-worker.ts": "5ca7578ebde1a9c6c507f06c35f61b017bd98639ebbaa2bd06e589ddfedf0964"
+  },
+  "sharedDependencies": {
+    "platform/recovery/v2-restore.mjs": "1608c5cfc58fcb4cdfd0249bf631e083ccd4739597a1c723ed5efb34c5add0f2",
+    "platform/recovery/v2-reconcile.mjs": "bd41dd308cee60e2bf5f3a5a9365c7accf0bda802bdfd4afbad47b254d30f5d8",
+    "platform/recovery/v2-reconcile-legacy-adoptions.mjs": "760cf6504b31ab71211bb66eec8c1e5e70740e0292f926f1808c2c79a74f6ade",
+    "platform/recovery/v2-reconcile-legacy-mints.mjs": "9edf1021ff74af6b390baeffd17d4284d52f230e79900cb66ee8eb0528467398",
+    "platform/recovery/v2-reconcile-legacy-economics.mjs": "e0f7aa904eeeff9f7ad323a1779a276ae45cfaf89428e5b1a9af8a9fcdf391e8",
+    "platform/recovery/v2-reconcile-legacy-current.mjs": "c20282677135ff4f05bd7d899320be42698cc23276f1f1c472a1d82d1548494e",
+    "platform/recovery/v2-reconcile-legacy-objects.mjs": "2bea1d9b98ac3caa85a82c68abda1eab37c575e3cc825efd7a8485ef89d51823",
+    "platform/recovery/v2-reconcile-legacy-aggregate.mjs": "d54ac0fcf7e9b47b06b12ce0439b09864fb826e90b5388d0c02103924eb07f7d",
+    "platform/recovery/v2-reconcile-collections.mjs": "393830e12a6661f2e37fc77198acac28e76a2b478309acb7056baf9179f51721"
+  },
+  "installedSchema": {
+    "last": "055-collection-imported-admission.sql",
+    "migrationFiles": 54,
+    "businessTables": 112
+  },
+  "checks": [
+    {
+      "command": "node --test platform/recovery/v2-adoption-full.test.mjs",
+      "log": "work/b11-67-full-node.log",
+      "passed": 7,
+      "failed": 0,
+      "durationMs": 425345.5582,
+      "measurements": [
+        {
+          "profile": "manual",
+          "fullReady": true,
+          "syntheticPrerequisiteProof": false,
+          "normalPipeline": true,
+          "tables": 112,
+          "rows": 37,
+          "originals": 3,
+          "certificates": 1,
+          "generation": "d288554f-d612-4536-a295-bc852278283b",
+          "calls": 1085,
+          "maxOperations": 29,
+          "maxBatchBytes": 103070,
+          "maxCheckpointBytes": 129206
+        },
+        {
+          "profile": "public",
+          "fullReady": true,
+          "syntheticPrerequisiteProof": false,
+          "normalPipeline": true,
+          "tables": 112,
+          "rows": 40,
+          "originals": 4,
+          "certificates": 1,
+          "generation": "46d47bef-30b7-4cbc-b82a-0ebad1ccd7de",
+          "calls": 1080,
+          "maxOperations": 29,
+          "maxBatchBytes": 103070,
+          "maxCheckpointBytes": 128955
+        },
+        {
+          "profile": "founder",
+          "fullReady": true,
+          "syntheticPrerequisiteProof": false,
+          "normalPipeline": true,
+          "tables": 112,
+          "rows": 43,
+          "originals": 5,
+          "certificates": 1,
+          "generation": "abebbdc2-44a8-4f2e-8379-6aa37be0e2ce",
+          "calls": 1088,
+          "maxOperations": 29,
+          "maxBatchBytes": 103070,
+          "maxCheckpointBytes": 128955
+        },
+        {
+          "profile": "empty",
+          "fullReady": true,
+          "syntheticPrerequisiteProof": false,
+          "normalPipeline": true,
+          "tables": 112,
+          "rows": 15,
+          "originals": 0,
+          "certificates": 1,
+          "generation": "1ffea8e9-cc11-4ec7-b768-9de3817a4ca6",
+          "calls": 963,
+          "maxOperations": 19,
+          "maxBatchBytes": 103070,
+          "maxCheckpointBytes": 126432
+        },
+        {
+          "profile": "observed",
+          "fullReady": true,
+          "syntheticPrerequisiteProof": false,
+          "normalPipeline": true,
+          "tables": 112,
+          "rows": 56,
+          "originals": 3,
+          "certificates": 1,
+          "generation": "62b7f274-5ddf-4fb2-8910-34cba1847b85",
+          "calls": 1138,
+          "maxOperations": 30,
+          "maxBatchBytes": 103071,
+          "maxCheckpointBytes": 130468
+        },
+        {
+          "profile": "modern-pending",
+          "fullReady": true,
+          "syntheticPrerequisiteProof": false,
+          "normalPipeline": true,
+          "tables": 112,
+          "rows": 60,
+          "originals": 3,
+          "certificates": 1,
+          "generation": "1af40d17-975f-4257-ab1f-3c73514740b5",
+          "calls": 1144,
+          "maxOperations": 29,
+          "maxBatchBytes": 103071,
+          "maxCheckpointBytes": 130720
+        }
+      ],
+      "reuseNote": "This process loaded six positive profiles plus the held negative before the pre-cut profile was added. It also preceded the aggregate mint-page narrowing and pre-cut dispatch mount. All tested inventories have at most two historical stages/admissions; those deltas do not change their transcript. The separate final pre-cut Node run and complete actual D1 matrix cover the new path. The coordinator final full-reference run separately includes all eight final-file Node cases."
+    },
+    {
+      "command": "node --test --test-name-pattern=precut-observed platform/recovery/v2-adoption-full.test.mjs",
+      "log": "work/b11-67-full-precut-node.log",
+      "passed": 1,
+      "failed": 0,
+      "durationMs": 93478.6077,
+      "measurements": [
+        {
+          "profile": "precut-observed",
+          "fullReady": true,
+          "syntheticPrerequisiteProof": false,
+          "normalPipeline": true,
+          "tables": 112,
+          "rows": 67,
+          "originals": 3,
+          "certificates": 1,
+          "generation": "9abca473-b6ee-4455-b618-b9e3f1907f50",
+          "calls": 1152,
+          "maxOperations": 33,
+          "maxBatchBytes": 103071,
+          "maxCheckpointBytes": 130720
+        }
+      ]
+    },
+    {
+      "command": "node --test platform/edge/test/recovery-adoption-full.test.mjs",
+      "log": "work/b11-67-full-d1.log",
+      "passed": 8,
+      "failed": 0,
+      "durationMs": 1321671.3033,
+      "measurements": [
+        {
+          "profile": "manual",
+          "actualD1": true,
+          "actualR2": true,
+          "fullReady": true,
+          "normalPipeline": true,
+          "syntheticPrerequisiteProof": false,
+          "tables": 112,
+          "rows": 37,
+          "originals": 3,
+          "certificates": 1,
+          "calls": 1085,
+          "maxOperations": 29,
+          "maxBatchBytes": 103223,
+          "maxCheckpointBytes": 129344
+        },
+        {
+          "profile": "public",
+          "actualD1": true,
+          "actualR2": true,
+          "fullReady": true,
+          "normalPipeline": true,
+          "syntheticPrerequisiteProof": false,
+          "tables": 112,
+          "rows": 40,
+          "originals": 4,
+          "certificates": 1,
+          "calls": 1080,
+          "maxOperations": 29,
+          "maxBatchBytes": 103223,
+          "maxCheckpointBytes": 129093
+        },
+        {
+          "profile": "founder",
+          "actualD1": true,
+          "actualR2": true,
+          "fullReady": true,
+          "normalPipeline": true,
+          "syntheticPrerequisiteProof": false,
+          "tables": 112,
+          "rows": 43,
+          "originals": 5,
+          "certificates": 1,
+          "calls": 1088,
+          "maxOperations": 29,
+          "maxBatchBytes": 103223,
+          "maxCheckpointBytes": 129093
+        },
+        {
+          "profile": "empty",
+          "actualD1": true,
+          "actualR2": true,
+          "fullReady": true,
+          "normalPipeline": true,
+          "syntheticPrerequisiteProof": false,
+          "tables": 112,
+          "rows": 15,
+          "originals": 0,
+          "certificates": 1,
+          "calls": 963,
+          "maxOperations": 19,
+          "maxBatchBytes": 103223,
+          "maxCheckpointBytes": 126570
+        },
+        {
+          "profile": "observed",
+          "actualD1": true,
+          "actualR2": true,
+          "fullReady": true,
+          "normalPipeline": true,
+          "syntheticPrerequisiteProof": false,
+          "tables": 112,
+          "rows": 56,
+          "originals": 3,
+          "certificates": 1,
+          "calls": 1138,
+          "maxOperations": 30,
+          "maxBatchBytes": 103224,
+          "maxCheckpointBytes": 130606
+        },
+        {
+          "profile": "precut-observed",
+          "actualD1": true,
+          "actualR2": true,
+          "fullReady": true,
+          "normalPipeline": true,
+          "syntheticPrerequisiteProof": false,
+          "tables": 112,
+          "rows": 67,
+          "originals": 3,
+          "certificates": 1,
+          "calls": 1152,
+          "maxOperations": 33,
+          "maxBatchBytes": 103224,
+          "maxCheckpointBytes": 130858
+        },
+        {
+          "profile": "modern-pending",
+          "actualD1": true,
+          "actualR2": true,
+          "fullReady": true,
+          "normalPipeline": true,
+          "syntheticPrerequisiteProof": false,
+          "tables": 112,
+          "rows": 60,
+          "originals": 3,
+          "certificates": 1,
+          "calls": 1144,
+          "maxOperations": 29,
+          "maxBatchBytes": 103224,
+          "maxCheckpointBytes": 130858
+        }
+      ],
+      "reuseNote": "The final seven-profile matrix loaded the pre-cut mount. The coordinator corrected an aggregate stage-page LIMIT from 8 to 32 while this matrix was active; every matrix inventory has at most two historical stages, so that correction leaves all these query results unchanged. Final shared hashes below record the corrected implementation; maximum-stage regression is coordinator-owned. The test rebuilds the Worker with esbuild separately for each profile, so early and later profiles do not claim one immutable runtime-source snapshot. Coordinator B11-69 independently verifies the corrected 32-stage path."
+    },
+    {
+      "command": "platform/edge/node_modules/.bin/tsc.cmd --noEmit (cwd platform/edge)",
+      "result": "passed"
+    },
+    {
+      "command": "git diff --check -- <five owned source paths>; UTF-8/LF byte validation",
+      "result": "passed"
+    }
+  ],
+  "acceptance": [
+    "Seven genuine local source profiles: manual, public, founder, empty, post-adoption observations, pre-cut plus later observations, and imported history plus new admission/B04 fulfillment/new stage/pending tail.",
+    "Only normal restore start/step/finish are called; fresh service per call. No positive prerequisite proof insertion or manual recovery phase jumps.",
+    "Every business table is compared exactly using only existing fenceRow transforms; authentication is cleared, generation changes and every retained original object matches source bytes.",
+    "Real aggregate phase emits legacy-adoption-complete before readiness; stale continuation replays, omitted final child rolls back checkpoint, lost final-ready acknowledgement reconciles.",
+    "Corrupted aggregate stage-proof response holds recovery; restoring and held targets reject business mutations.",
+    "Private-ready policy is unchanged. Financial execution remains false and chain provenance remains unproven.",
+    "All per-call SQL plus object operations stay <=64, SQL batches <=256 KiB and durable checkpoints <=128 KiB; production working-memory guards remain active."
+  ],
+  "limitations": [
+    "Synthetic local evidence and offline fixtures do not establish live chain provenance, original operator authentication, payment, deployment or release approval.",
+    "This matrix covers the named small end-to-end profiles. Separate evidence covers maximum historical graph and configured beacon subphases; this slice does not claim a full maximum-size configured-policy roundtrip.",
+    "Maximum measured actual D1 checkpoint is 130858 bytes, leaving 214 bytes under the existing 131072-byte ceiling at schema 055. This is measured fixture headroom, not a claim that arbitrary longer identities or larger profiles fit.",
+    "Post-restore business command replay is a separate B11-70 acceptance slice.",
+    "Coordinator broad reference run work/b11-69-reference-manifest.json was in progress while this dedicated evidence was recorded and is not counted as passed here."
+  ]
+}

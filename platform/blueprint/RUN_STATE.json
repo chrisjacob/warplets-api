@@ -5,7 +5,7 @@
   "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
   "currentTask": "B11",
-  "lastUpdatedAt": "2026-11-06T11:38:17.657501+00:00",
+  "lastUpdatedAt": "2026-11-06T11:53:59.480280+00:00",
   "migrationAllocation": {
     "next": 56,
     "reserved": [
@@ -366,9 +366,10 @@
         "platform/validation/runs/2026-11-06-overnight/B11-66-precut-observation-recovery.json",
         "platform/validation/runs/2026-11-06-overnight/B11-65-adoption-recovery-pipeline.json",
         "platform/validation/runs/2026-11-06-overnight/B11-68-precut-current-integration.json",
-        "platform/validation/runs/2026-11-06-overnight/B11-69-stage-page.json"
+        "platform/validation/runs/2026-11-06-overnight/B11-69-stage-page.json",
+        "platform/validation/runs/2026-11-06-overnight/B11-67-full-recovery.json"
       ],
-      "nextAction": "69 independent review stage-page regression reproduced and fixed,32stage genuine test passes. Fullreference43304/work/b11-69-reference-full.log running against manifest;67 Node7+precut1 pass,D1matrix running. Snapshot agent auditing mandatory B11 acceptance. CI42209934517 running,next6bbebac.",
+      "nextAction": "67 final actualD1matrix8PASS1321671ms;Nodebaseline7+precut1pass.70 finalD1replay running,Nodepass. Fullreference43304active (1000mint capacity). CI6bbebac/42213197950active;81cef38CIpassed. Finishfinalchecks/rollup thenB12dependencyqueue.",
       "blocker": null
     },
     "B12": {
