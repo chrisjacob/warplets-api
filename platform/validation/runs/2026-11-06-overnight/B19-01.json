@@ -1,0 +1,35 @@
+{
+  "milestone": "B19 bounded financial evidence index foundation",
+  "status": "partial-foundation-verified",
+  "baseCommit": "e80941e",
+  "checks": [
+    {
+      "command": "node --test platform/validation/gates.test.mjs",
+      "passed": 2,
+      "durationMs": 147.6162,
+      "log": "work/b19-gates.log"
+    }
+  ],
+  "bounds": {
+    "records": 32,
+    "bytes": 65536,
+    "applicabilityEntries": 8,
+    "limitationsEntries": 8
+  },
+  "assertions": [
+    "Missing, fixture-proven, incompatible, review-required and named-scope assertions remain distinct",
+    "Accepted named scope never removes incompatible evidence or enables execution",
+    "Source commit/digest/path, program/configuration, network/slot/time and review owner retained",
+    "Deterministic canonical digest, pre-await capture, exact field and getter rejection"
+  ],
+  "limitations": [
+    "Caller-supplied assertions; no source/reviewer authenticity or approval inferred",
+    "Recorded local protocol source population still next",
+    "Vault manifests/claim codecs/custody and farm dossiers unfinished"
+  ],
+  "sourceHashes": {
+    "platform/validation/gates.mjs": "10de57132ee6485d16cbd5c8b10dc0d09b0549a195871e67d016a30ecf85a72b",
+    "platform/validation/gates.test.mjs": "25951a145c0305692b7d46253e0236341ee48600ea271d325f08a35491f201a2"
+  },
+  "financialExecution": false
+}
