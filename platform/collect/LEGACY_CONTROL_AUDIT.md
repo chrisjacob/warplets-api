@@ -23,3 +23,5 @@ node --test platform/collect/legacy-control-audit.test.mjs platform/operations/c
 node --test platform/edge/test/legacy-control-audit.test.mjs
 node platform/edge/node_modules/typescript/bin/tsc --project platform/edge/tsconfig.json --noEmit
 ```
+
+B11-44 adds `capture(request)` alongside the unchanged `read(request)` result. Capture retains the exact canonical `legacy-control-history-as-of-v1` transcript whose byte digest already binds the control fact. The exported private `verifyLegacyControlSelection(document,{crypto})` validates the original selected rows, receipt preimages, ordering and reducer independently of current tables. This supports archiving the selection before later history arrivals. Neither the document nor its hash proves original ingestion-time completeness, operator authentication or adoption authority.

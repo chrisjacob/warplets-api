@@ -1,0 +1,167 @@
+{
+  "checkpoint": "B11-44",
+  "title": "Bounded excluded legacy adoption preparation with retained control preimages",
+  "status": "partial-private-preparation-no-activation",
+  "lastConfirmedBaseCommit": "1eb8d6877c95cab2b8ac845099dd139678e097c9",
+  "implementationCommit": null,
+  "source": "synthetic-real-legacy-operations-genuine050051052parents-actual43-current-state",
+  "financialExecution": false,
+  "applicationActivation": false,
+  "packageChanges": false,
+  "coordinatorSchema": "053-legacy-adoption-preparations.sql",
+  "businessTables": 108,
+  "newExcludedControlTables": [
+    "app_collection_legacy_preparations",
+    "app_collection_legacy_prepared_stages",
+    "app_collection_legacy_prepared_admissions",
+    "app_collection_legacy_object_candidates",
+    "app_collection_legacy_prepared_objects"
+  ],
+  "checks": [
+    {
+      "command": "node --test platform/collect/legacy-adoption-preparation.test.mjs platform/collect/legacy-control-selection.test.mjs platform/collect/legacy-adoption-preparation-plan.test.mjs platform/collect/legacy-control-audit.test.mjs platform/collect/legacy-adoption-preparation-schema.test.mjs",
+      "passed": 27,
+      "failed": 0,
+      "durationMs": 36026.8779,
+      "log": "work/b11-adoption-final-reference.log"
+    },
+    {
+      "command": "node --test platform/operations/controls.test.mjs platform/storage/atomic-operations.test.mjs",
+      "passed": 13,
+      "failed": 0,
+      "durationMs": 2501.7513,
+      "log": "work/b11-adoption-operations-compat.log"
+    },
+    {
+      "command": "node --test platform/edge/test/legacy-adoption-preparation.test.mjs",
+      "passed": 1,
+      "failed": 0,
+      "durationMs": 146530.5367,
+      "log": "work/b11-adoption-preparation-edge.log",
+      "profiles": [
+        "manual",
+        "configured-real-pinned-beacon-round30000000"
+      ],
+      "note": "Final balanced053 SQL. Later first-comment edit changes schema file digest only; final Node tests use current file. Subsequent bounded free-snapshot projection is outside these nonfree profiles."
+    },
+    {
+      "command": "node --test platform/edge/test/legacy-control-audit.test.mjs",
+      "passed": 1,
+      "failed": 0,
+      "durationMs": 24907.1965,
+      "log": "work/b11-adoption-control-edge.log",
+      "note": "Existing read result and additive capture transcript exact Node/D1 parity."
+    },
+    {
+      "command": "node platform/edge/node_modules/typescript/bin/tsc --noEmit -p platform/edge/tsconfig.json",
+      "status": "passed"
+    },
+    {
+      "command": "owned18files UTF8 LF and trailing-whitespace check; git diff --check for tracked owned files",
+      "status": "passed"
+    },
+    {
+      "command": "coordinator recovery planning/watermark focused checks",
+      "passed": 4,
+      "failed": 0,
+      "durationMs": 198.4643,
+      "reportedBy": "coordinator"
+    },
+    {
+      "command": "coordinator contract/queue checks",
+      "status": "passed",
+      "reportedBy": "coordinator"
+    }
+  ],
+  "bounds": {
+    "perInvocationOperations": 64,
+    "sqlBatchBytes": 262144,
+    "workingPayloadBytes": 1048576,
+    "objectCount": 2048,
+    "objectBytes": 16777216,
+    "stageBodyBytes": 16384,
+    "anchorBodyBytes": 8192,
+    "objectProofBytes": 8192,
+    "historicalControlFormatBytes": 147456,
+    "note": "Working payload includes conservative retained/core/hash lifetimes, not measured JS heap. Immutable PUT includes internal verification GET. Actual legal large control transcripts may hold before object verification."
+  },
+  "measurements": {
+    "manualNode": {
+      "maxOperations": 50,
+      "maxWorkingBytes": 143269
+    },
+    "manualD1": {
+      "calls": 9,
+      "objects": 3,
+      "objectBytes": 2042,
+      "maxOperations": 50,
+      "maxWorkingBytes": 142882,
+      "maxSqlBatchBytes": 64386
+    },
+    "configuredD1": {
+      "calls": 14,
+      "objects": 8,
+      "objectBytes": 250432,
+      "originalPolicyBytes": 600611,
+      "round": 30000000,
+      "maxOperations": 50,
+      "maxWorkingBytes": 440954,
+      "maxSqlBatchBytes": 64386,
+      "dedup": "Exact original repeated part identities deduplicate; all descriptor references remain in closure."
+    },
+    "late150Transfers": {
+      "maxOperations": 50,
+      "maxWorkingBytes": 756795,
+      "currentVersion": 150,
+      "fixedPreparationCutAfterEconomicCut": true,
+      "originalMintWalletRetained": true
+    },
+    "control100Usage100Spend": {
+      "acceptedTranscriptBytes": 52670,
+      "captureWorkingBytes": 303386,
+      "largerValidTranscriptBytes": 112370,
+      "largerCaptureWorkingBytes": 601886,
+      "largerObjectVerification": "held-before-hash-under-existing1MiB-bound"
+    }
+  },
+  "acceptance": [
+    "all stages inspected even without admissions; empty/unadmitted profiles prepared",
+    "pending historical admissions cannot begin preparation",
+    "six retained economic phase hashes and adjacent chain verified per anchor",
+    "actual43 current asset and quiescence proofs; later transfers preserve original mint identity",
+    "captured32 transcript independently reproduces exact historical controlFact; no original-ingestion authentication claim",
+    "private original objects independently SHA verified; no private catalog or business watermark writes",
+    "changed-body/scope/source/schema fail closed; exact replay and lost-response reconciliation",
+    "omitted child/cursor/candidate/prepared object and wrong identity abort atomic step",
+    "orphan references fail bidirectional set closure even if totals match",
+    "SQL cumulative object2048/16MiB exact boundaries and dedup tested by coordinator",
+    "D1 expression-depth regression fixed by balanced conjunctions with BETWEEN ranges preserved"
+  ],
+  "remaining": [
+    "1000 fully settled/32stage capacity profile not yet measured; next dedicated test",
+    "valid oversized historical control transcripts may hold under whole-wrapper memory cap",
+    "free historical admissions, completed progression, Vault claims and unsupported histories remain held by prerequisites",
+    "future business activation/certificate and private-recovery verification are not implemented here",
+    "combined coordinator reference/CI pending"
+  ],
+  "sourceHashes": {
+    "platform/collect/legacy-adoption-preparation-plan.mjs": "b94a3e2e25654b9eb739d95179693e973459fe79f0d84030b04ac38b96b999f9",
+    "platform/collect/legacy-adoption-preparation-plan.d.mts": "80784c84b7e6ff25e627692bf9c89da28be31897cdef0ec8db1720aad0c8983d",
+    "platform/collect/legacy-adoption-preparation-plan.test.mjs": "ecaa72096cb106a7ff666d646d64f25fbbfc8a18cea2a98c5baa23660499cde8",
+    "platform/collect/legacy-adoption-preparation.mjs": "07b2e85c0c477a11d9f9fd18f692423b47d02b15c42ad43806c157bb7d670ffe",
+    "platform/collect/legacy-adoption-preparation.d.mts": "2d27ac46ea0cf970cc57465b28f4b3c2c14410e07991d540ca0323b34cfb8939",
+    "platform/collect/legacy-adoption-preparation.test.mjs": "d2a540d56ae466267f4bb9bb1752fb6db0bbab550f07332d9d487163cacf3597",
+    "platform/collect/LEGACY_ADOPTION_PREPARATION.md": "8b7095698ec8fd064349488dfc8bc3eef03f867ad56d031689774c6c6e5782da",
+    "platform/collect/legacy-control-audit.mjs": "6f91bc20c363c36701f41617188659b486751fb9f3564188a70946b91653d5d7",
+    "platform/collect/legacy-control-audit.d.mts": "9e69c94ebdb43e2ef678a17394d92cdde04320fd1b9f7dccf74d1a48b2495f52",
+    "platform/collect/legacy-control-selection.test.mjs": "2df92101a7e0af6a4dc0aeae360ee8ca34d6cf32a4bec7dd3bba93fabd79d57e",
+    "platform/collect/LEGACY_CONTROL_AUDIT.md": "2cff0ce9e87179e8f979944c9e4232f17acf48bf1cd6cda34591985359c33ec6",
+    "platform/edge/test/legacy-adoption-preparation.test.mjs": "70fd6a32656eccc054448c3c1124f4e5491734c72f99b1db9b3135aa22f9eb87",
+    "platform/edge/test/fixtures/legacy-adoption-preparation-worker.ts": "eefe81016b3886b7315d659e93640a4a4fb588c99d427cd267f6a63ce0e45576",
+    "platform/edge/test/legacy-control-audit.test.mjs": "13cd3fb7e464eb2b9c006351cabfdc4c486393bf035aea2a95eaa71b8901f25a",
+    "platform/edge/test/fixtures/legacy-control-audit-worker.ts": "c09c5a6da9d5627249431426b7092dc74a1b12ffaeeb0093af06b7dfccfb82d8",
+    "platform/storage/053-legacy-adoption-preparations.sql": "d9884b7a256f3bc6e64467aa3b2e8d666b6cecf4b7895cc6fdd394dbd68dfd6f",
+    "platform/recovery/schema.mjs": "3fcd27847b5f7c8e5899260f36545cbb62c2ed37e3a8c633dbc671544c3597a4",
+    "platform/collect/legacy-adoption-preparation-schema.test.mjs": "001dd32333f67b6e552c76ee46bcab352a72432de1fba36297ad6b107f1e008e"
+  }
+}

@@ -5,9 +5,9 @@
   "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
   "currentTask": "B11",
-  "lastUpdatedAt": "2026-11-06T07:45:07.031483+00:00",
+  "lastUpdatedAt": "2026-11-06T08:04:35.377154+00:00",
   "migrationAllocation": {
-    "next": 53,
+    "next": 54,
     "reserved": [
       {
         "version": 31,
@@ -118,8 +118,14 @@
         "version": 52,
         "task": "B11",
         "purpose": "excluded private historical economics phase controls and immutable proof chain; no adoption authority"
+      },
+      {
+        "version": 53,
+        "task": "B11",
+        "purpose": "excluded immutable legacy adoption preparation and exact private artifact closure; no activation"
       }
-    ]
+    ],
+    "historicalGap": 19
   },
   "acceptanceProfiles": {
     "core": {
@@ -279,7 +285,7 @@
       "status": "in_progress",
       "owner": "coordinator",
       "baseCommit": "96cdfa1fb6334fcb27deb831d786243227b9d1a8",
-      "implementationCommit": "5358d7672fba7e1fc51c33ccf8e5240a6b4d0599",
+      "implementationCommit": "1eb8d6877c95cab2b8ac845099dd139678e097c9",
       "pushed": false,
       "evidence": [
         "platform/validation/runs/2026-11-06-overnight/B11-1.json",
@@ -323,9 +329,10 @@
         "platform/validation/runs/2026-11-06-overnight/B11-37-legacy-stage-source.json",
         "platform/validation/runs/2026-11-06-overnight/B11-40-legacy-membership-source.json",
         "platform/validation/runs/2026-11-06-overnight/B11-41-legacy-economic-repository.json",
-        "platform/validation/runs/2026-11-06-overnight/B11-43-current-asset-audit.json"
+        "platform/validation/runs/2026-11-06-overnight/B11-43-current-asset-audit.json",
+        "platform/validation/runs/2026-11-06-overnight/B11-44-adoption-preparation.json"
       ],
-      "nextAction": "B11-43 current-asset audit verified; continue excluded44 adoption preparation, then guarded activation and mixed historical/new mint/read/recovery compatibility. B11 remains partial.",
+      "nextAction": "B11-44 private preparation verified; run actual32stage/1000settled preparation capacity and combined regression, then B11-45 active-certificate/helper and guarded activation/mixed mint/read/recovery. 054 remains draft; no activation.",
       "blocker": null
     },
     "B12": {
