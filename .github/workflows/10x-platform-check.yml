@@ -41,14 +41,14 @@ jobs:
           pnpm install --ignore-scripts --frozen-lockfile
           pnpm build
           pnpm test
+      - name: Verify frozen beacon fixture offline
+        working-directory: platform/beacon
+        run: |
+          pnpm install --ignore-scripts --frozen-lockfile
+          pnpm test
       - name: Compile and test Workers, D1 and R2 locally
         working-directory: platform/edge
         run: |
           pnpm install --ignore-scripts --frozen-lockfile
           pnpm typecheck
-          pnpm test
-      - name: Verify frozen beacon fixture offline
-        working-directory: platform/beacon
-        run: |
-          pnpm install --ignore-scripts --frozen-lockfile
           pnpm test
