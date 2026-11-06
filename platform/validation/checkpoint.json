@@ -1,5 +1,5 @@
 {
   "policy": "prd-1.2",
   "scope": "local",
-  "checkpoint": "blueprint-b11-guarded-advisory-votes-and-fresh-context"
+  "checkpoint": "blueprint-b11-immutable-stored-progression-quotes"
 }

@@ -1,0 +1,35 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {randomUUID} from 'node:crypto';
+import {openDatabase} from '../storage/database.mjs';
+import {createNodeAtomicDriver} from '../storage/node/atomic-driver.mjs';
+import {createNodeCrypto} from '../security/node-crypto.mjs';
+import {seedCollectionContext} from '../application/fixtures/collection-context.mjs';
+import {createCollectionQuoteService} from './quote-service.mjs';
+import {createCollectionQuoteRepository} from './quote-repository.mjs';
+import {canonicalJson} from '../security/canonical.mjs';
+import {createManifestCodec} from '../artifacts/manifest-codec.mjs';
+import {memoryArtifacts} from '../application/fixtures/memory-artifacts.mjs';
+import {readInstalledRecoverySchema} from '../recovery/node-schema.mjs';
+import {createRecoveryExporter} from '../recovery/export.mjs';
+import {createPrivateRecovery} from '../recovery/restore.mjs';
+
+test('private recovery preserves populated immutable quotes and receipts while historical reads and replay retain original expiry',async t=>{
+ const source=openDatabase(),target=openDatabase();t.after(()=>{source.close();target.close();});const f=seedCollectionContext(source),crypto=createNodeCrypto(),sourceDriver={...createNodeAtomicDriver(source),leaseNowSql:String(f.nowMs)},targetDriver=createNodeAtomicDriver(target),sourceStore=memoryArtifacts(),targetStore=memoryArtifacts();let now=f.nowMs;
+ const ports={crypto,clock:{nowMs:()=>now},ids:{next:randomUUID}},principal={kind:'wallet',wallet:f.wallet},input={requestKey:'synthetic-quote-recovery',inventoryId:f.inventoryId,...f.request(1)};
+ const service=createCollectionQuoteService({crypto,repository:createCollectionQuoteRepository(sourceDriver,ports)}),accepted=await service.issueQuote(principal,input);assert.equal(accepted.kind,'committed');
+ now=accepted.value.expiresMs+1;source.prepare('UPDATE collect_assets SET owner=? WHERE id=?').run(f.other,input.targetId);
+ source.prepare('INSERT INTO sessions VALUES(?,?,?,?)').run('synthetic-recovery-session',f.wallet,'http://localhost',now+99999);
+ const schema=await readInstalledRecoverySchema(crypto),recoveryPorts={...ports,schema,codec:createManifestCodec({crypto})};
+ const capture=await createRecoveryExporter({...recoveryPorts,driver:sourceDriver,artifacts:sourceStore,sourceCommit:'0'.repeat(40)}).capturePrivate();assert.equal(capture.kind,'captured',JSON.stringify(capture));assert.equal(capture.inventory.tables.find(t=>t.name==='app_collection_quotes').rowCount,1);
+ const pinned={inventory:structuredClone(capture.inventory),pinnedDigest:capture.digest},missing=capture.inventory.objects[0],retained=sourceStore.objects.get(missing.key);sourceStore.objects.delete(missing.key);
+ const recovery=createPrivateRecovery({...recoveryPorts,driver:targetDriver,artifacts:targetStore,sourceArtifacts:sourceStore});assert.equal((await recovery.restore(pinned)).kind,'held');
+ const row=source.prepare('SELECT * FROM app_collection_quotes').get(),columns=Object.keys(row);assert.throws(()=>target.prepare('INSERT INTO app_collection_quotes ('+columns.join(',')+') VALUES('+columns.map(()=>'?').join(',')+')').run(...Object.values(row)),/mutation-disabled/);
+ sourceStore.objects.set(missing.key,retained);assert.equal((await recovery.restore(pinned)).kind,'restored');
+ for(const name of ['app_collection_quotes','app_command_receipts'])assert.equal(canonicalJson(target.prepare('SELECT * FROM '+name).all()),canonicalJson(source.prepare('SELECT * FROM '+name).all()),name);
+ assert.equal(target.prepare('SELECT COUNT(*) n FROM sessions').get().n,0);
+ const restored=createCollectionQuoteService({crypto,repository:createCollectionQuoteRepository(targetDriver,ports)}),historical=await restored.readQuote(principal,accepted.value.id);assert.equal(historical.kind,'found');assert.equal(historical.lifetime,'expired');assert.equal(historical.currentStateVerified,false);assert.deepEqual(historical.quote,accepted.value);
+ const replay=await restored.issueQuote(principal,input);assert.equal(replay.kind,'replayed');assert.deepEqual(replay.receipt,accepted.receipt);assert.deepEqual(replay.value,accepted.value);
+ assert.equal((await restored.readQuote({kind:'wallet',wallet:f.other},accepted.value.id)).kind,'missing');assert.equal(target.prepare('SELECT COUNT(*) n FROM tx_intents').get().n,0);assert.equal(target.prepare('SELECT COUNT(*) n FROM collect_operations').get().n,0);
+ t.diagnostic(JSON.stringify({tables:capture.inventory.tables.length,quotes:1,exactReceipts:1,originalExpiryPreserved:true,oldSessionsRevoked:1,heldTargetInsertBlocked:true,financialExecution:false}));
+});

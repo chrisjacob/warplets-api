@@ -103,5 +103,11 @@
     "Collection reservation, immutable quote acceptance and atomic observation/Vault history work remain unfinished.",
     "No financial execution or public operator route.",
     "B11 remains in progress."
-  ]
+  ],
+  "ci": {
+    "runId": 42136334301,
+    "headSha": "acc96268cf0713d9c8d89546d564b4d5f1465221",
+    "conclusion": "success",
+    "url": "https://github.com/chrisjacob/warplets-api/actions/runs/42136334301"
+  }
 }

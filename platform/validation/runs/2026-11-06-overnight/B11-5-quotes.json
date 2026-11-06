@@ -1,0 +1,242 @@
+{
+  "taskId": "B11",
+  "substep": "B11.5-stored-quotes",
+  "status": "partial",
+  "classification": "Locally verified immutable quote issuance/retrieval; no public issuance, reservation, payment or chain authority",
+  "lastTestedBaseCommit": "acc96268cf0713d9c8d89546d564b4d5f1465221",
+  "implementationCommit": null,
+  "commands": [
+    {
+      "command": "node --test platform/collect/quote-service.test.mjs platform/collect/quote-repository.test.mjs platform/collect/quote-recovery.test.mjs",
+      "tests": 8,
+      "failed": 0,
+      "skipped": 0,
+      "exitCode": 0,
+      "durationMs": 939.9709,
+      "log": "work/b11-quotes-node.log"
+    },
+    {
+      "command": "node --test platform/edge/test/collection-quotes.test.mjs",
+      "tests": 1,
+      "failed": 0,
+      "skipped": 0,
+      "exitCode": 0,
+      "durationMs": 16916.1767,
+      "log": "work/b11-quotes-edge.log"
+    },
+    {
+      "command": "node platform/edge/node_modules/typescript/bin/tsc --noEmit -p platform/edge/tsconfig.json",
+      "exitCode": 0
+    },
+    {
+      "command": "git diff --check",
+      "exitCode": 0
+    },
+    {
+      "command": "node platform/scripts/test-reference.mjs",
+      "tests": 395,
+      "failed": 0,
+      "skipped": 0,
+      "exitCode": 0,
+      "durationMs": 35799.2076,
+      "log": "work/b11-quotes-reference.log",
+      "scope": "Includes two uncommitted pure eligibility-index service tests; no index database tests yet"
+    },
+    {
+      "command": "node platform/contracts/generate.mjs --check",
+      "exitCode": 0
+    },
+    {
+      "command": "node platform/blueprint/validate-plan.mjs --next --self-check",
+      "exitCode": 0
+    }
+  ],
+  "sourceHashes": {
+    "platform/collect/quote-service.mjs": "e9f20941a3479c44ff08a41bc85c04ccfe8345cfb5d00239bee9824ec605ac15",
+    "platform/collect/quote-service.d.mts": "d9fc6c3b90490c168e203b8681117ca01bd2f8acf7def146ea8a70100c962e49",
+    "platform/collect/quote-service.test.mjs": "fdae12e5a404695a2627b7c41975dbbd27d9c505a5a2c05d30fb8d3d53f23242",
+    "platform/collect/quote-repository.mjs": "50940f2ebaf9c12ad4c707e81b6edf1dae74e81df5dc2925699cdb6c98665820",
+    "platform/collect/quote-repository.d.mts": "676af3b7507482cd9f35b9393d62ce0626b049e2ed111a7e8570267fbd1ba043",
+    "platform/collect/quote-repository.test.mjs": "3788a4ac88db9cf6e5bffb70ad228cf9fa438811aea7a9671f2822aefccd3a46",
+    "platform/collect/quote-recovery.test.mjs": "953be9bf3339921e61992c6be014b0ea147513b9665d664405e76340f1ed7e90",
+    "platform/collect/quote-test-harness.mjs": "4523377db9ffd4bdbf37131ec3248e14f6cf821163a066cd8b302c272560492b",
+    "platform/collect/quote-contract.md": "b609cf8c290832c30e861de6703972ad220a520347dedfe8b03513014cba0920",
+    "platform/edge/test/collection-quotes.test.mjs": "01d832d5060a4b06ed714d798ba95e192ae42ae511fa594117f9079a16683b82",
+    "platform/edge/test/fixtures/collection-quotes-worker.ts": "d0ddba7b37ce4416634899d901f19f7056f5bac3e199df74036ee096ddbc428d",
+    "platform/storage/037-collection-quotes.sql": "26175e9a364eb843831a870e66670843955cb7456f53e6149abc9257c1819141"
+  },
+  "measurements": {
+    "pairedNodeD1Calls": 25,
+    "identicalQuotes": 11,
+    "identicalReceipts": 11,
+    "maxStatementsPerCall": 8,
+    "maxBatchBytes": 9132,
+    "maxParameters": 34,
+    "quoteJsonLimit": 32768,
+    "participantLimit": 2,
+    "contextStatements": 3,
+    "ttlMs": 120000
+  },
+  "recovery": {
+    "businessTables": 94,
+    "populatedQuoteRows": 1,
+    "exactPreservedQuoteReceipts": 1,
+    "originalBindingOutcomeAndOutputDigests": true,
+    "originalExpiryPreserved": true,
+    "expiredReplayAndHistoricalRead": true,
+    "sourceOwnerChangedBeforeCapture": true,
+    "revokedOldSessions": 1,
+    "heldTargetInsertBlocked": true
+  },
+  "checks": [
+    "Strict caller fields and canonical integer ceiling; no caller quote identity, clock, policy or instructions",
+    "Immutable copied request survives mutation during async hashing",
+    "Accepted replay precedes current ownership and expiry checks; changed same-key body conflicts",
+    "Repository independently derives from bounded current participant context",
+    "Source, control and owner changes during hashing prevent acceptance",
+    "Expiry at exact exclusive boundary prevents storage before or inside SQL batch",
+    "Actual production SQL millisecond clock admits non-rounded asOf on Node and D1",
+    "Missing quote child rolls back both receipt and quote",
+    "Lost committed response resolves the exact receipt",
+    "Concurrent duplicate request creates one immutable quote",
+    "Wrong wallet cannot retrieve quote",
+    "Indexed source metadata mismatch fails closed",
+    "Historical retrieval is explicitly not current-state verification",
+    "Populated private recovery retains exact quote/receipt while old session is revoked"
+  ],
+  "responseExample": {
+    "classification": "synthetic local fixture",
+    "quote": {
+      "asOfMs": 1771113600000,
+      "bindingDigest": "81d1b4926f2d414df5444a8584906cf75096809562723a57c5f535ca806e5d1a",
+      "ceilingScope": "disclosed-local-components-only",
+      "costQuote": {
+        "items": [
+          {
+            "amountLamports": "10000000",
+            "kind": "protocol-fee"
+          }
+        ],
+        "network": {
+          "amountLamports": null,
+          "status": "unknown"
+        },
+        "payer": "wallet"
+      },
+      "costStatus": "local-preview-only",
+      "executable": false,
+      "expiresMs": 1771113720000,
+      "feeLamports": "10000000",
+      "format": "collection-progression-quote-v1",
+      "historicalAllocationsChange": false,
+      "id": "synthetic-evidence-1",
+      "inventoryId": "synthetic-context-season",
+      "kind": "upgrade",
+      "materialId": "synthetic-l01-material",
+      "materialVersion": 0,
+      "maxTotalLamports": "10000000",
+      "networkCost": "unknown",
+      "outcomes": {
+        "historicalAllocationsChange": false,
+        "materialOutcomes": [
+          {
+            "expiresAtMs": 1769904000000,
+            "level": 1,
+            "probabilityDenominator": 1000,
+            "probabilityNumerator": 489,
+            "remainingMs": 0
+          },
+          {
+            "expiresAtMs": 1772323200000,
+            "level": 2,
+            "probabilityDenominator": 1000,
+            "probabilityNumerator": 256,
+            "remainingMs": 1209600000
+          },
+          {
+            "expiresAtMs": 1775001600000,
+            "level": 3,
+            "probabilityDenominator": 1000,
+            "probabilityNumerator": 128,
+            "remainingMs": 3888000000
+          },
+          {
+            "expiresAtMs": 1777593600000,
+            "level": 4,
+            "probabilityDenominator": 1000,
+            "probabilityNumerator": 64,
+            "remainingMs": 6480000000
+          },
+          {
+            "expiresAtMs": 1780272000000,
+            "level": 5,
+            "probabilityDenominator": 1000,
+            "probabilityNumerator": 32,
+            "remainingMs": 9158400000
+          },
+          {
+            "expiresAtMs": 1782864000000,
+            "level": 6,
+            "probabilityDenominator": 1000,
+            "probabilityNumerator": 16,
+            "remainingMs": 11750400000
+          },
+          {
+            "expiresAtMs": 1785542400000,
+            "level": 7,
+            "probabilityDenominator": 1000,
+            "probabilityNumerator": 8,
+            "remainingMs": 14428800000
+          },
+          {
+            "expiresAtMs": 1788220800000,
+            "level": 8,
+            "probabilityDenominator": 1000,
+            "probabilityNumerator": 4,
+            "remainingMs": 17107200000
+          },
+          {
+            "expiresAtMs": 1790812800000,
+            "level": 9,
+            "probabilityDenominator": 1000,
+            "probabilityNumerator": 2,
+            "remainingMs": 19699200000
+          },
+          {
+            "expiresAtMs": 1793491200000,
+            "level": 10,
+            "probabilityDenominator": 1000,
+            "probabilityNumerator": 1,
+            "remainingMs": 22377600000
+          }
+        ],
+        "targetAfter": {
+          "expiresAtMs": 1772323200000,
+          "level": 2
+        },
+        "visualTraitsChange": false
+      },
+      "outcomesDigest": "a5e306411fa36695e46d7499309f163a6258d9b4752152c72036848fe7e55a94",
+      "policyVersion": "collection-progression-v1",
+      "seasonStartMs": 1767225600000,
+      "sourceDigest": "e5f9d8835725f98ed033db006a57b12b3051c692f2781f1b202cf5b7f7be8cdd",
+      "targetId": "synthetic-l01-target",
+      "targetVersion": 0,
+      "totalCost": "unknown",
+      "wallet": "US517G5965aydkZ46HS38QLi7UQiSojurfbQfKCELFx"
+    }
+  },
+  "boundaries": {
+    "publicIssuance": false,
+    "publicReservation": false,
+    "collectOperationsCreated": 0,
+    "transactionIntentsCreated": 0,
+    "financialExecution": false,
+    "externalReads": false
+  },
+  "remaining": [
+    "Commit/push this tested quote milestone and follow its test-only CI",
+    "Quote-required reservation and authoritative normalized collection progression remain later B11 work",
+    "Public quote issuer intentionally unmounted until quote-required reservation exists"
+  ]
+}
