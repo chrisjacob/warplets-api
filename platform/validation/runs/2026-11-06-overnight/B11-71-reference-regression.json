@@ -1,0 +1,51 @@
+{
+  "task": "B11",
+  "checkpoint": "B11-71",
+  "status": "reference-regression-resolved-with-targeted-test-correction",
+  "productCodeChanged": false,
+  "broadRun": {
+    "command": "node platform/scripts/test-reference.mjs",
+    "log": "work/b11-69-reference-full.log",
+    "manifest": "work/b11-69-reference-manifest.json",
+    "manifestSha256": "4d34c03e52a3a99768cbc145b210422f13c7a01e8292efee78c3abe33bd42b2f",
+    "tests": 850,
+    "passed": 849,
+    "failed": 1,
+    "durationMs": 1784454.922,
+    "scope": "Frozen product/test snapshot including final32stage correction and67 full normal recovery matrix;70 added later and independently verified."
+  },
+  "failure": {
+    "test": "whole durable wrapper retains configured600KiB original-policy evidence within64operations and1MiB",
+    "assertion": "peak.maxCoreWorkingBytes >900000",
+    "cause": "Earlier canonical-name hashing optimization reduced actual bounded core working estimate; resource consumption lower bound was obsolete."
+  },
+  "correction": {
+    "meaning": "Assert actual flat policy is at least600000bytes and every retained policy part is read; preserve64operations/1MiB ceilings and require core accounting at least largest loaded part.",
+    "targetedCommand": "node --test --test-name-pattern=\"whole durable wrapper\" platform/collect/legacy-economic-repository.test.mjs",
+    "log": "work/b11-71-policy-measurement-final.log",
+    "passed": 1,
+    "failed": 0,
+    "durationMs": 2648.5984,
+    "policyBytes": 600611,
+    "uniquePolicyParts": 5,
+    "maxOperations": 52,
+    "maxWorkingBytes": 678505,
+    "maxCoreWorkingBytes": 646569,
+    "note": "Parts deduplicate repeated trait pages; policy size is measured directly from retained fair_inventories.traits, not inferred from sum of unique parts."
+  },
+  "acceptance": [
+    "Broad32stage1000mint2032object capacity passed",
+    "All seven normal adopted recovery profiles plus held-proof negative passed in frozen reference suite",
+    "No product source changed during broad run",
+    "Only outdated resource lower-bound assertion failed; corrected focused case passed",
+    "No memory/operation ceiling increased and no fixture reduced"
+  ],
+  "remaining": [
+    "Complete local Edge suite session48594",
+    "Push current coherent checkpoint and follow relevant test-only CI",
+    "B11 acceptance rollup remains open"
+  ],
+  "sourceHashes": {
+    "platform/collect/legacy-economic-repository.test.mjs": "86eeaac85fced67de8cf933ce50f44ede2e74130e5c55e00d2df16670f27887c"
+  }
+}

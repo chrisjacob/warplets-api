@@ -2,7 +2,7 @@
 
 Continue autonomously. The user refreshed usage and explicitly resumed. No stopping condition has been reached. Do not stop after a test, commit, push, report or this handoff. The historical get_goal status remains usageLimited despite the resumed user instructions; do not treat that stale status as a new stop request.
 
-Workspace: existing implementation repository; branch work/10x-prd-foundation. Preserve newer/unrelated changes. Stage-page correction d9f62eb is tested;67 full acceptance committed5224279;70 acceptance being committed. Schema055 installed, next056 unreserved;112 business tables. B00-B10 andB14 verified. B11 in progress and only dependency-ready task. B20-core b18dec7/CI42125215062 verified; skip B20 until every full-profile prerequisite passes.
+Workspace: existing implementation repository; branch work/10x-prd-foundation. Preserve newer/unrelated changes. Stage-page correction d9f62eb is tested;67 full acceptance committed5224279;70 accepted business replay committed026d28c. Schema055 installed, next056 unreserved;112 business tables. B00-B10 andB14 verified. B11 in progress and only dependency-ready task. B20-core b18dec7/CI42125215062 verified; skip B20 until every full-profile prerequisite passes.
 
 ## Current work
 
@@ -41,3 +41,7 @@ Requested detailed status/story-point estimate saved at the current chat outputs
 ## Boundaries and next actions
 
 No deployment, remoteCloudflarewrite/provisioning, financialsigning/broadcast/funding/spending/subscriptions/messages, main/devmerge,forcepush orRstage. Financialflagsfalse; Sydneyhours/latermintpricesopen. Pinned localdependencies/recordedfixtures only. Coordinatorowns sharedcontracts/migrations/commits; atmosttwoimplementationagents. Stage explicit hash-verified files, gitdiffcachedcheck,commit/push tested milestones. Keep work/ scratch untracked. Save RUN_STATE and this current handoff before context reset.
+
+Full current task-card Edge suite started at026d28c: session48594, work/b11-final-edge-full.log, --test-concurrency=2 (all edge tests), immutable manifestwork/b11-final-edge-manifest.json. Required alongside fullreference43304; no final totals yet. 70Node/D1final passed andcommitted026d28c. Read-only projection work/B11-checkpoint-headroom-projection.md: actualtable import peak tableOrder2534B canbeencoded339B indices,saving2195B; illustrative smalltable+612B wouldexceedcurrent214Bheadroom. No runtimechange; address actual next schema growth beforeinstallingmigration, preserveexactdescriptors/old-name resumes.
+
+71 final reference result:850tests849PASS1FAIL1784454.922ms; only obsolete maxCoreWorkingBytes>900000 floor after57memoryoptimization. Test-only correction now asserts actual600611Bflatpolicy andall5unique retainedparts read, unchanged64op/1MiBceilings, accounting at leastlargestpart; targeted1PASS2648.5984ms/max52ops678505working646569core. No productcodechanges. Broad32stage1000mintcapacity andall67normalprofiles passed. Evidence B11-71-reference-regression.json. FullEdge48594 remainsactive;latestcase27. CI6bbebac/42213197950 Worker testsrunning afterotherstagespassed. User received detailedstatusincommentary; continuegoal.
