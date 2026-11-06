@@ -1,3 +1,11 @@
+# Account100% checkpoint: pinned v2 Vault liability reader
+
+Latest slice manifest-from-recovery.mjs derives liabilities from an independently pinned v2 root through bounded table/page index paths. It verifies source snapshot digest, exact page/schema/row identity and derived budgets. Seven focused tests pass259.0131ms, including branched index traversal and corrupted or internally inconsistent sources. EvidenceB19-06. Return explicitly says pinned-liability-page-only and fullRecoveryVerified=false. Structural synthetic test root is not a complete recovery-ready graph.
+
+Next executable: compose full inventory plus binding/transfer/cumulative-claim history and prove actual empty-database restore with partial claims, transfer, Season expiry and conflicting evidence holds. Reuse current v2 capture/restore; preserve128346/131072 golden checkpoint bound. Then claim codecs and detailed custody/farm dossiers. B19 remains partial. B17CI42308923046 active at last observation (reference stage); follow to final before marking B17 verified. B18 waits B17. B20-core passed; full waits all prerequisites. B00-B16 verified.
+
+Account reached100%; no reset or spending performed. Review estimate373/411 implemented,38remaining;343strict verified. Keep feature branch and preserve work/ scratch. Financial execution remains disabled.
+
 # Latest B19 checkpoint: private liability persistence
 
 archive.mjs now saves and independently restores the PRIVATE liability component through ArtifactStore. Unknown writes retry identical bytes; missing objects stay pending; corrupted bytes and changed market/inventory pins reject. Nine focused tests pass247.5425ms; B19-05. Earlier source-report SHA was checked against actual committed blob and working bytes: identical12617bytes, no line-ending portability difference.

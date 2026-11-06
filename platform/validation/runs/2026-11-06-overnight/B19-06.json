@@ -1,0 +1,28 @@
+{
+  "milestone": "Vault liability derivation from pinned v2 recovery page",
+  "status": "partial-page-binding-verified",
+  "baseCommit": "14c7ea3",
+  "checks": [
+    {
+      "command": "node --test platform/vault/manifest-from-recovery.test.mjs platform/vault/archive.test.mjs platform/vault/manifest.test.mjs",
+      "passed": 7,
+      "failed": 0,
+      "durationMs": 259.0131
+    }
+  ],
+  "sourceHashes": {
+    "platform/vault/manifest-from-recovery.mjs": "fadbb3498862a4781d63dbe0eafca1ca1bb1ce62425e4868ff26c71e55c31310",
+    "platform/vault/manifest-from-recovery.test.mjs": "543be89ecbb876ab78b4369eaa2c9c76ff12caa6f9230d82702626c7484cc104"
+  },
+  "assertions": [
+    "Independent root, branched table index, page index and exact row digest binding",
+    "Original snapshot digest and computed budgets checked",
+    "Wrong root, absent market/page, lying byte store and rehashed inconsistent budget rejected"
+  ],
+  "limitations": [
+    "Explicit pinned-liability-page-only result; fullRecoveryVerified=false",
+    "Structural synthetic test root is deliberately partial, not recovery-ready",
+    "Complete binding/transfer/claim history and full empty-database restore acceptance remain required"
+  ],
+  "financialExecution": false
+}
