@@ -1,0 +1,13 @@
+{
+  "task": "B12",
+  "status": "checkpoint-submitted",
+  "testedProductCommit": "0269b2f",
+  "scope": "B12-01 through B12-05; session, staffing/pause, moderation, recovery compaction, whitelist publication and advisory governance",
+  "excluded": "Uncommitted free-cut work and migration059 not part of this checkpoint",
+  "priorCI": {
+    "run": 42221767194,
+    "source": "b9efc0c",
+    "conclusion": "success"
+  },
+  "acceptanceWeakened": false
+}

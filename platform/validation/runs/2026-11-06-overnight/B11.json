@@ -1,6 +1,6 @@
 {
   "task": "B11",
-  "status": "verified-local",
+  "status": "verified",
   "completionReview": [
     {
       "id": "quotes-reservations",
@@ -130,10 +130,13 @@
   "ci": {
     "run": 42221767194,
     "head": "b9efc0c8c97896a286c5f78ac4bf03e3a52727be",
-    "status": "in_progress",
-    "notClaimedPassed": true,
+    "status": "completed",
+    "notClaimedPassed": false,
     "priorRun": 42216368281,
     "priorOutcome": "40minute timeout; same checks rerun with120minute allowance",
-    "followup": "Coordinator follows frozen B11 CI while starting locally dependency-ready B12. Any failure is work to resolve, not a waived gate."
+    "followup": "All integrated test-only steps passed. Subsequent B12 changes have their own checkpoint.",
+    "conclusion": "success",
+    "duration": "1h0m41s",
+    "log": "work/ci-42221767194.log"
   }
 }
