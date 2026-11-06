@@ -1,0 +1,370 @@
+{
+  "task": "B12",
+  "slice": "B12-05",
+  "status": "verified-slice",
+  "baseCommit": "d0cad5d",
+  "scope": [
+    "Advisory ballot publication and final decisions through separate scoped operator commands",
+    "Read-only source-derived electorate snapshot/count and earliest-opening previews",
+    "Atomic audit child and additive058guards; historical digests/accepted receipts unchanged; legacy adoption explicitly labelled"
+  ],
+  "checks": {
+    "boundary": "29PASS2776.7672ms work/b12-governance-boundary.log",
+    "baseline": "7PASS21070.2404ms work/b12-governance-audit-base.log; mutation count5\u21926 accounts for mandatoryaudit, byte/parameter limits unchanged",
+    "auditNode": "6PASS6815.8687ms work/b12-governance-audit-node.log",
+    "auditD1": "2PASS98590.8958ms work/b12-governance-audit-edge.log;10000-member parity;7583Bmaxbatch33parameters6mutationstatements",
+    "types": "PASS work/b12-governance-types.log and agentchecks",
+    "recoveryNode": {
+      "label": "Read-only synthetic-local diagnostic; no runtime or schema edits",
+      "profile": "modern-pending",
+      "normalRecovery": true,
+      "peakBytes": 129234,
+      "peakPhase": "reconcile-tables",
+      "peakRevision": 1100,
+      "fields": {
+        "descriptor": 77179,
+        "format": 31,
+        "generation": 38,
+        "phase": 18,
+        "revision": 4,
+        "root": 7751,
+        "tableCursor": 335,
+        "tables": 41970,
+        "parents": 4,
+        "objectCursor": 336,
+        "tableOrder": 4,
+        "publicationCount": 1,
+        "publicationCursor": 84,
+        "activePage": 316,
+        "importedRows": 1,
+        "lastCursor": 4,
+        "pageCursor": 645,
+        "pageIndex": 1,
+        "rowOffset": 1,
+        "tableIndex": 3,
+        "restoredRevisions": 4,
+        "targetWatermark": 2,
+        "pendingObject": 4,
+        "checkedTableDescriptors": 3,
+        "auditHash": 66,
+        "auditSequence": 1,
+        "checkedTables": 3,
+        "reconciledRows": 1
+      },
+      "nested": {
+        "descriptor": {
+          "schemaInventory": 73797,
+          "sourceGeneration": 15,
+          "sourceRecovery": 54,
+          "sourceWatermark": 1,
+          "tableNames": 2534,
+          "tableSignature": 66,
+          "triggerFingerprint": 66,
+          "watermarkTemplates": 493
+        },
+        "root": {
+          "authPolicy": 34,
+          "checkpoints": 256,
+          "createdMs": 13,
+          "format": 23,
+          "mode": 9,
+          "objects": 282,
+          "publications": 27,
+          "schema": 6549,
+          "snapshot": 48,
+          "sourceCommit": 42,
+          "tables": 282,
+          "totals": 40
+        },
+        "tableCursor": {
+          "emitted": 3,
+          "kind": 8,
+          "pointer": 282,
+          "stack": 2
+        },
+        "objectCursor": {
+          "emitted": 3,
+          "kind": 9,
+          "pointer": 282,
+          "stack": 2
+        },
+        "publicationCursor": {
+          "emitted": 1,
+          "kind": 14,
+          "pointer": 27,
+          "stack": 2
+        },
+        "activePage": {
+          "after": 4,
+          "identity": 256,
+          "index": 1,
+          "last": 3,
+          "rowCount": 1
+        },
+        "pageCursor": {
+          "emitted": 1,
+          "kind": 13,
+          "pointer": 279,
+          "stack": 312
+        }
+      },
+      "phases": {
+        "metadata": {
+          "bytes": 129055,
+          "revision": 125
+        },
+        "objects": {
+          "bytes": 128873,
+          "revision": 247
+        },
+        "publications": {
+          "bytes": 127851,
+          "revision": 291
+        },
+        "tables": {
+          "bytes": 129110,
+          "revision": 461
+        },
+        "fences": {
+          "bytes": 127821,
+          "revision": 483
+        },
+        "pin-target": {
+          "bytes": 127735,
+          "revision": 484
+        },
+        "reconcile-objects": {
+          "bytes": 129110,
+          "revision": 643
+        },
+        "reconcile-table-metadata": {
+          "bytes": 129129,
+          "revision": 802
+        },
+        "reconcile-tables": {
+          "bytes": 129234,
+          "revision": 1100
+        },
+        "reconcile-audit": {
+          "bytes": 86314,
+          "revision": 1110
+        },
+        "reconcile-economics": {
+          "bytes": 86368,
+          "revision": 1111
+        },
+        "reconcile-legacy-adoptions": {
+          "bytes": 86449,
+          "revision": 1135
+        },
+        "reconcile-legacy-adoption-stages": {
+          "bytes": 86778,
+          "revision": 1113
+        },
+        "reconcile-legacy-adoption-mints": {
+          "bytes": 86952,
+          "revision": 1116
+        },
+        "reconcile-legacy-adoption-economics": {
+          "bytes": 89153,
+          "revision": 1121
+        },
+        "reconcile-legacy-adoption-current": {
+          "bytes": 87159,
+          "revision": 1124
+        },
+        "reconcile-legacy-adoption-closure": {
+          "bytes": 87296,
+          "revision": 1127
+        },
+        "reconcile-legacy-adoption-aggregate": {
+          "bytes": 87887,
+          "revision": 1134
+        },
+        "reconcile-collection-authorities": {
+          "bytes": 86534,
+          "revision": 1136
+        },
+        "reconcile-collection-admissions": {
+          "bytes": 86579,
+          "revision": 1139
+        },
+        "reconcile-collection-fulfillments": {
+          "bytes": 86704,
+          "revision": 1142
+        },
+        "reconcile-free-cut-records": {
+          "bytes": 86667,
+          "revision": 1143
+        },
+        "reconcile-free-cut-attempts": {
+          "bytes": 86705,
+          "revision": 1144
+        },
+        "reconcile-free-cut-validations": {
+          "bytes": 86748,
+          "revision": 1145
+        },
+        "reconcile-free-cut-lists": {
+          "bytes": 86761,
+          "revision": 1146
+        },
+        "reconcile-free-cut-bindings": {
+          "bytes": 86801,
+          "revision": 1147
+        },
+        "reconcile-publications": {
+          "bytes": 86796,
+          "revision": 1148
+        },
+        "reconcile-checkpoints": {
+          "bytes": 86875,
+          "revision": 1149
+        },
+        "reconcile-final": {
+          "bytes": 86869,
+          "revision": 1150
+        },
+        "final-ready": {
+          "bytes": 87136,
+          "revision": 1151
+        }
+      }
+    },
+    "browser": {
+      "slice": "B12 advisory governance operator UI",
+      "recordedAt": "2026-11-06T13:50:36.502625+00:00",
+      "sourceHashes": {
+        "platform/operator/ui.mjs": "32f9548122aa7076e628eee8d45a6656b4df74205e7af2d19ce98eaa92566e8b",
+        "platform/operator/index.html": "60054aa8304032be2424b56bb00306562a2dafb3c59b27c0ff29085ce7fc7685",
+        "platform/operator/governance-browser-qa.mjs": "9c961d48262be33e163c21fb5652a7fd66d28d0d3b5fff996e19a87ed3ebd1c7"
+      },
+      "governanceBrowser": {
+        "passed": true,
+        "widths": [
+          360,
+          390,
+          768,
+          1440
+        ],
+        "clock": "actual Date.now and database clock",
+        "sourceKind": "synthetic-local-operator-fixture",
+        "historicalOpeningFixture": true,
+        "blankSchedulesAndChoice": true,
+        "cutoffMismatchRejected": true,
+        "missingListHeld": true,
+        "previewReadOnly": true,
+        "derivedSnapshot": true,
+        "eligibleCount": 4,
+        "derivedEarliestMs": 1794059315000,
+        "decisionBeforeCloseRejected": true,
+        "negativeLostResponses": 2,
+        "negativeReceiptMismatch": true,
+        "exactReplayAfterScopeRevocation": true,
+        "immutableBallotAndDecision": true,
+        "auditEvents": 2,
+        "zeroTurnout": true,
+        "noStageOpened": true,
+        "readOnlyPermission": true,
+        "financialExecution": false,
+        "screenshots": "work/b12-governance-operator"
+      },
+      "reviewRegression": {
+        "passed": true,
+        "widths": [
+          360,
+          390,
+          768,
+          1440
+        ],
+        "realCommandExecutions": 14,
+        "auditEvents": 10,
+        "newAuditEvents": 9,
+        "baselineAuditEvents": 1,
+        "previewReadOnly": true,
+        "negativeResponseLoss": true,
+        "exactRetryAfterReload": true,
+        "expiredSessionReauthentication": true,
+        "stablePrincipalRetry": true,
+        "differentPrincipalIsolation": true,
+        "negativeStalePreview": true,
+        "readOnlySession": true,
+        "auditedFinalReview": true,
+        "immutableReviewConflict": true,
+        "reviewExactReplay": true,
+        "confirmationRevisionBinding": true,
+        "negativePreviewMismatch": true,
+        "legacyReceiptReadOnly": true,
+        "missingLegacyReceiptHeld": true,
+        "keyboardFocus": true,
+        "logoutClearsPrivateState": true,
+        "financialExecution": false,
+        "screenshots": "work/b12-governance-review-regression"
+      },
+      "stageRegression": {
+        "passed": true,
+        "widths": [
+          360,
+          390,
+          768,
+          1440
+        ],
+        "clock": "actual Date.now with database execution-time fence",
+        "source": "synthetic-local-operator-fixture",
+        "missingListHold": "Preview held: electorate-seal-missing. No publication has been confirmed.",
+        "missingTrancheHeld": true,
+        "noLaunchDefaults": true,
+        "exactUtcTimes": true,
+        "derivedTerms": true,
+        "eligibilityCount": 3,
+        "previewReadOnly": true,
+        "staleConfirmationRejected": true,
+        "negativeLostResponse": true,
+        "negativeResponseIdentity": true,
+        "exactReplayAfterScopeRevocation": true,
+        "immutablePublishedTerms": true,
+        "auditEvents": 1,
+        "readOnlyPermission": true,
+        "financialExecution": false,
+        "screenshots": "work/b12-governance-stage-regression"
+      },
+      "checks": [
+        {
+          "command": "node platform/operator/governance-browser-qa.mjs with installed local Chromium",
+          "log": "work/b12-governance-browser.log",
+          "passed": true,
+          "elapsedSeconds": 7.0357293
+        },
+        {
+          "command": "node platform/operator/browser-qa.mjs with installed local Chromium",
+          "log": "work/b12-governance-review-regression.log",
+          "passed": true,
+          "elapsedSeconds": 9.8044018
+        },
+        {
+          "command": "node platform/operator/stage-browser-qa.mjs with installed local Chromium",
+          "log": "work/b12-governance-stage-regression.log",
+          "passed": true,
+          "elapsedSeconds": 7.061903
+        },
+        {
+          "command": "node --check owned JS; git diff --check; UTF8/LF validation",
+          "passed": true
+        }
+      ],
+      "notes": [
+        "Only ui.mjs/index.html/new governance-browser-qa.mjs changed; prior browser assertions remain unchanged.",
+        "All positive flows use actual API, genuine sealed/indexed synthetic electorate lists, explicit local session kinds/database scopes and actual Date.now/database clock.",
+        "Publication fixture opening is historical so48hballot closes before current advisory decision; fixture label is explicit and no historical chain ownership is claimed.",
+        "Publication validates exact opening=cutoff, snapshotHash/eligibleCount/closesAt; decision validates exact input and derived earliestMs/ballotSnapshotHash. Both require advisory:true andfinancialExecution:false.",
+        "Blank schedule/choice controls preserve user decisions; policy-supported choice constants are ASAP,7,14,30. No Sydney launch hour is selected.",
+        "Lost acknowledgements and altered receipt counts are negative-only fault injection; retries preserve exact body/key/confirmation after scope revocation, producing exactly two audit events.",
+        "Final ballot/decision rows are immutable; zero-turnout decision is legitimate; no stage row is created and no spending or financial execution is enabled.",
+        "All four widths verify overflow and keyboard focus;360decision screenshot visually inspected."
+      ]
+    }
+  },
+  "migration": "058-governance-audit.sql",
+  "financialExecution": false,
+  "remaining": "Free-cut/source/future-action/fixture-observation and explicit founder/public approval boundaries plus approval packet; B12 remains partial."
+}

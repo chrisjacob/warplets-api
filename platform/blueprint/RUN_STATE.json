@@ -5,9 +5,9 @@
   "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
   "currentTask": "B12",
-  "lastUpdatedAt": "2026-11-06T13:40:59.941532+00:00",
+  "lastUpdatedAt": "2026-11-06T13:53:23.093832+00:00",
   "migrationAllocation": {
-    "next": 58,
+    "next": 59,
     "reserved": [
       {
         "version": 31,
@@ -143,6 +143,11 @@
         "version": 57,
         "task": "B12",
         "purpose": "additive mandatory stage-publication audit guard; no new tables"
+      },
+      {
+        "version": 58,
+        "task": "B12",
+        "purpose": "mandatory atomic advisory governance publication/decision audits; no new tables"
       }
     ],
     "historicalGap": 19
@@ -390,15 +395,16 @@
       "status": "in_progress",
       "owner": "coordinator",
       "baseCommit": "b9efc0c8c97896a286c5f78ac4bf03e3a52727be",
-      "implementationCommit": "9cfca73",
+      "implementationCommit": "d0cad5d",
       "pushed": true,
       "evidence": [
         "platform/validation/runs/2026-11-06-overnight/B12-01.json",
         "platform/validation/runs/2026-11-06-overnight/B12-02.json",
         "platform/validation/runs/2026-11-06-overnight/B12-03.json",
-        "platform/validation/runs/2026-11-06-overnight/B12-04.json"
+        "platform/validation/runs/2026-11-06-overnight/B12-04.json",
+        "platform/validation/runs/2026-11-06-overnight/B12-05.json"
       ],
-      "nextAction": "Audited governance publication/decision and remaining collection/free-cut/source/future-action operator boundaries; B12 not complete.",
+      "nextAction": "Finish scoped fixed-opening free-cut audit/preview workflow; coordinator free-cut-service/repository edits already started. Add mandatory059 guard and tests, then remaining source/action/observation/approval commands.",
       "blocker": null
     },
     "B13": {

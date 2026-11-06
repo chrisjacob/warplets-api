@@ -1,3 +1,4 @@
+import {prepareConfigAudit,configAuditStatement} from '../storage/atomic-audit.mjs';
 import {createAtomicReceipts} from '../storage/atomic-receipts.mjs';
 import {sql,revisions,matchesExpectedRevisions} from '../storage/atomic-driver.mjs';
 import {canonicalJson} from '../security/canonical.mjs';
@@ -13,11 +14,10 @@ export function createGovernanceOperatorRepository(driver,ports){
  async function command(value,kind){const c=structuredClone(value),expected=await prepareGovernanceOperatorCommand(kind,c,ports.crypto);if(c.operationKind!==kind||c.businessIdentity!==expected.businessIdentity||c.requestDigest!==expected.requestDigest)throw new TypeError('Invalid governance operator command.');return c;}
  async function capture(c,scope){
   const prior=await receipts.replay(c);if(prior)return {outcome:prior};
-  const [rs,grants,ballots]=await receipts.read([sql('SELECT * FROM app_revisions ORDER BY name'),sql('SELECT enabled FROM app_operator_scopes WHERE operator=? AND scope=?',c.principal.id,scope),sql('SELECT * FROM genesis_ballots WHERE id=?',c.input.ballotId)]);
-  const version=revisions(rs);if(!matchesExpectedRevisions(c.expectedRevisions,version))return {outcome:conflict('revision_conflict')};if(!grants[0]?.enabled)return {outcome:conflict('operator_scope_required')};return {version,ballot:ballots[0]};
+  const [rs,grants,ballots,heads]=await receipts.read([sql('SELECT * FROM app_revisions ORDER BY name'),sql('SELECT enabled FROM app_operator_scopes WHERE operator=? AND scope=?',c.principal.id,scope),sql('SELECT * FROM genesis_ballots WHERE id=?',c.input.ballotId),sql('SELECT seq,event_hash FROM ops_config_audit ORDER BY seq DESC LIMIT 1')]);
+  const version=revisions(rs);if(!matchesExpectedRevisions(c.expectedRevisions,version))return {outcome:conflict('revision_conflict')};if(!grants[0]?.enabled)return {outcome:conflict('operator_scope_required')};return {version,ballot:ballots[0],head:heads[0]};
  }
- return Object.freeze({
-  async publishBallot(value){
+ async function publishBallot(value,previewOnly=false){
    const c=await command(value,PUBLISH_BALLOT),captured=await capture(c,'governance-publication');if(captured.outcome)return captured.outcome;if(captured.ballot)return conflict('ballot_already_published');
    const b=c.input,loaded=await readGovernanceElectorates(receipts.read,[b.holdersListId,b.nextWhitelistListId,b.unionListId],ports.crypto);if(loaded.kind!=='ready')return loaded;
    const holders=loaded.lists.get(b.holdersListId).wallets,nextWhitelist=loaded.lists.get(b.nextWhitelistListId).wallets,union=loaded.lists.get(b.unionListId).wallets;
@@ -26,6 +26,11 @@ export function createGovernanceOperatorRepository(driver,ports){
    const pure=await planning.publishBallot({...c,input:{ballotId:b.ballotId,opensMs:b.opensMs,previousTrancheOpeningMs:b.previousTrancheOpeningMs,electorateSourceId:b.electorateSourceId,electorateDigest:b.electorateDigest}}),plan=await planning.planPublication(pure,source);
    if(plan.electorate.manifest.id!==b.unionListId)return conflict('electorate_union_conflict');
    const result={...plan.result,sourceKind:b.sourceKind},input={...b,snapshotHash:result.snapshotHash,eligibleCount:result.eligibleCount,closesMs:result.closesAt};
+   if(previewOnly)return {kind:'preview',value:{...result,expectedRevisions:captured.version,advisory:true,financialExecution:false}};
+   const event={category:'governance-publication',entity:b.ballotId,changeKey:c.requestKey,atMs:c.nowMs,actor:c.principal.id,
+    evidenceRef:b.electorateSourceId,payload:{requestDigest:c.requestDigest,snapshotHash:result.snapshotHash,eligibleCount:result.eligibleCount,
+     electorateDigest:b.electorateDigest,holdersListId:b.holdersListId,nextWhitelistListId:b.nextWhitelistListId,unionListId:b.unionListId,sourceKind:b.sourceKind}};
+   input.audit=await prepareConfigAudit(captured.head,event,ports.crypto);
    const listGates=[...loaded.lists.values()].map(({seal})=>({sql:'EXISTS(SELECT 1 FROM app_collection_list_seals WHERE id=? AND closure_digest=? AND member_count=?)',values:[seal.id,seal.closureDigest,seal.count]}));
    return receipts.execute(c,{businessKey:c.businessIdentity,input,result,resultRef:b.ballotId,version:captured.version,
     authoritySql:`${scopeSql} AND NOT EXISTS(SELECT 1 FROM genesis_ballots WHERE id=?) AND ${listGates.map(g=>g.sql).join(' AND ')}`,
@@ -34,9 +39,10 @@ export function createGovernanceOperatorRepository(driver,ports){
      sql(`INSERT INTO genesis_ballots(id,opens_ms,closes_ms,tranche_open_ms,snapshot_hash,eligible_count) SELECT ?,?,?,?,?,? WHERE ${gate}`,b.ballotId,b.opensMs,result.closesAt,b.previousTrancheOpeningMs,result.snapshotHash,result.eligibleCount,...v),
      sql(`INSERT INTO app_governance_publications(ballot_id,source_id,cutoff_ms,source_kind,holders_list_id,next_whitelist_list_id,union_list_id,source_digest,operation_id) SELECT ?,?,?,?,?,?,?,?,operation_id FROM app_command_receipts WHERE operation_id=? AND claim_nonce=? AND state='staging' AND ${gate}`,b.ballotId,b.electorateSourceId,b.cutoffMs,b.sourceKind,b.holdersListId,b.nextWhitelistListId,b.unionListId,b.electorateDigest,...v,...v),
      sql(`INSERT INTO genesis_voters(ballot_id,wallet) SELECT ?,members.value FROM app_collection_list_seals s JOIN json_each(s.page_ids_json) pages JOIN app_collection_eligibility_pages p ON p.record_id=pages.value JOIN json_each(p.entries_json) members WHERE s.id=? AND ${gate}`,b.ballotId,b.unionListId,...v),
+     configAuditStatement(input.audit,event,gate,v),
     ]});
-  },
-  async recordDecision(value){
+ }
+ async function recordDecision(value,previewOnly=false){
    const c=await command(value,RECORD_DECISION),captured=await capture(c,'governance-decision');if(captured.outcome)return captured.outcome;const row=captured.ballot;if(!row)return conflict('ballot_not_found');if(!validBallotContext(row))return pending('invalid-ballot-context',row.id);
    const [decisions,coverage,claimed]=await receipts.read([sql('SELECT ballot_id AS ballotId,choice,decided_ms AS decidedMs,notice_ms AS noticeMs,earliest_ms AS earliestMs,rationale FROM genesis_decisions WHERE ballot_id=?',row.id),sql('SELECT COUNT(*) AS n FROM genesis_voters WHERE ballot_id=?',row.id),sql('SELECT operation_id FROM app_command_receipts WHERE operation_kind=? AND business_key=?',RECORD_DECISION,c.businessIdentity)]);
    if(claimed.length)return conflict('decision_already_recorded');
@@ -44,11 +50,15 @@ export function createGovernanceOperatorRepository(driver,ports){
    let plan;try{plan=planning.planDecision(c,{ballot:{id:row.id,opensAt:row.opens_ms,closesAt:row.closes_ms,currentTrancheOpenedAt:row.tranche_open_ms,snapshotHash:row.snapshot_hash},priorDecision:decisions[0]??null});}
    catch(error){if(error instanceof CollectionPolicyError)return conflict(error.code);if(error instanceof TypeError)return conflict(decisions.length?'decision_conflict':'invalid_decision');throw error;}
    const d=plan.decision,old=plan.replayed,input={...c.input,earliestMs:d.earliestMs,ballotSnapshotHash:row.snapshot_hash,adoptedLegacy:old};
+   if(previewOnly)return {kind:'preview',value:{...d,ballotSnapshotHash:row.snapshot_hash,expectedRevisions:captured.version,advisory:true,financialExecution:false}};
+   const event={category:old?'governance-decision-adoption':'governance-decision',entity:row.id,changeKey:c.requestKey,atMs:c.nowMs,actor:c.principal.id,
+    evidenceRef:row.snapshot_hash,payload:{...d,requestDigest:c.requestDigest,ballotSnapshotHash:row.snapshot_hash,adoptedLegacy:old}};
+   input.audit=await prepareConfigAudit(captured.head,event,ports.crypto);
    return receipts.execute(c,{businessKey:c.businessIdentity,input,result:d,resultRef:row.id,version:captured.version,
     authoritySql:`${scopeSql} AND ${nowSql}>=? AND EXISTS(SELECT 1 FROM genesis_ballots b WHERE id=? AND snapshot_hash=? AND opens_ms=? AND closes_ms=? AND tranche_open_ms=? AND eligible_count=(SELECT COUNT(*) FROM genesis_voters WHERE ballot_id=b.id)) AND ${old?'EXISTS(SELECT 1 FROM genesis_decisions WHERE ballot_id=? AND choice=? AND decided_ms=? AND notice_ms=? AND earliest_ms=? AND rationale=?)':'NOT EXISTS(SELECT 1 FROM genesis_decisions WHERE ballot_id=?)'}`,
     authorityValues:[c.principal.id,'governance-decision',d.decidedMs,row.id,row.snapshot_hash,row.opens_ms,row.closes_ms,row.tranche_open_ms,...(old?[row.id,d.choice,d.decidedMs,d.noticeMs,d.earliestMs,d.rationale]:[row.id])],
-    child:(gate,v)=>old?[]:[sql(`INSERT INTO genesis_decisions(ballot_id,choice,decided_ms,notice_ms,earliest_ms,rationale) SELECT ?,?,?,?,?,? WHERE ${gate}`,row.id,d.choice,d.decidedMs,d.noticeMs,d.earliestMs,d.rationale,...v)],
+    child:(gate,v)=>[...(old?[]:[sql(`INSERT INTO genesis_decisions(ballot_id,choice,decided_ms,notice_ms,earliest_ms,rationale) SELECT ?,?,?,?,?,? WHERE ${gate}`,row.id,d.choice,d.decidedMs,d.noticeMs,d.earliestMs,d.rationale,...v)]),configAuditStatement(input.audit,event,gate,v)],
    });
-  },
- });
+ }
+ return Object.freeze({publishBallot:value=>publishBallot(value),recordDecision:value=>recordDecision(value),previewBallot:value=>publishBallot(value,true),previewDecision:value=>recordDecision(value,true)});
 }

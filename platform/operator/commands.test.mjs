@@ -5,6 +5,7 @@ import {createOperationsCommand,OPERATIONS} from '../storage/atomic-operations.m
 import {createNodeCrypto} from '../security/node-crypto.mjs';
 import {FINAL_REVIEW,reviewRequestBytes} from '../application/commands.mjs';
 import {canonicalJson,utf8} from '../security/canonical.mjs';
+import {PUBLISH_BALLOT,RECORD_DECISION,prepareGovernanceOperatorCommand,governanceOperatorCommandBytes} from '../governance/operator-service.mjs';
 import {PUBLISH_COLLECTION_STAGE,buildStagePublicationCommand} from '../collect/stage-service.mjs';
 
 const crypto=createNodeCrypto(),nowMs=Date.parse('2026-11-07T04:00:00Z'),epoch=Math.floor(nowMs/86400000);
@@ -19,6 +20,8 @@ const review=()=>({operationKind:FINAL_REVIEW,requestKey:'synthetic-submission',
 const stage=()=>({operationKind:PUBLISH_COLLECTION_STAGE,requestKey:'synthetic-stage',expectedRevisions:{...revisions},input:{
  inventoryId:'synthetic-inventory',stageId:'synthetic-whitelist',type:'whitelist',publishedAt:nowMs,opensAt:nowMs+2*86400000,closesAt:nowMs+3*86400000,
  priceLamports:'100000000',costLamports:'5000',allocation:100,walletLimit:1,founderApproved:false,approvedSpendLamports:null,ballotId:null,inventoryOverrideReason:null,eligibilityListId:'a'.repeat(64),sourceKind:'synthetic-local-operator-fixture'}});
+const ballot=()=>({operationKind:PUBLISH_BALLOT,requestKey:'synthetic-ballot-publish',expectedRevisions:{...revisions},input:{ballotId:'synthetic-ballot',opensMs:nowMs,previousTrancheOpeningMs:nowMs-86400000,electorateSourceId:'synthetic-electorate',electorateDigest:'b'.repeat(64),cutoffMs:nowMs,sourceKind:'synthetic-local-operator-fixture',holdersListId:'c'.repeat(64),nextWhitelistListId:'d'.repeat(64),unionListId:'e'.repeat(64)}});
+const decision=()=>({operationKind:RECORD_DECISION,requestKey:'synthetic-decision',expectedRevisions:{...revisions},input:{ballotId:'synthetic-ballot',choice:'7',decidedMs:nowMs,noticeMs:nowMs-86400000,rationale:'Synthetic advisory choice'}});
 const prepare=request=>prepareOperatorCommand({principal,request,nowMs},crypto);
 const invalid=error=>error.code==='invalid_input';
 
@@ -33,7 +36,7 @@ test('local operator registry rejects member authority, extra fields, unknown co
  for(const badPrincipal of [{kind:'wallet',wallet:'synthetic'}, {...principal,sessionToken:'not-command-data'}, {kind:'operator',id:' '}])
   await assert.rejects(prepareOperatorCommand({principal:badPrincipal,request:staffing(),nowMs},counting),invalid);
  await assert.rejects(prepareOperatorCommand({principal,request:staffing(),nowMs:NaN},counting),invalid);
- assert.equal(hashes,0);assert.deepEqual(LOCAL_OPERATOR_COMMANDS,[OPERATIONS.configureWorkload,OPERATIONS.changeScope,FINAL_REVIEW,PUBLISH_COLLECTION_STAGE]);
+ assert.equal(hashes,0);assert.deepEqual(LOCAL_OPERATOR_COMMANDS,[OPERATIONS.configureWorkload,OPERATIONS.changeScope,FINAL_REVIEW,PUBLISH_COLLECTION_STAGE,PUBLISH_BALLOT,RECORD_DECISION]);
 });
 
 test('final moderation keeps historical receipt identity while confirmation binds explicit revisions',async()=>{
@@ -48,7 +51,7 @@ test('final moderation keeps historical receipt identity while confirmation bind
 });
 
 test('all confirmation identities bind canonical captured request, principal, revisions and key',async()=>{
- for(const request of [staffing(),pause(),review(),stage()]){
+ for(const request of [staffing(),pause(),review(),stage(),ballot(),decision()]){
   const value=await prepare(request),expected=await crypto.sha256(utf8(canonicalJson(['10x-local-operator-confirmation-v1',principal.id,request])));assert.equal(value.preview.confirmationDigest,expected);
   const changedRevision=await prepare({...request,expectedRevisions:{...revisions,earn:'1'}});assert.notEqual(changedRevision.preview.confirmationDigest,expected);
   const other=await prepareOperatorCommand({principal:{...principal,id:'another-operator'},request,nowMs},crypto);assert.notEqual(other.preview.confirmationDigest,expected);
@@ -128,4 +131,48 @@ test('dispatch invokes only the named repository methods and preserves receipt/r
  assert.equal(await dispatchOperatorCommand(repo,old),accepted);const scope=await prepare(pause());assert.deepEqual(await dispatchOperatorCommand(repo,scope),{kind:'conflict',code:'revision_conflict'});
  assert.deepEqual(calls,[['staffing',old.command],['scope',scope.command]]);
  assert.throws(()=>dispatchOperatorCommand(repo,{command:{operationKind:'arbitrary-sql'}}),invalid);assert.equal(calls.length,2);
+});
+
+
+test('advisory governance preserves historical command identity and exposes no derived or execution authority',async()=>{
+ for(const request of [ballot(),decision()]){
+  const prepared=await prepare(request),historical=await prepareGovernanceOperatorCommand(request.operationKind,{principal,input:request.input,requestKey:request.requestKey,expectedRevisions:revisions,nowMs},crypto);
+  assert.deepEqual(prepared.command,historical);assert.equal(prepared.command.requestDigest,await crypto.sha256(governanceOperatorCommandBytes(historical)));
+  const later=await prepareOperatorCommand({principal,request,nowMs:nowMs+86400000},crypto),changed=await prepare({...request,requestKey:'different-key',expectedRevisions:{...revisions,source:'99'}});
+  assert.equal(later.command.requestDigest,historical.requestDigest);assert.equal(changed.command.requestDigest,historical.requestDigest);assert.equal(later.preview.confirmationDigest,prepared.preview.confirmationDigest);assert.notEqual(changed.preview.confirmationDigest,prepared.preview.confirmationDigest);
+  assert.deepEqual(prepared.preview.summary,{...request.input,advisory:true,financialExecution:false});assert.equal(prepared.preview.financialExecution,false);
+  for(const key of ['snapshotHash','eligibleCount','closesAt','earliestMs','approvedSpendLamports','stageOpening'])assert.equal(Object.hasOwn(prepared.preview.summary,key),false);
+  const method=request.operationKind===PUBLISH_BALLOT?'publishBallot':'recordDecision',scope=request.operationKind===PUBLISH_BALLOT?'governance-publication':'governance-decision';
+  assert.equal(operatorCommandScope(request.operationKind),scope);assert.throws(()=>dispatchOperatorCommand({},prepared),invalid);
+  let seen;const accepted={kind:'replayed',value:{executable:false}};assert.equal(await dispatchOperatorCommand({[method](command){seen=command;return Promise.resolve(accepted);}},prepared),accepted);assert.equal(seen,prepared.command);
+ }
+});
+
+test('governance registry rejects injected authority and malformed exact inputs before hashing',async()=>{
+ let hashes=0;const counting={...crypto,async sha256(bytes){hashes++;return crypto.sha256(bytes);}};
+ const invalidInputs=[
+  {...ballot(),input:{...ballot().input,sourceKind:'chain-verified'}}, {...ballot(),input:{...ballot().input,cutoffMs:nowMs-1}},
+  {...ballot(),input:{...ballot().input,holdersListId:'bad'}}, {...ballot(),input:{...ballot().input,electorateDigest:'bad'}},
+  {...ballot(),input:{...ballot().input,ballotId:'invalid ballot'}}, {...ballot(),input:{...ballot().input,opensMs:-1}},
+  {...decision(),input:{...decision().input,choice:'90'}}, {...decision(),input:{...decision().input,rationale:''}},
+  {...decision(),input:{...decision().input,decidedMs:1.5}}, {...decision(),input:{...decision().input,noticeMs:-1}}
+ ];
+ for(const base of [ballot(),decision()]){
+  for(const key of Object.keys(base.input)){const input={...base.input};delete input[key];invalidInputs.push({...base,input});}
+  for(const field of ['advisory','earliestMs','approvedSpendLamports','founderApproved','stageOpening','snapshotHash'])invalidInputs.push({...base,input:{...base.input,[field]:true}});
+  invalidInputs.push({...base,expectedRevisions:{earn:'0',source:'12'}});
+ }
+ for(const request of invalidInputs)await assert.rejects(prepareOperatorCommand({principal,request,nowMs},counting));
+ assert.equal(hashes,0);
+});
+
+test('governance input, principal and full confirmation stay captured across asynchronous historical hashing',async()=>{
+ for(const factory of [ballot,decision]){
+  let release,started;const gate=new Promise(resolve=>{release=resolve;}),entered=new Promise(resolve=>{started=resolve;});
+  const request=factory(),original=structuredClone(request),p={...principal},delayed={...crypto,async sha256(bytes){started();await gate;return crypto.sha256(bytes);}};
+  const pending=prepareOperatorCommand({principal:p,request,nowMs},delayed);await entered;
+  request.input.ballotId='another-ballot';request.expectedRevisions.control='99';request.requestKey='another-key';p.id='another-operator';release();
+  const prepared=await pending;assert.deepEqual(prepared,await prepare(original));
+  for(const value of [prepared.command,prepared.command.input,prepared.command.principal,prepared.command.expectedRevisions,prepared.preview,prepared.preview.summary])assert.equal(Object.isFrozen(value),true);
+ }
 });
