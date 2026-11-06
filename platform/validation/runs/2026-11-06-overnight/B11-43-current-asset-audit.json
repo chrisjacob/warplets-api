@@ -1,0 +1,112 @@
+{
+  "task": "B11",
+  "slice": "B11.43 current asset and quiescence audit",
+  "status": "verified-read-only-current-history-profile; B11 remains partial",
+  "baseCommit": "5358d7672fba7e1fc51c33ccf8e5240a6b4d0599",
+  "implementationCommit": null,
+  "recordedAt": "2026-11-06T07:41:45.289980+00:00",
+  "sourceHashes": {
+    "platform/collect/legacy-current-asset-audit.mjs": "8694e2edbf3f361ce91df7225b744722419cd378074a7106c98f5d68cb102fc3",
+    "platform/collect/legacy-current-asset-audit.d.mts": "955c4eaf2169252a872bef911497f194e23e503f8fab5d8bf18c4d31fbb2905d",
+    "platform/collect/legacy-current-asset-audit.fixtures.mjs": "4738642a14c35fa7bf7d405b9058abf6c75d2673b92274d0bff3e73f70c0d545",
+    "platform/collect/legacy-current-asset-audit.test.mjs": "886dc466287bcfae01f271508704e2843a14bd63a5816e2a27d91ec26ca6daff",
+    "platform/collect/legacy-current-asset-audit.README.md": "7116e3f450b98a23cd28d53bc12e9e044e0df95e5d7fb346cd2f7137257ad1c2",
+    "platform/edge/test/legacy-current-asset.test.mjs": "428a3e577fb43d087bf9c86ac6b4203778af63738dd2d6789a7b51cdea252054",
+    "platform/edge/test/fixtures/legacy-current-asset-worker.ts": "c89e8c50da7e9f75400769ea2f3e9872a98fd64f836f5e1f3801c9b21d4e2953"
+  },
+  "sharedDependencies": {
+    "platform/collect/legacy-mint-source.mjs": "b0623de9c61bf6109083c0d758845d4b26a3e26accdc74c1747b1908872ec022",
+    "platform/collect/legacy-admission-source.mjs": "d504828853a1f5aff60e4ba6ab75ae1eca8bfcb815d020c0b2a8a27b9181745b",
+    "platform/collect/source-seal-guard.mjs": "ca3ee3ceab6a201fecc552d3afedccfd9d00eba20fc3a46a1a162a3bf70d0091",
+    "platform/domain/collections/policy.mjs": "c4c6840278f35334df286f5d040e6c2827d49ff8b4365585e13992051f760ca1",
+    "platform/domain/economics/vault.mjs": "b050b014484ab5ced5250b2e03c4f1f625085a74db4dea3466af3d6a2b83b2dc",
+    "platform/storage/052-legacy-economic-continuations.sql": "ec969bd05ff2c3865721abf675c74679bfc8853bcb0edca2c2ab3a06997d6927"
+  },
+  "installedSchema": {
+    "lastMigration": "052-legacy-economic-continuations.sql",
+    "migrations": 51,
+    "timing": "Node and actual D1 acceptance started and completed against052.053 was installed after those acceptance runs, before evidence generation;43 has no053 dependency."
+  },
+  "checks": [
+    {
+      "command": "node --test platform/collect/legacy-current-asset-audit.test.mjs",
+      "result": "PASS",
+      "tests": 11,
+      "durationMs": 13379.0997,
+      "log": "work/b11-43-node.log"
+    },
+    {
+      "command": "node --test platform/edge/test/legacy-current-asset.test.mjs",
+      "result": "PASS",
+      "tests": 1,
+      "durationMs": 39218.5199,
+      "caseDurationMs": 38245.2137,
+      "log": "work/b11-43-d1.log"
+    },
+    {
+      "command": "node platform/edge/node_modules/typescript/bin/tsc --noEmit -p platform/edge",
+      "result": "PASS",
+      "log": "work/b11-43-types.log"
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS"
+    }
+  ],
+  "measurements": {
+    "node150Transfers": {
+      "sql": 29,
+      "maxBatchBytes": 3203,
+      "maxParameters": 10,
+      "maxReturnedBytes": 120802,
+      "workingBytes": 728621
+    },
+    "workerd150TransfersPlusReveal": {
+      "sql": 29,
+      "maxBatchBytes": 3203,
+      "maxParameters": 10,
+      "maxReturnedBytes": 121025,
+      "workingBytes": 729896
+    },
+    "nodeSmallGenesis": {
+      "sql": 29,
+      "maxBatchBytes": 3206,
+      "maxParameters": 10,
+      "maxReturnedBytes": 2415,
+      "workingBytes": 64592
+    },
+    "closure": {
+      "sql": 8,
+      "maxBatchBytes": 2527,
+      "maxParameters": 2,
+      "maxReturnedBytes": 364,
+      "workingBytes": 19336
+    },
+    "localLimits": {
+      "sql": 64,
+      "batchBytes": 262144,
+      "workingBytes": 1048576,
+      "combinedHistoryRows": 1000,
+      "historyParsedBytes": 196608
+    }
+  },
+  "verified": [
+    "Original Genesis and Season private NFT identity, original minted slot, all ten Levels and exact Season expiry.",
+    "Exact original trait whitespace retained and hashed with actual legacy mint evidence tuple; no replacement original or public-body inference.",
+    "Actual legacy transfer/reveal histories and unique equal-time ownership chains; current owner/version/clocks reconstructed without rowid.",
+    "Actual B04-bound normal transfer and guarded040 reservation followed by041 external-transfer permanent hold.",
+    "Inventory count/identity closure rejects missing/extra bindings, pending operations, locks, malformed operation JSON and held conflicts.",
+    "Wrong owner/traits/version/Level/expiry, unpaired/corrupted history, ambiguous same-time transfers and unsupported progression are held.",
+    "Caller data captured before awaits; final SHA mutation and history growth before SELECT hold; exact count/parsed/escaped-byte predicates bound data before hydration.",
+    "Actual workerd private fixture parity for150 transfers and two assets, final-digest watermark changes, corruption, and unquiescent state; nonexistent public fixture route404."
+  ],
+  "limitations": [
+    "Read-only fact audit, not authority: exact schema, ready051 relation/052 economics, source currentness at durable CAS and complete per-ordinal coverage remain durable caller obligations.",
+    "Inventory closure is counts/identities only and deliberately does not assert per-asset audit coverage.",
+    "Completed legacy/normalized progression, Vault claim histories, ambiguous equal-time cycles and over-bound lifetime histories explicitly hold; no whole-B11/profile-completeness claim.",
+    "Configured original hash compatibility is tested with a labeled synthetic original;43 does not reverify BLS or establish original randomness/operator/payment provenance. That belongs to27/39/52.",
+    "Historical traits containing whitespace can be valid here while the newer progression quote validator independently returns invalid-asset-traits.",
+    "No schema/shared/backend/public/financial mutations or optional remote services were added."
+  ],
+  "nextExecutableStep": "Coordinator review/checkpoint43, then consume named current-asset proofs plus separate quiescence closure in excluded44 adoption preparation; retain held profile boundaries until genuine bounded history replay is implemented."
+}
