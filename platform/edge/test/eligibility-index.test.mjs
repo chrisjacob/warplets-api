@@ -1,0 +1,28 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {localRuntime} from './local-runtime.mjs';
+import {createCollectionStateCodec} from '../../collect/state-codec.mjs';
+import {createNodeCrypto} from '../../security/node-crypto.mjs';
+import {COLLECTION_TEST_OPERATOR} from '../../collect/source-test-harness.mjs';
+import {encode58} from '../../server/base58.mjs';
+const crypto=createNodeCrypto();
+test('actual D1 verifies private eligibility bytes, exact index content, immutable replay and final-effect rollback',async t=>{
+ const {mf,db}=await localRuntime(t,new URL('./fixtures/eligibility-index-worker.ts',import.meta.url));await db.prepare('INSERT INTO app_operator_scopes VALUES(?,?,0,1)').bind(COLLECTION_TEST_OPERATOR.id,'collection-import').run();
+ const wallets=Array.from({length:101},(_,n)=>{const b=Buffer.alloc(32,127);b.writeUInt32BE(n,28);return encode58(b);}).sort(),bundle=await createCollectionStateCodec({crypto}).encodeWalletList(wallets),metrics=[];
+ const call=async input=>{const result=await (await mf.dispatchFetch('http://localhost/test',{method:'POST',body:JSON.stringify(input)})).json();if(result.metrics)metrics.push(result.metrics);return result;};
+ const stage=record=>call({method:'stage',record:{...record,bytes:[...record.bytes]},key:record.id});
+ for(const record of [bundle.manifest,...bundle.pages])assert.equal((await stage(record)).result.kind,'committed');
+ const index=(n,key='index-'+n,fault)=>call({method:'index',id:bundle.pages[n].id,key,fault});
+ const before=await db.prepare('SELECT COUNT(*) n FROM app_command_receipts').first('n');assert.equal((await index(0,'index-0','omit-child')).status,500);assert.equal(await db.prepare('SELECT COUNT(*) n FROM app_collection_eligibility_pages').first('n'),0);assert.equal(await db.prepare('SELECT COUNT(*) n FROM app_command_receipts').first('n'),before);
+ assert.equal((await index(0,'index-0','tamper-record')).result.reason,'eligibility-record-invalid');
+ const accepted=await index(0,'index-0','lost-response');assert.equal(accepted.result.kind,'replayed');assert.deepEqual(accepted.result.value,{id:bundle.pages[0].id,entryCount:100,visibility:'private-staging'});
+ assert.equal((await index(0,'another','tamper-index')).result.reason,'index-content-conflict');assert.equal((await index(0)).result.kind,'replayed');assert.equal((await index(0,'another')).result.code,'index_already_materialized');
+ assert.equal((await call({method:'index',id:bundle.manifest.id,key:'wrong-kind'})).result.reason,'eligibility-record-invalid');
+ assert.equal((await index(1,'index-1','revoke')).result.code,'revision_conflict');assert.equal((await index(0)).result.kind,'replayed');assert.equal((await index(1)).result.code,'operator_scope_required');
+ await db.prepare("UPDATE app_operator_scopes SET enabled=1 WHERE operator=? AND scope='collection-import'").bind(COLLECTION_TEST_OPERATOR.id).run();assert.equal((await index(1)).result.kind,'committed');
+ const rows=(await db.prepare('SELECT p.entries_json,p.entry_count FROM app_collection_eligibility_pages p JOIN app_collection_records r ON r.id=p.record_id ORDER BY r.page_index').all()).results;assert.deepEqual(rows.flatMap(row=>JSON.parse(row.entries_json)),wallets);assert.equal(rows.reduce((sum,row)=>sum+row.entry_count,0),101);
+ const empty=await createCollectionStateCodec({crypto}).encodeWalletList([]);assert.equal((await stage(empty.pages[0])).result.kind,'committed');assert.equal((await call({method:'index',id:empty.pages[0].id,key:'empty'})).result.value.entryCount,0);
+ await assert.rejects(db.prepare('UPDATE app_collection_eligibility_pages SET entries_json=?').bind('[]').run(),/immutable/);await assert.rejects(db.prepare('DELETE FROM app_collection_eligibility_pages').run(),/Retain eligibility page index/);
+ assert.equal(await db.prepare('SELECT COUNT(*) n FROM collect_inventories').first('n'),0);assert.equal(await db.prepare('SELECT COUNT(*) n FROM genesis_ballots').first('n'),0);
+ assert.ok(Math.max(...metrics.map(m=>m.maxParameters))<=100);assert.ok(Math.max(...metrics.map(m=>m.maxBatchBytes))<32768);t.diagnostic(JSON.stringify({wallets:101,privateIndexes:3,maxBatchBytes:Math.max(...metrics.map(m=>m.maxBatchBytes)),maxParameters:Math.max(...metrics.map(m=>m.maxParameters))}));
+});

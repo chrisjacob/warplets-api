@@ -5,9 +5,9 @@
   "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
   "currentTask": "B11",
-  "lastUpdatedAt": "2026-11-06T00:31:09.825478+00:00",
+  "lastUpdatedAt": "2026-11-06T00:37:44.551395+00:00",
   "migrationAllocation": {
-    "next": 39,
+    "next": 41,
     "reserved": [
       {
         "version": 31,
@@ -48,6 +48,16 @@
         "version": 38,
         "task": "B11",
         "purpose": "private immutable eligibility-page SQL index for bounded authoritative publication"
+      },
+      {
+        "version": 39,
+        "task": "B11",
+        "purpose": "guarded advisory electorate publication bindings and founder decision effects"
+      },
+      {
+        "version": 40,
+        "task": "B11",
+        "purpose": "quote-required progression reservation linkage, asset locks and configured fairness effects"
       }
     ],
     "historicalGap": 19
@@ -210,16 +220,17 @@
       "status": "in_progress",
       "owner": "coordinator",
       "baseCommit": "96cdfa1fb6334fcb27deb831d786243227b9d1a8",
-      "implementationCommit": "f76f7410a0a802334edd18341b9b0f09cc814228",
+      "implementationCommit": "3eb371848355f1ee30fbf9a505ff15f34147e1fe",
       "pushed": true,
       "evidence": [
         "platform/validation/runs/2026-11-06-overnight/B11-1.json",
         "platform/validation/runs/2026-11-06-overnight/B11-2-intake.json",
         "platform/validation/runs/2026-11-06-overnight/B11-3-context.json",
         "platform/validation/runs/2026-11-06-overnight/B11-4-governance.json",
-        "platform/validation/runs/2026-11-06-overnight/B11-5-quotes.json"
+        "platform/validation/runs/2026-11-06-overnight/B11-5-quotes.json",
+        "platform/validation/runs/2026-11-06-overnight/B11-6-index.json"
       ],
-      "nextAction": "B11.5 stored quote milestone passed395 reference /8focused Node /25paired D1 calls and populated94-table recovery. Commit/push/follow CI, then install038 eligibility-page index and run pending Node/D1 tests. Next039 guarded electorate publication/founder decisions;040 quote-required collection reservation. B11 remains incomplete.",
+      "nextAction": "038 index passed7Node/1D1/populated95-table recovery and402reference; commit/push checkpoint and follow CI. Install039 draft guarded electorate publication/founder decisions; agent implements adapters.040 quote-required reservation draft and agent pending DBtests follow039. Quote037 CI42137548857 success.",
       "blocker": null
     },
     "B12": {

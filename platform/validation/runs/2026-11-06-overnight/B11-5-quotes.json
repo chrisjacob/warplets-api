@@ -4,7 +4,7 @@
   "status": "partial",
   "classification": "Locally verified immutable quote issuance/retrieval; no public issuance, reservation, payment or chain authority",
   "lastTestedBaseCommit": "acc96268cf0713d9c8d89546d564b4d5f1465221",
-  "implementationCommit": null,
+  "implementationCommit": "3eb371848355f1ee30fbf9a505ff15f34147e1fe",
   "commands": [
     {
       "command": "node --test platform/collect/quote-service.test.mjs platform/collect/quote-repository.test.mjs platform/collect/quote-recovery.test.mjs",
@@ -235,8 +235,14 @@
     "externalReads": false
   },
   "remaining": [
-    "Commit/push this tested quote milestone and follow its test-only CI",
+    "Quote checkpoint CI passed; later reservation/public mounting remains unfinished",
     "Quote-required reservation and authoritative normalized collection progression remain later B11 work",
     "Public quote issuer intentionally unmounted until quote-required reservation exists"
-  ]
+  ],
+  "ci": {
+    "runId": 42137548857,
+    "headSha": "3eb371848355f1ee30fbf9a505ff15f34147e1fe",
+    "conclusion": "success",
+    "url": "https://github.com/chrisjacob/warplets-api/actions/runs/42137548857"
+  }
 }

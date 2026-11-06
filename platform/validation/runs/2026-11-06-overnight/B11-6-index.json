@@ -1,0 +1,87 @@
+{
+  "task": "B11",
+  "slice": "B11.6 private immutable eligibility-page SQL index",
+  "status": "partial",
+  "baseCommit": "3eb3718",
+  "implementationCommit": null,
+  "recordedAt": "2026-11-06T00:35:25.208Z",
+  "sourceHashes": {
+    "platform/collect/eligibility-index-service.mjs": "5d544e8432c089e1be1adaa3b81fd9dc23c3893b0481c61e26303da301044bd2",
+    "platform/collect/eligibility-index-service.d.mts": "11038b13f6d0f792a6cb7a294323a2e5c6d5463b9ad5fd219b5902f0b77541ae",
+    "platform/collect/eligibility-index-service.test.mjs": "e6d5ee6a7278fbeeadaa4a76234e95c294f5a42833c72b07412521cbc3f47ae9",
+    "platform/collect/eligibility-index-repository.mjs": "1d1434ab13a8a94857d9118f07ef4ed7df043c558eb10a4ed633bc0531817b71",
+    "platform/collect/eligibility-index-repository.d.mts": "d3bbefc4a25cf47e63d6589eee6e1fb4aa5f4525ab7160445cd6ab3bd09ac4ed",
+    "platform/collect/eligibility-index-repository.test.mjs": "c6bc5c723e422182de0edb1c5aa49d01238e5ae7a7d24d59d2d936eadbdad378",
+    "platform/collect/eligibility-index-recovery.test.mjs": "c9c180b6ff6ee77ca73378a5d92797be5ad30c8ec51d3519c9f7969f32f93e41",
+    "platform/collect/ELIGIBILITY_INDEX.md": "8b479eadd17f02b79ab3f2a2418ee86ede5d236290c0b2913a0bed6171cebb39",
+    "platform/edge/test/eligibility-index.test.mjs": "58d34ba538ccbe3db0bdc50fccf9c7aa37b1772d11938b410c330b2a3256152c",
+    "platform/edge/test/fixtures/eligibility-index-worker.ts": "cef537918f89d1265d665772b93161efe833e384871d1c72ea56ac6fa6d02c91",
+    "platform/storage/038-collection-eligibility-index.sql": "4db97eebf2fd844c3e20df42db36c4ed79a685c29c839873b7d00c5666bf25e9",
+    "platform/recovery/schema.mjs": "9629981e6d360e73204abd07fde903092a493c9e983d60a4babef5af937280e3"
+  },
+  "checks": [
+    {
+      "command": "node --test platform/collect/eligibility-index-*.test.mjs",
+      "result": "PASS",
+      "tests": 7,
+      "durationMs": 1025.4533,
+      "log": "work/b11-index-node.log"
+    },
+    {
+      "command": "node --test platform/edge/test/eligibility-index.test.mjs",
+      "result": "PASS",
+      "tests": 1,
+      "durationMs": 13838.9041,
+      "log": "work/b11-index-edge.log"
+    },
+    {
+      "command": "node platform/edge/node_modules/typescript/bin/tsc --noEmit -p platform/edge",
+      "result": "PASS"
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS"
+    },
+    {
+      "command": "node platform/scripts/test-reference.mjs",
+      "result": "PASS",
+      "tests": 402,
+      "durationMs": 34738.3196,
+      "log": "work/b11-index-reference.log",
+      "scope": "Includes uncommitted pure reservation/fairness extraction tests"
+    }
+  ],
+  "d1Measurements": {
+    "wallets": 101,
+    "privateIndexes": 3,
+    "maxBatchBytes": 19090,
+    "maxParameters": 27
+  },
+  "recovery": {
+    "tables": 95,
+    "privateIndexes": 2,
+    "indexedWallets": 101,
+    "completeSourceSeals": 1,
+    "exactReceipts": 8,
+    "oldSessionsRevoked": 1,
+    "heldTargetInsertBlocked": true
+  },
+  "coverage": [
+    "operator/record/key/revision command identity, retry clock exclusion",
+    "immutable caller capture across hash await",
+    "fresh retained byte SHA-256 verification",
+    "only eligibility pages, at most100 entries and8192bytes",
+    "positive empty page distinct from absent data",
+    "identical concurrent replay and disabled-grant accepted replay",
+    "current scope race rejects fresh write",
+    "omitted index child aborts entire receipt",
+    "lost acknowledgement reconciles committed receipt",
+    "raw-record and exact indexed member tamper holds",
+    "immutable rows and complete private recovery retaining exact receipts"
+  ],
+  "limitations": [
+    "Index rows are private staging; no active collection, electorate publication, eligibility grant or provenance/completeness claim.",
+    "No public/operator HTTP route, deployment or financial execution.",
+    "Guarded publication/founder decisions and collection operation acceptance remain unfinished; B11 remains in progress."
+  ]
+}

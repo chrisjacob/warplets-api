@@ -1,6 +1,6 @@
 # Continuing implementation checkpoint
 
-B11.5 stored progression quotes are locally verified and ready to commit/push. Latest pushed head is acc96268cf0713d9c8d89546d564b4d5f1465221; product f76f7410a0a802334edd18341b9b0f09cc814228 passed test-only CI42136334301. Branch: work/10x-prd-foundation. This is an active checkpoint, not a stopping condition.
+B11.6 private eligibility index is locally verified and ready to commit/push. Latest pushed product3eb371848355f1ee30fbf9a505ff15f34147e1fe passed test-only CI42137548857. Prior governance productf76f741 passed CI42136334301. Branch: work/10x-prd-foundation. This is an active checkpoint, not a stopping condition.
 
 B00 through B10 and B14 are verified. B11 remains partial; B12/B13/B15 onward remain unfinished. B20-core is verified at b18dec7/CI42125215062. Skip B20 as a selected task until B00 through B19 pass. Financial execution remains disabled.
 
@@ -12,9 +12,9 @@ Validation: eight focused Node tests; one actual D1 test covering25 paired calls
 
 ## Current next step
 
-Commit/push the tested037 quote slice and follow its test-only CI. Install work/b11-038.sql as the next migration, add its private eligibility index table to recovery inventory, and activate the prepared *.pending.mjs Node/D1 tests. The index independently verifies immutable source bytes and provides bounded SQL membership for later publication; it does not activate an inventory.
+Commit/push tested038 index and follow its test-only CI. Index acceptance:7Node tests,1actual D1 test,402reference tests, types, and populated95-table recovery with101members/twoindexes/eight exact receipts. D1 measured19090batch bytes/27parameters. Quote037 CI42137548857 passed. Install coordinator draft work/b11-039.sql and activate guarded publication/founder decision tests when ready. Index pages remain private staging; no active inventory or electorate is implied.
 
-Frontend agent owns eligibility index files and then guarded governance publication/founder decisions. Coordinator owns038 and039 schema, shared contracts, recovery inventory and commits. Publication will bind holder, whitelist and union sealed-list IDs, explicit synthetic local source identity and cutoff, retain the exact legacy electorate hash, and atomically insert the full frozen electorate. Existing unbound legacy ballots must not acquire invented provenance. Founder decisions remain advisory and cannot bypass stage notice or unsold inventory holds.
+Frontend agent owns eligibility index files and then guarded governance publication/founder decisions. Coordinator owns039 schema, shared contracts, recovery inventory and commits. Publication will bind holder, whitelist and union sealed-list IDs, explicit synthetic local source identity and cutoff, retain the exact legacy electorate hash, and atomically insert the full frozen electorate. Existing unbound legacy ballots must not acquire invented provenance. Founder decisions remain advisory and cannot bypass stage notice or unsold inventory holds.
 
 Snapshot agent owns private quote-required progression reservation service/repository and portable pinned fairness request planning. Coordinator reserves040 schema. Reservation must require the stored quote/binding/versions/ceiling/expiry, rederive from fresh context, atomically reserve both assets and preserve configured fair-request semantics. Collection publication/admission, observation conflicts and atomic mint/Vault fulfillment remain unfinished. Do not mark B11 complete based on preparatory slices.
 

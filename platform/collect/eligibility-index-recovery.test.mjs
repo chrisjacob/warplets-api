@@ -1,0 +1,41 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {randomUUID} from 'node:crypto';
+import {openDatabase} from '../storage/database.mjs';
+import {createNodeAtomicDriver} from '../storage/node/atomic-driver.mjs';
+import {createNodeCrypto} from '../security/node-crypto.mjs';
+import {createCollectionStateCodec} from './state-codec.mjs';
+import {createCollectionSourceIntake} from './source-intake.mjs';
+import {createCollectionSourceRepository} from './source-repository.mjs';
+import {createEligibilityIndexService} from './eligibility-index-service.mjs';
+import {createEligibilityIndexRepository} from './eligibility-index-repository.mjs';
+import {createInventory,publishStage} from '../domain/collections/inventory.mjs';
+import {encode58} from '../server/base58.mjs';
+import {canonicalJson} from '../security/canonical.mjs';
+import {createManifestCodec} from '../artifacts/manifest-codec.mjs';
+import {memoryArtifacts} from '../application/fixtures/memory-artifacts.mjs';
+import {readInstalledRecoverySchema} from '../recovery/node-schema.mjs';
+import {createRecoveryExporter} from '../recovery/export.mjs';
+import {createPrivateRecovery} from '../recovery/restore.mjs';
+test('private recovery retains complete collection source, indexed members and exact receipts while old auth is revoked',async t=>{
+ const source=openDatabase(),target=openDatabase();t.after(()=>{source.close();target.close();});const crypto=createNodeCrypto(),sourceDriver=createNodeAtomicDriver(source),targetDriver=createNodeAtomicDriver(target),sourceStore=memoryArtifacts(),targetStore=memoryArtifacts();
+ const ports={crypto,clock:{nowMs:()=>200000001},ids:{next:randomUUID}},principal={kind:'operator',id:'synthetic-index-recovery'};source.prepare('INSERT INTO app_operator_scopes VALUES(?,?,0,1)').run(principal.id,'collection-import');
+ const wallets=Array.from({length:101},(_,n)=>{const b=Buffer.alloc(32,127);b.writeUInt32BE(n,28);return encode58(b);}).sort();
+ const state=publishStage(createInventory({id:'synthetic-index-recovery',kind:'genesis',tranche:1}),{id:'first',type:'whitelist',publishedAt:0,opensAt:172800000,closesAt:200000000,priceLamports:100000000n,allocation:1000,wallets,walletLimit:1});
+ const bundle=await createCollectionStateCodec({crypto}).encodeReferenceInventory(state),intake=createCollectionSourceIntake({...ports,repository:createCollectionSourceRepository(sourceDriver,ports)}),index=createEligibilityIndexService({...ports,repository:createEligibilityIndexRepository(sourceDriver,ports)}),accepted=[];
+ for(const record of [...bundle.pages,...bundle.listManifests,bundle.root])assert.equal((await intake.stageRecord(principal,{record,requestKey:record.id})).kind,'committed');
+ assert.equal((await intake.sealList(principal,{id:bundle.listManifests[0].id,requestKey:'list'})).kind,'committed');assert.equal((await intake.sealSource(principal,{id:bundle.root.id,requestKey:'source'})).kind,'committed');
+ for(const page of bundle.pages){const input={id:page.id,requestKey:'index-'+page.id},result=await index.materializePage(principal,input);assert.equal(result.kind,'committed');accepted.push({input,result});}
+ source.prepare("UPDATE app_operator_scopes SET enabled=0 WHERE operator=? AND scope='collection-import'").run(principal.id);source.prepare('INSERT INTO sessions VALUES(?,?,?,?)').run('synthetic-expunged-session',wallets[0],'http://localhost',999999999999);
+ const schema=await readInstalledRecoverySchema(crypto),recoveryPorts={...ports,schema,codec:createManifestCodec({crypto})},capture=await createRecoveryExporter({...recoveryPorts,driver:sourceDriver,artifacts:sourceStore,sourceCommit:'0'.repeat(40)}).capturePrivate();assert.equal(capture.kind,'captured',JSON.stringify(capture));assert.equal(capture.inventory.tables.find(row=>row.name==='app_collection_eligibility_pages').rowCount,2);
+ const pin={inventory:structuredClone(capture.inventory),pinnedDigest:capture.digest},missing=capture.inventory.objects[0],retained=sourceStore.objects.get(missing.key);sourceStore.objects.delete(missing.key);
+ const recovery=createPrivateRecovery({...recoveryPorts,driver:targetDriver,artifacts:targetStore,sourceArtifacts:sourceStore});assert.equal((await recovery.restore(pin)).kind,'held');
+ const row=source.prepare('SELECT * FROM app_collection_eligibility_pages LIMIT 1').get(),columns=Object.keys(row);assert.throws(()=>target.prepare('INSERT INTO app_collection_eligibility_pages('+columns.join(',')+') VALUES('+columns.map(()=>'?').join(',')+')').run(...Object.values(row)),/mutation-disabled/);
+ sourceStore.objects.set(missing.key,retained);assert.equal((await recovery.restore(pin)).kind,'restored');
+ for(const [table,order] of [['app_collection_records','id'],['app_collection_list_seals','id'],['app_collection_source_seals','id'],['app_collection_eligibility_pages','record_id'],['app_command_receipts','operation_id']])assert.equal(canonicalJson(target.prepare(`SELECT * FROM ${table} ORDER BY ${order}`).all()),canonicalJson(source.prepare(`SELECT * FROM ${table} ORDER BY ${order}`).all()),table);
+ assert.equal(target.prepare('SELECT COUNT(*) n FROM sessions').get().n,0);assert.equal(source.prepare('SELECT COUNT(*) n FROM sessions').get().n,1);
+ const restored=createEligibilityIndexService({...ports,repository:createEligibilityIndexRepository(targetDriver,ports)});for(const {input,result} of accepted){const replay=await restored.materializePage(principal,input);assert.equal(replay.kind,'replayed');assert.deepEqual(replay.receipt,result.receipt);assert.deepEqual(replay.value,result.value);}
+ assert.throws(()=>target.prepare('UPDATE app_collection_eligibility_pages SET entries_json=?').run('[]'),/immutable/);assert.throws(()=>target.prepare('DELETE FROM app_collection_eligibility_pages').run(),/Retain eligibility page index/);assert.equal((await recovery.restore(pin)).kind,'replayed');
+ assert.equal(target.prepare('SELECT COUNT(*) n FROM collect_inventories').get().n,0);assert.equal(target.prepare('SELECT COUNT(*) n FROM genesis_ballots').get().n,0);
+ t.diagnostic(JSON.stringify({tables:capture.inventory.tables.length,privateIndexes:2,indexedWallets:101,completeSourceSeals:1,exactReceipts:source.prepare('SELECT COUNT(*) n FROM app_command_receipts').get().n,oldSessionsRevoked:1,heldTargetInsertBlocked:true}));
+});
