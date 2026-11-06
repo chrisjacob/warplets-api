@@ -5,7 +5,7 @@
   "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
   "currentTask": "B11",
-  "lastUpdatedAt": "2026-11-06T05:55:19.554213+00:00",
+  "lastUpdatedAt": "2026-11-06T05:59:18.613935+00:00",
   "migrationAllocation": {
     "next": 51,
     "reserved": [
@@ -270,7 +270,7 @@
       "status": "in_progress",
       "owner": "coordinator",
       "baseCommit": "96cdfa1fb6334fcb27deb831d786243227b9d1a8",
-      "implementationCommit": "7280331",
+      "implementationCommit": "85b83f2",
       "pushed": false,
       "evidence": [
         "platform/validation/runs/2026-11-06-overnight/B11-1.json",
@@ -304,9 +304,10 @@
         "platform/validation/runs/2026-11-06-overnight/B11-29-durable-legacy-audit.json",
         "platform/validation/runs/2026-11-06-overnight/B11-30-legacy-source-relation.json",
         "platform/validation/runs/2026-11-06-overnight/B11-31-legacy-admission-audit.json",
-        "platform/validation/runs/2026-11-06-overnight/B11-34-relation-working-bound.json"
+        "platform/validation/runs/2026-11-06-overnight/B11-34-relation-working-bound.json",
+        "platform/validation/runs/2026-11-06-overnight/B11-32-legacy-control-audit.json"
       ],
-      "nextAction": "Hash24e6d2536 pushed, followCI42170371867 (PTY65518), then queued local commits in git order eachCI. Member23CI42168326653success. Combined29reference657PASS881381ms, final050focused/D1 guards pass. Relation34optimized frozen738772working;32controls final lineage checks active;33originaloperation/prior-count mapping tested, finalsharedsealguard rerun pending. Next35 durable relation wrapper after coordinator051 design. No adoption.",
+      "nextAction": "Followhash24CI42170371867 then pushremainingtestedcommits eachCI.32historicalcontrolsource finalized25Node+1D1; sharedcommitted035lineageguard shipswith32.33priorfacts reader finalguard checksnext.35durablerelation agent assigned proposed051 (notyetinstalled);36legacyfreecutpreimage agentplanning. Noactiveadoption.",
       "blocker": null
     },
     "B12": {

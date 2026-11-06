@@ -29,3 +29,7 @@ export interface AtomicOperationsRepository {
  getBookmark():string|null;
 }
 export function createAtomicOperationsRepository(driver:AtomicDriver,ports:{crypto:CanonicalCrypto;ids:{next():string};telemetry?:AppTelemetry}):AtomicOperationsRepository;
+
+/** Export-only historical aliases; selection predicates and bounds are unchanged. */
+export function historicalUsageSql(nowMs:number):{sql:string;values:readonly (string|number|null)[]};
+export function historicalSpendSql(nowMs:number):{sql:string;values:readonly (string|number|null)[]};

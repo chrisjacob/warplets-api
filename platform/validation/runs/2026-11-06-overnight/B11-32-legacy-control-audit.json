@@ -1,0 +1,121 @@
+{
+  "checkpoint": "B11-32",
+  "title": "Bounded retained historical collection control source reader",
+  "status": "partial-private-source-reader-no-adoption-authority",
+  "lastConfirmedBaseCommit": "85b83f27039ab23694cf26daa521b1d05cdac520",
+  "implementationCommit": null,
+  "source": "synthetic-local-retained-control-history-and-actual035source-seals",
+  "financialExecution": false,
+  "applicationActivation": false,
+  "schemaChanges": false,
+  "packageChanges": false,
+  "sharedChanges": "export-only historicalUsageSql/historicalSpendSql aliases and declarations; existing selections unchanged",
+  "checks": [
+    {
+      "command": "node --test platform/collect/legacy-control-audit.test.mjs platform/operations/controls.test.mjs platform/storage/atomic-operations.test.mjs",
+      "passed": 25,
+      "failed": 0,
+      "durationMs": 6532.1643,
+      "log": "work/b11-legacy-control-audit-node.log"
+    },
+    {
+      "command": "node --test platform/edge/test/legacy-control-audit.test.mjs",
+      "passed": 1,
+      "failed": 0,
+      "durationMs": 24631.6711,
+      "log": "work/b11-legacy-control-audit-edge.log"
+    },
+    {
+      "command": "node platform/edge/node_modules/typescript/bin/tsc --project platform/edge/tsconfig.json --noEmit",
+      "result": "pass",
+      "log": "work/b11-legacy-control-audit-types.log"
+    },
+    {
+      "command": "9ownedfiles LF/trailing-whitespace and shared alias git diff --check",
+      "result": "pass"
+    }
+  ],
+  "newNodeCases": 12,
+  "existingOperationsCompatibilityCases": 13,
+  "metrics": {
+    "nodeMaximum": {
+      "sqlStatements": 5,
+      "batches": 2,
+      "maxBatchBytes": 64386,
+      "readBytes": 60283,
+      "workingBytes": 303386,
+      "usageRows": 100,
+      "spendRows": 100
+    },
+    "actualD1": {
+      "metrics": {
+        "sqlStatements": 5,
+        "batches": 2,
+        "maxBatchBytes": 64386,
+        "readBytes": 3233,
+        "workingBytes": 31869,
+        "usageRows": 1,
+        "spendRows": 1
+      },
+      "pressure": "warning",
+      "priorMonthAndFutureSettlement": true,
+      "provenance": "retained-history-as-of",
+      "sourceChangedHeld": true,
+      "oversizedProjectedBytes": 2313,
+      "financialExecution": false
+    }
+  },
+  "bounds": {
+    "usageRows": 100,
+    "spendRows": 100,
+    "overflowSentinel": 101,
+    "serializedRowsPerSelectionBytes": 65536,
+    "headerAndScopeBytesEach": 8192,
+    "totalReturnedSqlBytes": 262144,
+    "workingPayloadBytes": 1048576,
+    "sqlStatements": 5,
+    "atomicBatches": 2
+  },
+  "verified": [
+    "Exact31controlFact consumed successfully by historical admission audit",
+    "Committed035source seal and staged-root receipt lineage required; separate incomplete root/seal fixtures held without dropping triggers",
+    "Original mint.created_ms, canonical wallet, root inventory/revision and original header digest binding",
+    "Generation/mode/status/write-nonce/whole-business watermark checked before and after hash; changed source held",
+    "Captured request and driver rows withstand mutation during awaited hashing",
+    "Actual legacy as-of pause/resume, prior monthly carry, UTC daily quota, warning/limit semantics",
+    "Future settled spend retains original reserved ceiling at earlier admission; pre021null settlement clock fallback preserved",
+    "Latest scope and selected usage receipt preimages rehashed; selected transcript source digest stable across Node/D1",
+    "101row overflow, malformed data, oversized columns, aggregate Unicode/escapedJSON payloads held before application hydration",
+    "ActualD1 complete result/source-digest parity and read-only watermark stability; no public route"
+  ],
+  "limitations": [
+    "retained-history-as-of is not proof of original ingestion-time database content or original authentication; late-entered history can reconstruct a different historical decision.",
+    "Frozen source pin is a private guarded-workflow prerequisite, not arbitrary caller permission. No adoption, payment or chain authority created.",
+    "The reader trusts the installed verified schema/watermark environment supplied by the private audit workflow; it does not itself perform a full schema or canonical035economics audit.",
+    "Bounds describe selected SQL results and conservative serialized working copies, not engine heap profiling or constant database query-planner cost for arbitrary history.",
+    "D1fixture loader aligns independently generated source-watermark counts through legal monotonic +1increments; no guard bypass or downward revision."
+  ],
+  "sourceHashes": {
+    "platform/collect/legacy-control-audit.mjs": "106f3c97b5a2ea58d9bacb36e64fb092b50f33b0c5133ad4e3bd37be74fceca9",
+    "platform/collect/legacy-control-audit.d.mts": "43788d970c555019ae6836ff0c9cc883bf9c83828c92b3bbaed73359e8d77222",
+    "platform/collect/legacy-control-audit.fixtures.mjs": "adf7c074bc16b82819c969494576af62899087e6b79f8a91c5db97bdb3141aa6",
+    "platform/collect/legacy-control-audit.test.mjs": "4a57055b858c49f4f4f26546d96bfd0ccd01ce20c9659b7fe05ff4c22d79e218",
+    "platform/collect/LEGACY_CONTROL_AUDIT.md": "8a41c6cd1b29a893bdb3699ddf050a9aad6f77542976dd6d919c39628b1f4875",
+    "platform/edge/test/legacy-control-audit.test.mjs": "c3f8a46deb475456a3d60387de969aff82156a2d18753ca73517f9c144281209",
+    "platform/edge/test/fixtures/legacy-control-audit-worker.ts": "f0be44fed113bf6a7c2be506c8a537c421d39b5c96b8000da0039b311ca535de",
+    "platform/storage/atomic-operations.mjs": "673b6318c0ee38f2c4f6c947a095909012d54a588621567aed588aa0ad1ccd6c",
+    "platform/storage/atomic-operations.d.mts": "213c9a698e779bb799edab6ffcb23aa030f10b43e30d9634636786e38047bfd7",
+    "platform/collect/source-seal-guard.mjs": "ca3ee3ceab6a201fecc552d3afedccfd9d00eba20fc3a46a1a162a3bf70d0091",
+    "platform/collect/source-seal-guard.d.mts": "0fb91d10dc8a012352b2b836075cd1c16a412a8f3e9c9099e3f54e09c1abfffe"
+  },
+  "coordinatorOwnedDependencyHashes": {
+    "platform/collect/source-seal-guard.mjs": "ca3ee3ceab6a201fecc552d3afedccfd9d00eba20fc3a46a1a162a3bf70d0091",
+    "platform/collect/source-seal-guard.d.mts": "0fb91d10dc8a012352b2b836075cd1c16a412a8f3e9c9099e3f54e09c1abfffe"
+  },
+  "reusedDependencyHashes": {
+    "platform/operations/portable-controls.mjs": "9bc4d891bf9493a0adb5719687613ad44a5c7f0d1e9c5d3bef0805a69e145d43",
+    "platform/operations/controls.mjs": "366d6e83d6fa6067ccf2fb25f31e3678b88e35b6cb077d20f79c85f032e135a6",
+    "platform/collect/legacy-admission-audit.mjs": "19185d748049918553312f7c0f97da98800da3bc5450b0c0fa5951fa5ac036f5",
+    "platform/collect/source-intake.mjs": "7d1b975db02032bacba704742c2416a2dad7d1761f4da89c656ead556cf15a3c"
+  }
+}

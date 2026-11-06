@@ -182,3 +182,6 @@ export function createAtomicOperationsRepository(driver,{crypto,ids,telemetry={r
  }
  return Object.freeze(repository);
 }
+
+// Exact retained as-of selections shared with private historical audits.
+export {usageSql as historicalUsageSql,spendSql as historicalSpendSql};
