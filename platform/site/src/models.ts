@@ -45,7 +45,7 @@ export const assetModel=z.object({
   expiresAt:nullableDate.optional(),operationPending:z.boolean().optional(),
 });
 export const receiptModel=z.object({
-  id:text,kind:text,inventoryId:text,owner:text,status:text,createdAt:date,stageId:text.nullable(),
+  id:text,kind:text,inventoryId:text,owner:text,status:text,createdAt:date.nullable(),stageId:text.nullable(),
   targetId:text.nullable(),materialId:text.nullable(),assetId:text.nullable(),
   priceLamports:units.nullable(),feeLamports:units.nullable(),costLamports:units.nullable(),
   quoteId:text.optional(),bindingDigest:text.regex(/^[a-f0-9]{64}$/).optional(),termsDigest:text.regex(/^[a-f0-9]{64}$/).optional(),

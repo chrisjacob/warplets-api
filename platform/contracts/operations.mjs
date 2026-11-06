@@ -206,6 +206,26 @@ export const operations = [
     "method": "POST"
   },
   {
+    "id": "getMyRefreshProposal",
+    "path": "/nfts/refreshes/{id}",
+    "method": "GET"
+  },
+  {
+    "id": "prepareMyRefreshAction",
+    "path": "/nfts/refreshes/{id}/prepare",
+    "method": "POST"
+  },
+  {
+    "id": "executeMyRefreshAction",
+    "path": "/nfts/refreshes/{id}/execute",
+    "method": "POST"
+  },
+  {
+    "id": "getMyRefreshActionReceipt",
+    "path": "/nfts/refreshes/{id}/receipt",
+    "method": "POST"
+  },
+  {
     "id": "getLocalOperationStatus",
     "path": "/operations/status",
     "method": "GET"

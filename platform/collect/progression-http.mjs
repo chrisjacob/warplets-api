@@ -19,7 +19,7 @@ export function storedProgressionQuoteView(q){
 }
 export function progressionReservationView(value){return {
  id:value.operationId,kind:value.kind,inventoryId:value.inventoryId,owner:value.wallet,stageId:null,targetId:value.targetId,materialId:value.materialId,
- status:value.status,createdAt:iso(value.createdMs),priceLamports:null,costLamports:null,feeLamports:value.feeLamports,assetId:null,
+ status:value.status,createdAt:null,priceLamports:null,costLamports:null,feeLamports:value.feeLamports,assetId:null,
  quoteId:value.quoteId,bindingDigest:value.bindingDigest,fairness:value.fairness,source:'local-fixture',executable:false,
 };}
 function outcomeFailure(result){

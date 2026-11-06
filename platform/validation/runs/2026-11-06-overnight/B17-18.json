@@ -1,0 +1,124 @@
+{
+  "milestone": "B17 owner recorded-fixture refresh review and receipt timestamp privacy UI",
+  "baseCommit": "ec7e33474886e8c605c9a62f330cbccee0b053ec",
+  "implementationCommit": null,
+  "status": "local-focused-acceptance",
+  "sourceHashes": {
+    "platform/nfts/refresh-owner-service.mjs": "9327ee18d0e5ff3bec7c922f1697cd725ff1f109432af17f4b718c69b7d1176f",
+    "platform/nfts/refresh-owner-service.test.mjs": "2daf555aeed7831cddb992c7b8750ccd9547a35ee3fb36e3faeedaad6d1d643e",
+    "platform/nfts/refresh-owner.fixtures.mjs": "141531da91150c4f355100833440535acd8911f04b250da9e09f1e8148e8eb72",
+    "platform/nfts/refresh-owner-http.mjs": "f687ca3335264b82143cfc8304e2cca44b54e0155fb2da1eb6c9172813cdbfb7",
+    "platform/nfts/refresh-owner-http.test.mjs": "0d48a66d6bb91e67c929a1703e348d0f3325e662e35d35b610684cbe59761d33",
+    "platform/nfts/node-refresh-owner.mjs": "2724f665695731f441c4e3b4c8c4bd48ecf12ef53c7912fc0edcda645d977b63",
+    "platform/nfts/refresh-owner-openapi.mjs": "d71d07c78dd6176af2a3f4573462a5629670860847dae5f7aca8aaddce97620c",
+    "platform/edge/src/refresh.ts": "637ec9727ed3f5ec4746d67fbed0bc7db6bf72b5fcf27f3b4c3e5c4036cb2701",
+    "platform/edge/test/refresh-owner.test.mjs": "f9a975adcbec7bbabc45463abc53df0f50bcaefef1b2436e74debbbb071698ac",
+    "platform/edge/test/fixtures/refresh-owner-worker.ts": "e22f93d9f0880b395534bf2e9ad469c414d012b74f829de10426c4f600cdb72a",
+    "platform/site/src/refresh.tsx": "c0abb7e9b173ec5a316f74790f7fb951a80643b9e93e377761d341c3e98ec3a8",
+    "platform/site/src/refresh-review.mjs": "b3f658333786943cb791a6db72a494b5a736889d5dfac7a971d36a4af4dd3660",
+    "platform/site/src/refresh-review.d.mts": "996cdc009b314a6639bcd733c9483a49a11998ffb5c226c000f058e24071472f",
+    "platform/site/tests/refresh-runtime-qa.mjs": "ac92e7803c18adbd6da4c5b78a8282821647247d900c231cb8e12d31ef05efbf",
+    "platform/server/application.mjs": "6001863a0571eee26cf00841c22c75ffacf1660b5707b917295d5351445f4540",
+    "platform/server/api.mjs": "9a5b9732d41ebe830344ea901d752bd8c8705626a9903f5282c92bd8bacc3333",
+    "platform/edge/src/worker.ts": "18267e429ec2b3dfca2c176c6dab88a00d2fbc6cba403b953dbcec82e9b7c6ab",
+    "platform/contracts/feature-shapes.mjs": "1c0623e8be2180b74aadbb233178abb178c7390b94006c1ec9e9e5fbc127e55c",
+    "platform/contracts/shapes.mjs": "a5d7ea82b763ef71fb08b1ac9a361b87dce92a308641666bb75079bf859d268f",
+    "platform/contracts/capabilities.mjs": "729baa1da7de092a6a066626919b31f54e2759c80b4ee17d73e8bdbeea3bc8e0",
+    "platform/contracts/client.d.mts": "e5ddd0eed9da236db40262a60cc7fd9437b068eef1e676bf9d2dddae59561556",
+    "platform/contracts/operations.mjs": "eb4dacd7fb16851d699917fa4c1ce478aae4ffaeed732c56dafbc3cbcec800d7",
+    "platform/contracts/openapi.json": "16e13712944fb5b43b890a39477b39ffa80749c03bed9ea69b1fc648d491426e",
+    "platform/site/src/session.tsx": "2d932444f0d54d74ed1f48d2f35fb931ff14f4c7a7ae40ec133ea96f132c19c9",
+    "platform/site/src/collect.tsx": "0c636cbd2c0aa14cbafa8bf76e89ca3b80471e2ce36ff380d8f632cdecbd4c51",
+    "platform/site/src/models.ts": "5c7a2f5815b0440e1b058a7f1be25861b8eff00b97249032b2b8219622da10f5",
+    "platform/site/tests/fairness-progression-runtime-qa.mjs": "f4d64233c959abe620fa6aea6fb11af9a3432e3f790896fe1e351d3cceb245b5"
+  },
+  "tests": [
+    {
+      "command": "node --test platform/nfts/refresh-owner-service.test.mjs platform/nfts/refresh-owner-http.test.mjs",
+      "passed": 6,
+      "durationMs": 3036.3297,
+      "log": "work/b17-refresh-owner-node.log"
+    },
+    {
+      "command": "node --test platform/edge/test/refresh-owner.test.mjs",
+      "passed": 1,
+      "durationMs": 28479.0618,
+      "log": "work/b17-refresh-owner-d1.log",
+      "scope": "Actual production main Worker routes with four genuine independently executed D1 source commands and R2 retained bytes. Before timestamp-only collection DTO edits, refresh semantics unchanged."
+    },
+    {
+      "command": "node platform/site/tests/refresh-runtime-qa.mjs",
+      "widths": [
+        360,
+        390,
+        768,
+        1440
+      ],
+      "passed": true,
+      "log": "work/b17-refresh-owner-browser.log"
+    },
+    {
+      "command": "node platform/site/tests/fairness-progression-runtime-qa.mjs",
+      "profiles": [
+        "upgrade",
+        "visual"
+      ],
+      "width": 390,
+      "passed": true,
+      "log": "work/b17-progression-fairness-browser-final.log",
+      "assertions": [
+        "Explicit refresh ordinary receipt shows fulfilled",
+        "No extra BLS call",
+        "Time withheld for null creation timestamp"
+      ]
+    },
+    {
+      "command": "node --test platform/contracts/transport.test.mjs platform/contracts/feature-contracts.test.mjs platform/contracts/capabilities.test.mjs platform/site/tests/collection-operation.spec.mjs platform/site/tests/capabilities.spec.mjs",
+      "passed": 16,
+      "durationMs": 3589.2055,
+      "log": "work/b17-refresh-owner-regressions.log"
+    }
+  ],
+  "checks": [
+    "Edge TypeScript passed",
+    "Site TypeScript passed",
+    "Generated contracts check passed",
+    "Site build passed 4.55s (final build log retained)",
+    "git diff --check passed"
+  ],
+  "authority": [
+    "Server derives wallet principal from live session",
+    "128 process-local preparation tokens; exact immutable captured command; no renewal after expiry/isolate loss",
+    "Accepted receipt lookup remains read-only across restart/reauth; unaccepted missing preparation is held",
+    "Actual Node session deletion immediately before receipt claim rejects without effect",
+    "Worker SQL session predicate checks database-clock expiry at claim",
+    "Original request owner is explicit; execution rechecks current ownership/version",
+    "Digest-only fixture preview; no image, provider selection, signer, broadcast, payment, metadata or economic effect"
+  ],
+  "browserCases": [
+    "Real compiled React and Node API; no positive API mocks",
+    "Lost committed response -> reload -> read-only accepted receipt lookup",
+    "Unaccepted network failure -> missing receipt hold -> exact captured body/key/token retry",
+    "Transfer after approval produces permanent fulfillment-pending owner-change hold",
+    "Logout clears metadata journal and hides private panel",
+    "No image elements, financial controls or overflow at four widths"
+  ],
+  "limitations": [
+    "Canonical synthetic session fixtures, not a repeated wallet-message ceremony",
+    "Process-local preparation is not durable acceptance; restart/isolate loss cannot renew commands",
+    "Quote/reference/preview digest provenance only; no final image or AI output claim",
+    "No remote providers, uploads, financial execution or public deployment",
+    "B17 overall completion remains coordinator acceptance decision"
+  ],
+  "corrections": [
+    "Browser transfer fixture uses required whole-second observation and accounts for legitimate transfer version increment",
+    "Kept discovery first in capability inventory; no assertion weakening",
+    "Nullable CollectionOperation.createdAt and Time withheld match coordinator exact-round privacy redaction"
+  ],
+  "screenshots": [
+    "work/b17-refresh-owner-browser/360.png",
+    "work/b17-refresh-owner-browser/390.png",
+    "work/b17-refresh-owner-browser/768.png",
+    "work/b17-refresh-owner-browser/1440.png"
+  ]
+}

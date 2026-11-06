@@ -1,0 +1,50 @@
+{
+  "taskId": "B17",
+  "status": "local-acceptance-verified-full-CI-pending",
+  "profiles": [
+    "recorded-local-metadata-refresh",
+    "normalized-mint-progression-fairness",
+    "Node-and-local-Worker-D1-R2"
+  ],
+  "evidence": [
+    "B17-01.json",
+    "B17-02.json",
+    "B17-03.json",
+    "B17-04.json",
+    "B17-05.json",
+    "B17-06.json",
+    "B17-07.json",
+    "B17-08.json",
+    "B17-09.json",
+    "B17-10.json",
+    "B17-11.json",
+    "B17-12.json",
+    "B17-13.json",
+    "B17-14.json",
+    "B17-15.json",
+    "B17-16.json",
+    "B17-17.json",
+    "B17-18.json",
+    "B17-19.json"
+  ],
+  "acceptance": [
+    "Separate request/evidence/nonfinancial states",
+    "Combined response timing and outcome-bearing fields withheld until allowed disclosure",
+    "Existing pinned beacon same-result replay for guarded mint/upgrade/visual",
+    "Immutable metadata/economic permissions and retained transfer counters",
+    "Authenticated fixture refresh history with owner/version/preview/quote/job binding and permanent ownership hold",
+    "Private checkpoint exact-byte recovery with every revision/original evidence/immutable asset identity independently reconciled",
+    "Session-fenced owner approval/fulfillment request and process-loss receipt recovery",
+    "Node,actual D1/R2,full restore and browser acceptance"
+  ],
+  "unresolved": [
+    "FullCI on final integration code",
+    "Production custody/provider/payment/authority remain unselected and disabled",
+    "Review preparation tokens ephemeral and bounded; lost token never renews an uncommitted command",
+    "Fixture previews are recorded descriptors, not AI-generated images or applied metadata"
+  ],
+  "financialExecution": false,
+  "serverSigning": false,
+  "broadcast": false,
+  "releaseAuthorized": false
+}

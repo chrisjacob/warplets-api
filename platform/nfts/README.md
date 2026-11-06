@@ -14,7 +14,7 @@ The permission/recovery dossier records unresolved external-burn, burn-veto remo
 
 All inputs are bounded data-only structures (32 KiB outer input, 16 KiB asset JSON, 4 KiB slot JSON). Getters, unknown fields, duplicate JSON properties, sparse arrays and malformed identities are rejected. Financial state is always `not-applicable-local`; signing, broadcast and financial execution are unavailable.
 
-This is B17 step4/6 groundwork only. Fairness disclosure projection and the recoverable refresh proposal workflow remain separate work. No provider, custody configuration or metadata mutation route is selected.
+The pure metadata helpers are B17 step4/6 foundations. Separate guarded repositories now provide reveal-gated fairness disclosure and authenticated, recoverable local refresh revisions. No provider, custody configuration or on-chain metadata mutation is selected.
 
 
 ## Refresh rehearsal and recovery
@@ -41,7 +41,7 @@ After those gates, replay uses the original recorded round, commitment and exist
 | Season progression | Existing domain replay; original start, derived expiry and lifetime rerolls | Authenticated committed effect lineage and accepted entropy |
 | Transfer | Immutable identity/economics and preserved counters/cooldown | Accepted owner observation and current version fence |
 | Fairness transcript | Same recorded draw, reveal gates and sealed field allowlist | Trusted assignment/reveal history; no production order/custody claim |
-| Private refresh checkpoint | Independent byte pin, canonical encoding and full event replay | Authenticated durable revision pointer and current asset observation |
+| Private refresh checkpoint | Independent byte pin, canonical encoding, full event replay and committed069 revision lineage; recovery binds immutable Collect/Vault identity | Production media/update custody remains unresolved; local fixture completion never applies metadata |
 | Historical Vault claims | No metadata mutation channel | Permanent claim/custody design and financial review |
 
 On interruption, retain the same operation, commitment, provider job and every history revision. Pause new proposals if evidence is unavailable. Do not clear a lock or replace a draw to make a hold disappear. Existing external-burn, update-authority and permanent-delegate incompatibilities stay unresolved; an unsigned transaction plan grants no authority.

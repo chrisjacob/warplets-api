@@ -229,8 +229,8 @@ function MemberAssets({wallet,review}:{wallet:string;review:(review:Review)=>voi
       {page.nextCursor!==null&&<Link to="/collect" search={{owned:String(page.nextCursor)}}>Next assets →</Link>}
     </>}</Loaded></Panel>
     <Panel title="Operation history">{search.receipt && <Loaded query={receipt}>{r=><article className="receipt"><h3>Operation receipt</h3>
-      <Facts items={[['ID',r.id],['State',r.status],['Requested',utc(r.createdAt)],['Action',r.kind],['Collection',r.inventoryId],
-        ['Recorded price',sol(r.priceLamports??r.feeLamports)],['Result NFT',r.assetId??'Pending']]}/><CollectionOperationHold operation={r}/><CollectionOperationFairness key={wallet+':'+r.id} operation={r} wallet={wallet}/></article>}</Loaded>}
+      <Facts items={[['ID',r.id],['State',r.status],['Requested',r.createdAt?utc(r.createdAt):'Time withheld'],['Action',r.kind],['Collection',r.inventoryId],
+        ['Recorded price',sol(r.priceLamports??r.feeLamports)],['Result NFT',r.assetId??'Pending']]}/><CollectionOperationHold operation={r}/><button type="button" onClick={()=>void receipt.refetch()} disabled={receipt.isFetching}>Refresh operation receipt</button><CollectionOperationFairness key={wallet+':'+r.id} operation={r} wallet={wallet}/></article>}</Loaded>}
       <Loaded query={operations}>{page=><>{page.items.length?<ul className="rows">{page.items.map(op=><li key={op.id}><Link to="/collect" search={{receipt:op.id}}>
         <strong>{op.kind} · {op.inventoryId}</strong><span>{op.reconciliation?'Held after observed transfer':op.status} ↗</span></Link></li>)}</ul>:<p>No operations for this wallet.</p>}
         {page.nextCursor!==null&&<Link to="/collect" search={{operations:String(page.nextCursor)}}>Next operations →</Link>}</>}</Loaded></Panel>

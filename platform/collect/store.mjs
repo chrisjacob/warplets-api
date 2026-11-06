@@ -178,7 +178,7 @@ function opView(row) {
   const op=decode(row.operation);
   return jsonValue({id:row.id,kind:row.kind,inventoryId:row.inventory_id,owner:row.owner,
     stageId:op.stageId??null,targetId:op.targetId??null,materialId:op.materialId??null,
-    status:row.settled_ms===null?'awaiting-evidence':'fulfilled',createdAt:iso(row.created_ms),
+    status:row.settled_ms===null?'awaiting-evidence':'fulfilled',createdAt:null,
     priceLamports:op.priceLamports??null,costLamports:op.costLamports??null,feeLamports:op.feeLamports??null,
     assetId:row.receipt?decode(row.receipt).assetId??null:null,source:'local-fixture',executable:false});
 }
@@ -228,7 +228,7 @@ function trancheOpeningHold(db,row,state,now) {
   if(row.kind!=='genesis' || row.tranche===1 || state.admissions.length>0 || !state.stages.length) return null;
   const first=state.stages[0];
   const decision=db.prepare('SELECT earliest_ms FROM genesis_decisions WHERE ballot_id=?').get(first.ballotId);
-  if(!decision || now<decision.earliest_ms) return 'Awaiting the founder’s approved opening time.';
+  if(!decision || now<decision.earliest_ms) return 'Awaiting the founderâ€™s approved opening time.';
   const prev=db.prepare('SELECT state FROM collect_inventories WHERE tranche=?').get(row.tranche-1);
   if(!prev || (inventoryCounts(decode(prev.state)).unsold>0 && !first.inventoryOverrideReason)) {
     return 'The previous tranche still has available inventory.';
@@ -450,7 +450,7 @@ export function readCollectionAsset(db,assetId) {
   const nft=decode(row.asset);
   const ownerEvidence=db.prepare("SELECT observed_ms FROM vault_observations WHERE asset_id=? AND kind IN ('bind','transfer') ORDER BY observed_ms DESC,rowid DESC LIMIT 1").get(assetId);
   return {id:row.id,inventoryId:row.inventory_id,owner:row.owner,revealStatus:row.reveal_ms===null?'unrevealed':'revealed',
-    revealedAt:row.reveal_ms===null?null:iso(row.reveal_ms),ownerObservedAt:ownerEvidence?iso(ownerEvidence.observed_ms):null,evidenceStatus:'local-fixture',
+    revealedAt:row.reveal_ms===null?null:iso(row.reveal_ms),ownerObservedAt:row.reveal_ms!==null&&ownerEvidence?iso(ownerEvidence.observed_ms):null,evidenceStatus:'local-fixture',
     ...(row.reveal_ms===null?{}:{level:nft.level,traits:nft.traits,version:nft.version,
       rerolls:nft.rerolls,nextRerollAt:nft.eligibleAt?iso(nft.eligibleAt):null,
       expiresAt:nft.expiresAt?iso(nft.expiresAt):null,operationPending:nft.pending!==null}),

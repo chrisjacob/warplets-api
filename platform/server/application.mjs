@@ -1,3 +1,4 @@
+import {createNodeRefreshOwner} from '../nfts/node-refresh-owner.mjs';
 import {createMutationEventObserver} from '../observability/mutation-events.mjs';
 import {createNodeCrypto} from '../security/node-crypto.mjs';
 import { handleAuth } from './auth.mjs';
@@ -18,6 +19,7 @@ import { handleInteractiveQuotes } from '../quotes/interactive-http.mjs';
 import { createNodeQuoteService,createNodeFinancialReadService,createNodeGovernanceService } from '../application/node-context.mjs';
 import { consumeQuota,currentSession } from './auth.mjs';
 export function createApp(db,{clock=Date.now,artifactStore,operationalEventSink}={}) {
+  const refreshOwner=createNodeRefreshOwner(db,{clock,artifacts:artifactStore});
   const quotes=createNodeQuoteService(db,{clock:{nowMs:clock},store:artifactStore});
   const financial=createNodeFinancialReadService(db,{clock:{nowMs:clock}});
   const governance=createNodeGovernanceService(db,{clock:{nowMs:clock}});
@@ -35,7 +37,7 @@ export function createApp(db,{clock=Date.now,artifactStore,operationalEventSink}
       await handleFinancialReads(request,{service:financial,authenticate:async(req)=>{const session=currentSession(db,req,clock());return session?{kind:'wallet',wallet:session.wallet}:null;}})??await handleTransactions(db,request,now)??await handleNotifications(db,request,peer,now)??
       await handleInteractiveGovernance(request,{service:governance,peer,authenticate:async(req)=>{const session=currentSession(db,req,clock());return session?{kind:'wallet',wallet:session.wallet}:null;},consumeQuota:async(bucket,limit)=>consumeQuota(db,bucket,now,limit)})??
       await handleEarn(db,request,peer,now)??
-      await handleCollect(db,request,peer,now,{clock})??
+      await refreshOwner(request)??await handleCollect(db,request,peer,now,{clock})??
       await handleLaunchPlans(request,{nowSeconds:Math.floor(now/1000)})??
       await serveSite(request,undefined,path=>{
         if(typeof path!=='string'||!path.startsWith('/api/v1/'))throw Error('Invalid public SSR resource.');

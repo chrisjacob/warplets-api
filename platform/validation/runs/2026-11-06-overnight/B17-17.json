@@ -1,0 +1,175 @@
+{
+  "milestone": "B17 recovery immutable metadata correction",
+  "status": "focused-and-full-local-D1-verified",
+  "tests": {
+    "node": {
+      "passed": 6,
+      "durationMs": 50803.0077,
+      "log": "work/b17-refresh-immutable-recovery-node.log",
+      "metrics": [
+        {
+          "revisions": 7,
+          "objects": 13,
+          "steps": 1084,
+          "checkpointPeak": 126329,
+          "phases": {
+            "metadata": 126323,
+            "objects": 126091,
+            "publications": 125069,
+            "tables": 126329,
+            "fences": 125015,
+            "pin-target": 124929,
+            "reconcile-objects": 126286,
+            "reconcile-table-metadata": 126243,
+            "reconcile-tables": 125624,
+            "reconcile-audit": 92921,
+            "reconcile-action-policies": 92996,
+            "reconcile-economics": 93496,
+            "reconcile-nft-refresh": 93101,
+            "reconcile-economic-preparations": 93202,
+            "reconcile-recorded-outcomes": 93280,
+            "reconcile-recorded-expiries": 93369,
+            "reconcile-recorded-preparations": 93472,
+            "reconcile-legacy-adoptions": 93571,
+            "reconcile-collection-authorities": 93678,
+            "reconcile-collection-admissions": 93723,
+            "reconcile-collection-fulfillments": 93773,
+            "reconcile-free-cut-records": 93816,
+            "reconcile-free-cut-attempts": 93854,
+            "reconcile-free-cut-validations": 93897,
+            "reconcile-free-cut-lists": 93910,
+            "reconcile-free-cut-bindings": 93950,
+            "reconcile-publications": 93945,
+            "reconcile-checkpoints": 94024,
+            "reconcile-final": 94018,
+            "final-ready": 94285
+          },
+          "maxOperations": 33,
+          "maxBatchBytes": 111848,
+          "fullHistoryReplay": true,
+          "independentRefreshSemanticPhase": true,
+          "omittedProofRollback": true,
+          "lostProofReplay": true,
+          "financialExecution": false
+        },
+        {
+          "verifiedRevisions": 7,
+          "workingWithoutOuterCheckpoint": 91864,
+          "historicalClock": true,
+          "grantsNotReauthorized": true
+        },
+        {
+          "maxOperations": 21,
+          "maxObjectReads": 7,
+          "maxWorkingBytes": 272080,
+          "checkpointPaddingBytes": 90000
+        }
+      ]
+    },
+    "actualD1": {
+      "passed": 1,
+      "calls": 29,
+      "durationMs": 29457.9389,
+      "log": "work/b17-refresh-immutable-edge.log",
+      "metrics": [
+        {
+          "calls": 29,
+          "independentHistoricalVerifications": 7,
+          "maxOperations": 30,
+          "maxBatchBytes": 6438,
+          "maxParameters": 46,
+          "maxResultBytes": 3114,
+          "revisions": 8,
+          "receipts": 8,
+          "checkpoints": 8,
+          "financialExecution": false,
+          "metadataApplied": false
+        }
+      ]
+    },
+    "fullD1": {
+      "passed": 1,
+      "durationMs": 193601.1902,
+      "log": "work/b17-refresh-immutable-full-d1.log",
+      "metrics": {
+        "steps": 1083,
+        "tables": 118,
+        "originalObjects": 13,
+        "capturedObjects": 173,
+        "revisionChecks": 7,
+        "checkpointPeak": 126467,
+        "phases": {
+          "metadata": 126461,
+          "objects": 126229,
+          "publications": 125207,
+          "tables": 126467,
+          "fences": 125153,
+          "pin-target": 125067,
+          "reconcile-objects": 126424,
+          "reconcile-table-metadata": 126381,
+          "reconcile-tables": 125762,
+          "reconcile-audit": 93059,
+          "reconcile-action-policies": 93134,
+          "reconcile-economics": 93634,
+          "reconcile-nft-refresh": 93239,
+          "reconcile-economic-preparations": 93340,
+          "reconcile-recorded-outcomes": 93418,
+          "reconcile-recorded-expiries": 93507,
+          "reconcile-recorded-preparations": 93610,
+          "reconcile-legacy-adoptions": 93709,
+          "reconcile-collection-authorities": 93816,
+          "reconcile-collection-admissions": 93861,
+          "reconcile-collection-fulfillments": 93911,
+          "reconcile-free-cut-records": 93954,
+          "reconcile-free-cut-attempts": 93992,
+          "reconcile-free-cut-validations": 94035,
+          "reconcile-free-cut-lists": 94048,
+          "reconcile-free-cut-bindings": 94088,
+          "reconcile-publications": 94083,
+          "reconcile-checkpoints": 94162,
+          "reconcile-final": 94156,
+          "final-ready": 94423
+        },
+        "maxOperations": 33,
+        "maxBatchBytes": 112001,
+        "maxSerializedWorkingBytes": 375618,
+        "separateBuckets": true,
+        "independentPins": true,
+        "fullHistory": true,
+        "financialExecution": false,
+        "metadataApplied": false
+      }
+    },
+    "edgeTypes": "passed",
+    "diffCheck": "passed"
+  },
+  "correction": {
+    "binds": [
+      "inventoryId",
+      "kind",
+      "tranche",
+      "originalSeasonStart",
+      "CollectSlot",
+      "VaultSlotKey",
+      "VaultCoordinates",
+      "originalBindMs",
+      "originalBindEvent",
+      "GenesisLevel"
+    ],
+    "allowsLaterOwnerAndVersion": true,
+    "wholeRehashedSevenRevisionSubstitutionRejected": true,
+    "newSchema": false,
+    "boundsRaised": false,
+    "financialExecution": false,
+    "metadataApplied": false
+  },
+  "sources": {
+    "platform/recovery/v2-reconcile-nft-refresh.mjs": "7ad8e843ad2cf4bb32a6d76f1846127a8bb7456e86347ac5613535d76af7021d",
+    "platform/recovery/v2-reconcile-nft-refresh.test.mjs": "acf85f70d84741cabf976890a2f45b4b65a91f70495a6211acd3af7804b574f1",
+    "platform/nfts/README.md": "29f90456f0c94e28a356b26b0d1cf50b8613be466d79974706d3876172c3c2ae"
+  },
+  "limitations": [
+    "Recorded synthetic fixture provider only; no metadata or financial execution",
+    "Full CI and active owner UI acceptance belong to coordinator"
+  ]
+}

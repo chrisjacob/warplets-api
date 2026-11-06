@@ -1,0 +1,42 @@
+{
+  "milestone": "B17 exact admission and concealed binding time redaction",
+  "status": "focused-verified",
+  "checks": [
+    {
+      "command": "node --test platform/collect/fairness-timing.test.mjs platform/collect/read-model.test.mjs platform/collect/mint-http.test.mjs platform/collect/progression-http.test.mjs",
+      "passed": 14,
+      "durationMs": 4571.2724,
+      "log": "work/b17-fairness-timing.log"
+    },
+    {
+      "command": "node --test --test-concurrency=1 platform/edge/test/collection-reads.test.mjs platform/edge/test/mint-http.test.mjs platform/edge/test/progression-http.test.mjs",
+      "passed": 4,
+      "durationMs": 93707.5985,
+      "log": "work/b17-fairness-timing-d1.log"
+    },
+    {
+      "command": "contracts generated check and edge types",
+      "passed": true
+    }
+  ],
+  "assertions": [
+    "Regression demonstrates exact futureRound derivation from original created_ms",
+    "All member collection operation mutation/detail/list projections withhold exact createdAt as null",
+    "Concealed asset ownerObservedAt withheld; original database observations retained",
+    "Original timing remains available in authorized post-reveal transcript",
+    "Separate unpredictable server UUID commitment retained"
+  ],
+  "limitations": [
+    "This prevents direct exact timestamp disclosure, not public wall-clock inference",
+    "No claim that timing secrecy alone prevents outcome reconstruction; raw commitment and proof remain separately protected"
+  ],
+  "sourceHashes": {
+    "platform/collect/mint-http.mjs": "8f75e3495b6ce64a66a5ae1c7cdd5131ea0aea0ca104affb8cd3351868ea8ba8",
+    "platform/collect/progression-http.mjs": "7100b2491511f9489926317deb117e434f9eef08425b60066ffaf5e1d6a140b8",
+    "platform/collect/read-model.mjs": "270ff58500282d7a5eb96f428a99308d7927bf18c89a60b141d53b27b9330f1f",
+    "platform/collect/read-model.d.mts": "23e5c3b4677138b7b1965b25a4c79791a14a26a8d9dcfb94874db13a946923b5",
+    "platform/collect/store.mjs": "d950561d6a2ce4b0a731f3f85398708e6c3f4d62a9b08688a3050fa76baed670",
+    "platform/collect/fairness-timing.test.mjs": "3a240435a709319ebabdf98a197a75b6fafea3750b73c3d1bff0d04e0c7fcaf0"
+  },
+  "financialExecution": false
+}

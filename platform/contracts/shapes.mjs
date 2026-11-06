@@ -31,7 +31,7 @@ export const shapes={
    traits:object({model:str,backdrop:str,symbol:str}),version:integer,rerolls:integer,nextRerollAt:nullable(iso),expiresAt:nullable(iso),
    operationPending:bool,ownerObservedAt:nullable(iso),evidenceStatus:{const:'local-fixture'},source:str,executable:bool},['id','inventoryId','owner','revealStatus','ownerObservedAt','evidenceStatus','source','executable']),
  CollectionOperation:object({id:str,kind:{enum:['mint','upgrade','visual']},inventoryId:str,owner:str,stageId:nullable(str),
-   targetId:nullable(str),materialId:nullable(str),status:{enum:['awaiting-evidence','fulfilled']},createdAt:iso,
+   targetId:nullable(str),materialId:nullable(str),status:{enum:['awaiting-evidence','fulfilled']},createdAt:nullable(iso),
    priceLamports:nullable(units),costLamports:nullable(units),feeLamports:nullable(units),assetId:nullable(str),source:str,executable:bool}),
  ProgressionQuote:object({kind:{enum:['upgrade','visual']},inventoryId:str,targetId:str,materialId:nullable(str),feeLamports:units,
    nextTargetLevel:integer,nextTargetExpiry:iso,asOf:iso,materialProbabilities:array(object({level:integer,count:integer,total:integer,expiresAt:iso,remainingMs:integer})),

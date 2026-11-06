@@ -5891,6 +5891,650 @@
         }
       }
     },
+    "/nfts/refreshes/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "maxLength": 128
+          }
+        }
+      ],
+      "get": {
+        "operationId": "getMyRefreshProposal",
+        "summary": "Read original-owner local refresh proposal without private checkpoint internals.",
+        "responses": {
+          "200": {
+            "description": "Recorded fixture proposal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "const": "found"
+                        },
+                        "value": {
+                          "$ref": "#/components/schemas/RefreshOwnerView"
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "value"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "$ref": "#/components/schemas/RefreshOwnerPending"
+                    }
+                  ]
+                }
+              },
+              "application/vnd.10x.v1+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "const": "found"
+                            },
+                            "value": {
+                              "$ref": "#/components/schemas/RefreshOwnerView"
+                            }
+                          },
+                          "required": [
+                            "kind",
+                            "value"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "$ref": "#/components/schemas/RefreshOwnerPending"
+                        }
+                      ]
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/Meta"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Evidence unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "const": "found"
+                        },
+                        "value": {
+                          "$ref": "#/components/schemas/RefreshOwnerView"
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "value"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "$ref": "#/components/schemas/RefreshOwnerPending"
+                    }
+                  ]
+                }
+              },
+              "application/vnd.10x.v1+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "const": "found"
+                            },
+                            "value": {
+                              "$ref": "#/components/schemas/RefreshOwnerView"
+                            }
+                          },
+                          "required": [
+                            "kind",
+                            "value"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "$ref": "#/components/schemas/RefreshOwnerPending"
+                        }
+                      ]
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/Meta"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No owned request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              },
+              "application/vnd.10x.v1+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/nfts/refreshes/{id}/prepare": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "maxLength": 128
+          }
+        }
+      ],
+      "post": {
+        "operationId": "prepareMyRefreshAction",
+        "summary": "Owner-only local fixture proposal review; never metadata application or payment.",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "action",
+                  "expectedRevision",
+                  "expectedStateDigest",
+                  "previewDigest",
+                  "quoteDigest"
+                ],
+                "properties": {
+                  "action": {
+                    "enum": [
+                      "approve",
+                      "request-fulfillment"
+                    ]
+                  },
+                  "expectedRevision": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 15
+                  },
+                  "expectedStateDigest": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  },
+                  "previewDigest": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  },
+                  "quoteDigest": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Prepared review or exact accepted local revision",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefreshOwnerActionResult"
+                }
+              },
+              "application/vnd.10x.v1+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/RefreshOwnerActionResult"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/Meta"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Held without renewed preparation authority",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefreshOwnerActionResult"
+                }
+              },
+              "application/vnd.10x.v1+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/RefreshOwnerActionResult"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/Meta"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Session required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              },
+              "application/vnd.10x.v1+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Revision or identity conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              },
+              "application/vnd.10x.v1+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/nfts/refreshes/{id}/execute": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "maxLength": 128
+          }
+        }
+      ],
+      "post": {
+        "operationId": "executeMyRefreshAction",
+        "summary": "Owner-only local fixture proposal review; never metadata application or payment.",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-refresh-preparation",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "action",
+                  "expectedRevision",
+                  "expectedStateDigest",
+                  "previewDigest",
+                  "quoteDigest"
+                ],
+                "properties": {
+                  "action": {
+                    "enum": [
+                      "approve",
+                      "request-fulfillment"
+                    ]
+                  },
+                  "expectedRevision": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 15
+                  },
+                  "expectedStateDigest": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  },
+                  "previewDigest": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  },
+                  "quoteDigest": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Prepared review or exact accepted local revision",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefreshOwnerActionResult"
+                }
+              },
+              "application/vnd.10x.v1+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/RefreshOwnerActionResult"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/Meta"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Held without renewed preparation authority",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefreshOwnerActionResult"
+                }
+              },
+              "application/vnd.10x.v1+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/RefreshOwnerActionResult"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/Meta"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Session required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              },
+              "application/vnd.10x.v1+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Revision or identity conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              },
+              "application/vnd.10x.v1+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/nfts/refreshes/{id}/receipt": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "maxLength": 128
+          }
+        }
+      ],
+      "post": {
+        "operationId": "getMyRefreshActionReceipt",
+        "summary": "Owner-only local fixture proposal review; never metadata application or payment.",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "action",
+                  "expectedRevision",
+                  "expectedStateDigest",
+                  "previewDigest",
+                  "quoteDigest"
+                ],
+                "properties": {
+                  "action": {
+                    "enum": [
+                      "approve",
+                      "request-fulfillment"
+                    ]
+                  },
+                  "expectedRevision": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 15
+                  },
+                  "expectedStateDigest": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  },
+                  "previewDigest": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  },
+                  "quoteDigest": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Prepared review or exact accepted local revision",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefreshOwnerActionResult"
+                }
+              },
+              "application/vnd.10x.v1+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/RefreshOwnerActionResult"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/Meta"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Held without renewed preparation authority",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefreshOwnerActionResult"
+                }
+              },
+              "application/vnd.10x.v1+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/RefreshOwnerActionResult"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/Meta"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Session required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              },
+              "application/vnd.10x.v1+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Revision or identity conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              },
+              "application/vnd.10x.v1+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/operations/status": {
       "get": {
         "operationId": "getLocalOperationStatus",
@@ -7999,8 +8643,15 @@
             ]
           },
           "createdAt": {
-            "type": "string",
-            "format": "date-time"
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "priceLamports": {
             "anyOf": [
@@ -8266,6 +8917,436 @@
           "networkCost",
           "totalCost",
           "historicalAllocationsChange"
+        ]
+      },
+      "RefreshOwnerView": {
+        "type": "object",
+        "properties": {
+          "requestId": {
+            "type": "string"
+          },
+          "assetId": {
+            "type": "string"
+          },
+          "inventoryId": {
+            "type": "string"
+          },
+          "requestOwner": {
+            "type": "string"
+          },
+          "expectedAssetVersion": {
+            "type": "integer"
+          },
+          "revision": {
+            "type": "integer"
+          },
+          "stateDigest": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "requestState": {
+            "enum": [
+              "draft",
+              "reference-validated",
+              "moderation-pending",
+              "preview-ready",
+              "owner-approved",
+              "fulfillment-pending",
+              "fulfilled",
+              "failed",
+              "rejected",
+              "owner-changed"
+            ]
+          },
+          "evidenceState": {
+            "type": "string"
+          },
+          "referenceDigest": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "quoteDigest": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "providerKind": {
+            "enum": [
+              "unselected",
+              "recorded-synthetic-fixture"
+            ]
+          },
+          "preview": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "previewDigest": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  },
+                  "moderationDigest": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  },
+                  "provenance": {
+                    "const": "recorded-synthetic-fixture"
+                  }
+                },
+                "required": [
+                  "previewDigest",
+                  "moderationDigest",
+                  "provenance"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "approval": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "assetVersion": {
+                    "type": "integer"
+                  },
+                  "approvedMs": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                },
+                "required": [
+                  "assetVersion",
+                  "approvedMs"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "hold": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string"
+                  },
+                  "atMs": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                },
+                "required": [
+                  "reason",
+                  "atMs"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "previewPresentation": {
+            "const": "digest-only-recorded-fixture"
+          },
+          "currentOwnership": {
+            "const": "rechecked-on-action"
+          },
+          "quoteTerms": {
+            "const": "retained-digest-only"
+          },
+          "source": {
+            "const": "local-fixture"
+          },
+          "financialState": {
+            "const": "not-applicable-local"
+          },
+          "financialExecution": {
+            "const": false
+          },
+          "metadataApplied": {
+            "const": false
+          },
+          "isAuthorization": {
+            "const": false
+          },
+          "serverSigning": {
+            "const": false
+          },
+          "broadcast": {
+            "const": false
+          }
+        },
+        "required": [
+          "requestId",
+          "assetId",
+          "inventoryId",
+          "requestOwner",
+          "expectedAssetVersion",
+          "revision",
+          "stateDigest",
+          "requestState",
+          "evidenceState",
+          "referenceDigest",
+          "quoteDigest",
+          "providerKind",
+          "preview",
+          "approval",
+          "hold",
+          "previewPresentation",
+          "currentOwnership",
+          "quoteTerms",
+          "source",
+          "financialState",
+          "financialExecution",
+          "metadataApplied",
+          "isAuthorization",
+          "serverSigning",
+          "broadcast"
+        ],
+        "additionalProperties": false
+      },
+      "RefreshOwnerPrepared": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "const": "prepared"
+          },
+          "token": {
+            "type": "string"
+          },
+          "commandDigest": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "capturedAtMs": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "expiresAtMs": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "requestKey": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": "string"
+          },
+          "action": {
+            "enum": [
+              "approve",
+              "request-fulfillment"
+            ]
+          },
+          "expectedRevision": {
+            "type": "integer"
+          },
+          "expectedStateDigest": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "previewDigest": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "quoteDigest": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "preparationAuthority": {
+            "const": "ephemeral-same-session"
+          },
+          "source": {
+            "const": "local-fixture"
+          },
+          "financialState": {
+            "const": "not-applicable-local"
+          },
+          "financialExecution": {
+            "const": false
+          },
+          "metadataApplied": {
+            "const": false
+          },
+          "isAuthorization": {
+            "const": false
+          },
+          "serverSigning": {
+            "const": false
+          },
+          "broadcast": {
+            "const": false
+          }
+        },
+        "required": [
+          "kind",
+          "token",
+          "commandDigest",
+          "capturedAtMs",
+          "expiresAtMs",
+          "requestKey",
+          "requestId",
+          "action",
+          "expectedRevision",
+          "expectedStateDigest",
+          "previewDigest",
+          "quoteDigest",
+          "preparationAuthority",
+          "source",
+          "financialState",
+          "financialExecution",
+          "metadataApplied",
+          "isAuthorization",
+          "serverSigning",
+          "broadcast"
+        ],
+        "additionalProperties": false
+      },
+      "RefreshOwnerReceipt": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "enum": [
+              "committed",
+              "replayed"
+            ]
+          },
+          "projection": {
+            "const": "safe-refresh-reference-v1"
+          },
+          "value": {
+            "type": "object",
+            "properties": {
+              "requestId": {
+                "type": "string"
+              },
+              "assetId": {
+                "type": "string"
+              },
+              "revision": {
+                "type": "integer"
+              },
+              "stateDigest": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              }
+            },
+            "required": [
+              "requestId",
+              "assetId",
+              "revision",
+              "stateDigest"
+            ],
+            "additionalProperties": false
+          },
+          "receipt": {
+            "type": "object",
+            "properties": {
+              "operationId": {
+                "type": "string"
+              },
+              "requestKey": {
+                "type": "string"
+              },
+              "requestDigest": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "outputDigest": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              }
+            },
+            "required": [
+              "operationId",
+              "requestKey",
+              "requestDigest",
+              "outputDigest"
+            ],
+            "additionalProperties": false
+          },
+          "outputDigestScope": {
+            "const": "original-private-revision-reference"
+          },
+          "source": {
+            "const": "local-fixture"
+          },
+          "financialState": {
+            "const": "not-applicable-local"
+          },
+          "financialExecution": {
+            "const": false
+          },
+          "metadataApplied": {
+            "const": false
+          },
+          "isAuthorization": {
+            "const": false
+          },
+          "serverSigning": {
+            "const": false
+          },
+          "broadcast": {
+            "const": false
+          }
+        },
+        "required": [
+          "kind",
+          "projection",
+          "value",
+          "receipt",
+          "outputDigestScope",
+          "source",
+          "financialState",
+          "financialExecution",
+          "metadataApplied",
+          "isAuthorization",
+          "serverSigning",
+          "broadcast"
+        ],
+        "additionalProperties": false
+      },
+      "RefreshOwnerPending": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "const": "pending"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "dependencyIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "kind",
+          "reason",
+          "dependencyIds"
+        ],
+        "additionalProperties": false
+      },
+      "RefreshOwnerActionResult": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/RefreshOwnerPrepared"
+          },
+          {
+            "$ref": "#/components/schemas/RefreshOwnerReceipt"
+          },
+          {
+            "$ref": "#/components/schemas/RefreshOwnerPending"
+          }
         ]
       },
       "CollectionFairness": {

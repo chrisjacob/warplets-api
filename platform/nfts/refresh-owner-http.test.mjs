@@ -1,0 +1,20 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {createHash} from 'node:crypto';
+import {ownerRefreshFixture} from './refresh-owner.fixtures.mjs';
+import {REFRESH_OWNER,REFRESH_BUYER} from './refresh-repository.fixtures.mjs';
+import {createApp} from '../server/application.mjs';
+const origin='http://localhost';
+test('actual Node session routes review and execute retained owner proposal with exact retry and no metadata changes',async t=>{const f=await ownerRefreshFixture(t,{nowMs:Date.now()}),app=createApp(f.db,{clock:()=>f.clock.nowMs(),artifactStore:f.store}),token='synthetic-owner-refresh',requestId=f.reference.requestId;f.db.prepare('INSERT INTO sessions VALUES(?,?,?,?)').run(createHash('sha256').update(token).digest('hex'),REFRESH_OWNER.wallet,origin,f.clock.nowMs()+60000);const headers={cookie:'tenx_local_session='+token,origin,'content-type':'application/json','idempotency-key':'owner-http-approve'},call=(suffix='',body,patch={})=>app(new Request(origin+'/api/v1/nfts/refreshes/'+requestId+suffix,{method:body?'POST':'GET',headers:{...headers,...patch},...(body?{body:JSON.stringify(body)}:{})}));
+ const original=f.db.prepare('SELECT asset FROM collect_assets').get().asset,read=await call();assert.equal(read.status,200);assert.match(read.headers.get('cache-control'),/private.*no-store/);const view=await read.json();assert.equal(view.value.requestState,'preview-ready');assert.equal(view.value.previewPresentation,'digest-only-recorded-fixture');const before=f.counts(),preview=await call('/prepare',f.body);assert.equal(preview.status,200);const p=await preview.json();assert.equal(p.kind,'prepared',JSON.stringify(p));assert.deepEqual(f.counts(),before);assert.equal((await call('/execute',f.body,{'x-refresh-preparation':p.token})).status,200);const replay=await call('/execute',f.body,{'x-refresh-preparation':p.token});assert.equal((await replay.json()).kind,'replayed');assert.equal((await call('/receipt',f.body)).status,200);assert.equal(f.db.prepare('SELECT asset FROM collect_assets').get().asset,original);assert.equal((await call('/prepare',f.body,{origin:'http://other'})).status,403);
+ const restarted=createApp(f.db,{clock:()=>f.clock.nowMs(),artifactStore:f.store}),response=await restarted(new Request(origin+'/api/v1/nfts/refreshes/'+requestId+'/execute',{method:'POST',headers:{...headers,'x-refresh-preparation':p.token},body:JSON.stringify(f.body)}));assert.equal((await response.json()).kind,'replayed');
+ f.db.prepare('UPDATE sessions SET wallet=?').run(REFRESH_BUYER);assert.equal((await call()).status,404);f.db.prepare('UPDATE sessions SET expires_at=0').run();assert.equal((await call()).status,401);
+});
+
+
+test('actual SQL session revocation between review and atomic claim cannot accept refresh action',async t=>{
+ const f=await ownerRefreshFixture(t,{nowMs:Date.now()}),{createNodeRefreshOwner}=await import('./node-refresh-owner.mjs'),{createNodeAtomicDriver}=await import('../storage/node/atomic-driver.mjs'),base=createNodeAtomicDriver(f.db),token='synthetic-refresh-claim-race',hash=createHash('sha256').update(token).digest('hex');let revoke=false,hit=false;
+ f.db.prepare('INSERT INTO sessions VALUES(?,?,?,?)').run(hash,REFRESH_OWNER.wallet,origin,Date.now()+60000);
+ const driver={...base,async batch(statements){if(revoke&&statements.some(s=>/INSERT[^;]*app_command_receipts/i.test(s.sql))){hit=true;f.db.prepare('DELETE FROM sessions WHERE token_hash=?').run(hash);}return base.batch(statements);}},app=createNodeRefreshOwner(f.db,{artifacts:f.store,driver}),headers={cookie:'tenx_local_session='+token,origin,'content-type':'application/json','idempotency-key':'claim-session-race'},call=(suffix,extra={})=>app(new Request(origin+'/api/v1/nfts/refreshes/'+f.reference.requestId+suffix,{method:'POST',headers:{...headers,...extra},body:JSON.stringify(f.body)}));
+ const p=await(await call('/prepare')).json(),before=f.counts();assert.equal(p.kind,'prepared');revoke=true;const response=await call('/execute',{'x-refresh-preparation':p.token});assert.equal(hit,true);assert.notEqual(response.status,200);assert.deepEqual(f.counts(),before);
+});

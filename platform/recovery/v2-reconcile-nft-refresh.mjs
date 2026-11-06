@@ -38,6 +38,18 @@ export async function verifyRecoveredNftRefresh(receipt,{read,artifacts,crypto,o
  }
  const [rows]=await read([revisionSql('n.operation_id=?',r.operation_id)]);need(rows.length===1,'exact revision child.');const n=rows[0];retained+=bytes(n)*3;
  const current=await restoreRow(n),s=current.state;retained+=bytes(s)*4;onWorking(retained);
+ // A self-consistent checkpoint is not a second asset ledger. Bind only the
+ // immutable original identity; current owner/version may legitimately change.
+ const [assets,bindings]=await read([sql(`SELECT ${bound('a.id',128,'id')},${bound('a.inventory_id',128,'inventory_id')},a.bind_ms,${bound('a.slot',4096,'slot')},
+ CASE WHEN length(CAST(a.asset AS BLOB))<=16384 AND json_valid(a.asset) THEN json_extract(a.asset,'$.level') END level,
+ ${bound('h.kind',16,'inventory_kind')},h.tranche,h.season_start,${bound('v.slot_key',4096,'vault_slot')},${bound('v.coords',4096,'vault_coords')}
+ FROM collect_assets a JOIN collect_inventories h ON h.id=a.inventory_id JOIN vault_assets v ON v.id=a.id WHERE a.id=?`,n.asset_id),
+ sql(`SELECT ${bound('event_id',128)},observed_ms,${bound('body',4096)} FROM vault_observations WHERE asset_id=? AND kind='bind' ORDER BY rowid LIMIT 2`,n.asset_id)]);
+ need(assets.length===1&&bindings.length===1,'immutable asset/bind coverage.');const a=assets[0],b=bindings[0],m=s.metadata;
+ need(typeof a.slot==='string'&&typeof a.vault_slot==='string'&&typeof a.vault_coords==='string'&&typeof b.body==='string','immutable identity bounds.');const event=JSON.parse(b.body);
+ need(a.id===m.asset.id&&same({id:a.inventory_id,kind:a.inventory_kind,tranche:a.tranche,season_start:a.season_start},m.inventory)&&a.inventory_kind==='genesis'&&a.bind_ms===m.bindMs&&a.level===m.asset.level&&same(JSON.parse(a.slot),m.slot)&&same(JSON.parse(a.vault_slot),m.slot)&&same(JSON.parse(a.vault_coords),m.slot),'immutable Collect/Vault metadata binding.');
+ need(Object.keys(event).sort().join(',')==='assetId,at,eventId,kind,owner,slot'&&event.assetId===a.id&&event.eventId===b.event_id&&event.kind==='bind'&&b.observed_ms===m.bindMs&&event.at===new Date(m.bindMs).toISOString()&&same(event.slot,m.slot),'immutable Vault bind observation.');
+ retained+=bytes(assets)+bytes(bindings);onWorking(retained);
  const expected={requestId:n.request_id,revision:n.revision,owner:n.owner,assetId:n.asset_id,requestDigest:n.request_digest,stateDigest:n.state_digest,priorStateDigest:n.prior_state_digest,identity:current.identity};
  need(r.created_ms===n.created_ms&&r.result_ref===n.state_digest&&same(result,expected)&&await hash(crypto,expected)===r.output_digest,'exact result.');
  const evidence=createRefreshEvidenceReader({read,artifacts:store,crypto,historicalNowMs:r.created_ms,onWorking:n=>onWorking(retained+n)});let prior=null;

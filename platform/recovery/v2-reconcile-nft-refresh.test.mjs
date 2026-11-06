@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {refreshRepositoryFixture,REFRESH_OWNER,REFRESH_OPERATOR} from '../nfts/refresh-repository.fixtures.mjs';
+import {refreshRepositoryFixture,REFRESH_OWNER,REFRESH_OPERATOR,REFRESH_BUYER} from '../nfts/refresh-repository.fixtures.mjs';
+import {observeCollectionAsset} from '../collect/store.mjs';
 import {completeRefreshRehearsal} from '../nfts/refresh-acceptance.fixtures.mjs';
 import {verifyRecoveredNftRefresh,nftRefreshCountsSql,createRecoveryV2NftRefreshReconciler} from './v2-reconcile-nft-refresh.mjs';
 import {createRefreshWorkflow} from '../nfts/refresh-workflow.mjs';
@@ -46,4 +47,20 @@ test('individually valid rehashed checkpoint cannot replace a previously accepte
  // Every supplied hash and the new checkpoint's internal replay are correct; only the immutable predecessor prefix exposes the fork.
  assert.deepEqual(await workflow.restore(fork),fork);let first=true;
  await assert.rejects(verifyRecoveredNftRefresh(forged,{crypto:f.crypto,artifacts:{async getVerified(i){return i.key===identity.key?{status:'verified',identity,bytes:raw}:f.store.getVerified(i);}},read:async s=>{const rows=await f.read(s);if(first&&s[0].sql.includes('FROM app_nft_refresh_revisions n')){first=false;Object.assign(rows[0][0],{state_digest:fork.stateDigest,object_key:identity.key,byte_digest:digest,size:raw.length,semantic_digest:fork.stateDigest});}return rows;}}),/history prefix/);
+});
+
+test('whole valid rehashed request chain cannot substitute immutable Genesis identity; later ownership is permitted',async t=>{
+ const f=await setup(t),all=receipts(f),ports={read:f.read,artifacts:f.store,crypto:f.crypto},proof=await verifyRecoveredNftRefresh(all[6],ports);
+ f.setNow(f.clock.nowMs()+1000);observeCollectionAsset(f.db,{sourceId:'post-refresh-transfer',kind:'transfer',assetId:'asset-1',from:REFRESH_OWNER.wallet,to:REFRESH_BUYER,at:f.clock.nowMs(),finalized:true},f.clock.nowMs());
+ assert.deepEqual(await verifyRecoveredNftRefresh(all[6],ports),proof);
+ for(const mutate of [r=>r.inventory_id='other',r=>r.bind_ms++,r=>r.level=2,r=>r.vault_coords='{}'])await assert.rejects(verifyRecoveredNftRefresh(all[0],{...ports,read:async s=>{const rows=await f.read(s);if(s[0].sql.includes('FROM collect_assets a JOIN collect_inventories'))mutate(rows[0][0]);return rows;}}),/immutable/);
+ const workflow=createRefreshWorkflow({crypto:f.crypto}),old=f.done.state,q=old.request,metadata=structuredClone(old.metadata);metadata.asset.level=2;metadata.slot.level=2;
+ let fork=await workflow.create({requestId:q.requestId,metadata,owner:q.owner,expectedVersion:q.expectedVersion,referenceDigest:q.referenceDigest,quoteDigest:q.quoteDigest,createdMs:q.createdMs}),prior=null;const states=[fork];
+ for(const h of old.history){fork=(await workflow.advance(fork,h.event,{...metadata,asset:{...metadata.asset,owner:h.context.owner,version:h.context.version},observedMs:h.context.observedMs})).state;states.push(fork);}assert.deepEqual(await workflow.restore(fork),fork);
+ const forgedObjects=new Map(),forgedReceipts=[],forgedRows=new Map();
+ for(const [i,state]of states.entries()){const r=all[i],result=JSON.parse(r.result_json),raw=utf8(canonicalJson(state)),digest=await f.crypto.sha256(raw),identity={...result.identity,key:'private/'+digest+'.json',byteDigest:digest,size:raw.length,semanticDigest:state.stateDigest},value={...result,stateDigest:state.stateDigest,priorStateDigest:prior,identity};forgedObjects.set(identity.key,raw);forgedRows.set(r.operation_id,{state_digest:state.stateDigest,prior_state_digest:prior,object_key:identity.key,byte_digest:digest,size:raw.length,semantic_digest:state.stateDigest});const input=JSON.parse(r.input_json);if(i>0)input.expectedStateDigest=prior;const principal=r.principal_key.startsWith('wallet:')?{kind:'wallet',wallet:r.principal_key.slice(7)}:{kind:'operator',id:r.principal_key.slice(9)};forgedReceipts.push({...r,input_json:canonicalJson(input),request_digest:await f.crypto.sha256(utf8(canonicalJson(['nfts.refresh.v1',principal,input]))),result_json:canonicalJson(value),result_ref:state.stateDigest,output_digest:await f.crypto.sha256(utf8(canonicalJson(value)))});prior=state.stateDigest;}
+ const forgedPorts={...ports,artifacts:{async getVerified(i){const raw=forgedObjects.get(i.key);return raw?{status:'verified',identity:i,bytes:raw}:f.store.getVerified(i);}},read:async statements=>{const rows=await f.read(statements);for(const set of rows)for(const row of set)if(forgedRows.has(row.operation_id)&&Object.hasOwn(row,'state_digest'))Object.assign(row,forgedRows.get(row.operation_id));return rows;}};
+ // All seven checkpoint and receipt digest preimages were renewed coherently,
+ // but none can detach the original Level/slot from restored Collect/Vault.
+ for(const r of forgedReceipts)await assert.rejects(verifyRecoveredNftRefresh(r,forgedPorts),/immutable Collect\/Vault/);
 });

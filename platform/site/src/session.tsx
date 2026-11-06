@@ -1,3 +1,5 @@
+import {RefreshProposal} from './refresh';
+import {clearRefreshReview} from './refresh-review.mjs';
 import { Capability, useRuntimeQuery } from './capabilities';
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -80,6 +82,7 @@ export function SessionProvider({children}:{children:ReactNode}){
     setBusy(true);setError('');
     try{
       await client.revokeSession();
+      clearRefreshReview();
       if(wallet){await cache.cancelQueries({queryKey:['private',wallet]});cache.removeQueries({queryKey:['private',wallet]});}
       unwatch.current?.();unwatch.current=undefined;setSelectedAccount(null);setAccountChanged(false);
       await cache.cancelQueries({queryKey:['profile']});
@@ -92,6 +95,7 @@ export function SessionProvider({children}:{children:ReactNode}){
       {wallet?<><p className="wrap-anywhere">Verified Solana wallet: {wallet}</p><button onClick={logout} disabled={busy}>Sign out</button>
         {accountChanged&&<Signal>The browser wallet {selectedAccount?'now selects '+compact(selectedAccount):'is disconnected'}. This session remains authenticated as {compact(wallet)} until you sign out.</Signal>}
         <Capability path="/api/v1/notifications/capabilities"><Notifications key={'notices:'+wallet} wallet={wallet}/></Capability>
+        <Capability path="/api/v1/nfts/refreshes/{id}"><RefreshProposal key={'refresh:'+wallet} wallet={wallet}/></Capability>
         <Capability path="/api/v1/transactions/{id}"><Recovery key={wallet} wallet={wallet}/></Capability></>
         :review?<><p>Review this sign-in message for {compact(review.connection.address)}.</p><pre>{review.challenge.message}</pre>
         <Capability method="POST" path="/api/v1/auth/verify"><button onClick={verify} disabled={busy}>Sign in with this message</button></Capability></>
