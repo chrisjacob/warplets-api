@@ -1,7 +1,7 @@
 import type {AtomicDriver} from '../storage/atomic-earn.mjs';
 import type {CanonicalCrypto,OperatorPrincipal,JsonValue,JobLease,Revisions} from '../application/ports';
 export type JobState='queued'|'running'|'held'|'retry'|'completed'|'failed';
-export type JobType='capture-eligibility'|'complete-cutoff'|'finalize-board'|'allocate-token-day'|'publish-archive'|'reconcile-publication'|'retention-maintenance';
+export type JobType='capture-eligibility'|'complete-cutoff'|'finalize-board'|'allocate-token-day'|'publish-archive'|'reconcile-publication'|'retention-maintenance'|'deliver-local-notice';
 export type JobInput={businessKey:string;sourceKey:string;type:JobType;payload:JsonValue;readyMs:number;maxAttempts:number};
 export type JobCommand={operationKind:'jobs.enqueue.v1';principal:OperatorPrincipal;requestKey:string;requestDigest:string;businessIdentity:string;input:JobInput;nowMs:number;expectedRevisions:Revisions};
 export type Job={id:string;businessKey:string;type:JobType;payload:JsonValue;payloadDigest:string;state:JobState;readyMs:number|null;attempt:number;maxAttempts:number;

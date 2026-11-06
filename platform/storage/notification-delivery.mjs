@@ -5,6 +5,8 @@ import {sql,revisions} from './atomic-driver.mjs';
 import {createAtomicReceipts} from './atomic-receipts.mjs';
 import {historicalUsageSql,historicalSpendSql} from './atomic-operations.mjs';
 import {pressureFromRows,decisionFromRows} from '../operations/portable-controls.mjs';
+import {retentionPayload,retentionBusinessKey,retentionSourceKey} from '../notifications/retention-plan.mjs';
+import {NOTICE_DELIVERY_JOB,deliveryJobBusinessKey,deliveryJobSourceKey} from '../notifications/delivery-job-plan.mjs';
 const DAY=86400000,MAX=8640000000000000;
 const conflict=code=>({kind:'conflict',code}),pending=reason=>({kind:'pending',reason,dependencyIds:[]});
 const states=['queued','leased','retry','delivered','unknown','cancelled'];
@@ -72,16 +74,25 @@ export function createNotificationDeliveryRepository(driver,ports){
   const now=at(),[rs,grants,scope,usage,spend,recovery]=await read([sql('SELECT name,CAST(revision AS TEXT) revision FROM app_revisions ORDER BY name'),sql("SELECT enabled FROM app_operator_scopes WHERE operator=? AND scope='notification-work'",principal.id),sql("SELECT paused,revision FROM ops_scope_log WHERE scope='optional-notifications' AND at_ms<=? ORDER BY at_ms DESC LIMIT 1",now),historicalUsageSql(now),historicalSpendSql(now),recoverySql]);
   return {now,version:checkedVersion(rs),granted:grants[0]?.enabled===1,decision:decisionFromRows('optional-notifications',scope[0],pressureFromRows(usage,spend,now)),recovery:recovery[0]};
  }
- async function leaseDue(principal,{limit=20}={}){
-  const p=noticeWorkerPrincipal(principal);if(!Number.isInteger(limit)||limit<1||limit>20)throw new TypeError('Lease 1-20 notices.');const ctx=await controls(p);if(!isWritable(ctx.recovery))return pending('read-only-recovery');
+ async function deliveryJobFence(p,id,lease){
+  if(lease===undefined)return {text:'1=1',values:[]};
+  if(!lease||Object.keys(lease).sort().join(',')!=='attempt,businessKey,expiresAtMs,jobId,payloadDigest,revision,token'||typeof lease.jobId!=='string'||!lease.jobId.length||lease.jobId.length>128||typeof lease.token!=='string'||!lease.token.length||lease.token.length>256||typeof lease.payloadDigest!=='string'||!/^[a-f0-9]{64}$/.test(lease.payloadDigest)||typeof lease.revision!=='string'||!/^(0|[1-9][0-9]*)$/.test(lease.revision)||!Number.isSafeInteger(Number(lease.revision))||!Number.isInteger(lease.attempt)||lease.attempt<1||!Number.isSafeInteger(lease.expiresAtMs))throw new TypeError('Invalid notification job lease.');
+  const payload={kind:NOTICE_DELIVERY_JOB,noticeId:id},body=canonicalJson(payload),digest=await crypto.sha256(utf8(body)),business=deliveryJobBusinessKey(payload);
+  if(lease.businessKey!==business||lease.payloadDigest!==digest)return {text:'0',values:[]};
+  return {text:`EXISTS(SELECT 1 FROM app_jobs WHERE id=? AND principal=? AND type='deliver-local-notice' AND business_key=? AND source_key=? AND payload_json=? AND payload_digest=? AND state='running' AND lease_token=? AND revision=? AND attempt=? AND lease_until_ms=? AND lease_until_ms>${nowSql}) AND EXISTS(SELECT 1 FROM app_execution_fences WHERE business_key=? AND holder_token=? AND revision=? AND payload_digest=? AND expires_ms=? AND expires_ms>${nowSql}) AND EXISTS(SELECT 1 FROM app_operator_scopes WHERE operator=? AND scope='jobs-runner' AND enabled=1)`,values:[lease.jobId,p.id,business,deliveryJobSourceKey(payload),body,digest,lease.token,Number(lease.revision),lease.attempt,lease.expiresAtMs,business,lease.token,Number(lease.revision),digest,lease.expiresAtMs,p.id]};
+ }
+ async function leaseDue(principal,options={},jobLease){
+  const p=noticeWorkerPrincipal(principal),query=structuredClone(options),lease=jobLease===undefined?undefined:structuredClone(jobLease),limit=query?.limit??20,noticeId=query?.noticeId;
+  if(!query||Object.keys(query).some(k=>!['limit','noticeId'].includes(k))||!Number.isInteger(limit)||limit<1||limit>20||noticeId!==undefined&&(typeof noticeId!=='string'||!/^[a-f0-9]{64}$/.test(noticeId))||lease!==undefined&&(noticeId===undefined||limit!==1))throw new TypeError('Lease 1-20 notices, or one bound job notice.');
+  const bound=await deliveryJobFence(p,noticeId,lease),filter=noticeId===undefined?'1=1':'id=?',filterValues=noticeId===undefined?[]:[noticeId],ctx=await controls(p);if(!isWritable(ctx.recovery))return pending('read-only-recovery');
   // Receipt reconciliation is required maintenance, even while optional work is paused.
-  await driver.batch([sql(`UPDATE notice_outbox SET state=CASE WHEN EXISTS(SELECT 1 FROM notice_inbox i WHERE i.id=notice_outbox.id AND i.wallet=notice_outbox.wallet) THEN 'delivered' ELSE 'unknown' END,lease=NULL,lease_until_ms=NULL WHERE state='leased' AND lease_until_ms<=? AND id IN(SELECT id FROM notice_outbox WHERE state='leased' AND lease_until_ms<=? ORDER BY lease_until_ms,id LIMIT 20) AND ${writable}`,ctx.now,ctx.now,ctx.recovery.generation)]);
+  await driver.batch([sql(`UPDATE notice_outbox SET state=CASE WHEN EXISTS(SELECT 1 FROM notice_inbox i WHERE i.id=notice_outbox.id AND i.wallet=notice_outbox.wallet) THEN 'delivered' ELSE 'unknown' END,lease=NULL,lease_until_ms=NULL WHERE state='leased' AND lease_until_ms<=? AND id IN(SELECT id FROM notice_outbox WHERE state='leased' AND lease_until_ms<=? AND ${filter} ORDER BY lease_until_ms,id LIMIT 20) AND ${writable} AND ${bound.text}`,ctx.now,ctx.now,...filterValues,ctx.recovery.generation,...bound.values)]);
   if(!ctx.granted)return conflict('operator_scope_required');if(!ctx.decision.allowed)return [];
-  const [rows]=await read([sql("SELECT id,attempts,expires_ms FROM notice_outbox WHERE state IN ('queued','retry') AND ready_ms<=? ORDER BY ready_ms,id LIMIT ?",ctx.now,limit)]);
+  const [rows]=await read([sql(`SELECT id,attempts,expires_ms FROM notice_outbox WHERE state IN ('queued','retry') AND ready_ms<=? AND ${filter} ORDER BY ready_ms,id LIMIT ?`,ctx.now,...filterValues,limit)]);
   if(rows.some(r=>typeof r.id!=='string'||!/^[a-f0-9]{64}$/.test(r.id)||!Number.isInteger(r.attempts)||r.attempts<0||r.attempts>5||!Number.isSafeInteger(r.expires_ms)||r.expires_ms<0||r.expires_ms>MAX))return pending('notice-work-invalid');
   const fence=workerVersion(ctx.version),candidates=rows.map(r=>({...r,lease:ports.ids.next()}));
   if(candidates.some(r=>typeof r.lease!=='string'||r.lease.length<1||r.lease.length>256))throw new TypeError('Invalid notice lease token.');
-  if(candidates.length)await driver.batch(candidates.map(r=>sql(`UPDATE notice_outbox SET state=CASE WHEN ${currentConsent} AND expires_ms>? AND attempts<5 THEN 'leased' ELSE 'cancelled' END,attempts=attempts+CASE WHEN ${currentConsent} AND expires_ms>? AND attempts<5 THEN 1 ELSE 0 END,lease=CASE WHEN ${currentConsent} AND expires_ms>? AND attempts<5 THEN ? ELSE NULL END,lease_until_ms=CASE WHEN ${currentConsent} AND expires_ms>? AND attempts<5 THEN ? ELSE NULL END WHERE id=? AND state IN ('queued','retry') AND ready_ms<=? AND attempts=? AND ${grant} AND ${writable} AND ${fence.text} AND ${nowSql}>=? AND ${nowSql}<?`,ctx.now,ctx.now,ctx.now,r.lease,ctx.now,ctx.now+30000,r.id,ctx.now,r.attempts,p.id,ctx.recovery.generation,...fence.values,ctx.now,ctx.now+30000)));
+  if(candidates.length)await driver.batch(candidates.map(r=>sql(`UPDATE notice_outbox SET state=CASE WHEN ${currentConsent} AND expires_ms>? AND attempts<5 THEN 'leased' ELSE 'cancelled' END,attempts=attempts+CASE WHEN ${currentConsent} AND expires_ms>? AND attempts<5 THEN 1 ELSE 0 END,lease=CASE WHEN ${currentConsent} AND expires_ms>? AND attempts<5 THEN ? ELSE NULL END,lease_until_ms=CASE WHEN ${currentConsent} AND expires_ms>? AND attempts<5 THEN ? ELSE NULL END WHERE id=? AND state IN ('queued','retry') AND ready_ms<=? AND attempts=? AND ${grant} AND ${writable} AND ${fence.text} AND ${nowSql}>=? AND ${nowSql}<? AND ${bound.text}`,ctx.now,ctx.now,ctx.now,r.lease,ctx.now,ctx.now+30000,r.id,ctx.now,r.attempts,p.id,ctx.recovery.generation,...fence.values,ctx.now,ctx.now+30000,...bound.values)));
   if(!candidates.length)return [];
   const [claimed]=await read([sql("SELECT id,lease FROM notice_outbox WHERE state='leased' AND id IN (SELECT json_extract(value,'$.id') FROM json_each(?))",JSON.stringify(candidates.map(r=>({id:r.id}))))]);
   return claimed.filter(r=>candidates.some(c=>c.id===r.id&&c.lease===r.lease)).map(r=>({id:r.id,lease:r.lease}));
@@ -91,12 +102,12 @@ export function createNotificationDeliveryRepository(driver,ports){
   const r=rows[0];if(!r)return null;if(r.state!=='committed')return pending('notice-delivery-incomplete');
   try{const input=JSON.parse(r.input_json),c=await buildDeliverNoticeCommand({principal,input},crypto);if(input.id!==id||c.nowMs!==r.created_ms||c.requestDigest!==r.request_digest||r.result_json!==canonicalJson({state:'delivered',id})||await crypto.sha256(utf8(r.result_json))!==r.output_digest)return pending('notice-delivery-receipt-invalid');return {state:'delivered',id};}catch{return pending('notice-delivery-receipt-invalid');}
  }
- async function finishLease(principal,request){
-  const p=noticeWorkerPrincipal(principal),r=structuredClone(request);if(!r||Object.keys(r).some(k=>!['id','lease','outcome'].includes(k))||typeof r.id!=='string'||!/^[a-f0-9]{64}$/.test(r.id)||typeof r.lease!=='string'||r.lease.length<1||r.lease.length>256||!['delivered','retryable','unknown'].includes(r.outcome??'delivered'))throw new TypeError('Invalid notice finish.');
-  const prior=await deliveredReplay(p,r.id);if(prior)return prior;const ctx=await controls(p);if(!isWritable(ctx.recovery))return pending('read-only-recovery');
+ async function finishLease(principal,request,jobLease){
+  const p=noticeWorkerPrincipal(principal),r=structuredClone(request),lease=jobLease===undefined?undefined:structuredClone(jobLease);if(!r||Object.keys(r).some(k=>!['id','lease','outcome'].includes(k))||typeof r.id!=='string'||!/^[a-f0-9]{64}$/.test(r.id)||typeof r.lease!=='string'||r.lease.length<1||r.lease.length>256||!['delivered','retryable','unknown'].includes(r.outcome??'delivered'))throw new TypeError('Invalid notice finish.');
+  const prior=await deliveredReplay(p,r.id);if(prior)return prior;const bound=await deliveryJobFence(p,r.id,lease),ctx=await controls(p);if(!isWritable(ctx.recovery))return pending('read-only-recovery');
   const [rows]=await read([sql(`SELECT id,wallet,consent_revision,attempts,lease,lease_until_ms,state,expires_ms,${currentConsent} AS consent FROM notice_outbox WHERE id=?`,r.id)]),row=rows[0];
   if(!row||row.state!=='leased'||row.lease!==r.lease||row.lease_until_ms<=ctx.now)return {state:'fenced'};
-  const fence=workerVersion(ctx.version),base=`id=? AND state='leased' AND lease=? AND lease_until_ms>? AND ${writable}`,values=[r.id,r.lease,ctx.now,ctx.recovery.generation];
+  const fence=workerVersion(ctx.version),base=`id=? AND state='leased' AND lease=? AND lease_until_ms>? AND ${writable} AND ${bound.text}`,values=[r.id,r.lease,ctx.now,ctx.recovery.generation,...bound.values];
   if(!row.consent||row.expires_ms<=ctx.now){const out=await driver.batch([sql(`UPDATE notice_outbox SET state='cancelled',lease=NULL,lease_until_ms=NULL WHERE ${base}`, ...values)]);return {state:out[0].changes>0?'cancelled':'fenced'};}
   if(!ctx.granted)return conflict('operator_scope_required');
   const outcome=r.outcome??'delivered';
@@ -106,17 +117,48 @@ export function createNotificationDeliveryRepository(driver,ports){
   }
   const input={id:r.id,wallet:row.wallet,consentRevision:row.consent_revision,attempt:row.attempts,deliveredMs:ctx.now},c=await buildDeliverNoticeCommand({principal:p,input},crypto),result={state:'delivered',id:r.id};
   const accepted=await execute({...c,expectedRevisions:ctx.version},{businessKey:r.id,input,result,resultRef:r.id,version:ctx.version,
-   authoritySql:`${grant} AND ${writable} AND ${nowSql}>=? AND ${nowSql}<? AND EXISTS(SELECT 1 FROM notice_outbox WHERE id=? AND wallet=? AND state='leased' AND lease=? AND lease_until_ms>${nowSql} AND expires_ms>${nowSql} AND consent_revision=? AND attempts=? AND ${currentConsent})`,authorityValues:[p.id,ctx.recovery.generation,ctx.now,ctx.now+30000,r.id,row.wallet,r.lease,row.consent_revision,row.attempts],
+   authoritySql:`${grant} AND ${writable} AND ${nowSql}>=? AND ${nowSql}<? AND EXISTS(SELECT 1 FROM notice_outbox WHERE id=? AND wallet=? AND state='leased' AND lease=? AND lease_until_ms>${nowSql} AND expires_ms>${nowSql} AND consent_revision=? AND attempts=? AND ${currentConsent}) AND ${bound.text}`,authorityValues:[p.id,ctx.recovery.generation,ctx.now,ctx.now+30000,r.id,row.wallet,r.lease,row.consent_revision,row.attempts,...bound.values],
    child:(gate,v)=>[sql(`INSERT INTO notice_inbox(id,wallet,delivered_ms) SELECT ?,?,? WHERE ${gate}`,r.id,row.wallet,ctx.now,...v),sql(`UPDATE notice_outbox SET state='delivered',lease=NULL,lease_until_ms=NULL WHERE id=? AND state='leased' AND lease=? AND ${gate}`,r.id,r.lease,...v)]});
   if(['committed','replayed'].includes(accepted.kind))return result;
   return await deliveredReplay(p,r.id)??accepted;
  }
- async function reconcileUnknown(principal,{id}){
-  noticeWorkerPrincipal(principal);if(typeof id!=='string'||!/^[a-f0-9]{64}$/.test(id))throw new TypeError('Invalid notice ID.');const now=at(),[recovery,rows]=await read([recoverySql,sql(`SELECT state,wallet,${currentConsent} AS consent,expires_ms,attempts FROM notice_outbox WHERE id=?`,id)]);
-  if(!isWritable(recovery[0]))return pending('read-only-recovery');const row=rows[0];if(!row)return {state:'missing'};if(row.state!=='unknown')return {state:row.state};
+ async function reconcileUnknown(principal,request,jobLease){
+  const p=noticeWorkerPrincipal(principal),{id}=structuredClone(request),lease=jobLease===undefined?undefined:structuredClone(jobLease);if(typeof id!=='string'||!/^[a-f0-9]{64}$/.test(id))throw new TypeError('Invalid notice ID.');
+  if(lease!==undefined){const accepted=await deliveredReplay(p,id);if(accepted)return accepted;}
+  const bound=await deliveryJobFence(p,id,lease),now=at(),[recovery,rows,allowed]=await read([recoverySql,sql(`SELECT state,wallet,${currentConsent} AS consent,expires_ms,attempts FROM notice_outbox WHERE id=?`,id),sql(`SELECT 1 AS allowed WHERE ${bound.text}`,...bound.values)]);
+  if(!isWritable(recovery[0]))return pending('read-only-recovery');if(!allowed.length)return pending('notice-job-fenced');const row=rows[0];if(!row)return {state:'missing'};
+  if(row.state==='delivered'&&lease!==undefined){const [receipt]=await read([sql('SELECT 1 FROM notice_inbox WHERE id=? AND wallet=?',id,row.wallet)]);return receipt.length?{state:'delivered'}:pending('notice-delivery-receipt-missing');}
+  if(row.state!=='unknown')return {state:row.state};
   const [receipt]=await read([sql('SELECT 1 FROM notice_inbox WHERE id=? AND wallet=?',id,row.wallet)]),state=receipt.length?'delivered':row.consent&&row.expires_ms>now&&row.attempts<5?'retry':'cancelled';
-  const result=await driver.batch([sql(`UPDATE notice_outbox SET state=?,ready_ms=?,lease=NULL,lease_until_ms=NULL WHERE id=? AND state='unknown' AND ${writable} AND (?='delivered' OR ?='cancelled' OR (${currentConsent} AND expires_ms>${nowSql} AND attempts<5))`,state,now,id,recovery[0].generation,state,state)]);
+  const result=await driver.batch([sql(`UPDATE notice_outbox SET state=?,ready_ms=?,lease=NULL,lease_until_ms=NULL WHERE id=? AND state='unknown' AND ${writable} AND (?='delivered' OR ?='cancelled' OR (${currentConsent} AND expires_ms>${nowSql} AND attempts<5)) AND ${bound.text}`,state,now,id,recovery[0].generation,state,state,...bound.values)]);
   if(result[0].changes>0)return {state};const [current]=await read([sql('SELECT state FROM notice_outbox WHERE id=?',id)]);return {state:current[0]?.state??'missing'};
  }
- return Object.freeze({enqueueNotice,readInbox,leaseDue,finishLease,reconcileUnknown});
+ async function purgeExpired(principal,options={},jobLease){
+  const p=noticeWorkerPrincipal(principal),input=structuredClone(options),lease=jobLease===undefined?null:structuredClone(jobLease),now=at();
+  if(!input||Object.keys(input).some(k=>k!=='limit'))throw new TypeError('Invalid notification retention options.');
+  const limit=input.limit??100;if(!Number.isInteger(limit)||limit<1||limit>100)throw new TypeError('Purge 1-100 notices.');
+  if(lease&&(!Object.keys(lease).every(k=>['jobId','businessKey','payloadDigest','token','expiresAtMs','revision','attempt'].includes(k))||typeof lease.jobId!=='string'||lease.jobId.length>128||typeof lease.token!=='string'||lease.token.length<1||lease.token.length>256||typeof lease.payloadDigest!=='string'||!/^[a-f0-9]{64}$/.test(lease.payloadDigest)||typeof lease.revision!=='string'||!/^(0|[1-9][0-9]*)$/.test(lease.revision)||!Number.isSafeInteger(Number(lease.revision))||!Number.isInteger(lease.attempt)||lease.attempt<1||!Number.isSafeInteger(lease.expiresAtMs)))throw new TypeError('Invalid retention job lease.');
+  const [recovery,jobs]=await read([recoverySql,...(lease?[sql("SELECT CASE WHEN length(CAST(payload_json AS BLOB))<=1024 THEN payload_json ELSE NULL END payload_json,source_key FROM app_jobs WHERE id=? AND principal=? AND type='retention-maintenance'",lease.jobId,p.id)]:[])]);
+  if(!isWritable(recovery[0]))return pending('read-only-recovery');
+  let guard=`${writable} AND ${nowSql}>=? AND ${nowSql}<?`,values=[recovery[0].generation,now,now+30000];
+  if(lease){
+   let payload;try{payload=retentionPayload(JSON.parse(jobs[0]?.payload_json));}catch{return pending('retention-job-binding');}
+   const body=canonicalJson(payload),digest=await crypto.sha256(utf8(body));
+   if(payload.limit!==limit||retentionBusinessKey(payload)!==lease.businessKey||jobs[0].source_key!==retentionSourceKey(payload)||digest!==lease.payloadDigest)return pending('retention-job-binding');
+   guard+=` AND EXISTS(SELECT 1 FROM app_jobs WHERE id=? AND principal=? AND type='retention-maintenance' AND business_key=? AND source_key=? AND payload_json=? AND payload_digest=? AND state='running' AND lease_token=? AND revision=? AND attempt=? AND lease_until_ms=? AND lease_until_ms>${nowSql}) AND EXISTS(SELECT 1 FROM app_execution_fences WHERE business_key=? AND holder_token=? AND revision=? AND payload_digest=? AND expires_ms=? AND expires_ms>${nowSql}) AND EXISTS(SELECT 1 FROM app_operator_scopes WHERE operator=? AND scope='jobs-runner' AND enabled=1)`;
+   values.push(lease.jobId,p.id,lease.businessKey,retentionSourceKey(payload),body,digest,lease.token,Number(lease.revision),lease.attempt,lease.expiresAtMs,lease.businessKey,lease.token,Number(lease.revision),digest,lease.expiresAtMs,p.id);
+  }
+  try{
+   // WITH keeps RETURNING on the portable driver's row-producing path. Counts
+   // deliberately exclude D1 metadata changes caused by cascaded inbox deletes.
+   const result=await driver.batch([
+    sql(`WITH due AS(SELECT id FROM notice_outbox WHERE expires_ms<=? ORDER BY expires_ms,id LIMIT ?) DELETE FROM notice_outbox WHERE id IN(SELECT id FROM due) AND ${guard} RETURNING id`,now-7*DAY,limit,...values),
+    sql(`SELECT 1 AS allowed WHERE ${guard}`,...values)
+   ]);
+   if(!result[1].rows.length)return pending('retention-fenced');
+   if(result[0].rows.length>limit||result[0].rows.some(row=>typeof row.id!=='string'))return pending('retention-result-invalid');
+   return {kind:'purged',outboxRemoved:result[0].rows.length,consentRequestKeysRemoved:0};
+  }catch{return pending('retention-outcome-unknown');}
+ }
+ return Object.freeze({enqueueNotice,readInbox,leaseDue,finishLease,reconcileUnknown,purgeExpired});
 }

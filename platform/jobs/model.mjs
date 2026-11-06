@@ -1,6 +1,6 @@
 import {canonicalJson,utf8} from '../security/canonical.mjs';
 import {name,nat,requireValue} from '../earn/validation.mjs';
-export const JOB_TYPES=Object.freeze(['capture-eligibility','complete-cutoff','finalize-board','allocate-token-day','publish-archive','reconcile-publication','retention-maintenance']);
+export const JOB_TYPES=Object.freeze(['capture-eligibility','complete-cutoff','finalize-board','allocate-token-day','publish-archive','reconcile-publication','retention-maintenance','deliver-local-notice']);
 export const clone=value=>JSON.parse(canonicalJson(value));
 export const boundedJson=value=>{const text=canonicalJson(value);requireValue(utf8(text).length<=16384,'Job value exceeds16KiB.');return text;};
 export const jobRequestBytes=c=>utf8(canonicalJson([c.operationKind,c.principal,c.input,c.expectedRevisions]));

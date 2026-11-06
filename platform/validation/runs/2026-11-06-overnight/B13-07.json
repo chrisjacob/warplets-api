@@ -1,0 +1,59 @@
+{
+  "source": "synthetic-local-notifications",
+  "baseCommit": "0d0fdab",
+  "files": {
+    "platform/storage/notification-delivery.mjs": "cae34ca4bb8d4bdb68932bb5acaeab41382eafcdfa320c18ece744dc82cfe7f9",
+    "platform/storage/notification-delivery.d.mts": "d493ff87d1689c75875d8448b9e3ad9bfa12b3e0e9658130814f734a1aeabb42",
+    "platform/notifications/retention-plan.mjs": "a53478dcf4803a13058833d1b9701ef2e54818436cadca6739b17b55ac4e7542",
+    "platform/notifications/retention-plan.d.mts": "e2716720bd0a5802e99281459039bd40dc46d2467b94560515fd5d1f93360aa8",
+    "platform/storage/notification-retention.test.mjs": "984217dab28e395385c885574a4b57fcae36a12fc8012d2de07495bcff48da33",
+    "platform/jobs/notification-retention-handler.mjs": "20e8f65cea50a0461a80735af509134fce2c7d2e6ab2335e402fb95adabc99b5",
+    "platform/jobs/notification-retention-handler.d.mts": "fc1cce4c44be36c5aa120b71193a7224aba76981fe97702f8885418fff3f42dc",
+    "platform/jobs/notification-retention-handler.test.mjs": "44d673ca2f003ad7781ccef870ea39b85aca28681c36dda0142eefd2c8d729b3",
+    "platform/edge/test/notification-retention.test.mjs": "a34388106e81edfb53ae33b0c36a7969f55a7b5029fbe1ed1d17070e0dfdc369",
+    "platform/edge/test/fixtures/notification-retention-worker.ts": "58bebfc69ab919a2e9ff885479c7b0dcb25915bb4fa535dd0c364f5861f56740",
+    "platform/recovery/v2-notification-delivery.test.mjs": "8447d5c6fc158191ab4c0e536f205a4d87617a0a073864dbbacb09e2b34b0e6c"
+  },
+  "installedMigration064": "e466a69bcaeb21f42454e88d132641016dc9d2eebfb53e595c58a3a10f4b3cac",
+  "checks": {
+    "retentionAndGuardedRecovery": "5 PASS 37195.9551ms work/b13-retention-recovery-node.log",
+    "deliveryCompatibility": "11 PASS 6502.8598ms work/b13-retention-delivery-compat.log",
+    "actualD1": "11 paired calls PASS 44681.0954ms (runner45588.7136ms) work/b13-retention-edge.log",
+    "edgeTypes": "PASS work/b13-retention-types.log",
+    "diff": "PASS"
+  },
+  "bounds": {
+    "retentionMaximumDeletes": 100,
+    "actualD1": {
+      "statements": 11,
+      "batchBytes": 3213,
+      "parameters": 21,
+      "resultBytes": 7463
+    },
+    "privateRestore": {
+      "steps": 1111,
+      "operations": 20,
+      "batchBytes": 104443,
+      "guardedConsentReceipts": 3,
+      "guardedEnqueueReceipts": 4,
+      "guardedDeliveryReceipts": 2
+    }
+  },
+  "retentionDaysAfterExpiry": 7,
+  "preserved": [
+    "preferences",
+    "consent request keys",
+    "permanent app command receipts",
+    "financial records"
+  ],
+  "recovery": {
+    "readyMsRetained": true,
+    "oldLiveLeaseFenced": true,
+    "acceptedRevokedReplayNoInbox": true,
+    "normalPipeline": true
+  },
+  "financialExecution": false,
+  "externalTransport": false,
+  "newSchema": false,
+  "supersededSourceHashes": "Delivery repository and populated retention test extended by B13-08; earlier focused run retained as historical evidence."
+}

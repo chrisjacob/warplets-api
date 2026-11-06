@@ -1,4 +1,4 @@
-import type {Principal,OperatorPrincipal,CanonicalCrypto} from './ports';
+import type {Principal,OperatorPrincipal,CanonicalCrypto,JobLease} from './ports';
 /** Private local inbox only. Consent never authorizes external delivery. */
 export type NoticeTopic='launch'|'voting'|'rewards';
 export interface NotificationConsentInput {
@@ -38,7 +38,7 @@ export type FinishNoticeOutcome=Readonly<{state:'delivered';id:string}>|Readonly
 export interface NotificationDeliveryRepository {
  enqueueNotice(command:EnqueueNoticeCommand):Promise<EnqueueNoticeOutcome>;
  readInbox(principal:Principal,query?:Readonly<{cursor?:string|null;limit?:number}>):Promise<LocalInbox>;
- leaseDue(principal:OperatorPrincipal,query?:Readonly<{limit?:number}>):Promise<readonly Readonly<{id:string;lease:string}>[]|NoticeFailure>;
- finishLease(principal:OperatorPrincipal,input:Readonly<{id:string;lease:string;outcome?:'delivered'|'retryable'|'unknown'}>):Promise<FinishNoticeOutcome>;
- reconcileUnknown(principal:OperatorPrincipal,input:Readonly<{id:string}>):Promise<Readonly<{state:NoticeState|'missing'}>|NoticeFailure>;
+ leaseDue(principal:OperatorPrincipal,query?:Readonly<{limit?:number;noticeId?:string}>,jobLease?:JobLease):Promise<readonly Readonly<{id:string;lease:string}>[]|NoticeFailure>;
+ finishLease(principal:OperatorPrincipal,input:Readonly<{id:string;lease:string;outcome?:'delivered'|'retryable'|'unknown'}>,jobLease?:JobLease):Promise<FinishNoticeOutcome>;
+ reconcileUnknown(principal:OperatorPrincipal,input:Readonly<{id:string}>,jobLease?:JobLease):Promise<Readonly<{state:NoticeState|'missing'}>|NoticeFailure>;
 }

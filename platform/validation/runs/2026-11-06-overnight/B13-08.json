@@ -1,0 +1,49 @@
+{
+  "scope": "B13 one-notice B03 delivery and populated permanent commitment retention",
+  "classification": "synthetic local Node/D1; no external transport",
+  "baseCommit": "28d5ea91d1878e011630097fc0b0584fc6d29287",
+  "files": {
+    "platform/storage/notification-delivery.mjs": "370869458537a3e8c4369a0f2aa565348e423307289d2578b3ab792fde76ec8d",
+    "platform/storage/notification-delivery.d.mts": "dcaa9b413e92ebb58b4c72d3f999ca00124a527dea331dbc2d71e2babbfd5f85",
+    "platform/notifications/delivery-job-plan.mjs": "f7307337986cb2bbc269db52eea1baf22558824f96f4a8a335dafa28ad15d35f",
+    "platform/notifications/delivery-job-plan.d.mts": "0f5321abd048f552388b71a135da6efd2077211f427fee603bcc719f56515cda",
+    "platform/jobs/notification-delivery-handler.mjs": "9842ae59a4cd5f87bd930be569992805835df57b3ebbbd0df8c6a8d517e4ba2c",
+    "platform/jobs/notification-delivery-handler.d.mts": "9c2c0a1eae77c457da02a2f6435002dffd3b4896b85d54d4a5a236d7d95df442",
+    "platform/jobs/notification-delivery-handler.test.mjs": "31f13e5cd158d2a7a33cf44563051f0c0c31711896708fec1436372927b29485",
+    "platform/jobs/repository.d.mts": "d0b59b458c760f84f041e62213d4cde11c51fea0b62d1980d85ee3364dfe5bda",
+    "platform/edge/test/notification-job.test.mjs": "339173ef13066f9090112141d3d77c61bd0a6a30cb9c3a3b56d03b396e75cd77",
+    "platform/edge/test/fixtures/notification-job-worker.ts": "6010e9e14a42727135a3af1add3cc1a51501021b0600926c618a43b7d822aeea",
+    "platform/edge/test/fixtures/notification-job-fixture.mjs": "e6855dca1556610f8d81cdb5419c8498c526cd973baacdea83087640e4b917c7",
+    "platform/storage/notification-retention.test.mjs": "c1789b20d5e90342727d3f647aa354a7e86b516e2c568d947c4a3c77200ebfea"
+  },
+  "coordinatorDependencyHashes": {
+    "platform/jobs/model.mjs": "75699b51d52116e816bf083cc77de736240ea5fe0481656a9facfe0b1d1f8351"
+  },
+  "checks": {
+    "newNode": "8 PASS5475.1638ms work/b13-delivery-job-node.log",
+    "actualD1": "24 paired calls PASS35514.1415ms (runner36576.6035ms) work/b13-delivery-job-edge.log",
+    "compatibilityAndGuardedRestore": "14 PASS42707.2985ms work/b13-delivery-job-compat.log",
+    "types": "PASS work/b13-delivery-job-types-final.log",
+    "diff": "PASS"
+  },
+  "d1Bounds": {
+    "statements": 30,
+    "batchBytes": 5242,
+    "parameters": 46,
+    "resultBytes": 1657
+  },
+  "semantics": [
+    "One known notice per immutable job payload; exact canonical job business/source identity.",
+    "Notice-specific lease remains delivery authority; optional B03 job+execution fences additionally gate all notice mutations.",
+    "Exact live notice token checkpoint precedes delivery; failed checkpoint never finishes; replay resumes retained token.",
+    "Expired notice lease becomes unknown then reconciles before later new attempt; current private scope needed for new lease/delivery, mandatory reconciliation remains possible under revoked notification scope.",
+    "Wrong notice, stolen/expired job, missing execution fence and revoked runner cannot mutate.",
+    "Already committed delivery replay is read-only even after revocation/stale job, and never recreates deleted inbox.",
+    "Cancellation/expiry reports cancelled rather than delivered; optional pause returns retry.",
+    "Populated golden awards/allocations/boards/public manifest catalog and genuinely recorded private artifact receipt/object remain byte-for-byte unchanged after notice purge."
+  ],
+  "financialExecution": false,
+  "externalTransport": false,
+  "newMigration": false,
+  "publicEnqueueOrScheduling": false
+}
