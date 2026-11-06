@@ -12,7 +12,7 @@ const anchorFields=['adoption_id','inventory_id','ordinal','operation_id','stage
 /** One original settled mint per durable CAS. The mint prefix is private
  * continuation state, separate from the not-yet-verified economic prefix.
  * This helper cannot finish recovery or grant financial execution. */
-export function createRecoveryV2LegacyMintReconciler({driver,artifacts,crypto,repository,createDigest,beaconVerifier,onMeasure=(_metrics)=>{}}){
+export function createRecoveryV2LegacyMintReconciler({driver,artifacts,crypto,repository,createDigest,beaconVerifier,onMeasure=(_metrics)=>{},nextPhase=''}){
  return Object.freeze({async step(loaded,c=JSON.parse(loaded.run.checkpoint_json)){
   loaded=clone(loaded);c=clone(c);let retained=0,persistent=0;
   const metrics={sql:0,objectReads:0,maxBatchBytes:0,maxReturnedBytes:0,checkpointBytes:utf8(loaded.run.checkpoint_json).length,maxWorkingBytes:0};
@@ -38,7 +38,7 @@ export function createRecoveryV2LegacyMintReconciler({driver,artifacts,crypto,re
    }
    const prefix=state.mintPrefix;need(prefix.rootId===b.rootId&&Number.isSafeInteger(prefix.ordinal)&&prefix.ordinal>=0&&prefix.ordinal<=b.admitted&&size(prefix)<=1024,'mint prefix.');
    if(prefix.ordinal===b.admitted){
-    const [counts]=await ctx.read([sql("SELECT COUNT(*) n,COALESCE(SUM(CASE WHEN item_count=1 AND ordinal>=0 AND ordinal<? THEN 1 ELSE 0 END),0) valid FROM app_recovery_reconcile_checks WHERE restore_id=? AND phase='legacy-adoption-mint' AND scope=? AND target_watermark=?",b.admitted,loaded.run.id,b.adoptionId,c.targetWatermark)]);need(counts[0]?.n===b.admitted&&counts[0].valid===b.admitted&&same(prefix.remaining,b.remaining),'original mint closure.');await pin();return await repository.hold(loaded,'recovery-legacy-adoption-semantics-incomplete');
+    const [counts]=await ctx.read([sql("SELECT COUNT(*) n,COALESCE(SUM(CASE WHEN item_count=1 AND ordinal>=0 AND ordinal<? THEN 1 ELSE 0 END),0) valid FROM app_recovery_reconcile_checks WHERE restore_id=? AND phase='legacy-adoption-mint' AND scope=? AND target_watermark=?",b.admitted,loaded.run.id,b.adoptionId,c.targetWatermark)]);need(counts[0]?.n===b.admitted&&counts[0].valid===b.admitted&&same(prefix.remaining,b.remaining),'original mint closure.');await pin();return nextPhase?await repository.advance(loaded,{delta:{phase:nextPhase},targetWatermark:c.targetWatermark}):await repository.hold(loaded,'recovery-legacy-adoption-semantics-incomplete');
    }
    const fields=anchorFields.join(','),[anchors]=await ctx.read([sql(`SELECT ${fields} FROM app_collection_legacy_mint_anchors WHERE adoption_id=? AND ordinal=? AND length(CAST(body_json AS BLOB))<=8192`,b.adoptionId,prefix.ordinal)]);
    need(anchors.length===1,'anchor missing.');const row=anchors[0],anchor=JSON.parse(row.body_json),o=anchor.operation,e=anchor.economics;

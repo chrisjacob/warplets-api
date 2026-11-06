@@ -1,0 +1,88 @@
+{
+  "checkpoint": "B11-65",
+  "title": "Bounded adoption proof aggregation and normal recovery orchestration",
+  "status": "verified-partial",
+  "baseCommit": "0c90bdb6c3082daf02e57833e4e43f58f9eeb700",
+  "financialExecution": false,
+  "normalDispatchMounted": true,
+  "schemaThrough": 55,
+  "checks": [
+    {
+      "command": "node --test platform/recovery/v2-reconcile-legacy-aggregate.test.mjs platform/recovery/v2-reconcile-legacy-adoptions.test.mjs",
+      "passed": 4,
+      "failed": 0,
+      "durationMs": 123105.5941,
+      "log": "work/b11-65-aggregate-node.log",
+      "scope": "stage dispatch and aggregate faults before mint page narrowing"
+    },
+    {
+      "command": "node --test platform/recovery/v2-reconcile-legacy-aggregate.test.mjs",
+      "passed": 2,
+      "failed": 0,
+      "durationMs": 143000.2009,
+      "log": "work/b11-65-bounded-aggregate-node.log",
+      "scope": "final eight-anchor page, whitelist and empty profiles; pagination test added separately afterward"
+    },
+    {
+      "command": "node --test --test-name-pattern=\"nine genuine\" platform/recovery/v2-reconcile-legacy-aggregate.test.mjs",
+      "passed": 1,
+      "failed": 0,
+      "durationMs": 113285.0133,
+      "log": "work/b11-65-pagination-node.log",
+      "scope": "nine genuine original admissions, durable8+1 proof scan, no synthetic upstream proofs"
+    },
+    {
+      "command": "node --test platform/edge/test/recovery-legacy-adoption.test.mjs",
+      "passed": 1,
+      "failed": 0,
+      "durationMs": 137207.2139,
+      "log": "work/b11-65-stage-edge.log",
+      "scope": "actual D1/R2 stage dispatch and missing-object/link/proof faults; diagnostic label clarified after pass, assertions unchanged"
+    },
+    {
+      "command": "node platform/edge/node_modules/typescript/bin/tsc --noEmit -p platform/edge/tsconfig.json",
+      "result": "pass"
+    },
+    {
+      "command": "node platform/contracts/generate.mjs --check",
+      "result": "pass"
+    }
+  ],
+  "measurements": {
+    "aggregateMaxOperationsIncluding12Reserve": 18,
+    "aggregateMaxWorkingBytes": 367025,
+    "stageD1MaxActualOperations": 23,
+    "stageD1MaxCheckpointWorkingBytes": 347664,
+    "aggregateReadBytesLimit": 196608,
+    "aggregateMintPage": 8,
+    "otherAggregatePage": 32,
+    "checkpointBytesLimit": 131072
+  },
+  "acceptance": [
+    "genuine normal stage/mint/economic/current/object phases produce all upstream proofs",
+    "missing and altered proof rows hold",
+    "wrong control proof holds",
+    "target mutation holds",
+    "missing economics/object completion holds",
+    "omitted final completion proof rolls back cursor",
+    "lost completion acknowledgement replays",
+    "empty inventories traverse all proof families",
+    "nine admissions resume from durable eight-anchor page",
+    "normal dispatch advances supported profiles instead of incomplete hold"
+  ],
+  "remaining": [
+    "Full normal start/step/finish matrix and exact business row parity is separately recorded in B11-67",
+    "Precut current integration is separately recorded in B11-68",
+    "Unsupported source-adoption progression/claims/ambiguous histories remain explicit holds"
+  ],
+  "sourceHashes": {
+    "platform/recovery/v2-reconcile-legacy-aggregate.mjs": "edbc763eb4f57c5121c2784fc6ff190f735ed084f671b1b69dceaaaeeb6a833e",
+    "platform/recovery/v2-reconcile-legacy-aggregate.test.mjs": "9458a8145a443b0d98d73d4bef35772456ab57843cccb97e48e6683cb67a3c52",
+    "platform/recovery/v2-reconcile-legacy-adoptions.mjs": "760cf6504b31ab71211bb66eec8c1e5e70740e0292f926f1808c2c79a74f6ade",
+    "platform/recovery/v2-reconcile-legacy-adoptions.test.mjs": "c5fd97309acad8fe5baefa7df6c4d50cf3ebe218744f0394513a2f5be57d7d73",
+    "platform/recovery/v2-reconcile-legacy-mints.mjs": "9edf1021ff74af6b390baeffd17d4284d52f230e79900cb66ee8eb0528467398",
+    "platform/recovery/v2-reconcile.mjs": "bd41dd308cee60e2bf5f3a5a9365c7accf0bda802bdfd4afbad47b254d30f5d8",
+    "platform/edge/test/recovery-legacy-adoption.test.mjs": "ec20f4f1a802e019c943885b269078b2f4f401e01a78b48017303f349239b2c6",
+    "platform/recovery/ADOPTION_RECOVERY_PIPELINE.md": "650fab661b27b8fc1bb1f37dc9c4cc6455921e6fb06056add44705a020e4b829"
+  }
+}

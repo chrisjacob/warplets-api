@@ -1,3 +1,8 @@
+import {createRecoveryV2LegacyMintReconciler} from './v2-reconcile-legacy-mints.mjs';
+import {createRecoveryV2LegacyEconomicsReconciler} from './v2-reconcile-legacy-economics.mjs';
+import {createRecoveryV2LegacyCurrentReconciler} from './v2-reconcile-legacy-current.mjs';
+import {createRecoveryV2LegacyObjectReconciler} from './v2-reconcile-legacy-objects.mjs';
+import {createRecoveryV2LegacyAggregateReconciler} from './v2-reconcile-legacy-aggregate.mjs';
 import {sql} from '../storage/atomic-driver.mjs';
 import {canonicalJson,orderedJson,utf8} from '../security/canonical.mjs';
 import {AUTH_TABLES,quote,objectRow} from './schema.mjs';
@@ -16,7 +21,7 @@ class MissingObject extends Error {}
  * committed only against the target watermark pinned after all imports/fences.
  * No source artifacts or live provider reads participate in reconciliation. */
 export function createRecoveryV2Reconciler({driver,artifacts,crypto,v2Codec,codec,repository,beaconVerifier,createDigest}){
- const legacyAdoptions=createRecoveryV2LegacyAdoptionReconciler({driver,artifacts,crypto,repository,createDigest});
+ const legacyPorts={driver,artifacts,crypto,repository,createDigest,beaconVerifier},legacyAdoptions=createRecoveryV2LegacyAdoptionReconciler({...legacyPorts,nextStagePhase:'reconcile-legacy-adoption-mints'}),legacyMints=createRecoveryV2LegacyMintReconciler({...legacyPorts,nextPhase:'reconcile-legacy-adoption-economics'}),legacyEconomics=createRecoveryV2LegacyEconomicsReconciler(legacyPorts),legacyCurrent=createRecoveryV2LegacyCurrentReconciler(legacyPorts),legacyObjects=createRecoveryV2LegacyObjectReconciler(legacyPorts),legacyAggregate=createRecoveryV2LegacyAggregateReconciler(legacyPorts);
  const collection=createRecoveryV2CollectionReconciler({driver,artifacts,crypto,beaconVerifier,repository,nextPhase:'reconcile-free-cut-records'});
  const freeCuts=createRecoveryV2FreeCutReconciler({driver,crypto,repository,createDigest});
  const fragmentCodec=createRecoveryV2FragmentCodec({crypto}),fragments=createRecoveryV2FragmentRestore({driver,artifacts,crypto,repository});
@@ -98,7 +103,12 @@ export function createRecoveryV2Reconciler({driver,artifacts,crypto,v2Codec,code
  async function step(loaded){const c=JSON.parse(loaded.run.checkpoint_json);try{
   // Resume old post-table checkpoints by proving completion before retirement.
   if(Array.isArray(c.tables)&&!['reconcile-objects','reconcile-table-metadata','reconcile-tables'].includes(c.phase))return await retireTables(loaded,c,c.phase);
-  if(c.phase.startsWith('reconcile-legacy-adoption'))return await legacyAdoptions.step(loaded,c);
+  if(c.phase==='reconcile-legacy-adoption-mints')return await legacyMints.step(loaded,c);
+   if(c.phase==='reconcile-legacy-adoption-economics')return await legacyEconomics.step(loaded,c);
+   if(c.phase==='reconcile-legacy-adoption-current')return await legacyCurrent.step(loaded,c);
+   if(c.phase==='reconcile-legacy-adoption-closure')return await legacyObjects.step(loaded,c);
+   if(c.phase==='reconcile-legacy-adoption-aggregate')return await legacyAggregate.step(loaded,c);
+   if(c.phase.startsWith('reconcile-legacy-adoption'))return await legacyAdoptions.step(loaded,c);
   if(c.phase.startsWith('reconcile-free-cut-'))return await freeCuts.step(loaded,c);
   if(c.phase.startsWith('reconcile-collection-'))return await collection.step(loaded,c);
   if(c.phase==='reconcile-objects')return await object(loaded,c);if(c.phase==='reconcile-table-metadata')return await metadata(loaded,c);if(c.phase==='reconcile-tables')return await table(loaded,c);

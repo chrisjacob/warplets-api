@@ -12,8 +12,8 @@ export const legacyRecoveryReceiptFields=['operation_id','state','operation_kind
 const receiptProjection=alias=>legacyRecoveryReceiptFields.map(k=>alias+'.'+k).join(',');
 /** Recovery-only semantic checks. Historical generation/source revisions remain
  * certificate inputs. Every new proof is fenced to this target watermark.
- * This first slice deliberately holds populated adoption after stage checks. */
-export function createRecoveryV2LegacyAdoptionReconciler({driver,artifacts,crypto,repository,createDigest,onMeasure=()=>{},nextPhase='reconcile-collection-authorities'}){
+ * Isolated callers hold after stage checks unless a successor phase is supplied. */
+export function createRecoveryV2LegacyAdoptionReconciler({driver,artifacts,crypto,repository,createDigest,onMeasure=()=>{},nextPhase='reconcile-collection-authorities',nextStagePhase=''}){
  function context(loaded,c){
   const metrics={sql:0,objectReads:0,maxBatchBytes:0,maxReturnedBytes:0,checkpointBytes:utf8(loaded.run.checkpoint_json).length,maxWorkingBytes:0};let retained=0;
   const working=extra=>{const total=metrics.checkpointBytes*2+retained*3+extra+32768;metrics.maxWorkingBytes=Math.max(metrics.maxWorkingBytes,total);need(total<=1048576,'working bound.');};
@@ -41,15 +41,17 @@ export function createRecoveryV2LegacyAdoptionReconciler({driver,artifacts,crypt
   const ctx=context(loaded,c);try{await ctx.pin();need(size(c.legacyAdoption??null)<=16384,'context bound.');
    if(c.phase==='reconcile-legacy-adoptions'){
     const cert=await certificate(ctx,null,c.legacyAdoptionCursor??-9007199254740991);if(!cert)return await checked(ctx,loaded,c,{phase:nextPhase,legacyAdoption:null,collectionAuthorityCursor:-9007199254740991,checkedCollectionAuthorities:0},'certificates-complete',c.checkedLegacyAdoptions??0);
-    await rootFacts(ctx,cert);const state={id:cert.b.adoptionId,cursor:cert.cursor,certificateDigest:cert.certificateDigest,stageIndex:0,chain:cert.b.parentDigest};return await checked(ctx,loaded,c,{phase:'reconcile-legacy-adoption-stages',legacyAdoption:state},'certificate:'+cert.b.adoptionId,{body:cert.b,digest:cert.certificateDigest});
+    await rootFacts(ctx,cert);const state={id:cert.b.adoptionId,cursor:cert.cursor,certificateDigest:cert.certificateDigest,stageIndex:0,chain:cert.b.parentDigest,stageProofChain:await hashJson(crypto,['v2-legacy-stage-start',cert.b.adoptionId,cert.certificateDigest])};return await checked(ctx,loaded,c,{phase:'reconcile-legacy-adoption-stages',legacyAdoption:state},'certificate:'+cert.b.adoptionId,{body:cert.b,digest:cert.certificateDigest});
    }
    if(c.phase==='reconcile-legacy-adoption-stages'){
     const state=c.legacyAdoption;need(state&&typeof state.id==='string'&&Number.isSafeInteger(state.stageIndex)&&state.stageIndex>=0,'stage cursor.');const cert=await certificate(ctx,state.id);need(cert.certificateDigest===state.certificateDigest&&cert.cursor===state.cursor&&state.stageIndex<=cert.b.stageCount,'certificate continuation.');
     const [proofs]=await ctx.read([sql("SELECT result_digest FROM app_recovery_reconcile_checks WHERE restore_id=? AND phase='legacy-adoption' AND scope=? AND ordinal=0 AND target_watermark=?",loaded.run.id,'certificate:'+state.id,c.targetWatermark)]);need(proofs.length===1&&proofs[0].result_digest===await hashJson(crypto,['v2-reconciled-legacy-adoption','certificate:'+state.id,{body:cert.b,digest:cert.certificateDigest}]),'certificate completion proof.');
-    if(state.stageIndex===cert.b.stageCount)return await repository.hold(loaded,'recovery-legacy-adoption-semantics-incomplete');
+    need(typeof state.stageProofChain==='string'&&/^[a-f0-9]{64}$/.test(state.stageProofChain),'stage proof chain.');
+    if(state.stageIndex===cert.b.stageCount){if(!nextStagePhase)return await repository.hold(loaded,'recovery-legacy-adoption-semantics-incomplete');await ctx.pin();return await repository.advance(loaded,{delta:{phase:nextStagePhase},targetWatermark:c.targetWatermark});}
     // Retain compact certificate/header facts during raw root verification.
     const compact={b:cert.b,header:cert.header,activationRevisions:cert.activationRevisions};ctx.retain(compact);const facts=await rootFacts(ctx,compact,state.stageIndex);const result=await verifyRestoredLegacyStage({cert:compact,state,facts},{ctx,crypto,createDigest});
-    return await checked(ctx,loaded,c,{legacyAdoption:{...state,stageIndex:state.stageIndex+1,chain:result.chainDigest}},'stage:'+state.id+':'+state.stageIndex,result);
+    const scope='stage:'+state.id+':'+state.stageIndex,resultDigest=await hashJson(crypto,['v2-reconciled-legacy-adoption',scope,result]),stageProofChain=await hashJson(crypto,['v2-legacy-stage-chain',state.id,state.stageIndex,state.stageProofChain,resultDigest]);
+    return await checked(ctx,loaded,c,{legacyAdoption:{...state,stageIndex:state.stageIndex+1,chain:result.chainDigest,stageProofChain}},scope,result);
    }
    return {kind:'conflict',code:'recovery-legacy-adoption-phase'};
   }catch(error){return await repository.hold(loaded,'recovery-legacy-adoption-invalid:'+error.message);}finally{ctx.report();}
