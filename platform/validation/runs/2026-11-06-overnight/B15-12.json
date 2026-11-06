@@ -1,0 +1,82 @@
+{
+  "task": "B15",
+  "status": "partial-frozen-recorded-unsigned-preparation",
+  "baseCommit": "a165dea1e9142775ca37dc4d0352b38b73491358",
+  "implementationCommit": null,
+  "schema": "installed068; no draft fallback",
+  "checks": [
+    {
+      "command": "node --test platform/storage/recorded-attempt-preparations.test.mjs platform/transactions/recorded-packet-evidence.test.mjs",
+      "passed": 10,
+      "durationMs": 16643.6802,
+      "log": "work/b15-recorded-packet-node-final.log"
+    },
+    {
+      "command": "node --test platform/edge/test/recorded-packets.test.mjs",
+      "passed": 1,
+      "pairedCalls": 21,
+      "durationMs": 28191.9903,
+      "log": "work/b15-recorded-packet-edge-first.log"
+    },
+    {
+      "command": "node platform/edge/node_modules/typescript/bin/tsc --noEmit -p platform/edge/tsconfig.json",
+      "status": "passed",
+      "log": "work/b15-recorded-packet-types.log"
+    }
+  ],
+  "metrics": {
+    "maxSqlStatements": 23,
+    "maxBatchBytes": 11513,
+    "maxParameters": 52,
+    "maxObjectReads": 1,
+    "rawPacketSourceBytes": 32768,
+    "maxRetainedAttempts": 16
+  },
+  "acceptance": [
+    "Exact canonical private B04 packet/simulation recording with independently verified SHA and original source/receipt lineage; coverage.complete false",
+    "Original legacy immutable plan bytes verified; ordered accounts/privileges/instructions, genesis, fee/output protections and short lifetime validated",
+    "Actual initial preparation -> actual067 recorded-height expiry -> fresh recorded unsigned replacement, Node/D1 parity, no predecessor rewrite",
+    "Submitted/unknown/confirmed/terminal/awaiting attempts cannot be replaced; exact unbound legacy packet replay reports its actual retained state without provenance or receipt backfill",
+    "New replacement requires fresh message/blockhash, nonregressing slot/time, simulation height after old last-valid and at least retained067 expiry height",
+    "All3 mandatory effects omitted separately and packet-digest substitution roll back; source/scope/clock races fail closed",
+    "Concurrent duplicate commits once; accepted original-key replay precedes new authorization/expiry checks; D1 lost committed replacement acknowledgement resolves original receipt",
+    "Explicit16-attempt bound preserves existing full history read/recovery bounds; nonempty lookup tables hold for missing independent lookup evidence"
+  ],
+  "limitations": [
+    "Synthetic recorded evidence is not RPC/chain/authenticated simulation or legacy plan authority",
+    "No signature creation, broadcast, public mutation route, custody/funding/codec authority, or executable economic preparation",
+    "Nonempty address lookup tables remain unsupported without independent retained evidence",
+    "Full new068 semantic recovery acceptance is assigned separately; this evidence does not claim final B15 completion"
+  ],
+  "financialExecution": false,
+  "ownedFiles": [
+    "platform/transactions/recorded-packet-evidence.mjs",
+    "platform/transactions/recorded-packet-evidence.d.mts",
+    "platform/transactions/recorded-packet-evidence.test.mjs",
+    "platform/transactions/recorded-packet-service.mjs",
+    "platform/transactions/recorded-packet-service.d.mts",
+    "platform/storage/recorded-attempt-preparations.mjs",
+    "platform/storage/recorded-attempt-preparations.d.mts",
+    "platform/storage/recorded-attempt-preparations.test.mjs",
+    "platform/storage/recorded-attempt-preparations.fixtures.mjs",
+    "platform/edge/test/recorded-packets.test.mjs",
+    "platform/edge/test/fixtures/recorded-packet-worker.ts"
+  ],
+  "sourceHashes": {
+    "platform/transactions/recorded-packet-evidence.mjs": "84841e261804c137dbbbde1bf9c9ef98ca8cca76cc36e84815c5c79a6047d2be",
+    "platform/transactions/recorded-packet-evidence.d.mts": "3b16fb45d0d70d56c559a0f5869d8aebe2afa7451fb4e4e2d2d9e6bf706f14cf",
+    "platform/transactions/recorded-packet-evidence.test.mjs": "6ba44269fc968a2e94f6c7b17bf1d7a956327bf05278dc5a55a095f2def71cfd",
+    "platform/transactions/recorded-packet-service.mjs": "60259f1c7c7059bdb88e976d29c248108ca19a67a052a1e9fc9b8a100abc2eff",
+    "platform/transactions/recorded-packet-service.d.mts": "af6817e0e45f213b2b7546b2fd2d4c38a7aa82b8d166a3f742e404da84b5272c",
+    "platform/storage/recorded-attempt-preparations.mjs": "2c776de273825643529e843a1bf7ccaa4aec4fc601d1d402fe1993aeebfc855d",
+    "platform/storage/recorded-attempt-preparations.d.mts": "e7de2aa81e58e565da0d433ad12ddd843a87c47d0cf2a597b468f71649bda813",
+    "platform/storage/recorded-attempt-preparations.test.mjs": "0aaeb24543a40da2a19dfcdae9955b33baad7513b9c2aa7eafe88097e1562c8f",
+    "platform/storage/recorded-attempt-preparations.fixtures.mjs": "44770dce50fe14df6fc3ce62a2edbd56a2a709dd5819b81f8bcf80ab09dc356d",
+    "platform/edge/test/recorded-packets.test.mjs": "705e08ae4fa860c1038e5b7d24f0c3ea6ec84c4a5931826d7e3339b474212646",
+    "platform/edge/test/fixtures/recorded-packet-worker.ts": "18857eeea961fcfc64164dfc1cd90311862e364c9d2219a379c66d2ffc62cf0f",
+    "platform/storage/068-recorded-attempt-preparations.sql": "9b25ab3c6522b2ec2fd63729f952b2759d00ef18e0985c879cf6f3d5365e7e3c",
+    "platform/application/recorded-packets.ts": "ff4a825d5266e02307859a0621ac892150afd41cb5142ee4241cff76b0351f4b",
+    "platform/evidence/decoders.mjs": "df353eae09d9a078f58c3440097fd0f569f64eedcaf46a59489c6790822628da",
+    "platform/evidence/envelope.mjs": "e73913cf9358bb54b8b23210d8e56fc14863e5f81eedf6af95426f782583710f"
+  }
+}

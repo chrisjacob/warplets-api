@@ -1,3 +1,4 @@
+import {inspectRecordedTransactionPacket} from '../transactions/recorded-packet-evidence.mjs';
 import {inspectRecordedTransactionHeight} from '../transactions/recorded-height-evidence.mjs';
 import {inspectRecordedTransactionOutcome} from '../transactions/recorded-outcome-evidence.mjs';
 import {inspectCollectionMintFulfillment} from '../collect/mint-fulfillment-evidence.mjs';
@@ -81,6 +82,7 @@ export function decodeRecorded(source,record,envelope){
  if(envelope.blockTimeMs>effectiveCutoff)return decision('pending','future-cutoff-observation','decoder-only');
  if(effectiveCutoff-envelope.blockTimeMs>source.maxAgeMs)return decision('pending','stale-cutoff-observation','decoder-only');
  try{
+  if(source.decoderVersion==='synthetic-transaction-packet-v1')return decision('verified','synthetic-transaction-packet-validated','synthetic-transcript',inspectRecordedTransactionPacket(source,payload,envelope));
   if(source.decoderVersion==='synthetic-transaction-height-v1')return decision('verified','synthetic-transaction-height-validated','synthetic-transcript',inspectRecordedTransactionHeight(source,payload,envelope));
   if(source.decoderVersion==='synthetic-transaction-outcome-v1')return decision('verified','synthetic-transaction-outcome-validated','synthetic-transcript',inspectRecordedTransactionOutcome(source,payload,envelope));
   if(source.decoderVersion==='synthetic-collection-observation-v1')return decision('verified','synthetic-collection-event-validated','synthetic-transcript',inspectCollectionObservation(source,payload,envelope));

@@ -36,8 +36,8 @@ export function validateSource(value){
  if(s.decoderVersion==='spl-vault-v1')requireEvidence(text(s.policy.expected?.mint),'source-vault-mint');
  if(['synthetic-position-history-v1','synthetic-position-history-v2'].includes(s.decoderVersion))requireEvidence(['wallet','tokenId','farmProgram','swapProgram'].every(k=>text(s.policy[k]))&&time(s.policy.enrolledAtMs),'source-history-identities');
  if(s.decoderVersion==='synthetic-cutoff-facts-v1')requireEvidence(['campaign-registry','ownership','position-inventory','action-completions'].includes(s.policy.kind)&&time(s.policy.fromMs),'source-cutoff-policy');
- if(['synthetic-transaction-outcome-v1','synthetic-transaction-height-v1'].includes(s.decoderVersion)){
-  requireEvidence(s.mode==='synthetic-fixture'&&s.chainGenesis==='8CBzMMmYAECcNqRdJvjM3N43pPYT1ez9yVdxdbDjwzv8'&&s.maxBytes<=4096
+ if(['synthetic-transaction-outcome-v1','synthetic-transaction-height-v1','synthetic-transaction-packet-v1'].includes(s.decoderVersion)){
+  requireEvidence(s.mode==='synthetic-fixture'&&s.chainGenesis==='8CBzMMmYAECcNqRdJvjM3N43pPYT1ez9yVdxdbDjwzv8'&&s.maxBytes<=(s.decoderVersion==='synthetic-transaction-packet-v1'?32768:4096)
    &&Object.keys(s.policy).sort().join(',')==='attemptId,intentId,messageHash,owner,planHash'
    &&['intentId','attemptId'].every(k=>typeof s.policy[k]==='string'&&/^[A-Za-z0-9:_./-]{1,128}$/.test(s.policy[k]))
    &&digest(s.policy.planHash)&&digest(s.policy.messageHash)&&s.subject.kind==='transaction-attempt'&&s.subject.id===s.policy.attemptId,'source-transaction-outcome-policy');

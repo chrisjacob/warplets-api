@@ -1,0 +1,99 @@
+{
+  "status": "partial-B15-frozen-recorded-preparation-recovery",
+  "baseCommit": "a165dea1e9142775ca37dc4d0352b38b73491358",
+  "implementationCommit": null,
+  "installedSchema": {
+    "lastMigration": "068-recorded-attempt-preparations.sql",
+    "businessTables": 117
+  },
+  "classification": "Genuine local guarded068 preparation and replacement plus067 expiry, backed by retained synthetic B04 transcripts. Recorded simulation and legacy signature authority remain unverified; no RPC simulation, signing or broadcast occurs.",
+  "checks": [
+    {
+      "command": "node --test platform/recovery/v2-reconcile-recorded-preparations.test.mjs platform/recovery/v2-restore.test.mjs",
+      "passed": 4,
+      "durationMs": 132341.891,
+      "log": "work/b15-preparation-recovery-node.log"
+    },
+    {
+      "command": "node --test platform/edge/test/recovery-recorded-preparations.test.mjs",
+      "passed": 1,
+      "durationMs": 101212.7673,
+      "log": "work/b15-preparation-recovery-d1.log"
+    },
+    {
+      "command": "pnpm --dir platform/edge exec tsc --noEmit",
+      "status": "passed",
+      "log": "work/b15-preparation-recovery-types.log"
+    }
+  ],
+  "acceptance": [
+    "Real initial068 preparation\u2192067 expiry\u2192068 replacement\u2192067 expiry; both preparation receipts still verify when their immutable attempts are now expired. Separate active replacement variant also passes.",
+    "Verify original canonical packet, simulation/ref and plan digests, source/config/private object identity, command request and exact14-field result.",
+    "Original plan expiresMs and packet freshness checked at recorded createdMs, not recovery time; empty lookup profile only, exact signer/program/instruction order through existing validatePacket.",
+    "Recorded simulation fee/output must respect original plan bounds; priorRevision=2*(index-1), priorState and previousAttemptId bind verified whole-history position.",
+    "Replacement uses a different message/blockhash, nonregressing original context/time and the prior recorded expiry height where available.",
+    "No current head, current grant, latest-attempt or current intent-state requirement substitutes for historical verification.",
+    "Wrong prior revision/state/previous attempt, signed row, packet/simulation digest/ref, unsafe result flags, noncanonical packet, expired plan/stale lifetime and replacement context regression fail closed.",
+    "Fresh private Node/D1 restore preserves exact tx rows/rowids, original packet bytes and two preparation/two expiry sidecars, without creating tx_receipts.",
+    "Omitted semantic proof rolls back; lost acknowledgement safely resumes; missing original private bytes and target watermark change prevent proof/readiness. Final complete command/sidecar/history/proof counts are mandatory."
+  ],
+  "bounds": {
+    "attemptsPerIntent": 16,
+    "legacyReceiptsPerIntent": 64,
+    "lineageBytes": 24576,
+    "checkpointBytes": 131072,
+    "workingBytes": 1048576,
+    "sqlBatchBytes": 262144,
+    "objectsPerSidecar": 1,
+    "history": "Once per affected intent, then one named retained preparation per continuation."
+  },
+  "metrics": {
+    "semanticVerifierEstimatedWorkingBytes": 46872,
+    "node": {
+      "steps": 1049,
+      "maxSql": 30,
+      "maxBatchBytes": 110576
+    },
+    "d1": {
+      "steps": 1048,
+      "maxOperations": 30,
+      "maxBatchBytes": 110729,
+      "maxSerializedWorkingBytes": 371432,
+      "boundPreparations": 2,
+      "boundExpiries": 2,
+      "legacyEvents": 0
+    },
+    "golden": {
+      "tables": 117,
+      "peakCheckpointBytes": 126931,
+      "peakPhase": "tables",
+      "marginBytes": 4141,
+      "finalCheckpointBytes": 93747,
+      "steps": 1094,
+      "maxSql": 13,
+      "maxBatchBytes": 110848,
+      "objects": 174
+    }
+  },
+  "scope": "All listed final checks use final owned runtime and installed068. No new codec, checkpoint packing, schema, public factory or financial capability change in this slice. Serialized working metrics are not measured JS heap.",
+  "remaining": "Parent owns B15 acceptance audit. This slice does not establish authenticated chain execution, production simulation, signing, replacement authority outside the disabled local rehearsal or financial settlement.",
+  "sourceHashes": {
+    "platform/recovery/v2-reconcile-recorded-preparations.mjs": "3b9cd6865d11c1435752c6b7831cda81116d825dbe427fb9d27d0318cdb9d9cd",
+    "platform/recovery/v2-reconcile-recorded-preparations.test.mjs": "1d46c6d12045303ced4e828b2915d8c16f8238e1481146ddf99d3f9bac00c51c",
+    "platform/recovery/recorded-preparation.fixtures.mjs": "dedd090c39ecd4aebd7c18d710d66b9db60766b16ab95be1149b5e9bdb58d9e3",
+    "platform/edge/test/recovery-recorded-preparations.test.mjs": "6d16ec3be2ff14d2361999d92cd42c0d88472fd76ee0235ecaa9dce471b2ab36",
+    "platform/recovery/v2-reconcile.mjs": "e9aba1e9474bcfef30e0cb4970f4662d7e6e7cba3181f749d03d403496a0d484"
+  },
+  "dependencyHashes": {
+    "platform/storage/068-recorded-attempt-preparations.sql": "9b25ab3c6522b2ec2fd63729f952b2759d00ef18e0985c879cf6f3d5365e7e3c",
+    "platform/storage/recorded-attempt-preparations.mjs": "2c776de273825643529e843a1bf7ccaa4aec4fc601d1d402fe1993aeebfc855d",
+    "platform/storage/recorded-attempt-preparations.fixtures.mjs": "44770dce50fe14df6fc3ce62a2edbd56a2a709dd5819b81f8bcf80ab09dc356d",
+    "platform/transactions/recorded-packet-service.mjs": "60259f1c7c7059bdb88e976d29c248108ca19a67a052a1e9fc9b8a100abc2eff",
+    "platform/transactions/recorded-packet-evidence.mjs": "84841e261804c137dbbbde1bf9c9ef98ca8cca76cc36e84815c5c79a6047d2be",
+    "platform/transactions/recovery-reads.mjs": "f86f1f6b36c31d5856e13f70aeef195b698181456b4adeef50c4bd548d605bd0",
+    "platform/transactions/packets.mjs": "ceffbe84cead16c0a3b2b9896a3c5c323ccda32a3f9377eae21884258e7b9159",
+    "platform/recovery/schema.mjs": "b988979412b4aec266e1b01a252481455cbb1f7aaea44e7bf1d28571b953a3a6",
+    "platform/recovery/v2-restore.test.mjs": "6c41c28d60388901eacc97c131e28444bd73d385999a9a57adbf1b3c03f3f055",
+    "platform/edge/test/fixtures/recovery-v2-restore-worker.ts": "44788d1532811c189bdb3eb31f7ff5aeed80091c8806999f23019ce128cabb05"
+  }
+}
