@@ -27,14 +27,16 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '22.22.3'
+      - name: Install build tool and pinned reference cryptography
+        run: |
+          npm install --global --ignore-scripts pnpm@10.26.0
+          pnpm --dir platform/beacon install --ignore-scripts --frozen-lockfile
       - name: Reference domains, workflows, contracts and local recovery
         working-directory: platform
         run: |
           node scripts/test-reference.mjs
           node contracts/generate.mjs --check
           node earn/recovery-drill.mjs
-      - name: Install build tool
-        run: npm install --global --ignore-scripts pnpm@10.26.0
       - name: Compile and test the primary viewer
         working-directory: platform/site
         run: |
@@ -44,7 +46,6 @@ jobs:
       - name: Verify frozen beacon fixture offline
         working-directory: platform/beacon
         run: |
-          pnpm install --ignore-scripts --frozen-lockfile
           pnpm test
       - name: Compile and test Workers, D1 and R2 locally
         working-directory: platform/edge

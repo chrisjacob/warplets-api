@@ -35,7 +35,9 @@ test('collection disclosures do not read concealed Levels or confuse reveal obse
  const before=readInventory(db,'genesis',open+1000,wallet);
  assert.equal(before.counts.paidStageAllocations,1);assert.equal(before.concealedCount,1);assert.deepEqual(before.revealedLevelCounts,Array(10).fill(0));
  assert.equal(readCollectionAsset(db,'hidden').level,undefined);
- assert.equal(readCollectionAsset(db,'hidden').ownerObservedAt,new Date(open+1000).toISOString());
+ // Exact initial binding time can reconstruct a configured future round.
+ // Conceal it before reveal; afterward retain the original owner evidence age.
+ assert.equal(readCollectionAsset(db,'hidden').ownerObservedAt,null);
  observeCollectionAsset(db,{sourceId:'reveal',assetId:'hidden',kind:'reveal',at:open+5000,finalized:true},open+5000);
  assert.equal(readCollectionAsset(db,'hidden').ownerObservedAt,new Date(open+1000).toISOString());
  const after=readInventory(db,'genesis',open+5000,wallet);assert.equal(after.concealedCount,0);assert.equal(after.revealedLevelCounts[9],1);

@@ -1,3 +1,9 @@
+# Current: repaired B17 plus B19 integration
+
+PriorB17CI42308923046 FAILED18/1190: earlymissingbeacon dependency, staleprivacy/count assertions, isolatedrefreshprerequisite and oversized fabricatedlegacycheckpoint. Allfixes pass49focusedtests (22fairness,23schema,4recovery). Exact128KiB cap preserved: genuinelegacy129623Bfullready; modernpending130107Bfullready. Frozenbeaconinstall movedbefore reference; no versionchange. Windowsrunner nowrelativepaths (old ENAMETOOLONG), fullsuite requires unrestrictedtempfilesystem (7artifacttestspass; sandboxhardlinksreturnedunknown). Earlierfullruns aborted; no fullpassclaimed.
+
+Thispush triggers combinedB17/B19 test-onlyCI via checkpointmarker. Followtofinal; thenmarkB17/B19verified andstartB18. B19localacceptancecomplete at319360f. Restartlocalfullreference afterpush; noactiveimplementationagents. GuidePDF/HTML16pages/9screenshots completeasdraft, updatefinalstatusbeforeoverallfinish. Usercap50%; latest4%. No migration, deployment orfinancialexecution.
+
 # Current continuation: B19 local acceptance complete
 
 B19 compact private archive index verifies15required full-table descriptors and root/liability scope without duplicating rows. Actual full-root save/restore and empty-db recovery passed:185objects,1149steps,129652/131072Bpeak. 32focused tests plus1fullrestore pass. Audit hardened accessor pins/cacheidentity and explicitly limits farm arithmetic to same-mint combined vaults, individual backing unverified. EvidenceB19-acceptance.json. No migration or financial execution. Next fullreference integration, thenB19CI after activeB17CI42308923046 completes; do not cancelactiveCI. B18waitsB17verified. Userguide16pagePDF+HTML rendered/inspected; updatefinalstatusbeforefinaldelivery. Userresetverified0%, cap50%; latestmeter1%.

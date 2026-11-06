@@ -1,0 +1,54 @@
+{
+  "milestone": "B17 failed-CI correction and combined B17/B19 integration checkpoint",
+  "baseCommit": "319360f",
+  "failedRun": "42308923046",
+  "failedHead": "e80941ef56adf46af01b5d9be46fcb4029e7ec35",
+  "failedRunTests": 1190,
+  "failedRunFailures": 18,
+  "fixes": [
+    "Install existing frozen beacon dependency before reference imports; no dependency/version changes",
+    "Concealed bind time stays null, original ownership age checked after reveal",
+    "Exact business allowlist count118 with explicitrefresh inclusion and controls excluded",
+    "Isolated economics fixture declares empty refresh prerequisite complete while retaining32allocations/3200awards",
+    "Legacy fullready exercised from genuine129623Bcheckpoint; modern-pending fullready peak130107B; no fabricated131389Blegacycheckpoint",
+    "Windows reference runner uses relative paths, identical discovery/order, no acceptance changes"
+  ],
+  "focusedChecks": [
+    {
+      "scope": "privacy/fairness",
+      "passed": 22,
+      "durationMs": 11772.3179,
+      "log": "work/b17-ci-fairness-repair.log"
+    },
+    {
+      "scope": "four legacy schema/repository files",
+      "passed": 23,
+      "durationMs": 53500
+    },
+    {
+      "scope": "recovery economics/table order",
+      "passed": 4,
+      "durationMs": 93463.1164,
+      "log": "work/b17-recovery-ci-fixes.log"
+    },
+    {
+      "scope": "immutable artifact tests unrestricted filesystem",
+      "passed": 7,
+      "durationMs": 1651.372
+    }
+  ],
+  "sourceHashes": {
+    ".github/workflows/10x-platform-check.yml": "c2692b4bd850088b53a36647c2a8b582b3a67bac53ff598e2885b66f2ea3d90d",
+    "platform/collect/eligibility.test.mjs": "c9a7987b03817835d95bffc4f05123042abcc48fabb17213e2c3cfb6f4df0de2",
+    "platform/collect/legacy-adoption-preparation-schema.test.mjs": "36d83ed0098e1eb5d95d6f4872e3951d4edf359283f78120f903e86633eaa42c",
+    "platform/collect/legacy-audit-repository.test.mjs": "3a5065d6b50264231ebbec89cc73b0b8d7a00e853c8df03e3f72252597f35267",
+    "platform/collect/legacy-economic-schema.test.mjs": "e4098b79f6f915374aa481745ebb7d873640b547701678df8a9381f389edb7cd",
+    "platform/collect/legacy-relation-repository.test.mjs": "bb7899c04f14813789bc4f91dc92acac4a2030b4cda105406b2f78a7324b7660",
+    "platform/recovery/v2-reconcile-economics.test.mjs": "6299d3ea138dceaf9089cbcdc82d2618bdb05140e07b9792c6c465c6f7f3621b",
+    "platform/recovery/v2-table-order.test.mjs": "6ce52e5ffd3461193875b8efdc8b8c77983b01111febd601ba0048d117e5af2b",
+    "platform/scripts/test-reference.mjs": "31a313cbf5f67171c2946569463793b4ce718147d9314f951da2768c4a5a66b4"
+  },
+  "checkpointLimit": 131072,
+  "financialExecution": false,
+  "fullIntegration": "pending restart"
+}

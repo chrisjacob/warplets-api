@@ -4,8 +4,8 @@
   "phase": "executing",
   "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
-  "currentTask": "B19",
-  "lastUpdatedAt": "2026-11-06T23:43:16.342683+00:00",
+  "currentTask": "B17",
+  "lastUpdatedAt": "2026-11-06T23:53:58.746925+00:00",
   "migrationAllocation": {
     "next": 70,
     "reserved": [
@@ -586,9 +586,10 @@
         "platform/validation/runs/2026-11-06-overnight/B17-17.json",
         "platform/validation/runs/2026-11-06-overnight/B17-18.json",
         "platform/validation/runs/2026-11-06-overnight/B17-19.json",
-        "platform/validation/runs/2026-11-06-overnight/B17-acceptance.json"
+        "platform/validation/runs/2026-11-06-overnight/B17-acceptance.json",
+        "platform/validation/runs/2026-11-06-overnight/B17-ci-repair.json"
       ],
-      "nextAction": "FollowfullCI42308923046 at e80941ef56adf46af01b5d9be46fcb4029e7ec35 tocompletion. Localacceptancecomplete; do notmarkverifiedbeforeCIgreen.",
+      "nextAction": "Prior CI42308923046 failed18tests; all identified fixes pass49focusedtests. Follow new combinedB17/B19 CI afterthispush and localfullreference. Do notmarkverified beforegreen. ThenstartB18.",
       "blocker": null
     },
     "B18": {
@@ -605,7 +606,7 @@
       "status": "in_progress",
       "owner": "coordinator",
       "baseCommit": "f873021",
-      "implementationCommit": "10f6b30",
+      "implementationCommit": "319360f",
       "pushed": true,
       "evidence": [
         "platform/validation/runs/2026-11-06-overnight/B19-01.json",
@@ -618,7 +619,7 @@
         "platform/validation/runs/2026-11-06-overnight/B19-08.json",
         "platform/validation/runs/2026-11-06-overnight/B19-acceptance.json"
       ],
-      "nextAction": "All B19 local acceptance passed33 focused/full-restore tests. Run full reference integration; after B17CI42308923046 completes trigger test-only B19 checkpoint CI. Do not markverified before integration/CI. B18 awaitsB17. GuidePDF/HTML drafted and visuallychecked, updatefinalstatuslater. Usercap50%.",
+      "nextAction": "Localacceptancecomplete33tests, combinedB17/B19 CI beingtriggered withB17repairs. Markverifiedonlyafterintegrationgreen; thenB20full waitsB18.",
       "blocker": null
     },
     "B20": {
