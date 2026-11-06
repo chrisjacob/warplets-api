@@ -1,0 +1,28 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {openDatabase} from '../storage/database.mjs';
+import {createNodeAtomicDriver} from '../storage/node/atomic-driver.mjs';
+import {governanceOperatorFixture,GOVERNANCE_OPEN,GOVERNANCE_OPERATOR} from './operator-test-fixture.mjs';
+import {createGovernanceOperatorService} from './operator-service.mjs';
+import {createGovernanceOperatorRepository} from './operator-repository.mjs';
+import {canonicalJson} from '../security/canonical.mjs';
+import {createManifestCodec} from '../artifacts/manifest-codec.mjs';
+import {memoryArtifacts} from '../application/fixtures/memory-artifacts.mjs';
+import {readInstalledRecoverySchema} from '../recovery/node-schema.mjs';
+import {createRecoveryExporter} from '../recovery/export.mjs';
+import {createPrivateRecovery} from '../recovery/restore.mjs';
+test('private recovery retains exact frozen groups, electorate, founder decision and accepted authority receipts',async t=>{
+ const f=await governanceOperatorFixture(t),target=openDatabase();t.after(()=>target.close());const targetDriver=createNodeAtomicDriver(target),sourceStore=memoryArtifacts(),targetStore=memoryArtifacts(),published=await f.publish();assert.equal(published.kind,'committed');f.setNow(GOVERNANCE_OPEN+2*86400000);
+ const input={ballotId:f.input.ballotId,choice:'7',decidedMs:f.getNow(),noticeMs:GOVERNANCE_OPEN,rationale:'Synthetic founder rationale.'},decided=await f.decision();assert.equal(decided.kind,'committed');
+ f.db.prepare("UPDATE app_operator_scopes SET enabled=0 WHERE scope IN ('governance-publication','governance-decision')").run();f.db.prepare('INSERT INTO sessions VALUES(?,?,?,?)').run('synthetic-governance-recovery-session',f.union[0],'http://localhost',999999999999);
+ const schema=await readInstalledRecoverySchema(f.ports.crypto),ports={...f.ports,schema,codec:createManifestCodec(f.ports)},capture=await createRecoveryExporter({...ports,driver:f.base,artifacts:sourceStore,sourceCommit:'0'.repeat(40)}).capturePrivate();assert.equal(capture.kind,'captured',JSON.stringify(capture));assert.equal(capture.inventory.tables.find(table=>table.name==='app_governance_publications').rowCount,1);
+ const pin={inventory:structuredClone(capture.inventory),pinnedDigest:capture.digest},missing=capture.inventory.objects[0],retained=sourceStore.objects.get(missing.key);sourceStore.objects.delete(missing.key);const recovery=createPrivateRecovery({...ports,driver:targetDriver,artifacts:targetStore,sourceArtifacts:sourceStore});assert.equal((await recovery.restore(pin)).kind,'held');
+ const row=f.db.prepare('SELECT * FROM app_governance_publications').get(),columns=Object.keys(row);assert.throws(()=>target.prepare('INSERT INTO app_governance_publications('+columns.join(',')+') VALUES('+columns.map(()=>'?').join(',')+')').run(...Object.values(row)),/mutation-disabled/);
+ sourceStore.objects.set(missing.key,retained);assert.equal((await recovery.restore(pin)).kind,'restored');
+ for(const [table,order] of [['app_collection_records','id'],['app_collection_list_seals','id'],['app_collection_eligibility_pages','record_id'],['app_governance_publications','ballot_id'],['genesis_ballots','id'],['genesis_voters','wallet'],['genesis_decisions','ballot_id'],['app_command_receipts','operation_id']])assert.equal(canonicalJson(target.prepare(`SELECT * FROM ${table} ORDER BY ${order}`).all()),canonicalJson(f.db.prepare(`SELECT * FROM ${table} ORDER BY ${order}`).all()),table);
+ assert.equal(target.prepare('SELECT COUNT(*) n FROM sessions').get().n,0);assert.equal(f.db.prepare('SELECT COUNT(*) n FROM sessions').get().n,1);
+ const restored=createGovernanceOperatorService({...f.ports,repository:createGovernanceOperatorRepository(targetDriver,f.ports)}),p=await restored.publishBallot(GOVERNANCE_OPERATOR,{input:f.input,requestKey:'publish'}),d=await restored.recordDecision(GOVERNANCE_OPERATOR,{input,requestKey:'decision'});
+ assert.equal(p.kind,'replayed');assert.deepEqual(p.receipt,published.receipt);assert.deepEqual(p.value,published.value);assert.equal(d.kind,'replayed');assert.deepEqual(d.receipt,decided.receipt);assert.deepEqual(d.value,decided.value);
+ assert.throws(()=>target.prepare('UPDATE app_governance_publications SET source_id=?').run('changed'),/immutable/);assert.throws(()=>target.prepare('UPDATE genesis_decisions SET rationale=?').run('changed'),/immutable/);assert.equal((await recovery.restore(pin)).kind,'replayed');
+ assert.equal(target.prepare('SELECT COUNT(*) n FROM collect_inventories').get().n,0);t.diagnostic(JSON.stringify({tables:capture.inventory.tables.length,publicationBindings:1,voters:f.union.length,founderDecisions:1,exactReceipts:f.db.prepare('SELECT COUNT(*) n FROM app_command_receipts').get().n,oldSessionsRevoked:1,heldTargetInsertBlocked:true,financialExecution:false}));
+});

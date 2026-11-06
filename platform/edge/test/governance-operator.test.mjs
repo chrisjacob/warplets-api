@@ -1,0 +1,38 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {localRuntime} from './local-runtime.mjs';
+import {governanceOperatorFixture,governanceWallets,GOVERNANCE_OPEN} from '../../governance/operator-test-fixture.mjs';
+import {recordDecision} from '../../governance/ballots.mjs';
+import {canonicalJson} from '../../security/canonical.mjs';
+const DAY=86400000;
+async function copyPrepared(source,target){
+ for(const table of ['app_operator_scopes','app_command_receipts','app_collection_records','app_collection_list_seals','app_collection_eligibility_pages']){
+  const rows=source.prepare('SELECT * FROM '+table).all();for(let offset=0;offset<rows.length;offset+=10)await target.batch(rows.slice(offset,offset+10).map(row=>{const columns=Object.keys(row);return target.prepare(`INSERT INTO ${table}(${columns.join(',')}) VALUES(${columns.map(()=>'?').join(',')})`).bind(...Object.values(row));}));
+ }
+ await target.prepare('CREATE TABLE governance_operator_clock(now_ms INTEGER)').run();await target.prepare('INSERT INTO governance_operator_clock VALUES(?)').bind(GOVERNANCE_OPEN+1).run();
+}
+const callFor=mf=>async input=>(await (await mf.dispatchFetch('http://localhost/__fixture/operator',{method:'POST',body:JSON.stringify(input)})).json());
+test('10000-member frozen union and founder decision have exact Node/D1 bytes through compact guarded batches',async t=>{
+ const wallets=governanceWallets(10000),f=await governanceOperatorFixture(t,{holders:wallets.slice(0,6000),nextWhitelist:wallets.slice(4000)}),{mf,db}=await localRuntime(t,new URL('./fixtures/governance-operator-worker.ts',import.meta.url));await copyPrepared(f.db,db);const call=callFor(mf);
+ const expected=await f.publish(),actual=await call({method:'publish',input:f.input,key:'publish',nowMs:GOVERNANCE_OPEN+1});assert.equal(actual.status,200,actual.error);assert.equal(actual.result.kind,'committed');assert.deepEqual(actual.result.value,expected.value);assert.equal(actual.result.value.snapshotHash,f.expectedHash);
+ assert.equal(canonicalJson((await db.prepare('SELECT wallet FROM genesis_voters ORDER BY wallet').all()).results),canonicalJson(f.db.prepare('SELECT wallet FROM genesis_voters ORDER BY wallet').all()));assert.equal(await db.prepare('SELECT COUNT(*) n FROM genesis_voters').first('n'),10000);
+ const decision={ballotId:f.input.ballotId,choice:'14',decidedMs:GOVERNANCE_OPEN+2*DAY,noticeMs:GOVERNANCE_OPEN+DAY,rationale:'Synthetic exact founder decision.'};f.setNow(decision.decidedMs);const node=await f.decision(decision),edge=await call({method:'decision',input:decision,key:'decision',nowMs:decision.decidedMs});assert.equal(edge.status,200,edge.error);assert.deepEqual(edge.result.value,node.value);
+ assert.equal((await call({method:'decision',input:decision,key:'decision',nowMs:decision.decidedMs+DAY})).result.kind,'replayed');
+ assert.equal(canonicalJson((await db.prepare('SELECT * FROM genesis_decisions').all()).results),canonicalJson(f.db.prepare('SELECT * FROM genesis_decisions').all()));
+ assert.equal((await mf.dispatchFetch('http://localhost/api/v1/genesis/ballots/publish',{method:'POST',headers:{origin:'http://localhost','content-type':'application/json'},body:JSON.stringify(f.input)})).status,405);
+ const publicRead=await (await mf.dispatchFetch('http://localhost/api/v1/genesis/ballots/'+f.input.ballotId)).json();assert.equal(publicRead.source,'local-fixture');assert.equal(publicRead.votesCast,0);assert.equal(publicRead.decision.choice,'14');assert.ok(!JSON.stringify(publicRead).includes(wallets[0]));
+ assert.ok(actual.metrics.statements<1000);assert.equal(actual.metrics.mutationStatements,5);assert.ok(actual.metrics.maxParameters<=100);assert.ok(actual.metrics.maxBatchBytes<32768);t.diagnostic(JSON.stringify({wallets:10000,...actual.metrics,legacyHashParity:true,founderDecisionParity:true}));
+});
+test('real D1 publication/decision faults, current authority, source tampering and exact legacy adoption stay atomic',async t=>{
+ const f=await governanceOperatorFixture(t),{mf,db}=await localRuntime(t,new URL('./fixtures/governance-operator-worker.ts',import.meta.url));await copyPrepared(f.db,db);const call=callFor(mf),publish=(fault,input=f.input,key='publish')=>call({method:'publish',input,key,nowMs:GOVERNANCE_OPEN+1,fault});
+ for(const fault of ['tamper-index','tamper-record']){const r=await publish(fault);assert.equal(r.status,200);assert.equal(r.result.kind,'pending');}
+ const before=await db.prepare('SELECT COUNT(*) n FROM app_command_receipts').first('n');for(const fault of ['omit-voters','omit-binding']){assert.equal((await publish(fault)).status,500);assert.equal(await db.prepare('SELECT COUNT(*) n FROM genesis_ballots').first('n'),0);assert.equal(await db.prepare('SELECT COUNT(*) n FROM app_command_receipts').first('n'),before);}
+ assert.equal((await publish('revoke')).result.code,'revision_conflict');assert.equal((await publish()).result.code,'operator_scope_required');await db.prepare("UPDATE app_operator_scopes SET enabled=1 WHERE scope='governance-publication'").run();assert.equal((await publish('lost-response')).result.kind,'replayed');
+ await db.prepare("UPDATE app_operator_scopes SET enabled=0 WHERE scope='governance-publication'").run();assert.equal((await publish()).result.kind,'replayed');assert.equal((await publish(undefined,{...f.input,electorateDigest:'a'.repeat(64)})).result.code,'idempotency_conflict');
+ const decision={ballotId:f.input.ballotId,choice:'ASAP',decidedMs:GOVERNANCE_OPEN+2*DAY,noticeMs:GOVERNANCE_OPEN,rationale:'Synthetic founder rationale.'},decide=fault=>call({method:'decision',input:decision,key:'decision',nowMs:decision.decidedMs,fault});
+ assert.equal((await decide('omit-decision')).status,500);assert.equal(await db.prepare('SELECT COUNT(*) n FROM genesis_decisions').first('n'),0);assert.equal((await decide('clock')).result.code,'revision_conflict');assert.equal((await decide('revoke')).result.code,'revision_conflict');await db.prepare("UPDATE app_operator_scopes SET enabled=1 WHERE scope='governance-decision'").run();assert.equal((await decide('lost-response')).result.kind,'replayed');assert.equal((await call({method:'decision',input:decision,key:'another-key',nowMs:decision.decidedMs})).result.code,'decision_already_recorded');
+ await assert.rejects(db.prepare('UPDATE app_governance_publications SET source_id=?').bind('changed').run(),/immutable/);await assert.rejects(db.prepare('DELETE FROM genesis_decisions').run(),/immutable/);
+ const legacyId='synthetic-legacy-ballot';await db.batch([db.prepare('INSERT INTO genesis_ballots VALUES(?,?,?,?,?,?)').bind(legacyId,GOVERNANCE_OPEN,GOVERNANCE_OPEN+2*DAY,GOVERNANCE_OPEN-DAY,'a'.repeat(64),0),db.prepare('INSERT INTO genesis_decisions VALUES(?,?,?,?,?,?)').bind(legacyId,'7',decision.decidedMs,GOVERNANCE_OPEN,GOVERNANCE_OPEN+6*DAY,'Legacy synthetic rationale.')]);
+ const adopted=await call({method:'decision',input:{...decision,ballotId:legacyId,choice:'7',rationale:'Legacy synthetic rationale.'},key:'legacy',nowMs:decision.decidedMs+1});assert.equal(adopted.status,200,adopted.error);assert.equal(adopted.result.kind,'committed');assert.equal(adopted.result.value.decidedMs,decision.decidedMs);
+ assert.equal(await db.prepare('SELECT COUNT(*) n FROM collect_inventories').first('n'),0);
+});

@@ -1,0 +1,118 @@
+{
+  "task": "B11",
+  "slice": "B11.7 command-only frozen electorate publication and founder decisions",
+  "status": "partial",
+  "baseCommit": "1734e3b",
+  "implementationCommit": null,
+  "recordedAt": "2026-11-06T00:49:15.807Z",
+  "sourceHashes": {
+    "platform/governance/operator-service.mjs": "52484e7510aa6c9ca978eeca1637aba08893d99b63f9b4d1a1648883ed7b9e76",
+    "platform/governance/operator-service.d.mts": "95d2d300e405aefe90ea81c4223b843dcaada58f015c17fcdcc841beab91c4af",
+    "platform/governance/operator-source.mjs": "be058a4db66547c944c75d1c871d62f945887fc8e44d7a2d8f88db759e64fa66",
+    "platform/governance/operator-repository.mjs": "bccea23121ca29c6f7009018850316a3bb98216ecf9823a1d9574f13f0c9226d",
+    "platform/governance/operator-repository.d.mts": "240ff0965842a6f45f57bab2fc7cf23484c3b2c43e7ef085f3aafd833a8a8c57",
+    "platform/governance/operator-repository.test.mjs": "6fc54add1c9726bc6a19f3e57b3a37b902e2243fe932539b7cdd9a26a89e010f",
+    "platform/governance/operator-recovery.test.mjs": "e18d9cd9373cdd7a2fe2ddf944cdba67375cb552c48128d83f9ba2ba9c13fa22",
+    "platform/governance/operator-test-fixture.mjs": "73f11ea7e7c032d0cb4e6f24906a28e261dce3e16aaef16d6265b60d38e36032",
+    "platform/governance/OPERATOR_COMMANDS.md": "4b4f38d45329134e8ac8d2355f0f2e7c3dbe343898b47fa8faaa18b15f3e442f",
+    "platform/edge/test/governance-operator.test.mjs": "59d9c9cd4312e0f9356e7fa67671d38a09b3383201861be58561794a49cc826b",
+    "platform/edge/test/fixtures/governance-operator-worker.ts": "f46709ff402a6ad65f88fe139e9c20d864416910f9f7f00edcd1149c3b1ab358",
+    "platform/storage/039-governance-publication.sql": "f03d2da2b110cba6e5b1c8291731a037aca2b4cf4a4eec7bd90c4278b5c9022e",
+    "platform/recovery/schema.mjs": "0c0ec44b1317695913f8d5fd47fd71d3dd79461b1b380dc51d835e30b397b1e0"
+  },
+  "checks": [
+    {
+      "command": "node --test platform/governance/operator-*.test.mjs",
+      "result": "PASS",
+      "tests": 8,
+      "durationMs": 12419.2467,
+      "log": "work/b11-governance-operator-node.log"
+    },
+    {
+      "command": "node --test platform/edge/test/governance-operator.test.mjs",
+      "result": "PASS",
+      "tests": 2,
+      "durationMs": 72651.4587,
+      "log": "work/b11-governance-operator-edge.log",
+      "reuseNote": "Full 10000-wallet publication benchmark is unchanged by the subsequent decision_already_recorded guard; the changed decision path was revalidated below."
+    },
+    {
+      "command": "node --test --test-name-pattern=\"faults\" platform/edge/test/governance-operator.test.mjs",
+      "result": "PASS",
+      "tests": 1,
+      "durationMs": 16661.0659,
+      "log": "work/b11-governance-operator-edge-final.log"
+    },
+    {
+      "command": "node platform/edge/node_modules/typescript/bin/tsc --noEmit -p platform/edge",
+      "result": "PASS"
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS"
+    },
+    {
+      "command": "node platform/scripts/test-reference.mjs",
+      "result": "PASS",
+      "tests": 412,
+      "durationMs": 38893.638,
+      "log": "work/b11-governance-publication-reference.log",
+      "reuseNote": "Includes uncommitted pure reservation/HTTP tests; subsequent decision-key conflict guard covered by final focused Node/D1 tests."
+    },
+    {
+      "command": "node platform/contracts/generate.mjs --check",
+      "result": "PASS"
+    }
+  ],
+  "nodeMeasurements": {
+    "wallets": 10000,
+    "preparationAndCommitStatements": 24,
+    "mutation": {
+      "statements": 5,
+      "maxParameters": 33,
+      "maxSqlBytes": 1103,
+      "batchBytes": 5665
+    },
+    "receiptBytes": 1201
+  },
+  "d1Measurements": {
+    "wallets": 10000,
+    "statements": 24,
+    "maxBatchBytes": 7119,
+    "maxParameters": 33,
+    "mutationStatements": 5,
+    "legacyHashParity": true,
+    "founderDecisionParity": true
+  },
+  "recovery": {
+    "tables": 96,
+    "publicationBindings": 1,
+    "voters": 4,
+    "founderDecisions": 1,
+    "exactReceipts": 14,
+    "oldSessionsRevoked": 1,
+    "heldTargetInsertBlocked": true
+  },
+  "coverage": [
+    "Three immutable complete source list bindings preserve holder/whitelist group identity and exact union",
+    "Exact legacy snapshot bytes for10000wallet Node/D1 publication",
+    "No wallet array in receipt, INSERT SELECT from indexed pages",
+    "Missing seal/index, wrong union/digest/cutoff and tampered bytes/index fail closed",
+    "Each missing publication child aborts all effects",
+    "Current scope race, SQL-time decision race and lost acknowledgement",
+    "Accepted replay after grant revocation; changed body conflicts",
+    "Exact empty electorate, zero turnout and all four founder timing choices",
+    "Exact immutable legacy decision adoption without changing original times",
+    "Incomplete legacy electorate holds; unbound legacy ballot cannot acquire invented source provenance",
+    "Decision already owned by another accepted key has explicit conflict",
+    "Defensive capture before digest awaits and forged command rejection",
+    "Populated private recovery preserves all selected rows/receipts and revokes sessions"
+  ],
+  "limitations": [
+    "All source groups/cutoff attestations are explicitly synthetic-local-operator-fixture, including future scheduled fixture ballots; no actual ownership or chain-completeness proof.",
+    "No public operator endpoint, stage opening authority, deployment, payment or financial execution.",
+    "Recovery tested with4voters. Current RECOVERY_LIMITS.tableRows8192 prevents restoring the full legal10000-voter table; bounded recovery-capacity work remains required before B11 completion.",
+    "The existing24MiB aggregate recovery bound remains a separate capacity limitation for maximum32x10000 collection lists.",
+    "Authoritative collection stage publication, complete legacy adoption/migration, mint/observation transitions and progression acceptance remain unfinished; B11 remains in progress."
+  ]
+}

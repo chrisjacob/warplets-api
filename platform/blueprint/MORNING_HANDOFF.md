@@ -1,6 +1,6 @@
 # Continuing implementation checkpoint
 
-B11.6 private eligibility index is locally verified and ready to commit/push. Latest pushed product3eb371848355f1ee30fbf9a505ff15f34147e1fe passed test-only CI42137548857. Prior governance productf76f741 passed CI42136334301. Branch: work/10x-prd-foundation. This is an active checkpoint, not a stopping condition.
+B11.7 guarded electorate publication/founder decisions are locally verified and ready to commit/push. Latest pushed product1734e3bd7b5b7b8cd583a743e45d6dd9b5d42678 passed test-only CI42138242958. Quote product3eb3718 passed CI42137548857. Branch: work/10x-prd-foundation. This is an active checkpoint, not a stopping condition.
 
 B00 through B10 and B14 are verified. B11 remains partial; B12/B13/B15 onward remain unfinished. B20-core is verified at b18dec7/CI42125215062. Skip B20 as a selected task until B00 through B19 pass. Financial execution remains disabled.
 
@@ -12,11 +12,13 @@ Validation: eight focused Node tests; one actual D1 test covering25 paired calls
 
 ## Current next step
 
-Commit/push tested038 index and follow its test-only CI. Index acceptance:7Node tests,1actual D1 test,402reference tests, types, and populated95-table recovery with101members/twoindexes/eight exact receipts. D1 measured19090batch bytes/27parameters. Quote037 CI42137548857 passed. Install coordinator draft work/b11-039.sql and activate guarded publication/founder decision tests when ready. Index pages remain private staging; no active inventory or electorate is implied.
+Commit/push tested039 governance publication/founder decision slice, follow CI, then install work/b11-040.sql and add app_collection_reservations to recovery inventory. Snapshot agent has14draft Node tests,2pure identity/fairness tests, draft D1 acceptance and pending populated recovery. The final D1 run adds actual millisecond SQL clock and exact future-round boundary checks. Every reservation must atomically preserve both locks, quote binding and configured draw; accepted replay keeps its original result. No public route is mounted yet.
 
-Frontend agent owns eligibility index files and then guarded governance publication/founder decisions. Coordinator owns039 schema, shared contracts, recovery inventory and commits. Publication will bind holder, whitelist and union sealed-list IDs, explicit synthetic local source identity and cutoff, retain the exact legacy electorate hash, and atomically insert the full frozen electorate. Existing unbound legacy ballots must not acquire invented provenance. Founder decisions remain advisory and cannot bypass stage notice or unsold inventory holds.
+039 publishes the complete10000-wallet frozen union from three independently verified sealed lists with five mutation statements, max33parameters/7119batch bytes. Exact legacy snapshot and founder decision bytes match Node/D1. All41publication invariants were split into four assertions over one unique publication row to fit D1 expression-depth100; no predicate was removed. Eight Node tests, two full D1 tests plus a targeted final decision-key guard test,412reference tests and populated96-table recovery pass. Recovery fixture has4voters/14exact receipts, revoked session and retained operator revocation. Evidence: B11-7-governance-publication.json.
 
-Snapshot agent owns private quote-required progression reservation service/repository and portable pinned fairness request planning. Coordinator reserves040 schema. Reservation must require the stored quote/binding/versions/ceiling/expiry, rederive from fresh context, atomically reserve both assets and preserve configured fair-request semantics. Collection publication/admission, observation conflicts and atomic mint/Vault fulfillment remain unfinished. Do not mark B11 complete based on preparatory slices.
+Frontend agent now prepares quote-required React/SDK review, expiry/refresh, immutable retry body/key and browser acceptance. Coordinator owns shared contracts and Node/Worker composition. New unmounted collect/progression-http.mjs/declarations/tests preserve stored quote binding/expiry and reject unreviewed legacy reservations; three focused tests pass. Stage publication, normalized mint authority, external-transfer conflict and atomic fulfillment remain unfinished. The coordinator owns migration numbers and commits.
+
+Recovery capacity remains real unfinished B11 work: current8192rows/table cannot restore a full10000-voter electorate;24MiB aggregate bounds also do not cover the maximum legal32x10000 list graph. Do not mark B11 verified or raise limits without measured bounded capture/restore acceptance. All current source groups/cutoffs are explicit synthetic local fixtures, not chain completeness.
 
 ## Preserved implementation evidence
 
@@ -35,3 +37,4 @@ B14 product88eb0dd/handoff2b5dbde passed CI42132784073. Retained-source read-onl
 Run node platform/blueprint/validate-plan.mjs --next --self-check, inspect git status and RUN_STATE.json, and preserve newer/unrelated changes. Local hosted rehearsal: node platform/scripts/rehearse-hosted-slice.mjs; setup platform/scripts/HOSTED_REHEARSAL.md. Use installed pinned dependencies/local runtimes and recorded evidence.
 
 No deployment, remote Cloudflare mutation/provisioning, spending, funding, transaction broadcasting, subscriptions, external messages, main/dev merge, force push or R-stage work. Sydney launch hours and later mint prices stay open. Commit/push tested milestones and continue immediately to the next dependency-ready step.
+

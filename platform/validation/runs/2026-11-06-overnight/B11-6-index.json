@@ -3,7 +3,7 @@
   "slice": "B11.6 private immutable eligibility-page SQL index",
   "status": "partial",
   "baseCommit": "3eb3718",
-  "implementationCommit": null,
+  "implementationCommit": "1734e3bd7b5b7b8cd583a743e45d6dd9b5d42678",
   "recordedAt": "2026-11-06T00:35:25.208Z",
   "sourceHashes": {
     "platform/collect/eligibility-index-service.mjs": "5d544e8432c089e1be1adaa3b81fd9dc23c3893b0481c61e26303da301044bd2",
@@ -83,5 +83,11 @@
     "Index rows are private staging; no active collection, electorate publication, eligibility grant or provenance/completeness claim.",
     "No public/operator HTTP route, deployment or financial execution.",
     "Guarded publication/founder decisions and collection operation acceptance remain unfinished; B11 remains in progress."
-  ]
+  ],
+  "ci": {
+    "runId": 42138242958,
+    "headSha": "1734e3bd7b5b7b8cd583a743e45d6dd9b5d42678",
+    "conclusion": "success",
+    "url": "https://github.com/chrisjacob/warplets-api/actions/runs/42138242958"
+  }
 }
