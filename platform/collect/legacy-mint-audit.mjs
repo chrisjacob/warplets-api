@@ -22,7 +22,7 @@ function wallet(v){need(typeof v==='string'&&v.length<=44,'legacy-mint-wallet');
 function raw(v,max){need(exact(v,['id','size','bytes'])&&hash(v.id)&&nat(v.size)&&v.size>0&&v.size<=max&&v.bytes instanceof Uint8Array&&v.bytes.length===v.size,'legacy-mint-source-record');return {id:v.id,size:v.size,bytes:v.bytes.slice()};}
 async function document(r,crypto){await prepareCollectionRecord(r,crypto);return JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(r.bytes));}
 function capture(value){need(exact(value,['sourceRoot','admissionPage','asOfMs','prefix','header','operation','originalFixture','collectBinding','vaultBinding','vaultObservation','initialHistory','configured']),'legacy-mint-audit-fields');const sourceRoot=raw(value.sourceRoot,131072),admissionPage=raw(value.admissionPage,65536),{sourceRoot:ignored,admissionPage:ignored2,...rest}=value;need(utf8(canonicalJson(rest)).length<=49152,'legacy-mint-context-bound');return {sourceRoot,admissionPage,...clone(rest)};}
-const measured=(m,n)=>{m.workingBytes=Math.max(m.workingBytes,n);need(m.workingBytes<=1048576,'legacy-mint-working-bound');};
+const measured=(m,n)=>{m.workingBytes=Math.max(m.workingBytes,n);need(m.workingBytes<=1048576,'legacy-mint-working-bound');m.observeWorkingBytes?.(m.workingBytes);};
 async function sourceFacts(f,crypto){
  const root=await document(f.sourceRoot,crypto),page=await document(f.admissionPage,crypto),p=f.prefix;
  need(root.format==='collection-source-v1'&&page.format==='collection-page-v1'&&page.kind==='admissions','legacy-mint-source-kind');need(p&&nat(p.entryIndex)&&p.entryIndex<page.entries.length,'legacy-mint-prefix-cursor');
@@ -59,7 +59,7 @@ async function configuredDraw(f,ports,operation,slotIndex,remainingTotal){
  * adoption/mint authority. The prefix must come from prior guarded audit steps;
  * this pure function cannot prove that caller-provided counters are reachable. */
 function initialMeter(f){const {sourceRoot,admissionPage,...context}=f;return {sourceBytes:sourceRoot.size+admissionPage.size,contextBytes:utf8(canonicalJson(context)).length,partReads:0,partBytes:0,maxPartBytes:0,workingBytes:0,baseWorking:0,namesBytes:0,assetsBytes:0};}
-export async function auditLegacyMint(value,ports){const f=capture(value);value=null;const meter=initialMeter(f);measured(meter,4*meter.sourceBytes+3*meter.contextBytes+16384);
+export async function auditLegacyMint(value,ports){const f=capture(value);value=null;const meter=initialMeter(f);Object.defineProperty(meter,'observeWorkingBytes',{value:ports.onWorkingBytes});measured(meter,4*meter.sourceBytes+3*meter.contextBytes+16384);
  try{return await auditCaptured(f,{...ports,meter});}finally{ports.onMeasure?.({...meter});}
 }
 async function auditCaptured(f,ports){

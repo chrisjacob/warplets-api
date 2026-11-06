@@ -1,0 +1,211 @@
+{
+  "checkpoint": "B11-39",
+  "title": "Original mint database and private artifact audit composition",
+  "status": "partial-private-composition-no-durable-prefix-or-adoption-authority",
+  "lastConfirmedBaseCommit": "7944d3bf8cd777ffa32029ca9d48b69077989e6a",
+  "implementationCommit": null,
+  "source": "synthetic-actual-legacy-mints-sealed035sources-original-private-artifacts",
+  "schemaChanges": false,
+  "packageChanges": false,
+  "financialExecution": false,
+  "applicationActivation": false,
+  "sharedChanges": "Approved optional synchronous onWorkingBytes observer in27; same arithmetic and final onMeasure, callback stored non-enumerably per invocation.",
+  "checks": [
+    {
+      "command": "node --test platform/collect/legacy-mint-source-audit.test.mjs platform/collect/legacy-mint-audit.test.mjs",
+      "passed": 16,
+      "failed": 0,
+      "newCases": 7,
+      "existingCases": 9,
+      "durationMs": 10175.6438,
+      "log": "work/b11-legacy-mint-source-audit-node.log"
+    },
+    {
+      "command": "node --test platform/edge/test/legacy-mint-source-audit.test.mjs platform/edge/test/legacy-mint-audit.test.mjs",
+      "passed": 2,
+      "failed": 0,
+      "durationMs": 146282.9123,
+      "log": "work/b11-legacy-mint-source-audit-edge-final.log"
+    },
+    {
+      "command": "node platform/edge/node_modules/typescript/bin/tsc --noEmit -p platform/edge/tsconfig.json",
+      "result": "pass",
+      "log": "work/b11-legacy-mint-source-audit-types.log"
+    },
+    {
+      "command": "9owned/sharedintegrationfiles LF/trailing-whitespace plus shared git diff --check",
+      "result": "pass"
+    }
+  ],
+  "metrics": {
+    "nodeDiagnostics": [
+      {
+        "sourceBytes": 1344,
+        "contextBytes": 7382,
+        "partReads": 25,
+        "partBytes": 1248116,
+        "maxPartBytes": 50049,
+        "workingBytes": 773082,
+        "baseWorking": 41662,
+        "namesBytes": 0,
+        "assetsBytes": 0,
+        "fullLegacyPolicyBytes": 600611,
+        "syntheticInjectedBeaconVerifier": true,
+        "activation": false
+      },
+      {
+        "kind": "genesis",
+        "sql": 21,
+        "objectReads": 1,
+        "operations": 22,
+        "maxBatchBytes": 3206,
+        "maxReturnedBytes": 1456,
+        "maxWorkingBytes": 49559,
+        "maxObjectBytes": 300,
+        "sourceWorkingBytes": 40795,
+        "auditWorkingBytes": 29766
+      },
+      {
+        "kind": "season",
+        "sql": 21,
+        "objectReads": 1,
+        "operations": 22,
+        "maxBatchBytes": 3203,
+        "maxReturnedBytes": 1679,
+        "maxWorkingBytes": 50040,
+        "maxObjectBytes": 300,
+        "sourceWorkingBytes": 42046,
+        "auditWorkingBytes": 30303
+      },
+      {
+        "configured": true,
+        "sql": 21,
+        "objectReads": 26,
+        "operations": 47,
+        "maxBatchBytes": 3250,
+        "maxReturnedBytes": 6275,
+        "maxWorkingBytes": 909741,
+        "maxObjectBytes": 50049,
+        "sourceWorkingBytes": 67687,
+        "auditWorkingBytes": 773064
+      }
+    ],
+    "actualD1Diagnostics": [
+      {
+        "realPinnedRound": 30000000,
+        "legacyOperationSettledByPinnedVerifier": true,
+        "reads": 25,
+        "measurements": {
+          "sourceBytes": 1344,
+          "contextBytes": 7382,
+          "partReads": 25,
+          "partBytes": 1248116,
+          "maxPartBytes": 50049,
+          "workingBytes": 773082,
+          "baseWorking": 41662,
+          "namesBytes": 0,
+          "assetsBytes": 0
+        },
+        "policyBytes": 600611,
+        "applicationActivation": false,
+        "financialExecution": false
+      },
+      {
+        "configured": false,
+        "realPinnedRound": null,
+        "sql": 21,
+        "objectReads": 1,
+        "operations": 22,
+        "maxBatchBytes": 3203,
+        "maxReturnedBytes": 1679,
+        "maxWorkingBytes": 50040,
+        "maxObjectBytes": 300,
+        "sourceWorkingBytes": 42046,
+        "auditWorkingBytes": 29095,
+        "physical": {
+          "sql": 21,
+          "objectReads": 1
+        },
+        "adoption": false
+      },
+      {
+        "configured": true,
+        "realPinnedRound": 30000000,
+        "sql": 21,
+        "objectReads": 26,
+        "operations": 47,
+        "maxBatchBytes": 3249,
+        "maxReturnedBytes": 6525,
+        "maxWorkingBytes": 911097,
+        "maxObjectBytes": 50049,
+        "sourceWorkingBytes": 69112,
+        "auditWorkingBytes": 773745,
+        "physical": {
+          "sql": 21,
+          "objectReads": 26
+        },
+        "adoption": false
+      }
+    ],
+    "configuredStorageOperations": 47,
+    "configuredSqlStatements": 21,
+    "configuredObjectReads": 26,
+    "maximumConfiguredWorkingBytes": 911097,
+    "maximumOriginalPolicyBytes": 600611,
+    "maximumObjectBytes": 50049,
+    "manualStorageOperations": 22
+  },
+  "bounds": {
+    "storageOperations": 64,
+    "workingBytes": 1048576,
+    "requestBytes": 16384,
+    "descriptorOrManualBytes": 8192,
+    "partBytes": 65536,
+    "sourceRootBytes": 131072,
+    "admissionPageBytes": 65536
+  },
+  "verified": [
+    "No caller mappedfacts accepted: actual named035root/admissionpage and38 frozen DB operation/binding/Vault/history facts only",
+    "Manual original private fixture rehashes original evidence digest after later mutable owner/trait/Level changes; Genesis and Season parity",
+    "Configured original descriptor binds exact retained DB inventory/policyHash/registeredMs, then full original policy/request/result/BLS/draw audit",
+    "Every private descriptor/part uses ArtifactStore.getVerified plus independent size/identity/SHA verification and copy-before-await",
+    "Original600611B escaped-name policy streams through26verified object reads; current fair_inventories.traits can be overwritten without substituting it",
+    "Missing manual/descriptor/part holds explicitly; corrupt store, dishonestverifiedbytes, wrong original traits and changed policy descriptor cannot pass",
+    "Real retained round30000000 pinned beacon verifies Node/workerd; modified signature with recomputed randomness fails",
+    "Whole-wrapper synchronous per-peak observer includes retained context/source phases and extra store copies; callback exception stops later reads",
+    "Committed035source receipt lineage, inventory revision, generation/mode/status/write-nonce and whole-business watermark rechecked after all artifact/signature/summary awaits",
+    "Source mutation duringobject orfinalsummary read holds, unmodified replay restarts safely, input/artifact mutation cannot alter captured result",
+    "ActualD1/R2 exact complete result parity withNode, read-only watermark unchanged, privatefixture route only"
+  ],
+  "limitations": [
+    "A private prefix is still a prerequisite, not proven authority. No durable economic40 continuation, source-relation/economic adoption closure or activeinventory is created.",
+    "Retained original fixture and original policy bytes are required; current assets/current traits cannot reconstruct missing originals. Historical local correctness is not original authentication, ingestion, finality, chain or payment truth.",
+    "The valid600611B originalpolicy case does not loosen active normalized mint512KiB policy bounds. Originals outside descriptor/part limits remain a compatibility hold.",
+    "The composition rejects combinations of oversized source/context/policy working data; it does not promise every individually legal component combination fits one invocation. Measurements describe conservative serialized buffers, not engine heap profiling.",
+    "Reference Node tests inject a clearly synthetic verifier and avoid optional beacon package imports. Actualedge acceptance uses real pinned BLS and retained offlineproof with no external provider read.",
+    "D1fixture setup copies actual legacy/staged rows and aligns differing loader watermark counts only by monotonic+1increments; this is not runtime ingestion authorization."
+  ],
+  "sourceHashes": {
+    "platform/collect/legacy-mint-source-audit.mjs": "5d4c6607bf8edbdeeb8136b9d81d910fc27c2efb292e25c49ee8a813687c77f5",
+    "platform/collect/legacy-mint-source-audit.d.mts": "8330984425011723d7df4837e02a8314743bba88cea4da75b573b5681aa65bed",
+    "platform/collect/legacy-mint-source-audit.fixtures.mjs": "0f1a2b576d475fe7e0523b00e8c5b147431ccdbd3c699ca31dba7fc25ee635a6",
+    "platform/collect/legacy-mint-source-audit.test.mjs": "495d877d7ae228e49f9d7b9e915d1525a8babf0ba95e648afa2379802f494cdb",
+    "platform/collect/LEGACY_MINT_SOURCE_AUDIT.md": "2785e5132ad145d7ddd25a7127f6ee74d26dc537905a07a003449a134e59bdc2",
+    "platform/edge/test/legacy-mint-source-audit.test.mjs": "9f094027a8d683871747fca1f5aece183b68f5f90c81ea6e3e443ba98c9b49d9",
+    "platform/edge/test/fixtures/legacy-mint-source-audit-worker.ts": "70b9a37729eb0869a04eff5b8d6a9322c140d4a1cdc7a45e01130bfee8629d90",
+    "platform/collect/legacy-mint-audit.mjs": "292d1c695c04f4403976b7bd169f4feec919cea34f6866f375b598bf3e20a80f",
+    "platform/collect/legacy-mint-audit.d.mts": "4380cdc480f139eef8895d7410cf83421bbadada1224f361326e7a1d9080bcbd"
+  },
+  "reusedDependencyHashes": {
+    "platform/collect/legacy-mint-source.mjs": "b0623de9c61bf6109083c0d758845d4b26a3e26accdc74c1747b1908872ec022",
+    "platform/collect/legacy-admission-source.mjs": "d504828853a1f5aff60e4ba6ab75ae1eca8bfcb815d020c0b2a8a27b9181745b",
+    "platform/collect/source-seal-guard.mjs": "ca3ee3ceab6a201fecc552d3afedccfd9d00eba20fc3a46a1a162a3bf70d0091",
+    "platform/collect/source-intake.mjs": "7d1b975db02032bacba704742c2416a2dad7d1761f4da89c656ead556cf15a3c",
+    "platform/artifacts/node.mjs": "f98873c7473fb1e5eae5513190ec575a9889aabae72dca5aedd31225b5695e76",
+    "platform/artifacts/r2.ts": "281685d22f00b09f8ee7bd4cc94c1ecad569659a98170a68d1ee354ebc2f5fff",
+    "platform/artifacts/identity.mjs": "e7260e823639c2a48b5ee7e03d260b4bf144e605b1203b64dd8b065ab32bf24b",
+    "platform/beacon/noble-verifier.mjs": "f7cd0b8cea976b8ea145a3db1321c7da18e3380bcd553b7b6227b43f85c8e124",
+    "platform/beacon/portable.mjs": "41176d84d00445347311d9e81a6157719f8184c884d787878ba731d2a7767f6f",
+    "platform/beacon/fixtures/round-30000000.json": "3d15f14250d2aebb1d5f2d8d1ba692647f5cfa118880ff0469b9d9a40ee8cd73"
+  }
+}
