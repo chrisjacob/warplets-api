@@ -1,0 +1,180 @@
+{
+  "checkpoint": "B11-24",
+  "title": "Pinned private resumable legacy SHA256 adapter prerequisite",
+  "status": "partial-no-adoption-authority",
+  "lastConfirmedBaseCommit": "4ad499b6a7565b64ee11272d9dda6b388b6b937d",
+  "implementationCommit": null,
+  "source": "synthetic-generated-byte-fixtures",
+  "financialExecution": false,
+  "applicationActivation": false,
+  "schemaChanges": false,
+  "packageChanges": false,
+  "checks": [
+    {
+      "command": "node --test platform/collect/legacy-audit-hash.test.mjs",
+      "passed": 4,
+      "durationMs": 1240.109,
+      "log": "work/b11-legacy-hash-state-structural.log"
+    },
+    {
+      "command": "node --test platform/edge/test/legacy-audit-hash.test.mjs",
+      "passed": 2,
+      "durationMs": 34862.0671,
+      "log": "work/b11-legacy-hash-state-edge.log"
+    },
+    {
+      "command": "node platform/edge/node_modules/typescript/bin/tsc --project platform/edge/tsconfig.json --noEmit",
+      "result": "pass",
+      "log": "work/b11-legacy-hash-state-types.log"
+    },
+    {
+      "command": "explicit new-file trailing whitespace check",
+      "result": "pass"
+    }
+  ],
+  "metrics": {
+    "implementationPin": "@noble/hashes@2.2.0:sha256-source:eca9066af2132571a2e991f8acf66b976caa077705fc84428709ababa234f25d",
+    "sourceHashes": {
+      "sha2.js": "0fb8e3c3f2c73a890be2524ac5d2542aaed4decff69e561231a86131203b3973",
+      "_md.js": "8227b9b5cabf078a9d7f7317f7a1ace6e46627539aa9364667aec724e1636f14",
+      "_u64.js": "766b91a693a798f9d3cde97b25db4a6d0cef66b2ca21153d3d42424d37878870",
+      "utils.js": "e2adfc13c846487feff0410bd5508a1d66f5ebadc3188f3a40a6b55449981e2f"
+    },
+    "totalCalls": 604,
+    "results": [
+      {
+        "size": 0,
+        "steps": 0,
+        "maxStateBytes": 0,
+        "digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "elapsedMs": 23.74529999999868
+      },
+      {
+        "size": 1,
+        "steps": 1,
+        "maxStateBytes": 310,
+        "digest": "ab897fbdedfa502b2d839b6a56100887dccdc507555c282e59589e06300a62e2",
+        "elapsedMs": 21.737499999999272
+      },
+      {
+        "size": 55,
+        "steps": 3,
+        "maxStateBytes": 419,
+        "digest": "0c43a30970ee9525a6603d5656803c325bded148fa65bbd363df54cb3ac3dee5",
+        "elapsedMs": 35.806400000001304
+      },
+      {
+        "size": 56,
+        "steps": 3,
+        "maxStateBytes": 421,
+        "digest": "f4dcdc09c846d1b3621701516b300055c1e7875e216ba019dd4423f5a420f2d0",
+        "elapsedMs": 32.538400000001275
+      },
+      {
+        "size": 63,
+        "steps": 3,
+        "maxStateBytes": 435,
+        "digest": "ba3bb62c4369fe74e7b94392d0f04ed284a7b5d7295bfa48fabdb25c01d85ab7",
+        "elapsedMs": 31.796900000001187
+      },
+      {
+        "size": 64,
+        "steps": 3,
+        "maxStateBytes": 373,
+        "digest": "cb6862268ca7c02e7b6af558f0e3d236ce9ec7ff41cc746b2848c04c582da94e",
+        "elapsedMs": 34.223399999998946
+      },
+      {
+        "size": 65,
+        "steps": 4,
+        "maxStateBytes": 373,
+        "digest": "b68af55df9ce8ee60870e45d10e36b2e8363c9896f6e62478dcb6f593a4d7133",
+        "elapsedMs": 42.09990000000107
+      },
+      {
+        "size": 127,
+        "steps": 5,
+        "maxStateBytes": 435,
+        "digest": "a8365b6e6ed1daf56c41bae89ab089c03b671240ae103070480a7f271bdbad57",
+        "elapsedMs": 43.68109999999797
+      },
+      {
+        "size": 128,
+        "steps": 5,
+        "maxStateBytes": 374,
+        "digest": "d399f065c9f21e2fd51e2aeadb7768eab7e6e45e5150f31227c9711934a4d1d3",
+        "elapsedMs": 47.26840000000084
+      },
+      {
+        "size": 129,
+        "steps": 5,
+        "maxStateBytes": 374,
+        "digest": "d672408e0571636ea21092304eb31ba8fc1fbffc5d5ea6531d62b072714599db",
+        "elapsedMs": 48.96649999999863
+      },
+      {
+        "size": 1000000,
+        "steps": 26,
+        "maxStateBytes": 374,
+        "digest": "467288749485a13fcb1a0c432c6615ec392db0b70198f26599306a79ed72fb8d",
+        "elapsedMs": 442.3695999999982
+      },
+      {
+        "size": 33554432,
+        "steps": 522,
+        "maxStateBytes": 374,
+        "digest": "33b6aa2e14aa42818db92470705d8bd612004464fa63a79859cf78f379e61240",
+        "elapsedMs": 10789.008099999995
+      }
+    ],
+    "malformedStatesRejected": 8,
+    "sourceBindingAuthority": false,
+    "applicationActivation": false,
+    "financialExecution": false
+  },
+  "bounds": {
+    "sourceBytes": 33554432,
+    "chunkBytes": 65536,
+    "stateBytesLimit": 1024,
+    "maxMeasuredStateBytes": 435,
+    "maxActualResumeSteps": 522,
+    "max32MiBMeasuredElapsedMs": 10789.008099999995,
+    "nativeSourceAlgorithm": "node:crypto SHA256",
+    "optionalInjectedImplementation": "@noble/hashes2.2.0_SHA256",
+    "perInvocationLibraryStateResumed": true,
+    "sourceDatabaseReadCount": 0
+  },
+  "covered": [
+    "Exact field,algorithm,implementation/source-pin validation",
+    "Safe byte count<=32MiB;1..64KiB chunks;unsigned32-bit words;exact lowercase partial block",
+    "SHA256 IV before first complete block",
+    "Captured immutable input state and byte copies before trusted factory invocation",
+    "Exact native hash across padding/block boundaries,1MiB and32MiB",
+    "Actual separate workerd calls reconstruct every prefix from JSON",
+    "Malformed state rejection,deterministic duplicate prefix delivery",
+    "Pinned four installed source files verified before optional Node/workerd acceptance"
+  ],
+  "limitations": [
+    "State structure cannot prove reachability after a complete block; private guarded source/cursor lineage is mandatory and not implemented here",
+    "Library internals are version-specific protected fields; trusted constructor pin is not runtime attestation of arbitrary injected code",
+    "Raw digest equality alone is not035 projection closure or economics/provenance approval",
+    "No legacy adoption repository,migration,activation,publicroute or invented045/046receipts",
+    "Reference suite imports no optional package; genuine-library tests remain underedge fixture-only composition",
+    "32MiB source bytes are generated synthetic fixtures,not a proof that a32MiB single D1 row is supported"
+  ],
+  "nextExecutableStep": "Independent bounded mint/progression original-preimage audit proposal and component/source relation, before any adoption authority.",
+  "sourceHashes": {
+    "platform/collect/legacy-audit-hash.mjs": "078ac51a1b9df3b6e5fbe762b7ee1222c777bc383917ac27541a84e46a8083a2",
+    "platform/collect/legacy-audit-hash.d.mts": "045535de43a767160b5ccdeae524c798d5e4a0c8f8c99558809777c3fef7935d",
+    "platform/collect/legacy-audit-hash.test.mjs": "45feffa5fed9a3905d32f61e4ed58edd48188719592e216ea8c5f65bec52460d",
+    "platform/collect/legacy-audit-hash-sources.json": "c85ef03b7f47c4508aeaa4d5c154b27463bf5db91debe3e3ad216109838c05af",
+    "platform/collect/LEGACY_AUDIT_HASH.md": "f86e0fafb04718b466522ad9f91a9046b67ccdbc908175e82c00bb465c6c9023",
+    "platform/edge/test/fixtures/legacy-audit-hash-worker.ts": "051b436f692ce4856182c30a61ecc9c1996d9fcc43f8f341cc9a81237618d5ae",
+    "platform/edge/test/legacy-audit-hash.test.mjs": "96151e9dc530a1306d06f8da344faf02ed0afdf8711ed356b706f779e7998027"
+  },
+  "logHashes": {
+    "work/b11-legacy-hash-state-structural.log": "ed25af489983139b7dbb9eaf70f8cfa09806d4fd2f5e07781ccc8454be6b5a02",
+    "work/b11-legacy-hash-state-edge.log": "86dfeeba957331af8781bf4aa1a1c9a86c07d3813e301cd022194bd09a1751a7",
+    "work/b11-legacy-hash-state-types.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+}

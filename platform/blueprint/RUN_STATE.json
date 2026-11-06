@@ -5,7 +5,7 @@
   "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
   "currentTask": "B11",
-  "lastUpdatedAt": "2026-11-06T05:05:28.044904+00:00",
+  "lastUpdatedAt": "2026-11-06T05:10:44.074609+00:00",
   "migrationAllocation": {
     "next": 50,
     "reserved": [
@@ -265,8 +265,8 @@
       "status": "in_progress",
       "owner": "coordinator",
       "baseCommit": "96cdfa1fb6334fcb27deb831d786243227b9d1a8",
-      "implementationCommit": "4ad499b6a7565b64ee11272d9dda6b388b6b937d",
-      "pushed": true,
+      "implementationCommit": "e1e41c4c17188d442657f7a9a4e99c643d108d7e",
+      "pushed": false,
       "evidence": [
         "platform/validation/runs/2026-11-06-overnight/B11-1.json",
         "platform/validation/runs/2026-11-06-overnight/B11-2-intake.json",
@@ -290,9 +290,10 @@
         "platform/validation/runs/2026-11-06-overnight/B11-20-recovery-fragments.json",
         "platform/validation/runs/2026-11-06-overnight/B11-21-free-mint.json",
         "platform/validation/runs/2026-11-06-overnight/B11-22-free-cut-recovery.json",
-        "platform/validation/runs/2026-11-06-overnight/B11-23-member-mint.json"
+        "platform/validation/runs/2026-11-06-overnight/B11-23-member-mint.json",
+        "platform/validation/runs/2026-11-06-overnight/B11-24-legacy-hash-port.json"
       ],
-      "nextAction": "Follow recovery CI42166147861; commit and push tested B11-23 member mint after CI. Legacy hash/stage audit slices verified, canonical state and mint evidence audits in progress. No migration50 allocated.",
+      "nextAction": "Follow recovery CI42166147861, then push exact member mint e1e41c4; subsequently push tested legacy hash and stage audit checkpoints in order, following each CI. Canonical-state26, mint-evidence27 and raw-state28 audits in progress. B11 remains partial; no migration50.",
       "blocker": null
     },
     "B12": {
