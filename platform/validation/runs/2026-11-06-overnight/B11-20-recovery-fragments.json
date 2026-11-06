@@ -1,0 +1,387 @@
+{
+  "task": "B11",
+  "slice": "B11.20 scoped configured-policy recovery fragments",
+  "status": "partial",
+  "baseCommit": "4c7ad2caeafb4a8c38d3b181f1d7af6442e2cd63",
+  "implementationCommit": null,
+  "recordedAt": "2026-11-06T04:28:24.028Z",
+  "sourceHashes": {
+    "platform/edge/test/fixtures/recovery-fragment-worker.ts": "6b99c69ac9adef3e00fb4c5d0014ad42d1faf5792e104197e319cef60e8811bb",
+    "platform/edge/test/fixtures/recovery-v2-restore-worker.ts": "a52aee32c6599fc9f1de55222a9d7faac9de3b81c377c190ffacabc6e2d1f805",
+    "platform/edge/test/recovery-fragment.test.mjs": "83f2af11b6521e230dd45ab12be6c5ec3af8d5337d7151b6fe5777f5bfe09b8d",
+    "platform/edge/test/recovery-v2-restore.test.mjs": "4b6cb4018e50c5cbe9c392cdd9f25a9906ed77e0d93bdfb8064095d5f8129813",
+    "platform/recovery/V2_CAPTURE.md": "fee30b4450974d48bc3481b12e3a472f652c5af2c9d921d6b57c3f38d02f4e88",
+    "platform/recovery/V2_FRAGMENTS.md": "2ea8c5946e7bc662eb1dc6303f44758c921160de421c1855697a0fc4cd980f77",
+    "platform/recovery/V2_RESTORE.md": "ea62becd3d8089a0122bd8a344dd206f2bbb8f379bbb62df8166f7a8856d9f8b",
+    "platform/recovery/schema.mjs": "7787c54f3080150865c0677a72de6d03b4e934968c7faa0eef109429cc42ed16",
+    "platform/recovery/v2-capture-source.mjs": "cabb79ccdfb038b80161085bc1289bea885f72bbb408b6489c96fa891d03065c",
+    "platform/recovery/v2-capture-source.test.mjs": "31ac84948dd1f6bcda240b0626f8958e263a07023d2f052476b294e2f2605415",
+    "platform/recovery/v2-fragment-capture.mjs": "9c26d5ef2cdb579448b7cd962e3fce8c2ed919c37f84befdf7e5cd87e521146b",
+    "platform/recovery/v2-fragment-faults.test.mjs": "a9d0f7dfa5ce51da9dfe596e8909d6930cfd6643685833a5cd33d91e1e952d23",
+    "platform/recovery/v2-fragment-planning.d.mts": "8791b574147a91a47afe3ea9979fb33b02e016ab9a2a6ac8a3a1173cfc477c6e",
+    "platform/recovery/v2-fragment-planning.mjs": "c68dae683ded2fc0e77635e9aa9509e0fa0b5d0bf3d93c341b731b457192328f",
+    "platform/recovery/v2-fragment-planning.test.mjs": "17b63532deaf5da8278e9069975666a277e5f7c43cec985ddd709180c9723165",
+    "platform/recovery/v2-fragment-restore.mjs": "33fd0246a7a9a92e671f466d335d023c821f0b82defc4af462c13008e576c538",
+    "platform/recovery/v2-fragment-roundtrip.test.mjs": "aa7d4587ffeae82cd1310f654243b3cd891fa842116fe07fb2c72eff407ac7c1",
+    "platform/recovery/v2-fragments.d.mts": "575720b8185219c0129f102add63c7f3b6284250302a2fb060bec9d6b90644fc",
+    "platform/recovery/v2-fragments.mjs": "9497d1ef8e0a4026db1003b79a596748ebff55bbdf62d9319909ee94c7683f42",
+    "platform/recovery/v2-fragments.test.mjs": "822b1ac35ba00f5a7259ad63fad2d5f7857e90f856e25ae59feed67b0b40f33e",
+    "platform/recovery/v2-reconcile.mjs": "63f8a815b298c7ae8edf2f6e0290c1b16464b09f2d748d01a9cba7d73bad842e",
+    "platform/recovery/v2-restore-fixtures.mjs": "bfabb2aa9cc11e6d7e0f85d79f03d81059f165f9c77fd90de827a208c5ac1a87",
+    "platform/recovery/v2-restore.mjs": "d623f95f24f1aa15feeb116367133d70119d0dea287894be224e4fb403602ddd",
+    "platform/storage/048-recovery-row-fragments.sql": "60724ab265fc1fc6d4fe6a412043c2cd595d326e16f472742cfca3e6a23b64fc"
+  },
+  "testedMigrations": [
+    {
+      "file": "001-identity.sql",
+      "digest": "019f490a6c70abe1937d7310b16711066f882651415cce0d40603385271db060"
+    },
+    {
+      "file": "002-markets.sql",
+      "digest": "b48179354c41d234a05b537630224052718b564f92eabd772d0d1aff743b2fd0"
+    },
+    {
+      "file": "003-earn.sql",
+      "digest": "cc294f1a59e5a3d3d70e51764bd87b2faeec35f39102135f48db5ef50df92940"
+    },
+    {
+      "file": "004-ballots.sql",
+      "digest": "616c42e9d13ee832bf2c6505f035a71305a6fe073cc5930ebcf7e621626156bb"
+    },
+    {
+      "file": "005-vault.sql",
+      "digest": "4d5bc1e795d6d59de67fa2092467f3c9fca263a47729596f730d79ec6195c477"
+    },
+    {
+      "file": "006-earn-components.sql",
+      "digest": "ba30ced6793d66f716c0cfc0e348bc223f0d9a1fc8a0f4c2d1539f8cbc653084"
+    },
+    {
+      "file": "007-stake.sql",
+      "digest": "29fd69207d0c9fec96ff0ee619f0649a46cd55639d365a507c47c2f82dcb77c2"
+    },
+    {
+      "file": "008-intents.sql",
+      "digest": "c753fc756a44759dda0f5d68fa59bbdd16786c9449ec27788f855eb1d20cadbb"
+    },
+    {
+      "file": "009-earn-archive.sql",
+      "digest": "7bd2ae8c80e91f520ead9c4cdb10210559cdbeef5025baf93d1628a4e7ab777b"
+    },
+    {
+      "file": "010-collections.sql",
+      "digest": "77f3d5c45cc697c140ea0c4d40b86f76dfdd60e708256be77a2e37814f3845e7"
+    },
+    {
+      "file": "011-price-evidence.sql",
+      "digest": "4b318501827e44e7e080d27f8322f19fe23c9285d47071653d2aaf08608c2565"
+    },
+    {
+      "file": "012-edge-proofs.sql",
+      "digest": "692ac544be9683bf704f3904959d3a1ab2166e785d20017447cb4fab52937f01"
+    },
+    {
+      "file": "013-earn-operations.sql",
+      "digest": "bd251e9d2b6dfad67fb1cccc7c7c90892484fc625599fd9fc5160882b8878a96"
+    },
+    {
+      "file": "014-launch-registry.sql",
+      "digest": "593a3182406a8f8ab1cfb3ef76c25e7759fe93ff9ffffa66dc09d670b395ac12"
+    },
+    {
+      "file": "015-controls.sql",
+      "digest": "b931695328d2aeb16218b4f50060292f4a4fd03ce7a2ac2575b362051527c451"
+    },
+    {
+      "file": "016-notifications.sql",
+      "digest": "5560786746c40a5508d602262022eff6741b959b7cced0daca2aa40bc50f2c97"
+    },
+    {
+      "file": "017-randomness.sql",
+      "digest": "6f559a100fa2d2dd1bbbf9c52acc768611a779391a0fb3beeea01ac0b1c3de82"
+    },
+    {
+      "file": "018-verifier-audit.sql",
+      "digest": "f58ebe5cd87b85bfbb96705d599260bc23fb9a70d08c1afa7bd0aaa9c601f4fd"
+    },
+    {
+      "file": "020-quote-evidence.sql",
+      "digest": "b9137952fbf46fd38c46aa5ffc93aa2a75cb72b9f71fcd8be3c1063018be1b4e"
+    },
+    {
+      "file": "021-cost-settlement-clock.sql",
+      "digest": "4cb72123f566fb53b87d84fe23a5b8f7b10a2902c0e7dfc20c32430b4cfeedd3"
+    },
+    {
+      "file": "022-atomic-commands.sql",
+      "digest": "256d26fd9d0cbf90cc424332f7558f73047261c292de6fe208d799ffcb03d329"
+    },
+    {
+      "file": "023-operating-receipts.sql",
+      "digest": "5915a796939240deb1a7cdce8014f0a9b03de832112803a72ee48ab5a48946f3"
+    },
+    {
+      "file": "024-settlement-fences.sql",
+      "digest": "5c91f738b495db3d358433e55473bd006a2f1bddeb49a5b6cfb24318e65a77ac"
+    },
+    {
+      "file": "025-durable-jobs.sql",
+      "digest": "94668159060df92c6cf97915f6add12a953d85a8ae1d738b98306546262354eb"
+    },
+    {
+      "file": "026-evidence-provenance.sql",
+      "digest": "8d415fb1629fcfa5ec2aebd0e1b6ce9b02f2662a9141ab913d5ea60b0c7d12e4"
+    },
+    {
+      "file": "027-cutoff-manifests.sql",
+      "digest": "e56368364b91a6554aa602f0e25f602606226a14c3904fba3f9547f57ebc6f68"
+    },
+    {
+      "file": "028-cutoff-snapshots.sql",
+      "digest": "1c033009c1d482b31347cebd08e1249e7456d356abfe855837fd52e1c2429fce"
+    },
+    {
+      "file": "029-signed-actions.sql",
+      "digest": "aa8e4c19c0fb70fa70aebf91e90ed17e6d8113393ba4ce6b3142333f737900ae"
+    },
+    {
+      "file": "030-settlement-orchestration.sql",
+      "digest": "ee35e4d20a7cf573d9ac05f347b965199e33d0c35b05c8b339413e61e76dafb4"
+    },
+    {
+      "file": "031-publication.sql",
+      "digest": "dacfc8ed698df87c4bf14859b38dfb97bf9133405663cbcb7ba12ab2433df24c"
+    },
+    {
+      "file": "032-recovery-isolation.sql",
+      "digest": "8f088b23d37dbdbf66c517fbc951b61d7114dfc1959d7ed399db0f66ad1891a0"
+    },
+    {
+      "file": "033-quote-provenance.sql",
+      "digest": "dc2b2fd4520ab475291711020dae39f4a148886ce6ddc51f421aaa445b6b7156"
+    },
+    {
+      "file": "034-financial-read-revisions.sql",
+      "digest": "234cc1081329e919bd5fd2b6da6c9c616f051a2905c17d4ad1620b2293e7e20b"
+    },
+    {
+      "file": "035-collection-source-intake.sql",
+      "digest": "cf4bf49a98431edc8fddb2fc907766c4c07fd20e145e6ef6e3ea6820c318633b"
+    },
+    {
+      "file": "036-guarded-governance.sql",
+      "digest": "48100cb7e386fc540692e5b6b08363818cd2013c9b2121c8d59f6da5dae3653f"
+    },
+    {
+      "file": "037-collection-quotes.sql",
+      "digest": "26175e9a364eb843831a870e66670843955cb7456f53e6149abc9257c1819141"
+    },
+    {
+      "file": "038-collection-eligibility-index.sql",
+      "digest": "4db97eebf2fd844c3e20df42db36c4ed79a685c29c839873b7d00c5666bf25e9"
+    },
+    {
+      "file": "039-governance-publication.sql",
+      "digest": "f03d2da2b110cba6e5b1c8291731a037aca2b4cf4a4eec7bd90c4278b5c9022e"
+    },
+    {
+      "file": "040-collection-reservations.sql",
+      "digest": "566ca9af162d9933a6e93e3c55d8aecc5a1d4da23f8e9b080cc80b1daf2093ed"
+    },
+    {
+      "file": "041-collection-observations.sql",
+      "digest": "a4f36ba190a2298856fcf7086b0a90c1bc7fa06219f04e40547578f02333c388"
+    },
+    {
+      "file": "042-collection-fulfillments.sql",
+      "digest": "fb8c79128ea02dd4a625db972cf3dc7f6608c21f6c56144301e27011fa8150e6"
+    },
+    {
+      "file": "043-collection-stages.sql",
+      "digest": "76e50dfb733cb5c47446546d9d58bc7633caad4d2c2cdfc45e5278395e02f6b3"
+    },
+    {
+      "file": "044-recovery-continuations.sql",
+      "digest": "c33ff066e08bc4c154b1c2c7e1a04aa62a1af2cdca6003cdbe50e870e45f9f23"
+    },
+    {
+      "file": "045-collection-mint-admission.sql",
+      "digest": "5f2a53a6073b70577783d5ebfa3cebd1082edc96146c1b81f9f8845307c02932"
+    },
+    {
+      "file": "046-collection-mint-fulfillments.sql",
+      "digest": "79b563fc6a0024c6a210769414b1c17d244f74d5cc06896810515f83cb83c423"
+    },
+    {
+      "file": "047-collection-free-cuts.sql",
+      "digest": "71196c4074c22e8758b8e47059a93778677bc87a71be5de9b6ce2718f7ca2883"
+    },
+    {
+      "file": "048-recovery-row-fragments.sql",
+      "digest": "60724ab265fc1fc6d4fe6a412043c2cd595d326e16f472742cfca3e6a23b64fc"
+    },
+    {
+      "file": "049-collection-free-mint.sql",
+      "digest": "26b9a8f6403a77d410eb18d4bd29a077471784c744d63e61aee55f2838b457a6"
+    }
+  ],
+  "testedMigrationNote": "Final tests ran with installed049 and108 business tables. This checkpoint owns048 only;049 mint/read/runtime changes are separate and excluded from sourceHashes.",
+  "commands": [
+    {
+      "command": "node --test platform/recovery/v2-fragments.test.mjs platform/recovery/v2-fragment-planning.test.mjs platform/recovery/v2-codec.test.mjs platform/recovery/v2-planning.test.mjs",
+      "log": "work/b11-recovery-fragment-pure-final.log",
+      "passed": 13,
+      "failed": 0,
+      "durationMs": 1339.0364,
+      "measurements": [
+        {
+          "policyBytes": 311075,
+          "rowBytes": 315783,
+          "characters": 125319,
+          "chunks": 16,
+          "largestResult": 21368,
+          "largestBatch": 693,
+          "readPlanningOnly": true
+        }
+      ]
+    },
+    {
+      "command": "node --test platform/recovery/v2-capture-source.test.mjs",
+      "log": "work/b11-recovery-fragment-source-final.log",
+      "passed": 8,
+      "failed": 0,
+      "durationMs": 18294.692,
+      "measurements": [
+        {
+          "steps": 118,
+          "maxOperations": 22,
+          "maxBatchBytes": 68791,
+          "maxParameters": 23,
+          "dataSealedOnly": true
+        }
+      ]
+    },
+    {
+      "command": "node --test platform/recovery/v2-restore.test.mjs platform/recovery/v2-fragment-roundtrip.test.mjs platform/recovery/v2-fragment-faults.test.mjs",
+      "log": "work/b11-recovery-fragment-node-final.log",
+      "passed": 4,
+      "failed": 0,
+      "durationMs": 55476.4752,
+      "measurements": [
+        {
+          "fragmentFaults": 5,
+          "exactOnceChunks": 16,
+          "exactOnceRows": 1,
+          "readyOnlyAfterProof": true,
+          "syntheticVerifier": true
+        },
+        {
+          "policyBytes": 311075,
+          "fragments": 16,
+          "configuredMint": 1,
+          "syntheticVerifier": true,
+          "captureSteps": 513,
+          "restoreSteps": 1239,
+          "maxCaptureWorkingBytes": 365634,
+          "maxRestoreWorkingBytes": 295835,
+          "maxRestoreBatchBytes": 88259,
+          "tables": 108,
+          "completeExactRow": true,
+          "financialExecution": false
+        },
+        {
+          "steps": 1007,
+          "checkpointBytes": 118481,
+          "maxSqlStatements": 13,
+          "maxBatchBytes": 88527,
+          "objects": 163,
+          "reconciliationComplete": true
+        }
+      ]
+    },
+    {
+      "command": "node --test platform/edge/test/recovery-fragment.test.mjs platform/edge/test/recovery-v2-restore.test.mjs",
+      "log": "work/b11-recovery-fragment-edge-final.log",
+      "passed": 3,
+      "failed": 0,
+      "durationMs": 170432.6872,
+      "measurements": [
+        {
+          "rows": 2,
+          "maximumPolicyBytes": 311075,
+          "totalChunks": 26,
+          "maximumResultBytes": 21368,
+          "maximumSqlBatchBytes": 695,
+          "exactNodeWorkerdBytes": true,
+          "planningOnly": true
+        },
+        {
+          "steps": 1053,
+          "objects": 172,
+          "faults": [
+            "omit-check",
+            "omit-final-state",
+            "lost-final-ack"
+          ],
+          "maxOperations": 17,
+          "maxBatchBytes": 88680,
+          "maxParameters": 29,
+          "maxSerializedWorkingBytes": 296800,
+          "separateBuckets": true,
+          "oldLeaseRejected": true,
+          "financialExecution": false
+        },
+        {
+          "configuredMint": 1,
+          "policyBytes": 311075,
+          "fragments": 16,
+          "fragmentFaults": [
+            "omit-fragment",
+            "omit-fragment-row",
+            "omit-fragment-check"
+          ],
+          "pinnedBls": true,
+          "tables": 108,
+          "traitContinuations": 3,
+          "steps": 1233,
+          "maxOperations": 51,
+          "maxSerializedWorkingBytes": 296264,
+          "financialExecution": false
+        }
+      ]
+    },
+    {
+      "command": "node platform/edge/node_modules/typescript/bin/tsc --noEmit -p platform/edge",
+      "result": "passed"
+    },
+    {
+      "command": "git diff --check -- platform/recovery platform/edge/test/recovery-fragment.test.mjs platform/edge/test/fixtures/recovery-fragment-worker.ts platform/edge/test/recovery-v2-restore.test.mjs platform/edge/test/fixtures/recovery-v2-restore-worker.ts",
+      "result": "passed"
+    }
+  ],
+  "acceptance": [
+    "Exact fair_inventories-only SQLite JSON text representation; original small v2 row objects/codecs unchanged.",
+    "311075-byte valid3×256-choice Unicode policy retained through16 private immutable fragments; exact full Node and workerd/D1/R2 restoration of accepted configured mint.",
+    "Real pinned BLS during actualworkerd target readiness; Node reference injected verifier explicitly synthetic.",
+    "8192Unicode characters/32768bytes perchunk;1MiB logicalrow/128chunks/64KiB descriptor; bounded probe/substrings never return entire oversized row.",
+    "Exact source/schema/watermark fences through capture; source change holds and newcapture resumes without freezing business writes.",
+    "048 excludedcontrol rejects outside active private nonce and retains immutable chunks; prefix/count/byte/digest/text checks precede SQLite-only whole-row assembly.",
+    "Missingchunk/assembledrow/proof cannot advance cursor; lostacceptedchunk/row responses replay exactly once.",
+    "Per-chunk target reconciliation binds pinned watermark; old generic object/finalchild/lostack/jobfence acceptance retained.",
+    "BMP,astral Unicode,quotes,backslashes,newline,NUL escape boundaries have identical Node/workerd bytes.",
+    "Unsafe integer scalar,unsupported table,malformed prefix/identity/UTF8,unknownextra fields and unrelatedoversizedlegacy aggregate fail closed."
+  ],
+  "remaining": [
+    "B11 remains partial; source activation/remaining memberjourneys/release gates are separate.",
+    "Only fair_inventories supports fragmented rows. Other oversized tables, including legacyaggregate inventory state, continue to hold explicitly.",
+    "No public recovery route, livechain provenance claim, provider call or financial execution introduced."
+  ],
+  "boundaries": {
+    "remoteMutation": false,
+    "deployment": false,
+    "financialExecution": false,
+    "existingV1Unchanged": true,
+    "existingSmallV2BytesUnchanged": true,
+    "sourceFixtureLabelsPreserved": true
+  }
+}

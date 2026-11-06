@@ -45,8 +45,10 @@ their watermark triggers before startup can succeed.
 
 The captured table graph includes all declared business tables, their exact
 column/key metadata and every row. Pages use keyset cursors, at most100 rows
-and128 KiB, except collection source-record pages permit192 KiB. A row that
-cannot fit causes a hold; it is never skipped. The oversized legacy single-row
+and128 KiB, except collection source-record pages permit192 KiB. Migration048
+adds [bounded fragments](V2_FRAGMENTS.md) only for oversized `fair_inventories`
+rows; existing small-page bytes remain unchanged. Any other row that cannot
+fit causes a hold; it is never skipped. The oversized legacy single-row
 collection inventory remains unsupported until its separate normalization and
 adoption work is complete.
 

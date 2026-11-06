@@ -51,15 +51,15 @@ tests cover10000 voters with10000 votes and the separate32-list source graph
 (3245 records,3200 private indexes,1000 declared admissions). The latter proves
 source closure retention, not economic activation of an inventory.
 
-## Remaining capacity boundary
+## Configured-policy fragments and remaining boundary
 
 A legal3-field policy with256 choices per field and128-character Unicode names
-occupies311075 bytes. Per-field restore revalidation succeeds, but its source
-`fair_inventories` row exceeds the existing v2 capture page bound. Capture now
-reports `capture-row-bound-or-invalid` accurately. Full recovery of that policy
-is **not yet implemented**; bounded fragmented capture/restore of that one table
-is the next substep. Other oversized rows, including legacy aggregate inventory
-state, continue to hold explicitly. B11 remains partial.
+occupies311075 bytes. Migration048 and the scoped [fragment implementation](V2_FRAGMENTS.md)
+now capture, restore and reconcile that `fair_inventories` row through16 bounded
+pieces. Full Node and actual workerd/D1/R2 acceptance retains a configured mint
+and its raw policy; workerd revalidates the pinned BLS proof. Existing small-page
+bytes remain unchanged. Other oversized rows, including legacy aggregate
+inventory state, continue to hold explicitly. B11 remains partial.
 
 Reproducible checks:
 

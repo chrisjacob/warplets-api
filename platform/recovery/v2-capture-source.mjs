@@ -4,6 +4,7 @@ import {persistObject,hashJson} from './inventory.mjs';
 import {RECOVERY_V2_LIMITS} from './v2-codec.mjs';
 import {readRecoveryV2SourceMetadata,recoveryV2SourceGuardSql,checkRecoveryV2SourceGuard,recoveryV2SchemaFence} from './v2-schema.mjs';
 import {planRecoveryV2Rows,materializeRecoveryV2Rows} from './v2-planning.mjs';
+import {createRecoveryV2FragmentCapture} from './v2-fragment-capture.mjs';
 const clone=value=>JSON.parse(canonicalJson(value)),id=value=>typeof value==='string'&&/^[A-Za-z0-9._:-]{1,128}$/.test(value);
 function need(c,message){if(!c)throw new TypeError(message);}
 const stateFence=`EXISTS(SELECT 1 FROM app_recovery_state r CROSS JOIN app_recovery_watermark w WHERE r.id=1 AND w.id=1 AND r.generation=? AND r.mode IN ('live','private') AND r.status IN ('live','ready') AND r.write_nonce IS NULL AND w.revision=?)`;
@@ -12,6 +13,7 @@ const sourceValues=(descriptor,captureId)=>[descriptor.sourceGeneration,descript
 /** Internal source-data phase. It never returns a ready recovery pin. Further
  * bounded object verification/index construction must consume the sealed pages. */
 export function createRecoveryV2CaptureSource({driver,artifacts,crypto,clock,schema,v2Codec}){
+ const fragments=createRecoveryV2FragmentCapture({driver,artifacts,crypto,source:{advance,hold}});
  schema=clone(schema);
  const read=async statements=>(await driver.batch(statements)).map(r=>r.rows);
  async function load(captureId){const [rows]=await read([sql('SELECT * FROM app_recovery_captures WHERE id=?',captureId)]);return rows[0]??null;}
@@ -50,11 +52,12 @@ export function createRecoveryV2CaptureSource({driver,artifacts,crypto,clock,sch
    if(names.length){const [definitions]=await read([sql('SELECT name,CASE WHEN length(CAST(sql AS BLOB))<=16384 THEN sql ELSE NULL END sql FROM sqlite_schema WHERE type=\'table\' AND name IN (SELECT value FROM json_each(?))',canonicalJson(names))]);for(const table of checkpoint.tables.slice(-names.length)){const definition=definitions.find(d=>d.name===table.name);if(!definition||typeof definition.sql!=='string'||utf8(definition.sql).length>16384)return hold(run,'capture-schema-definition-unavailable');table.hasRowid=!/\bWITHOUT\s+ROWID\b/i.test(definition.sql);}}
    checkpoint.schemaCursor+=names.length;if(checkpoint.schemaCursor===descriptor.tableNames.length)checkpoint.phase='rows';return advance(run,checkpoint);
   }
+  if(checkpoint.phase==='fragments')return fragments.step(run,checkpoint);
   need(checkpoint.phase==='rows','Invalid v2 source phase.');
   const table=checkpoint.tables[checkpoint.tableIndex];if(!table)return advance(run,{...checkpoint,phase:'references',referenceTable:0,referencePage:0,referenceItem:0},{state:'verifying'});
   const plan=planRecoveryV2Rows(table,{index:checkpoint.pageIndex,after:checkpoint.after}),rows=await read([sql(recoveryV2SourceGuardSql),plan.statement,sql(recoveryV2SourceGuardSql)]);let page;
   try{checkRecoveryV2SourceGuard(rows[0],descriptor);checkRecoveryV2SourceGuard(rows[2],descriptor);}catch{return hold(run,'capture-source-changed');}
-  try{page=materializeRecoveryV2Rows(plan,rows[1]);}catch{return hold(run,'capture-row-bound-or-invalid');}
+  try{page=materializeRecoveryV2Rows(plan,rows[1]);}catch{if(table.name==='fair_inventories'&&rows[1].length===1&&rows[1][0].excluded===1)return fragments.start(run,checkpoint,table);return hold(run,'capture-row-bound-or-invalid');}
   if(!page.value){checkpoint.tableIndex++;checkpoint.pageIndex=0;checkpoint.after=null;return advance(run,checkpoint);}
   const n=page.value.rows.length;if(checkpoint.tableCounts[checkpoint.tableIndex]+n>RECOVERY_V2_LIMITS.tableRows)return hold(run,'capture-table-row-bound');
   const object=await v2Codec.encodeRows(page.value),stored=await persistObject(artifacts,object.identity,object.bytes,crypto);if(stored.kind!=='verified')return {kind:'conflict',code:stored.reason};

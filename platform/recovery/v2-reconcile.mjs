@@ -5,6 +5,8 @@ import {hashJson,verifyObject} from './inventory.mjs';
 import {createRecoveryV2IndexReader} from './v2-traversal.mjs';
 import {fenceRow,readPinnedPublication} from './reconcile.mjs';
 import {createRecoveryV2CollectionReconciler} from './v2-reconcile-collections.mjs';
+import {createRecoveryV2FragmentCodec} from './v2-fragments.mjs';
+import {createRecoveryV2FragmentRestore} from './v2-fragment-restore.mjs';
 const same=(a,b)=>canonicalJson(a)===canonicalJson(b);
 function need(c,message){if(!c)throw new TypeError(message);}
 class MissingObject extends Error {}
@@ -13,6 +15,7 @@ class MissingObject extends Error {}
  * No source artifacts or live provider reads participate in reconciliation. */
 export function createRecoveryV2Reconciler({driver,artifacts,crypto,v2Codec,codec,repository,beaconVerifier}){
  const collection=createRecoveryV2CollectionReconciler({driver,artifacts,crypto,beaconVerifier,repository});
+ const fragmentCodec=createRecoveryV2FragmentCodec({crypto}),fragments=createRecoveryV2FragmentRestore({driver,artifacts,crypto,repository});
  const reader=createRecoveryV2IndexReader({artifacts,crypto,v2Codec}),read=async statements=>(await driver.batch(statements)).map(r=>r.rows);
  async function walk(kind,pointer,cursor){const r=await reader.step({kind,pointer,cursor});if(r.kind==='pending')throw new MissingObject(r.reason);return r;}
  const checked=(loaded,c,delta,check=null)=>repository.advance(loaded,{delta,targetWatermark:c.targetWatermark,...(check?{check:{...check,targetWatermark:c.targetWatermark}}:{})});
@@ -33,7 +36,9 @@ export function createRecoveryV2Reconciler({driver,artifacts,crypto,v2Codec,code
  async function table(loaded,c){
   const descriptor=c.tables[c.tableIndex];if(!descriptor)return checked(loaded,c,{phase:'reconcile-audit'});
   if(c.activePage){
-   const entry=c.activePage,object=await verifyObject(artifacts,entry.identity,crypto);if(object.kind!=='verified')throw new MissingObject(object.reason);const page=await v2Codec.verifyRows(object.bytes,entry.identity);
+   const entry=c.activePage,object=await verifyObject(artifacts,entry.identity,crypto);if(object.kind!=='verified')throw new MissingObject(object.reason);
+   if(JSON.parse(new TextDecoder().decode(object.bytes)).format==='10x.local.recovery.fragmented-row.v2')return fragments.reconcilePage(loaded,c,descriptor,await fragmentCodec.verifyRowDescriptor(object.bytes,entry.identity));
+   const page=await v2Codec.verifyRows(object.bytes,entry.identity);
    need(page.table===descriptor.name&&page.index===c.pageIndex&&same(page.columns,descriptor.columns)&&page.hasRowid===descriptor.hasRowid&&same(page.after,c.lastCursor)&&page.rows.length===entry.rowCount,'Reconciliation page identity mismatch.');
    const [rows]=await read([targetRows(descriptor,entry)]);need(rows.length===page.rows.length&&rows.every(r=>typeof r.row_json==='string'),'Reconciliation target page missing, extra or oversized.');const actual=rows.map(r=>JSON.parse(r.row_json)),expected=page.rows.map(row=>fenceRow(descriptor,row,{generation:loaded.state.generation,createdMs:c.root.createdMs}));need(same(actual,expected),'Reconciliation target rows differ from exact fenced source.');
    const delta={activePage:null,pageIndex:c.pageIndex+1,lastCursor:entry.last,reconciledRows:c.reconciledRows+actual.length};

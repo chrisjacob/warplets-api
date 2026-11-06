@@ -7,6 +7,8 @@ import {createRecoveryV2RestoreDatabase} from './v2-restore-db.mjs';
 import {createRecoveryV2IndexReader} from './v2-traversal.mjs';
 import {fenceRow,readPinnedPublication} from './reconcile.mjs';
 import {createRecoveryV2Reconciler} from './v2-reconcile.mjs';
+import {createRecoveryV2FragmentCodec} from './v2-fragments.mjs';
+import {createRecoveryV2FragmentRestore} from './v2-fragment-restore.mjs';
 const clone=v=>JSON.parse(canonicalJson(v)),same=(a,b)=>canonicalJson(a)===canonicalJson(b);
 function need(c,message){if(!c)throw new TypeError(message);}
 const conflict=code=>({kind:'conflict',code});
@@ -15,6 +17,7 @@ class MissingObject extends Error {}
  * financial execution capability is implied by this local composition. */
 export function createRecoveryV2Restore({driver,artifacts,sourceArtifacts=artifacts,crypto,clock,ids,schema,v2Codec,codec,beaconVerifier}){
  schema=clone(schema);const repository=createRecoveryV2RestoreDatabase({driver,clock,ids}),reader=createRecoveryV2IndexReader({artifacts:sourceArtifacts,crypto,v2Codec}),reconciler=createRecoveryV2Reconciler({driver,artifacts,crypto,v2Codec,codec,repository,beaconVerifier});
+ const fragmentCodec=createRecoveryV2FragmentCodec({crypto}),fragments=createRecoveryV2FragmentRestore({driver,artifacts,crypto,repository});
  const read=async statements=>(await driver.batch(statements)).map(r=>r.rows);
  async function input(value){const captured=clone(value),bytes=utf8(canonicalJson(captured.root)),root=await v2Codec.verifyRoot(bytes,captured.pinnedDigest);need(same(root.schema,schema),'Private v2 schema differs from installed migrations.');return {root,id:captured.pinnedDigest,expectedRevision:captured.expectedRevision};}
  async function copied(identity,bytes=null){
@@ -52,7 +55,9 @@ export function createRecoveryV2Restore({driver,artifacts,sourceArtifacts=artifa
  async function tables(loaded,c){
   const name=c.tableOrder[c.tableIndex];if(!name)return repository.advance(loaded,{delta:{phase:'fences'}});const table=c.tables.find(t=>t.name===name);need(table,'Missing private v2 table descriptor.');
   if(c.activePage){
-   const entry=c.activePage,object=await verifyObject(artifacts,entry.identity,crypto);if(object.kind!=='verified')throw new MissingObject(object.reason);const page=await v2Codec.verifyRows(object.bytes,entry.identity);
+   const entry=c.activePage,object=await verifyObject(artifacts,entry.identity,crypto);if(object.kind!=='verified')throw new MissingObject(object.reason);
+   if(JSON.parse(new TextDecoder().decode(object.bytes)).format==='10x.local.recovery.fragmented-row.v2')return fragments.importPage(loaded,c,table,await fragmentCodec.verifyRowDescriptor(object.bytes,entry.identity));
+   const page=await v2Codec.verifyRows(object.bytes,entry.identity);
    need(page.table===name&&page.index===c.pageIndex&&same(page.columns,table.columns)&&page.hasRowid===table.hasRowid&&same(page.after,c.lastCursor)&&same(entry.after,c.lastCursor)&&page.rows.length===entry.rowCount,'Private v2 row-page boundary mismatch.');
    const original=page.rows.slice(c.rowOffset,c.rowOffset+40);need(original.length>0,'Private v2 empty import chunk.');const rows=original.map(row=>fenceRow(table,row,{generation:loaded.state.generation,createdMs:c.root.createdMs})),effects=name==='app_revisions'?[]:rows.map(row=>sql(`INSERT OR IGNORE INTO ${quote(name)} (${[...(table.hasRowid?['rowid']:[]),...table.columns.map(quote)].join(',')}) VALUES(${row.map(()=>'?').join(',')})`,...row));
    const delta={rowOffset:c.rowOffset+rows.length,importedRows:c.importedRows+rows.length};if(name==='app_revisions')delta.restoredRevisions=rows.map(row=>objectRow(table,row));if(delta.rowOffset===page.rows.length)Object.assign(delta,{activePage:null,rowOffset:0,pageIndex:c.pageIndex+1,lastCursor:entry.last});

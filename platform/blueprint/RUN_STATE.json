@@ -5,9 +5,9 @@
   "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
   "currentTask": "B11",
-  "lastUpdatedAt": "2026-11-06T04:08:31.176171+00:00",
+  "lastUpdatedAt": "2026-11-06T04:30:10.056540+00:00",
   "migrationAllocation": {
-    "next": 49,
+    "next": 50,
     "reserved": [
       {
         "version": 31,
@@ -98,6 +98,11 @@
         "version": 48,
         "task": "B11",
         "purpose": "bounded private recovery fragments for valid oversized fair_inventories policy rows; design pending, control storage only"
+      },
+      {
+        "version": 49,
+        "task": "B11",
+        "purpose": "private fixed-cut Season mint admission and bounded eligibility reads; no public mint activation"
       }
     ],
     "historicalGap": 19
@@ -260,7 +265,7 @@
       "status": "in_progress",
       "owner": "coordinator",
       "baseCommit": "96cdfa1fb6334fcb27deb831d786243227b9d1a8",
-      "implementationCommit": "b260efe635c3a7bdb9aaee8250490b1dcea701df",
+      "implementationCommit": "4c7ad2caeafb4a8c38d3b181f1d7af6442e2cd63",
       "pushed": true,
       "evidence": [
         "platform/validation/runs/2026-11-06-overnight/B11-1.json",
@@ -281,9 +286,10 @@
         "platform/validation/runs/2026-11-06-overnight/B11-15-mint-admission.json",
         "platform/validation/runs/2026-11-06-overnight/B11-16-inventory-reads.json",
         "platform/validation/runs/2026-11-06-overnight/B11-17-mint-fulfillment.json",
-        "platform/validation/runs/2026-11-06-overnight/B11-18-free-cut.json"
+        "platform/validation/runs/2026-11-06-overnight/B11-18-free-cut.json",
+        "platform/validation/runs/2026-11-06-overnight/B11-20-recovery-fragments.json"
       ],
-      "nextAction": "Checkpoint047 and follow CI; then checkpoint frozen B11-19 restore with workflow timeout30min. Implement048 bounded fair-policy fragments from draft; current311KiB capture gap explicit. Free admission/read activation and safe populated legacy adoption remain unfinished.",
+      "nextAction": "048 fragmented fair-policy recovery verified, commit/push after CI42161666921 succeeds.049 private free-cut admission/read has5Node+22regression+actualD1 passing, checkpoint next. Continue historical free-cut reconciliation and reviewed-term member HTTP/browser; no release work.",
       "blocker": null
     },
     "B12": {
