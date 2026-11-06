@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import {randomUUID,createHash} from 'node:crypto';
+import {openDatabase} from '../storage/database.mjs';
+import {createNodeAtomicDriver} from '../storage/node/atomic-driver.mjs';
+import {createCollectionSourceRepository} from './source-repository.mjs';
+import {createCollectionSourceIntake} from './source-intake.mjs';
+import {canonicalStateFixture,stateBundle,changedRecord,nativeTranscriptFixture,legacyStateTestCrypto as crypto} from './legacy-state-audit.fixtures.mjs';
+import {readInstalledRecoverySchema} from '../recovery/node-schema.mjs';
+import {BUSINESS_TABLES,CONTROL_TABLES,readSchema} from '../recovery/schema.mjs';
+import {createLegacyAuditRepository} from './legacy-audit-repository.mjs';
+export const principal={kind:'operator',id:'synthetic-legacy-auditor'};
+export async function legacyAuditFixture(t,{members=2000,badDigest=false,stateInput=null}={}){const db=openDatabase();t.after(()=>db.close());const driver=createNodeAtomicDriver(db),schema=await readInstalledRecoverySchema(crypto),hash=nativeTranscriptFixture(),ports={crypto,ids:{next:randomUUID},clock:{nowMs:()=>1800000000000},schema,createHashAdapter:()=>hash};db.prepare('INSERT INTO app_operator_scopes VALUES(?,?,0,1)').run(principal.id,'collection-import');const state=stateInput??canonicalStateFixture({stages:1,members,admissions:0}),raw=JSON.stringify(state,(_k,v)=>typeof v==='bigint'?{$lamports:v.toString()}:v);db.prepare("INSERT INTO collect_inventories VALUES(?,'season',NULL,1700000000000,'2023-11',?,?,'synthetic-origin')").run(state.id,state.version,raw);let {bundle,records}=await stateBundle(state);if(badDigest){const changed=await changedRecord(bundle.root,b=>b.source.stateDigest='f'.repeat(64));records.delete(bundle.root.id);records.set(changed.id,changed);bundle={...bundle,root:changed};}const intake=createCollectionSourceIntake({...ports,repository:createCollectionSourceRepository(driver,ports)});for(const record of records.values())assert.ok(['committed','replayed'].includes((await intake.stageRecord(principal,{record,requestKey:record.id})).kind));for(const list of bundle.listManifests)assert.equal((await intake.sealList(principal,{id:list.id,requestKey:list.id})).kind,'committed');assert.equal((await intake.sealSource(principal,{id:bundle.root.id,requestKey:bundle.root.id})).kind,'committed');const service=createLegacyAuditRepository({...ports,driver}),input={auditId:'synthetic-audit',inventoryId:state.id,rootId:bundle.root.id};return {db,driver,ports,service,input,raw,bundle};}

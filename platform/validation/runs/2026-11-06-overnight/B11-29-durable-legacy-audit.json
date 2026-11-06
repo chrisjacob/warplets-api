@@ -1,0 +1,93 @@
+{
+  "task": "B11",
+  "slice": "B11-29 durable private legacy fingerprint continuations",
+  "status": "verified-focused; broader reference running; no adoption authority",
+  "sourceHashes": {
+    "platform/storage/050-legacy-audit-continuations.sql": "02273b565bcba0f1faf81bdfb5c05e6e24a7f3304edf3401e6e836fc71f968de",
+    "platform/recovery/schema.mjs": "30f3765959803517dfccf5cd4db351b6265c684c124ff7b824f38cb4a44a991d",
+    "platform/collect/LEGACY_AUDIT_REPOSITORY.md": "aa65c3cf30f53c8aeef74a85e8b8d4938f010c0cee6d7ef39ca3ce4ded49d3db",
+    "platform/collect/legacy-audit-repository.mjs": "b670f22ea53c4d2ca1b5de0805afcff4e704c768818717b746a6e98caf1842e3",
+    "platform/collect/legacy-audit-repository.d.mts": "65e8752f46544b233279e1b79040599d6be5ee81bf79852ee25ad29006f8e384",
+    "platform/collect/legacy-audit-repository.test.mjs": "d62a6c67b821403e95ec27543b9232cec3bb95ffc6f8bb4ac4083966fe849a40",
+    "platform/collect/legacy-audit-repository.fixtures.mjs": "1a5e804a2a2d15e70c15bf67f1c8129b2e3f4a56382d04482a435118650124bc",
+    "platform/edge/test/legacy-audit-repository.test.mjs": "2975a32756e1dc49af22709dfd761b35bf03b2afe0512248df8726657c02aeb9",
+    "platform/edge/test/fixtures/legacy-audit-repository-worker.ts": "41847c11aab64abfd72f2fb916ac70407f4ccb573a90819483389f97e5bc7561"
+  },
+  "checks": [
+    {
+      "command": "node --test platform/collect/legacy-audit-repository.test.mjs",
+      "result": "PASS",
+      "tests": 9,
+      "durationMs": 41368.5328,
+      "log": "work/b11-durable-audit-node-final.log"
+    },
+    {
+      "command": "node --test platform/edge/test/legacy-audit-repository.test.mjs",
+      "result": "PASS",
+      "tests": 1,
+      "durationMs": 45912.1733,
+      "log": "work/b11-durable-audit-edge-final.log"
+    },
+    {
+      "command": "node --test platform/recovery/schema.test.mjs platform/recovery/v2-capture-source.test.mjs",
+      "result": "PASS",
+      "tests": 8,
+      "durationMs": 15572.8627,
+      "log": "work/b11-audit-control-recovery.log"
+    },
+    {
+      "command": "node platform/edge/node_modules/typescript/bin/tsc --noEmit -p platform/edge/tsconfig.json",
+      "result": "PASS"
+    },
+    {
+      "command": "node work/test-b11-29-reference.mjs",
+      "result": "RUNNING",
+      "session": 29781,
+      "log": "work/b11-29-reference.log",
+      "scope": "Full discovered reference checkpoint through29; excludes only unfinished30/31 tests. Launched before final050 NULL-ready guard tightening, covered by final focusedNode/D1 SQL rejection tests."
+    }
+  ],
+  "migration": {
+    "version": 50,
+    "table": "app_collection_legacy_audits",
+    "businessTables": 108,
+    "classification": "excluded ephemeral private audit control; no accepted receipt/authority omitted"
+  },
+  "acceptance": {
+    "actualD1": {
+      "steps": 26,
+      "maxSql": 9,
+      "maxBatchBytes": 71445,
+      "maxReturnedBytes": 133989,
+      "maxWorkingBytes": 756538
+    },
+    "maximumScalarAdmissionProjection": {
+      "steps": 93,
+      "maxWorkingBytes": 945774,
+      "maxCoreWorkingBytes": 747582,
+      "maxRecordTransportBytes": 178154,
+      "classification": "synthetic1000admissions/32maximalstageheaders; empty eligibility lists; pure full32x10klists is independently verified in26"
+    },
+    "guarded": [
+      "no caller checkpoints",
+      "operator ownership and current scope",
+      "sealed035root inventory/revision",
+      "exact schema and trigger inventory",
+      "frozen generation/business watermark/header",
+      "old checkpoint/digests/revision/phase plus fresh nonce",
+      "single winner concurrentCAS",
+      "lost acknowledgement replay",
+      "omitted update conflict",
+      "reused nonce rejection",
+      "wrong digest and missing record hold",
+      "NULL mandatory ready digest SQL rejection",
+      "control exclusion from recovery"
+    ],
+    "sourceRelation": false,
+    "economics": false,
+    "adoption": false,
+    "publicRoute": false,
+    "financialExecution": false
+  },
+  "recordedAt": "2026-11-06T05:40:43.821915+00:00"
+}

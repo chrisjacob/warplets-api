@@ -1,5 +1,5 @@
 {
   "policy": "prd-1.2",
   "scope": "local",
-  "checkpoint": "blueprint-b11-original-legacy-mint-audit"
+  "checkpoint": "blueprint-b11-durable-legacy-fingerprint-audit"
 }
