@@ -1,0 +1,47 @@
+{
+  "task": "B11",
+  "slice": "B11-61 original economic admission facts",
+  "status": "verified-private-reader; B11 partial",
+  "recordedAt": "2026-11-06T10:48:08.017103+00:00",
+  "sourceHashes": {
+    "platform/recovery/v2-legacy-economic-admission.mjs": "533c6ddecd65c9f6abfc4172729e68b465323fe9eff2f41b89c0e3b195e7c34e",
+    "platform/recovery/v2-legacy-economic-admission.test.mjs": "14a6a93c81340fd4942a3ba1b18e2d7ab3e41f1264a3808c825cb66061cf3de9",
+    "platform/edge/test/recovery-economic-admission.test.mjs": "48e66ed6f1de56416d269d3c198400c2a1d181023f0da0f8739b752018bb9bc0",
+    "platform/edge/test/fixtures/recovery-economic-admission-worker.ts": "ed6093b17bb9acb719117faecb8daa58f0bab68cc708df43749fd6614475d367"
+  },
+  "checks": [
+    {
+      "command": "node --test platform/recovery/v2-legacy-economic-admission.test.mjs",
+      "passed": 1,
+      "failed": 0,
+      "durationMs": 44419.9273,
+      "log": "work/b11-61-admission-node.log"
+    },
+    {
+      "command": "node --test platform/edge/test/recovery-economic-admission.test.mjs",
+      "passed": 1,
+      "failed": 0,
+      "durationMs": 118432.2921,
+      "log": "work/b11-61-admission-edge.log"
+    }
+  ],
+  "measurements": {
+    "sql": 7,
+    "maxBatchBytes": 2021,
+    "workingBytes": 336002,
+    "outerCheckpointReserve": 267264
+  },
+  "verified": [
+    "Genuine adopted original state on separate fresh Node/D1 recovery targets",
+    "Exact accepted economic prefix digest",
+    "Canonical035root/admission page and actual immutable operation/current legacy entry",
+    "Bounded prior wallet-stage and identity counts",
+    "Exact historical admission-source digest and accepted52prepare phase proof",
+    "Missing operation, wrong prior counts, modified prefix and target mutation hold"
+  ],
+  "limitations": [
+    "No economic cursor advancement or readiness;62orchestrator still required.",
+    "Maximum simultaneously large035root/page dimensions conservatively hold above combined1MiB checkpoint budget."
+  ],
+  "financialExecution": false
+}
