@@ -1,3 +1,5 @@
+import {CONFIGURE_ACTION} from '../earn/action-policy-service.mjs';
+import {createActionPolicyRepository} from '../earn/action-policy-repository.mjs';
 import {createCollectionCutRepository} from '../collect/free-cut-repository.mjs';
 import {BEGIN_COLLECTION_FREE_CUT,VALIDATE_COLLECTION_CUT_PAGE,SEAL_COLLECTION_FREE_CUT} from '../collect/free-cut-service.mjs';
 import {createGovernanceOperatorRepository} from '../governance/operator-repository.mjs';
@@ -46,6 +48,7 @@ export function createOperatorCommandTransport(db,{sessions,clock=Date.now,crypt
    const driver=createNodeAtomicDriver(db,{transactionGuard:authorization.guard});
    const stages=createStagePublicationRepository(driver,{crypto,ids,clock:{nowMs:clock}});
    const governance=createGovernanceOperatorRepository(driver,{crypto,ids,clock:{nowMs:clock}});
+   const actions=createActionPolicyRepository(driver,{crypto,ids,clock:{nowMs:clock}});
    const cuts=createCollectionCutRepository(driver,{crypto,ids,clock:{nowMs:clock}});
    if(pathname.endsWith('/receipt')){
     const result=await createAtomicReceipts(driver,{crypto,ids}).replay(prepared.command);
@@ -59,6 +62,11 @@ export function createOperatorCommandTransport(db,{sessions,clock=Date.now,crypt
     if(!scope.rows[0]?.enabled)return failure(403,'operator_scope_required','Operator scope is unavailable.');
     const current=Object.fromEntries(version.rows.map(r=>[r.name,String(r.revision)]));
     if(Object.entries(body.expectedRevisions).some(([key,value])=>current[key]!==value))return failure(409,'revision_conflict','Refresh the current configuration before preview.');
+    if(prepared.command.operationKind===CONFIGURE_ACTION){
+     const derived=await actions.previewAction(prepared.command);
+     if(derived.kind!=='preview')return json(derived,derived.kind==='conflict'?409:derived.kind==='pending'?202:200);
+     authorization.guard();return json(prepared.preview);
+    }
     if(prepared.command.operationKind===PUBLISH_COLLECTION_STAGE){
      const derived=await stages.previewStage(prepared.command);
      if(derived.kind!=='preview')return json(derived,derived.kind==='conflict'?409:derived.kind==='pending'?202:200);
@@ -86,7 +94,7 @@ export function createOperatorCommandTransport(db,{sessions,clock=Date.now,crypt
    }
    if(request.headers.get('x-operator-preview')!==prepared.preview.confirmationDigest)
     return failure(409,'preview_required','Confirm the exact command preview.');
-   const result=await dispatchOperatorCommand({...createAtomicOperationsRepository(driver,{crypto,ids}),recordFinalReview:createAtomicEarnRepository(driver,{crypto,ids}).recordFinalReview,publishStage:stages.publishStage,publishBallot:governance.publishBallot,recordDecision:governance.recordDecision,beginCut:cuts.beginCut,validatePage:cuts.validatePage,sealCut:cuts.sealCut},prepared);
+   const result=await dispatchOperatorCommand({...createAtomicOperationsRepository(driver,{crypto,ids}),recordFinalReview:createAtomicEarnRepository(driver,{crypto,ids}).recordFinalReview,publishStage:stages.publishStage,publishBallot:governance.publishBallot,recordDecision:governance.recordDecision,configureAction:actions.configureAction,beginCut:cuts.beginCut,validatePage:cuts.validatePage,sealCut:cuts.sealCut},prepared);
    return json(result,result.kind==='conflict'?409:result.kind==='pending'?202:200);
   }catch(error){
    if(error instanceof EarnError||error instanceof OperatorSessionError)return failure(error.status,error.code,error.message);

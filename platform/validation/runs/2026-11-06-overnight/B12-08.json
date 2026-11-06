@@ -1,0 +1,143 @@
+{
+  "task": "B12",
+  "slice": "B12-08",
+  "status": "verified-slice",
+  "baseCommit": "92a3855",
+  "scope": [
+    "Prospective Earn action policy: exact scoped command, stable definitions, SQL-time future fence",
+    "Atomic receipt/change/audit migration060; guarded policy immutability; no legacy receipt fabrication",
+    "Bounded historical receipt-policy-audit recovery phase with final proof completeness",
+    "Local operator form, safe review packet and retry journal; no issuer grants or completion authority"
+  ],
+  "checks": {
+    "repositoryNode": "8PASS5474.5564ms work/b12-action-policy-node.log",
+    "boundary": "28PASS3019.8978ms work/b12-action-boundary.log",
+    "legacy": "14PASS2386.0551ms work/b12-action-legacy-regression.log",
+    "recovery": "2PASS32736.8551ms work/b12-action-recovery-final.log;112tables932steps,max18SQL103661Bbatch;fresh private restore and replay after effective epoch",
+    "d1": "1PASS36380.3016ms work/b12-action-policy-edge.log;21pairedcalls,max13SQL18966Bbatch31params8096Bresult;3audit events;256characterUnicode;3historical receipt verifications",
+    "types": "Edge and direct declarations PASS",
+    "browser": {
+      "scope": "B12 local future Earn action-policy UI and safe review packet",
+      "capturedAt": "2026-11-06T14:31:12.385158+00:00",
+      "sourceHashes": {
+        "platform/operator/ui.mjs": "391fe7cdf3b41011ca09ef1ef3bc07f85cf923c21ab3b61f4e1c3a73bb32d87d",
+        "platform/operator/index.html": "541a9240940ff25fe212904d4b344e70c2fa51d2ce38453ec5dfeb827b9cf2a3",
+        "platform/operator/approval-packet.mjs": "fa80776116cf162596ffb77fea85ab8a676b8b9b4d88c57b4979541feda4053f",
+        "platform/operator/approval-packet.test.mjs": "701fa8369a2cd7e021510da08715cc50dd8fb7dff6c00b592cf7cf95aca50c7c",
+        "platform/operator/action-browser-qa.mjs": "8f69b3c80f8a01bcbaad48789f9cd574142f89397c5184017034c222ba742f8f"
+      },
+      "commands": [
+        "node platform/operator/action-browser-qa.mjs",
+        "node platform/operator/browser-qa.mjs",
+        "node --test platform/operator/approval-packet.test.mjs",
+        "node --check platform/operator/ui.mjs",
+        "node --check platform/operator/approval-packet.mjs",
+        "node --check platform/operator/action-browser-qa.mjs",
+        "git diff --check -- platform/operator/ui.mjs platform/operator/index.html platform/operator/approval-packet.mjs platform/operator/approval-packet.test.mjs platform/operator/action-browser-qa.mjs"
+      ],
+      "results": [
+        {
+          "log": "work/b12-action-browser.log",
+          "result": {
+            "passed": true,
+            "widths": [
+              360,
+              390,
+              768,
+              1440
+            ],
+            "source": "synthetic-local-operator-fixture",
+            "clock": "actual Date.now and database execution-time fence",
+            "blankDateAndEnabledChoice": true,
+            "currentEpochRejected": true,
+            "closedFutureBoardRejected": true,
+            "staleConfirmationRejected": true,
+            "previewReadOnly": true,
+            "futureEnableAndDisable": true,
+            "definitionAndVerifierImmutable": true,
+            "exactLostResponseReplayAfterScopeRevocation": true,
+            "negativeReceiptIdentity": true,
+            "safePacketDownload": true,
+            "auditEvents": 2,
+            "noIssuerOrCompletionChanges": true,
+            "readOnlyPermission": true,
+            "logoutClearsFields": true,
+            "financialExecution": false,
+            "screenshots": "work/b12-action-operator"
+          }
+        },
+        {
+          "log": "work/b12-action-regression.log",
+          "result": {
+            "passed": true,
+            "widths": [
+              360,
+              390,
+              768,
+              1440
+            ],
+            "realCommandExecutions": 14,
+            "auditEvents": 10,
+            "newAuditEvents": 9,
+            "baselineAuditEvents": 1,
+            "previewReadOnly": true,
+            "localReviewPacketDownload": true,
+            "packetNoAuthorityOrPrivateData": true,
+            "packetDisabledAfterAttempt": true,
+            "negativeResponseLoss": true,
+            "exactRetryAfterReload": true,
+            "expiredSessionReauthentication": true,
+            "stablePrincipalRetry": true,
+            "differentPrincipalIsolation": true,
+            "negativeStalePreview": true,
+            "readOnlySession": true,
+            "auditedFinalReview": true,
+            "immutableReviewConflict": true,
+            "reviewExactReplay": true,
+            "confirmationRevisionBinding": true,
+            "negativePreviewMismatch": true,
+            "legacyReceiptReadOnly": true,
+            "missingLegacyReceiptHeld": true,
+            "keyboardFocus": true,
+            "logoutClearsPrivateState": true,
+            "financialExecution": false,
+            "screenshots": "work/b12-operator"
+          }
+        }
+      ],
+      "packetTests": {
+        "passed": 8,
+        "failed": 0,
+        "durationMs": 226.6674,
+        "log": "work/b12-action-packet.log"
+      },
+      "browserWallSeconds": 8.437439,
+      "regressionAndPacketWallSeconds": 9.9971283,
+      "fixture": "Synthetic action ID/label/verifier, actual Date.now and database clock, explicit synthetic future closed board for negative acceptance. Positive commands use actual console API and installed migration060.",
+      "coverage": [
+        "Exactly six input fields, blank future UTC date and explicit enabled/disabled choice",
+        "Current UTC board rejected; synthetic closed future board rejected by backend",
+        "Stale preview confirmation rejected without policy/catalog writes",
+        "Read-only preview and keyboard/four-width layout checks",
+        "Actual future enable and future disable with one stable catalog definition and two audited changes",
+        "Label/verifier conflicts held; immutable persisted rows reject direct changes",
+        "Lost response retains exact body/key/confirmation; scope-revoked accepted replay survives reload",
+        "Negative altered enabled response cannot clear original journal",
+        "Safe actual JSON packet download has futureOnly true, financialExecution false, isAuthorization false",
+        "No issuer grant/revocation/completion changes and no transaction intents",
+        "Read-only session disables form; logout clears private action fields",
+        "Unchanged operator staffing/scope/review/session/download suite passes"
+      ],
+      "visualInspection": "work/b12-action-operator/action-preview-360.png; no horizontal overflow at360/390/768/1440",
+      "limitations": [
+        "Local fixture policy only, no external verifier/issuer authorization or user completion",
+        "No retroactive/current-board policy changes",
+        "No production deployment, financial execution or public operator endpoint"
+      ],
+      "ownership": "Five paths only; no registry, transport, service, repository or schema edits"
+    }
+  },
+  "financialExecution": false,
+  "migration": "060-action-policy.sql",
+  "remaining": "B12 source/draft/whitelist/cut-record intake and fixture observations; full completion matrix remains."
+}
