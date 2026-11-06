@@ -5,7 +5,7 @@
   "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
   "currentTask": "B16",
-  "lastUpdatedAt": "2026-11-06T22:40:03.541460+00:00",
+  "lastUpdatedAt": "2026-11-06T22:41:19.362457+00:00",
   "migrationAllocation": {
     "next": 70,
     "reserved": [
@@ -563,7 +563,7 @@
       "status": "in_progress",
       "owner": "coordinator",
       "baseCommit": "a1d1d78",
-      "implementationCommit": "ec7e334",
+      "implementationCommit": "1e4497f",
       "pushed": true,
       "evidence": [
         "platform/validation/runs/2026-11-06-overnight/B17-01.json",
@@ -587,7 +587,7 @@
         "platform/validation/runs/2026-11-06-overnight/B17-19.json",
         "platform/validation/runs/2026-11-06-overnight/B17-acceptance.json"
       ],
-      "nextAction": "LocalB17acceptancecompleteincludingownerAPI/UIandtwoauditfixes;awaitactiveB16CI42299274676 completion beforetriggeringfinalB17integrationCI. Do notmarkverifieduntilnewCIpasses. Account97%; updatehandoff/reviewthencontinueauthorizedreadyqueue.",
+      "nextAction": "B17 local acceptance complete at1e4497f; waitforCI42299274676 (B16 at751e37a) tofinish, thenmarkB16verifiedifgreen andtriggerB17fullCI marker. Do notcancelactiveCI. B19 becomesreadyafterB16verified; B18 waitsB17verified. Account98%; usercontinue100, reviewpacketupdated.",
       "blocker": null
     },
     "B18": {

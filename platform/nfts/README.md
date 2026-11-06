@@ -45,3 +45,14 @@ After those gates, replay uses the original recorded round, commitment and exist
 | Historical Vault claims | No metadata mutation channel | Permanent claim/custody design and financial review |
 
 On interruption, retain the same operation, commitment, provider job and every history revision. Pause new proposals if evidence is unavailable. Do not clear a lock or replace a draw to make a hold disappear. Existing external-burn, update-authority and permanent-delegate incompatibilities stay unresolved; an unsigned transaction plan grants no authority.
+
+
+## Owner review transport
+
+The owner-only `/api/v1/nfts/refreshes/{requestId}` view exposes a redacted recorded proposal. Its prepare, execute and receipt routes permit only approval or a fulfillment request for that existing proposal. They do not create proposals, upload media, process operator events or apply an image. Recorded previews are descriptors and hashes, not generated images.
+
+Preparation captures one immutable command and binds its opaque token to the wallet, session and origin. The cache holds at most128 tokens. A new effect must pass the original30-second command window, current owner/version and database-clock session predicate. A lost response uses the same command or a read-only accepted-receipt lookup. Process/isolate loss never silently renews a command; a missing receipt remains held for explicit review. Accepted workflow revisions and artifacts are durable even though these preparation tokens are ephemeral.
+
+Member operation responses now withhold exact admission time as `createdAt:null`; concealed asset views also withhold the original owner-observation timestamp. Private records retain their original times. An authorized revealed fairness transcript contains the original draw timing. This removes direct API timestamp derivation; it does not claim that public wall-clock estimates are impossible.
+
+Local acceptance includes Node and actual Worker/D1 routes, four browser widths, session revocation at the atomic claim, exact retry/restart handling, ownership-change holds and full D1/R2 restoration. Full CI on the final integration commit remains the verification gate recorded in RUN_STATE.
