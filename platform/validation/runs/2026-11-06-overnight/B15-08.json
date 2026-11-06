@@ -1,0 +1,98 @@
+{
+  "task": "B15",
+  "status": "partial-frozen-recorded-outcomes",
+  "baseCommit": "0ce40d572226c5ab3598892e029ad42ea121dca2",
+  "implementationCommit": null,
+  "installedMigration": "066-recorded-transaction-outcomes.sql",
+  "fixture": "Real B04 synthetic registered transcripts, immutable private objects and existing unsigned legacy local fixture history. Recorded signature labels are fixed bytes, not generated signatures or authenticated submission.",
+  "checks": [
+    {
+      "command": "node --test platform/storage/recorded-transaction-outcomes.test.mjs platform/transactions/recorded-outcome-evidence.test.mjs",
+      "passed": 8,
+      "durationMs": 5867.5912,
+      "log": "work/b15-recorded-outcome-node-final.log"
+    },
+    {
+      "command": "node --test platform/edge/test/recorded-outcomes.test.mjs",
+      "passed": 1,
+      "durationMs": 28183.0293,
+      "calls": 19,
+      "log": "work/b15-recorded-outcome-edge-final.log"
+    },
+    {
+      "command": "node platform/edge/node_modules/typescript/bin/tsc --noEmit -p platform/edge/tsconfig.json",
+      "status": "passed",
+      "log": "work/b15-recorded-outcome-types-final.log"
+    }
+  ],
+  "metrics": {
+    "maxSqlStatements": 24,
+    "maxBatchBytes": 9958,
+    "maxParameters": 51,
+    "maxObjectReads": 1,
+    "maxObservationBytes": 4096
+  },
+  "acceptance": [
+    "Registered synthetic source/decision/clock/rawbytes binding with actual private artifact verification and independentSHA",
+    "Original legacy eventID and canonical5field tx_receipts.observation bytes unchanged",
+    "New outcome10fields plus observationDigest (11) binds exact stored sidecar digest; no legacy plan/signature authority upgrade",
+    "Initial unknown reconciles to confirmed/finalized orfailed under actual guarded local transitions",
+    "Legacy exact unbound observation replays without sidecar/appreceipt/revision backfill",
+    "Wrongsignature/changedoldbody/invalidsource rejected; source/clock/scopefinalclaim races noeffects",
+    "All4mandatorychildren omitted and observationdigest substituted roll back allbusiness effects",
+    "Actual duplicate concurrency onecommitted/onereplayed; async loser resolves only exactoriginalkey/body",
+    "Lostcommittedresponse returns exact retainedreceipt; acceptedreplay after revocation/laterclock/sourceabsence no duplicateeffect",
+    "Oncebound, legacyCLI cannot bypass guarded statechanges or rewrite attemptidentity/signature/packet",
+    "Unknown remains reconciliation-only; no additional attempt or replacement created"
+  ],
+  "schemaCompatibility": "Initial draft D1 expression-depth issue fixed by coordinator grouping all48 predicates; final observationDigest predicate added, no old constraints removed. Final tests use installed066 only; draftfallback removed.",
+  "limitations": [
+    "No public route or operatorUI for this private imported-observation command",
+    "No submission/expiry/replacement/newpacket preparation port yet",
+    "No realchain finality/signature authentication/payment/mint authority",
+    "Fresh V2 sidecar restoration remains separate coordinator/sibling work"
+  ],
+  "flags": {
+    "financialExecution": false,
+    "serverSigning": false,
+    "broadcast": false,
+    "remoteCalls": false,
+    "completeB15": false
+  },
+  "ownedFiles": {
+    "platform/transactions/recorded-outcome-evidence.mjs": "be4f372613102f0fcee1092d817191a7dc42bbeb4f77cbe161680089821e7aa2",
+    "platform/transactions/recorded-outcome-evidence.d.mts": "4335e74722b67ad862672ff14319b26c863c8f8cd45d10a2cf110d6b717e6a47",
+    "platform/transactions/recorded-outcome-evidence.test.mjs": "b9b5458ef44ee62cf9d9e5b4e8c8eb0abc4ffa8b86c1a7c8765b1a627006f219",
+    "platform/transactions/recorded-outcome-service.mjs": "9a671a069f8b9aa97d4a325eeb0688fab7f23aee30c88f6e61fa8bfc610b2142",
+    "platform/transactions/recorded-outcome-service.d.mts": "629d7f2b4fc6c5a2320f8925cea601ea7f057fc8efc00aa2f1d6200c3bc03bee",
+    "platform/storage/recorded-transaction-outcomes.mjs": "ada34cb5e54ce30e423ba7ab2dc67e1aa3233fa9b83bbe088e00eb2e81dff197",
+    "platform/storage/recorded-transaction-outcomes.d.mts": "97a34cd10bbf506ee4cbb9ebdbcb5b093981ecc8c7fcaceb24255714c7c98d82",
+    "platform/storage/recorded-transaction-outcomes.test.mjs": "18c169cfa5a51ddd746b09b722a2d4e23cbbe3c2dc6d563cec449de6b18e57b3",
+    "platform/storage/recorded-transaction-outcomes.fixtures.mjs": "1dbdf69886614ad9bf9f839b8ab34469c6610d797ab0079b5108955018ddf129",
+    "platform/edge/test/recorded-outcomes.test.mjs": "ce0ccdf9205bebfc671b525eb194ea16e712fe2a57da6b2d4bf07d41e47f1e7a",
+    "platform/edge/test/fixtures/recorded-outcome-worker.ts": "c6166e84f1e80bcd545bd53a6462a787d0dd94d6781202a1a9e3aa3ead97c0d6"
+  },
+  "coordinatorDependencies": {
+    "platform/storage/066-recorded-transaction-outcomes.sql": "11e67dd6dfcb6c110e8e6fbee5cad75bcb3c3a604050086d06fe7c4829d98580",
+    "platform/application/recorded-outcomes.ts": "0e3473c74a155fa9ed03ef41fe0865d4bf9abb36ddd4083c55b2557c5a99d21d",
+    "platform/evidence/envelope.mjs": "8f4957495c3dceed05c65accdec0504de491c460a1401a1dfd3ada30246d441f",
+    "platform/evidence/decoders.mjs": "a97da12a9a13be6974a7582d6cf163dac6112b0312e01af2d2d2ab989862bf3b"
+  },
+  "registryAddendum": {
+    "scope": "Also includes tested synthetic height decoder/service vocabulary; expiry repository/migration remains pending. No new state mutation from height foundation.",
+    "checks": [
+      "5source/helper tests PASS176.1594ms work/b15-recorded-source-final.log",
+      "15other evidence regression cases passed; isolated filesystem case passed548.236ms with required temporary hard-link permissions. Logs work/b15-recorded-source-regression.log and work/b15-recorded-source-filesystem.log."
+    ],
+    "currentHashes": {
+      "platform/evidence/decoders.mjs": "6bf217baaf203ceb90845f1d3aeb6cae413b750868d02546c70fee57360e55bd",
+      "platform/evidence/envelope.mjs": "18262e414c1aae88aef076a4e3118cd11737408c5138796bc34c0b376819c815",
+      "platform/application/recorded-heights.ts": "4477393f1200aad529facbfe572b691091e99f1f68ad7d196bf7fd234cc96857",
+      "platform/transactions/recorded-height-evidence.mjs": "fa814c8ba665a73d58887f02bc7a5b277c172ba2927888673b8046605d865b4e",
+      "platform/transactions/recorded-height-evidence.d.mts": "6c2d6d9420c6dddde41202ee49288e86be1d7b648aa9fe39ac064de97cc32aa8",
+      "platform/transactions/recorded-height-evidence.test.mjs": "29b67a70f5875ded29cabffcfbe461c5d8cde25171cf846746055cc7ecb45e09",
+      "platform/transactions/recorded-height-service.mjs": "5b659780b7f13df2172bb17bcc6134a9d5e28c887a1cb44cc616b417c87880c0",
+      "platform/transactions/recorded-height-service.d.mts": "279c70fa14eb606ddf8878dc6ec0947a34248ecf489a6a1c936b4a880bbefd29"
+    }
+  }
+}

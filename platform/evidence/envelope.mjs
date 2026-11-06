@@ -1,3 +1,4 @@
+import {decode58,encode58} from '../server/base58.mjs';
 import {canonicalJson,utf8} from '../security/canonical.mjs';
 export const MAX_EVIDENCE_BYTES=256*1024;
 export const clone=value=>JSON.parse(canonicalJson(value));
@@ -35,6 +36,13 @@ export function validateSource(value){
  if(s.decoderVersion==='spl-vault-v1')requireEvidence(text(s.policy.expected?.mint),'source-vault-mint');
  if(['synthetic-position-history-v1','synthetic-position-history-v2'].includes(s.decoderVersion))requireEvidence(['wallet','tokenId','farmProgram','swapProgram'].every(k=>text(s.policy[k]))&&time(s.policy.enrolledAtMs),'source-history-identities');
  if(s.decoderVersion==='synthetic-cutoff-facts-v1')requireEvidence(['campaign-registry','ownership','position-inventory','action-completions'].includes(s.policy.kind)&&time(s.policy.fromMs),'source-cutoff-policy');
+ if(['synthetic-transaction-outcome-v1','synthetic-transaction-height-v1'].includes(s.decoderVersion)){
+  requireEvidence(s.mode==='synthetic-fixture'&&s.chainGenesis==='8CBzMMmYAECcNqRdJvjM3N43pPYT1ez9yVdxdbDjwzv8'&&s.maxBytes<=4096
+   &&Object.keys(s.policy).sort().join(',')==='attemptId,intentId,messageHash,owner,planHash'
+   &&['intentId','attemptId'].every(k=>typeof s.policy[k]==='string'&&/^[A-Za-z0-9:_./-]{1,128}$/.test(s.policy[k]))
+   &&digest(s.policy.planHash)&&digest(s.policy.messageHash)&&s.subject.kind==='transaction-attempt'&&s.subject.id===s.policy.attemptId,'source-transaction-outcome-policy');
+  try{requireEvidence(typeof s.policy.owner==='string'&&encode58(decode58(s.policy.owner,32))===s.policy.owner,'source-transaction-outcome-owner');}catch{requireEvidence(false,'source-transaction-outcome-owner');}
+ }
  if(s.decoderVersion==='synthetic-collection-observation-v1')requireEvidence(s.mode==='synthetic-fixture'&&s.maxBytes<=16384&&Object.keys(s.policy).length===2&&['inventoryId','assetId'].every(k=>typeof s.policy[k]==='string'&&/^[A-Za-z0-9._:-]{1,128}$/.test(s.policy[k]))&&s.subject.kind==='collection-asset'&&s.subject.id===s.policy.assetId,'source-collection-observation-policy');
  if(s.decoderVersion==='synthetic-collection-progression-v1')requireEvidence(s.mode==='synthetic-fixture'&&s.maxBytes<=16384&&Object.keys(s.policy).length===2&&['inventoryId','operationId'].every(k=>typeof s.policy[k]==='string'&&/^[A-Za-z0-9._:-]{1,128}$/.test(s.policy[k]))&&s.subject.kind==='collection-operation'&&s.subject.id===s.policy.operationId,'source-collection-progression-policy');
  if(s.decoderVersion==='synthetic-collection-mint-v1')requireEvidence(s.mode==='synthetic-fixture'&&s.maxBytes<=16384&&Object.keys(s.policy).length===2&&['inventoryId','operationId'].every(k=>typeof s.policy[k]==='string'&&/^[A-Za-z0-9._:-]{1,128}$/.test(s.policy[k]))&&s.subject.kind==='collection-operation'&&s.subject.id===s.policy.operationId,'source-collection-mint-policy');

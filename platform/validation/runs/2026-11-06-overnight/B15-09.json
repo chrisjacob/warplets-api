@@ -1,0 +1,94 @@
+{
+  "status": "partial-B15-frozen-recorded-outcome-recovery",
+  "baseCommit": "0ce40d572226c5ab3598892e029ad42ea121dca2",
+  "implementationCommit": null,
+  "installedSchema": {
+    "lastMigration": "066-recorded-transaction-outcomes.sql",
+    "businessTables": 115
+  },
+  "classification": "Synthetic local B04 transcript, genuine guarded acceptance and fresh Node/workerd-D1/R2 restoration; legacy signature authority remains unverified.",
+  "checks": [
+    {
+      "command": "node --test platform/recovery/v2-reconcile-recorded-outcomes.test.mjs platform/transactions/recovery-reads.test.mjs",
+      "passed": 9,
+      "durationMs": 118497.9899,
+      "log": "work/b15-recorded-recovery-node.log",
+      "scope": "Before narrow original-observation timestamp lower-bound addition; unchanged missing-private-object and target-watermark fault paths plus six public-reader regressions."
+    },
+    {
+      "command": "node --test --test-name-pattern='pure legacy|full private restore' platform/recovery/v2-reconcile-recorded-outcomes.test.mjs",
+      "passed": 2,
+      "durationMs": 43463.8216,
+      "log": "work/b15-recorded-recovery-final-node.log",
+      "scope": "Final runtime including original packet observedAt lower bound and explicit negative case."
+    },
+    {
+      "command": "node --test platform/edge/test/recovery-recorded-outcomes.test.mjs",
+      "passed": 1,
+      "durationMs": 87518.8328,
+      "log": "work/b15-recorded-recovery-final-d1.log",
+      "scope": "Final runtime; full normal115-table fresh private restoration, no manual semantic phase jumps/proofs."
+    },
+    {
+      "command": "pnpm --dir platform/edge exec tsc --noEmit",
+      "status": "passed",
+      "log": "work/b15-recorded-recovery-final-types.log"
+    }
+  ],
+  "acceptance": [
+    "One unchanged legacy recorded event plus two genuine guarded confirmed/finalized sidecars; earlier confirmed result verified against original prior state/revision, never against latest finalized state.",
+    "Original plan/packet/signature linkage checked by shared pure bounded history validator; public owner/mode/generation/watermark guards and exact DTO remain unchanged.",
+    "Original immutable B04 source/envelope/decision/private bytes revalidated after head removal, grant revocation and elapsed time; observedMs cannot predate original packet observation.",
+    "Exact command identity, 11-field result, observation JSON and digest, sidecar source/config/byte hashes, event row order and prior-state/revision linkage.",
+    "Wrong prior state/revision, unsafe result flags, changed byte/receipt digest, whitespace-modified observation, excessive/reordered legacy history fail closed.",
+    "Missing private bytes and target-watermark race prevent new proof/readiness; omitted semantic check rolls back, lost proof acknowledgement resumes, final lost acknowledgement replays.",
+    "Original tx_intents/tx_attempts/tx_receipts and sidecar rows including rowid are exactly retained across fresh Node/D1 restore.",
+    "Final readiness requires complete per-intent legacy history proof, every bound outcome proof and terminal count proof; transient lineage retired."
+  ],
+  "bounds": {
+    "attemptsPerIntent": 16,
+    "legacyReceiptsPerIntent": 64,
+    "lineageCheckpointBytes": 24576,
+    "checkpointLimit": 131072,
+    "workingLimit": 1048576,
+    "sqlBatchLimit": 262144,
+    "sidecarObjectsPerStep": 1,
+    "historicalReads": "Complete bounded legacy history once per affected intent; named sidecar/evidence per continuation, no current-head lookup.",
+    "maxNodeSql": 24,
+    "maxNodeBatchBytes": 108021,
+    "maxD1Operations": 24,
+    "maxD1BatchBytes": 108174,
+    "maxD1SerializedWorkingBytes": 362971,
+    "semanticVerifierEstimatedWorkingBytes": 31774,
+    "workingMeasurement": "D1 serialized returned rows plus object bytes plus maximum batch, not measured JS heap; implementation separately guards conservative working estimate."
+  },
+  "metrics": {
+    "nodeSteps": 1021,
+    "d1Steps": 1020,
+    "boundOutcomes": 2,
+    "legacyUnboundEvents": 1
+  },
+  "unchanged": [
+    "No migrations, codec/packing, archive format, financial capabilities or public response fields changed by this slice.",
+    "No new signing, broadcasting, chain simulation, external evidence fetching or signature authority."
+  ],
+  "remaining": "B15 remains partial; this verifies synthetic recorded outcome persistence/recovery, not executable action factories or production chain settlement.",
+  "sourceHashes": {
+    "platform/transactions/recovery-reads.mjs": "f86f1f6b36c31d5856e13f70aeef195b698181456b4adeef50c4bd548d605bd0",
+    "platform/transactions/recovery-reads.d.mts": "2d79429277a42e4a85a17ed2ae5d296ea67630b17ff3ea0ec53c4dd9164c5c37",
+    "platform/recovery/v2-reconcile-recorded-outcomes.mjs": "fde12c5f0633e1dabccf0be4bf4cbd6b92207a1853f440a48798d2ed14e7022f",
+    "platform/recovery/v2-reconcile-recorded-outcomes.test.mjs": "4d6b5c0dcdb6ceb1be05e590875ce60f42f16943c52f93fd9194341066f1deba",
+    "platform/recovery/recorded-outcome.fixtures.mjs": "fab228abb36ab370ff53b171f6012a9e67a119207272225c41c201ff26b3a3e5",
+    "platform/recovery/v2-reconcile.mjs": "4fb3a38c36449b3cb3db67a6e86df3490170b521b544d80d24559d4e54fb1f0f",
+    "platform/edge/test/recovery-recorded-outcomes.test.mjs": "acde5a2a2e6d60b44184351c6beeb493ddcbd3f1d2c83b4b575f9810c6a4832a"
+  },
+  "dependencyHashes": {
+    "platform/storage/066-recorded-transaction-outcomes.sql": "11e67dd6dfcb6c110e8e6fbee5cad75bcb3c3a604050086d06fe7c4829d98580",
+    "platform/storage/recorded-transaction-outcomes.mjs": "ada34cb5e54ce30e423ba7ab2dc67e1aa3233fa9b83bbe088e00eb2e81dff197",
+    "platform/storage/recorded-transaction-outcomes.fixtures.mjs": "1dbdf69886614ad9bf9f839b8ab34469c6610d797ab0079b5108955018ddf129",
+    "platform/transactions/recorded-outcome-service.mjs": "9a671a069f8b9aa97d4a325eeb0688fab7f23aee30c88f6e61fa8bfc610b2142",
+    "platform/transactions/recorded-outcome-evidence.mjs": "be4f372613102f0fcee1092d817191a7dc42bbeb4f77cbe161680089821e7aa2",
+    "platform/recovery/schema.mjs": "a6135af3a2bb2f295df337256ada6f61e1d8fe13bb99cd80539aa0f723404216",
+    "platform/edge/test/fixtures/recovery-v2-restore-worker.ts": "44788d1532811c189bdb3eb31f7ff5aeed80091c8806999f23019ce128cabb05"
+  }
+}

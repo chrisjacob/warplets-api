@@ -4,10 +4,10 @@
   "phase": "executing",
   "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
-  "currentTask": "B13",
-  "lastUpdatedAt": "2026-11-06T17:25:07.242350+00:00",
+  "currentTask": "B15",
+  "lastUpdatedAt": "2026-11-06T17:37:55.227064+00:00",
   "migrationAllocation": {
-    "next": 66,
+    "next": 67,
     "reserved": [
       {
         "version": 31,
@@ -183,6 +183,11 @@
         "version": 65,
         "task": "B15",
         "purpose": "immutable local economic intent/preparation records, guarded receipts and recovery inventory"
+      },
+      {
+        "version": 66,
+        "task": "B15",
+        "purpose": "guarded private synthetic recorded outcome provenance and exact legacy state transitions"
       }
     ],
     "historicalGap": 19
@@ -456,7 +461,7 @@
       "blocker": null
     },
     "B13": {
-      "status": "in_progress",
+      "status": "verified",
       "owner": "coordinator",
       "baseCommit": "1979d9a",
       "implementationCommit": "f870e19",
@@ -472,9 +477,10 @@
         "platform/validation/runs/2026-11-06-overnight/B13-08.json",
         "platform/validation/runs/2026-11-06-overnight/B13-09.json",
         "platform/validation/runs/2026-11-06-overnight/B13-10.json",
-        "platform/validation/runs/2026-11-06-overnight/B13-acceptance.json"
+        "platform/validation/runs/2026-11-06-overnight/B13-acceptance.json",
+        "platform/validation/runs/2026-11-06-overnight/B13-ci-02.json"
       ],
-      "nextAction": "Full test-only CI42256820304 at78c4c68 running; mark verified after success. Previous42250589528 succeeded through local inbox runtime.",
+      "nextAction": null,
       "blocker": null
     },
     "B14": {
@@ -495,7 +501,7 @@
       "status": "in_progress",
       "owner": "snapshot_acceptance",
       "baseCommit": "24d2b4266ead2bab6f1338f5a33013b62557a57e",
-      "implementationCommit": "5cf3f5c",
+      "implementationCommit": "0ce40d5",
       "pushed": true,
       "evidence": [
         "platform/validation/runs/2026-11-06-overnight/B15-01.json",
@@ -504,9 +510,11 @@
         "platform/validation/runs/2026-11-06-overnight/B15-04.json",
         "platform/validation/runs/2026-11-06-overnight/B15-05.json",
         "platform/validation/runs/2026-11-06-overnight/B15-06.json",
-        "platform/validation/runs/2026-11-06-overnight/B15-07.json"
+        "platform/validation/runs/2026-11-06-overnight/B15-07.json",
+        "platform/validation/runs/2026-11-06-overnight/B15-08.json",
+        "platform/validation/runs/2026-11-06-overnight/B15-09.json"
       ],
-      "nextAction": "065 economic persistence and original-evidence Node/D1 restore verified; checkpoint packing preserves old resume and128KiB limit. Next install/test draft066 recorded outcomes, then remaining portable height-expiry and compatible recorded packet preparation. No signing/broadcast or completed-B15 claim.",
+      "nextAction": "066 recorded outcomes and exact historical Node/D1 restoration verified. Next install/test draft067 recorded-height expiry, then compatible recordedunsigned packet preparation/replacement. Never submitted/unknown replacement or signing/broadcast.",
       "blocker": null
     },
     "B16": {

@@ -1,6 +1,6 @@
 {
   "task": "B13",
-  "audit": "Final local acceptance rollup; current-head full CI pending",
+  "audit": "Final local acceptance rollup with full test-only CI pass",
   "observedHead": "f870e19",
   "inputs": [
     "platform/blueprint/tasks/B13.md",
@@ -220,15 +220,13 @@
     "Actual React positive browser is Node plus separately proven mainWorker HTTP/D1; no whole-browser-on-D1 claim.",
     "Published financial commitments remain permanent; no financial flags may change."
   ],
-  "checkpointWork": [
-    "Follow active CI42250589528 to completion, then trigger full test-only checkpoint covering B13-07 through10 and B15 foundations. B13 remains in progress until checkpoint passes."
-  ],
+  "checkpointWork": [],
   "productEdits": false,
   "testsRunForAudit": false,
   "financialExecution": false,
   "externalCalls": 0,
   "localAcceptance": "passed",
-  "fullCi": "pending checkpoint through B13-10",
+  "fullCi": "passed42256820304 at78c4c68",
   "updatedAt": "2026-11-06T16:45:46.811895+00:00",
   "resolvedGaps": [
     {

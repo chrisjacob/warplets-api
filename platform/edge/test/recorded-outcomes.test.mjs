@@ -1,0 +1,28 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {localRuntime} from './local-runtime.mjs';
+import {recordedOutcomeFixture} from '../../storage/recorded-transaction-outcomes.fixtures.mjs';
+test('actual local D1 recorded outcome imports preserve legacy semantics and all atomic provenance effects',async t=>{
+ const node=await recordedOutcomeFixture(t),edge=await localRuntime(t,new URL('./fixtures/recorded-outcome-worker.ts',import.meta.url));
+ for(const [table,rows]of Object.entries(node.initialLegacy))for(const row of rows){const keys=Object.keys(row);await edge.db.prepare('INSERT INTO '+table+' ('+keys.join(',')+') VALUES('+keys.map(()=>'?').join(',')+')').bind(...Object.values(row)).run();}
+ await edge.db.prepare('INSERT INTO app_operator_scopes VALUES(?,?,0,1)').bind(node.principal.id,'evidence-ingest').run();
+ const fixture={source:node.source,records:node.records.map(r=>({...r,bytes:[...r.bytes]}))},log=[];const call=async body=>{const response=await edge.mf.dispatchFetch('http://localhost/test',{method:'POST',body:JSON.stringify({fixture,principal:node.principal,nowMs:node.now,...body})});assert.equal(response.status,200);const value=await response.json();log.push(value.metrics);return value;};
+ const registered=await call({method:'register'});assert.equal(registered.result?.kind,'committed',JSON.stringify(registered));let head=null;
+ const ingest=async recordId=>{const r=await call({method:'ingest',input:{sourceId:node.source.sourceId,sourceRevision:'v1',recordId,requestedCutoffMs:null,supersedes:head}});assert.equal(r.result.kind,'committed',JSON.stringify(r));head=r.result.value.receiptDigest;return head;};
+ const counts=async()=>({...await edge.db.prepare("SELECT (SELECT COUNT(*) FROM app_recorded_transaction_outcomes) bindings,(SELECT COUNT(*) FROM tx_receipts) events,(SELECT COUNT(*) FROM app_command_receipts WHERE operation_kind='transactions.record-outcome.v1') receipts,(SELECT revision FROM tx_intents LIMIT 1) revision,(SELECT state FROM tx_intents LIMIT 1) state").first()});
+ let digest=await ingest('legacy');assert.equal(digest,await node.ingest('legacy'));const old=await counts(),legacyRequest=node.request(digest),legacy=await call({method:'record',input:legacyRequest});assert.equal(legacy.result.kind,'legacy-replayed');assert.deepEqual(await counts(),old);
+ digest=await ingest('confirmed');const input=node.request(digest);
+ for(const fault of ['omit-event','omit-binding','omit-intent','omit-attempt','alter-digest','clock','scope','head']){const r=await call({method:'record',input,fault});if(['clock','scope','head'].includes(fault))assert.equal(r.result.kind,'conflict');else assert.ok(r.error,JSON.stringify(r));assert.equal(r.faultInjected,1);assert.deepEqual(await counts(),old);
+  if(fault==='scope')await edge.db.prepare('UPDATE app_operator_scopes SET enabled=1 WHERE operator=?').bind(node.principal.id).run();
+  if(fault==='head')await edge.db.prepare('INSERT INTO app_evidence_heads(stream_key,receipt_digest) VALUES(?,?)').bind(JSON.stringify([node.source.sourceId,node.source.subject.kind,node.source.subject.id,null]),digest).run();
+ }
+ const bucket=await edge.mf.getR2Bucket('MANIFESTS'),objectKey=await edge.db.prepare('SELECT object_key FROM app_evidence_receipts WHERE receipt_digest=?').bind(digest).first('object_key'),saved=await (await bucket.get(objectKey)).arrayBuffer();await bucket.delete(objectKey);assert.equal((await call({method:'record',input})).result.reason,'outcome-evidence-unavailable');assert.deepEqual(await counts(),old);await bucket.put(objectKey,saved,{httpMetadata:{contentType:'application/json'}});
+ const nodeDigest=await node.ingest('confirmed');assert.equal(digest,nodeDigest);const a=await node.service.record(node.principal,node.request(digest)),b=await call({method:'record',input,fault:'lose'});assert.equal(b.result.kind,'replayed',JSON.stringify(b));assert.deepEqual(b.result.value,a.value);
+ assert.equal(await edge.db.prepare("SELECT observation FROM tx_receipts WHERE event_id='confirmed-event'").first('observation'),node.db.prepare("SELECT observation FROM tx_receipts WHERE event_id='confirmed-event'").get().observation);
+ const changed=await call({method:'record',input:{...input,expectedIntentRevision:999}});assert.equal(changed.result.code,'idempotency_conflict');
+ await assert.rejects(edge.db.prepare("UPDATE tx_attempts SET signature='changed'").run());await assert.rejects(edge.db.prepare("UPDATE tx_intents SET state='unknown',revision=revision+1").run());
+ const finalDigest=await ingest('finalized'),finalRequest={...input,evidenceReceiptDigest:finalDigest,expectedIntentRevision:a.value.revision,requestKey:'final'};
+ const races=await Promise.all([call({method:'record',input:finalRequest}),call({method:'record',input:finalRequest})]);assert.deepEqual(races.map(r=>r.result.kind).sort(),['committed','replayed']);
+ await edge.db.prepare('UPDATE app_operator_scopes SET enabled=0 WHERE operator=?').bind(node.principal.id).run();const beforeReplay=await counts(),replayed=await call({method:'record',input,nowMs:node.now+9999999});assert.equal(replayed.result.kind,'replayed');assert.deepEqual(replayed.result.value,a.value);assert.deepEqual(await counts(),beforeReplay);assert.equal(await edge.db.prepare('SELECT COUNT(*) n FROM tx_attempts').first('n'),1);
+ const metrics={calls:log.length,sqlStatements:Math.max(...log.map(x=>x.sqlStatements)),batchBytes:Math.max(...log.map(x=>x.maxBatchBytes)),parameters:Math.max(...log.map(x=>x.maxParameters)),objectReads:Math.max(...log.map(x=>x.objectReads))};assert.ok(metrics.sqlStatements<=30);assert.ok(metrics.batchBytes<=262144);assert.ok(metrics.parameters<=100);t.diagnostic(JSON.stringify(metrics));
+});
