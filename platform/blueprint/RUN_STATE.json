@@ -5,9 +5,9 @@
   "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
   "currentTask": "B11",
-  "lastUpdatedAt": "2026-11-06T00:10:14.624354+00:00",
+  "lastUpdatedAt": "2026-11-06T00:22:17.988497+00:00",
   "migrationAllocation": {
-    "next": 37,
+    "next": 39,
     "reserved": [
       {
         "version": 31,
@@ -38,6 +38,16 @@
         "version": 36,
         "task": "B11",
         "purpose": "frozen advisory governance identities, source revisions and guarded wallet vote effects"
+      },
+      {
+        "version": 37,
+        "task": "B11",
+        "purpose": "immutable owner-bound local progression quote issuance and collection header revision fences"
+      },
+      {
+        "version": 38,
+        "task": "B11",
+        "purpose": "private immutable eligibility-page SQL index for bounded authoritative publication"
       }
     ],
     "historicalGap": 19
@@ -200,13 +210,15 @@
       "status": "in_progress",
       "owner": "coordinator",
       "baseCommit": "96cdfa1fb6334fcb27deb831d786243227b9d1a8",
-      "implementationCommit": "3cfdf5488dd4dfaabdb9509deffb41162443f081",
+      "implementationCommit": "f76f7410a0a802334edd18341b9b0f09cc814228",
       "pushed": false,
       "evidence": [
         "platform/validation/runs/2026-11-06-overnight/B11-1.json",
-        "platform/validation/runs/2026-11-06-overnight/B11-2-intake.json"
+        "platform/validation/runs/2026-11-06-overnight/B11-2-intake.json",
+        "platform/validation/runs/2026-11-06-overnight/B11-3-context.json",
+        "platform/validation/runs/2026-11-06-overnight/B11-4-governance.json"
       ],
-      "nextAction": "B11.3: install036 frozen governance/guarded vote predicates, integrate and verify shared Node/Worker ballot reads/votes; parallel bounded fresh asset context prepares stored progression quotes/reservation. Source intake is private closure only; B11 remains partial.",
+      "nextAction": "B11.5: install037 immutable stored progression quotes and verify Node/D1 issuance/replay/expiry/source fences; parallel038 private eligibility-page index prepares bounded atomic electorate/stage publication. B11 collection reservation, observation/Vault commits and guarded founder/publication remain unfinished.",
       "blocker": null
     },
     "B12": {

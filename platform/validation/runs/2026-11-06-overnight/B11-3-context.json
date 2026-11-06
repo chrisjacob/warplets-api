@@ -4,7 +4,7 @@
   "status": "verified-local-substep",
   "classification": "Bounded current participant reads for future stored progression quotes; no quote issuance or reservation authority/public route",
   "lastTestedBaseCommit": "2e5f68cd2c5fc77f30570753049adeca4c7a56f6",
-  "implementationCommit": null,
+  "implementationCommit": "f76f7410a0a802334edd18341b9b0f09cc814228",
   "commands": [
     {
       "command": "node --test platform/storage/collection-context.test.mjs",

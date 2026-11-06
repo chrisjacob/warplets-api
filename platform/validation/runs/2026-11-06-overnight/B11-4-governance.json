@@ -3,7 +3,7 @@
   "slice": "B11.4 guarded advisory vote and portable public reads",
   "status": "verified-local-substep",
   "baseCommit": "2e5f68c",
-  "implementationCommit": null,
+  "implementationCommit": "f76f7410a0a802334edd18341b9b0f09cc814228",
   "recordedAt": "2026-11-06T00:20:19.932Z",
   "sourceHashes": {
     "platform/application/governance-service.mjs": "9169809261c295eefd01d9188122b769a44ffa0d4e64e254b2a681a0126e788d",
