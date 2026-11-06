@@ -1,0 +1,139 @@
+{
+  "task": "B11",
+  "status": "verified-local",
+  "completionReview": [
+    {
+      "id": "quotes-reservations",
+      "requirement": "Immutable quotes, paired locks, accepted replay, races and stale/expired input",
+      "focusedEvidence": [
+        "platform/validation/runs/2026-11-06-overnight/B11-5-quotes.json",
+        "platform/validation/runs/2026-11-06-overnight/B11-8-reservations.json"
+      ],
+      "status": "verified-local"
+    },
+    {
+      "id": "stages-admission",
+      "requirement": "Published stages, shared inventory capacity, last-slot and mint admission",
+      "focusedEvidence": [
+        "platform/validation/runs/2026-11-06-overnight/B11-13-stages.json",
+        "platform/validation/runs/2026-11-06-overnight/B11-15-mint-admission.json"
+      ],
+      "status": "verified-local"
+    },
+    {
+      "id": "fulfillment-history",
+      "requirement": "Atomic mint/progression/Vault/Level history and observed external-transfer holds",
+      "focusedEvidence": [
+        "platform/validation/runs/2026-11-06-overnight/B11-10-observations.json",
+        "platform/validation/runs/2026-11-06-overnight/B11-12-fulfillment.json",
+        "platform/validation/runs/2026-11-06-overnight/B11-17-mint-fulfillment.json"
+      ],
+      "status": "verified-local"
+    },
+    {
+      "id": "free-phase",
+      "requirement": "Fixed opensAt cutoff, complete eligibility, deduplication and recovery",
+      "focusedEvidence": [
+        "platform/validation/runs/2026-11-06-overnight/B11-18-free-cut.json",
+        "platform/validation/runs/2026-11-06-overnight/B11-21-free-mint.json",
+        "platform/validation/runs/2026-11-06-overnight/B11-22-free-cut-recovery.json"
+      ],
+      "status": "verified-local"
+    },
+    {
+      "id": "governance",
+      "requirement": "Frozen electorate union, one wallet once,48h/four choices,zero turnout,notice and unsold holds",
+      "focusedEvidence": [
+        "platform/validation/runs/2026-11-06-overnight/B11-4-governance.json",
+        "platform/validation/runs/2026-11-06-overnight/B11-7-governance-publication.json"
+      ],
+      "status": "verified-local"
+    },
+    {
+      "id": "transport",
+      "requirement": "Production local Node/Worker member routes, concealment, browser replay and disabled financial capabilities",
+      "focusedEvidence": [
+        "platform/validation/runs/2026-11-06-overnight/B11-9-http.json",
+        "platform/validation/runs/2026-11-06-overnight/B11-9-browser.json",
+        "platform/validation/runs/2026-11-06-overnight/B11-11-reads.json",
+        "platform/validation/runs/2026-11-06-overnight/B11-23-member-mint.json"
+      ],
+      "status": "verified-local"
+    },
+    {
+      "id": "legacy-adoption",
+      "requirement": "Genuine audits, retained originals, atomic activation and mixed historic/modern authority",
+      "focusedEvidence": [
+        "platform/validation/runs/2026-11-06-overnight/B11-52-adoption-activation.json",
+        "platform/validation/runs/2026-11-06-overnight/B11-53-imported-lifecycle.json",
+        "platform/validation/runs/2026-11-06-overnight/B11-56-final-activation-capacity.json"
+      ],
+      "status": "verified-local"
+    },
+    {
+      "id": "retained-recovery",
+      "requirement": "Independent original mint,economics,current graph,object closure and aggregate proof checks",
+      "focusedEvidence": [
+        "platform/validation/runs/2026-11-06-overnight/B11-57-original-mint-recovery.json",
+        "platform/validation/runs/2026-11-06-overnight/B11-62-economic-recovery.json",
+        "platform/validation/runs/2026-11-06-overnight/B11-63-retained-objects.json",
+        "platform/validation/runs/2026-11-06-overnight/B11-64-imported-authority-recovery.json",
+        "platform/validation/runs/2026-11-06-overnight/B11-65-adoption-recovery-pipeline.json",
+        "platform/validation/runs/2026-11-06-overnight/B11-66-precut-observation-recovery.json",
+        "platform/validation/runs/2026-11-06-overnight/B11-68-precut-current-integration.json",
+        "platform/validation/runs/2026-11-06-overnight/B11-69-stage-page.json"
+      ],
+      "status": "verified-local"
+    }
+  ],
+  "pending": [],
+  "scopeLimits": [
+    "Legacy adoption rejects unsupported missing original authority, ambiguous/interleaved history, preexisting completed progression and claims; no acceptance bypass.",
+    "Node32stage1000mint capacity evidence is not a full D1 capacity claim.",
+    "All capabilities remain local/fixture,financial executionfalse."
+  ],
+  "releaseWorkAuthorized": false,
+  "verifiedAt": "2026-11-06T13:00:35.564455+00:00",
+  "implementationCommit": "b9efc0c8c97896a286c5f78ac4bf03e3a52727be",
+  "finalChecks": [
+    {
+      "command": "node platform/scripts/test-reference.mjs",
+      "tests": 850,
+      "passed": 849,
+      "failed": 1,
+      "durationMs": 1784454.922,
+      "resolution": "Only obsolete memory lower-bound assertion failed; corrected direct policy/part coverage test passes. No product-code change; seeB11-71-reference-regression.json.",
+      "log": "work/b11-69-reference-full.log"
+    },
+    {
+      "command": "node --test --test-name-pattern=\"whole durable wrapper\" platform/collect/legacy-economic-repository.test.mjs",
+      "passed": 1,
+      "failed": 0,
+      "log": "work/b11-71-policy-measurement-final.log"
+    },
+    {
+      "command": "node --test --test-concurrency=2 platform/edge/test/*.test.mjs",
+      "tests": 140,
+      "passed": 140,
+      "failed": 0,
+      "durationMs": 3645430.4265,
+      "log": "work/b11-final-edge-full.log",
+      "manifest": "work/b11-final-edge-manifest.json",
+      "manifestSha256": "5f24c0f189e2c3e906df404ce0fc70b26c98c5e850fcb6a03491965e8fbab205",
+      "scope": "All Edge tests discovered at026d28c; no product/Edge-test source changed during execution. Later Node-only test assertion and CI timeout changes do not change this execution."
+    }
+  ],
+  "additionalAcceptance": [
+    "platform/validation/runs/2026-11-06-overnight/B11-67-full-recovery.json",
+    "platform/validation/runs/2026-11-06-overnight/B11-70-ready-business-replay.json"
+  ],
+  "ci": {
+    "run": 42221767194,
+    "head": "b9efc0c8c97896a286c5f78ac4bf03e3a52727be",
+    "status": "in_progress",
+    "notClaimedPassed": true,
+    "priorRun": 42216368281,
+    "priorOutcome": "40minute timeout; same checks rerun with120minute allowance",
+    "followup": "Coordinator follows frozen B11 CI while starting locally dependency-ready B12. Any failure is work to resolve, not a waived gate."
+  }
+}

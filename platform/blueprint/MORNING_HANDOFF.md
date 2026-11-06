@@ -1,3 +1,11 @@
+# Current override: B11 local acceptance complete, B12 active
+
+B11 local verification complete:140/140 full Edge tests PASS3645430.4265ms, reference850 had849pass+one obsolete memoryfloor assertion resolved by targeted direct600611Bpolicy/partcoverage test. No product failure remains. B11 rollup platform/validation/runs/2026-11-06-overnight/B11.json. RUN_STATE marks verified-local via verified status; CI is explicitly NOT claimed passed.
+
+Pushed b9efc0c; frozen integrated CI42221767194 running after prior9f87eff run timedout40min. Only CI allowance changed to120min; allchecks/pins unchanged. Follow CI inparallel with B12,resolveanyfailure. LocalEdge48594finished. B12 nowdependency-ready/current: firstslice typed volatile local operator session/allowed commands and audited staffing/pause; work/B12-boundary-plan.txt. No schema change needed for firstslice. Keepagentsidle unlessdistinctboundedwork useful; userrequests token efficiency.
+
+Earlier handoff detail follows; this override supersedes old pending-gate/current-task wording.
+
 # Current execution checkpoint
 
 Continue authorized B tasks without milestone stops. User resumed after usage interruption and requests token efficiency: small task context, compact output, reuse evidence, no duplicate reviews or unnecessary reruns. Two agents available but currently idle; use only for distinct useful work. Stale goal usageLimited is not a new user stop request.
