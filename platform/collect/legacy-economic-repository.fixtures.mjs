@@ -11,13 +11,13 @@ import {createEligibilityIndexService} from './eligibility-index-service.mjs';
 import {createEligibilityIndexRepository} from './eligibility-index-repository.mjs';
 import {createNodeRecoveryDigest} from '../recovery/v2-node-digest.mjs';
 export const economicPrincipal={kind:'operator',id:'synthetic-stage-source'};
-export async function economicFixture(t,{profile='mixed',count=3,prepareParent=true,inventoryId,db,seasonStart,openAtActivation=false,paidWalletLimit=1000,settleAll=false}={}){
+export async function economicFixture(t,{profile='mixed',count=3,prepareParent=true,inventoryId,db,seasonStart,openAtActivation=false,paidWalletLimit=1000,settleAll=false,stageCount=1}={}){
  const s=stageSourceScene(t,{inventoryId,db,seasonStart,kind:['founder','public','unadmitted'].includes(profile)?'genesis':'season'}),originalMints=new Map();
  if(profile==='founder'){s.publish(s.stage('founder','founder',{allocation:3,approvedSpendLamports:'10000',wallets:[legacyAdmissionWallet(1),legacyAdmissionWallet(2)]}));s.admit('founder');s.admit('founder',legacyAdmissionWallet(2));}
  else if(profile==='public'){s.publish(s.stage('whitelist'));s.publish(s.stage('public','public'));s.admit('public',legacyAdmissionWallet(99));}
  else if(profile==='unadmitted'){s.publish(s.stage('whitelist'));s.publish(s.stage('public','public'));}
  else if(profile==='free'){s.publish(s.stage('paid1','whitelist',{opensAt:START,closesAt:START+DAY}));s.publish(s.stage('paid2','whitelist',{opensAt:START+DAY,closesAt:START+2*DAY}));s.publish(s.stage('free','free'));s.cut('free');s.admit('free');}
- else if(profile!=='empty'){s.publish(s.stage('paid','whitelist',{walletLimit:paidWalletLimit,...(openAtActivation?{closesAt:START+40*DAY}:{})}));for(let n=0;n<count;n++){const op=s.admit('paid').operation;if(profile==='mixed'&&n===0)originalMints.set(op.id,s.settle(op.id));}}
+ else if(profile!=='empty'){s.publish(s.stage('paid','whitelist',{walletLimit:paidWalletLimit,...(openAtActivation?{closesAt:START+40*DAY}:{})}));assert.ok(Number.isInteger(stageCount)&&stageCount>=1&&stageCount<=32);for(let n=1;n<stageCount;n++)s.publish(s.stage('paid-'+n));for(let n=0;n<count;n++){const op=s.admit('paid').operation;if(profile==='mixed'&&n===0)originalMints.set(op.id,s.settle(op.id));}}
  if(settleAll)for(const op of s.db.prepare("SELECT o.id FROM collect_inventories c,json_each(c.state,'$.admissions') a JOIN collect_operations o ON o.id=json_extract(a.value,'$.operationId') WHERE c.id=? AND o.kind='mint' AND o.settled_ms IS NULL ORDER BY CAST(a.key AS INTEGER)").all(s.inventoryId))originalMints.set(op.id,s.settle(op.id));
  const f=await retainStageSources(s),mintSelections=new Map();for(const [operationId,fixture] of originalMints)mintSelections.set(operationId,{kind:'manual',fixture:await f.retain(fixture)});
  return wrapEconomicFixture(f,{mintSelections,stageOriginals:f.state.stages.map(stage=>f.identities.get(stage.id)),prepareParent});

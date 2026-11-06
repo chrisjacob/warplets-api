@@ -55,3 +55,13 @@ test('nine genuine original admissions cross the bounded mint-proof page and res
  assert.equal(target.checkpoint().phase,'reconcile-legacy-adoptions');assert.equal(target.db.prepare("SELECT item_count FROM app_recovery_reconcile_checks WHERE phase='legacy-adoption-complete'").get().item_count,9);
  assert.ok(metrics.every(m=>m.operationAllowance<=64&&m.workingBytes<=1048576&&m.maxBatchBytes<=262144));t.diagnostic(JSON.stringify({genuineOriginalMints:9,mintPageSize:8,maxWorkingBytes:Math.max(...metrics.map(m=>m.workingBytes)),maxOperations:Math.max(...metrics.map(m=>m.operationAllowance))}));
 });
+
+test('all32 genuine imported stage proofs fit the distinct stage page before adoption completion',async t=>{
+ const f=await recoveryLegacyAdoptionSource(t,{count:0,stageCount:32}),target=v2RestoreTarget(t,{...f.ports,store:f.artifacts,captured:f.captured,now:f.now});
+ const reached=await target.drive({stopPhase:'reconcile-legacy-adoption-aggregate'});assert.equal(reached.phase,'reconcile-legacy-adoption-aggregate',JSON.stringify(reached));assert.equal(target.checkpoint().legacyAdoption.stageIndex,32);
+ const repository=createRecoveryV2RestoreDatabase({driver:target.driver,clock:{nowMs:()=>f.now},ids:{next:randomUUID}}),metrics=[],helper=createRecoveryV2LegacyAggregateReconciler({driver:target.driver,crypto:f.crypto,repository,onMeasure:m=>metrics.push(m)});
+ const step=async()=>helper.step(await repository.load(f.captured.digest));let result=await step();assert.equal(result.kind,'progress',JSON.stringify(result));assert.equal(target.checkpoint().legacyAdoption.aggregate.family,1);
+ for(let n=0;n<5;n++){result=await step();assert.equal(result.kind,'progress',JSON.stringify(result));}
+ assert.equal(target.checkpoint().phase,'reconcile-legacy-adoptions');assert.equal(target.db.prepare("SELECT COUNT(*) n FROM app_recovery_reconcile_checks WHERE phase='legacy-adoption' AND scope LIKE 'stage:%'").get().n,32);assert.equal(target.db.prepare("SELECT COUNT(*) n FROM app_recovery_reconcile_checks WHERE phase='legacy-adoption-complete'").get().n,1);
+ assert.ok(metrics.every(m=>m.operationAllowance<=64&&m.workingBytes<=1048576));t.diagnostic(JSON.stringify({genuineStages:32,stagePageSize:32,maxOperations:Math.max(...metrics.map(m=>m.operationAllowance)),maxWorkingBytes:Math.max(...metrics.map(m=>m.workingBytes))}));
+});

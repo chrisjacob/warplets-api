@@ -1,0 +1,42 @@
+{
+  "checkpoint": "B11-69-stage-page",
+  "status": "verified",
+  "problem": "Mint page narrowing accidentally also changed stage SQL limit to8 while expecting32; valid9-32stage adoption held.",
+  "fix": "Restore only stage SELECT limit32; mint anchor projection remains8. Optional fixture stageCount defaults1.",
+  "review": "Independent completed-boundary review found this defect and no additional actionable findings.",
+  "checks": [
+    {
+      "command": "node --test --test-name-pattern=\"all32 genuine\" platform/recovery/v2-reconcile-legacy-aggregate.test.mjs",
+      "log": "work/b11-69-stage-page-repro.log",
+      "passed": 0,
+      "failed": 1,
+      "durationMs": 73726.3844,
+      "scope": "before correction, genuine32stages reaches aggregate and reproduces legacy-aggregate-proof-coverage"
+    },
+    {
+      "command": "node --test --test-name-pattern=\"all32 genuine\" platform/recovery/v2-reconcile-legacy-aggregate.test.mjs",
+      "log": "work/b11-69-stage-page-final.log",
+      "passed": 1,
+      "failed": 0,
+      "durationMs": 123870.6305,
+      "scope": "corrected final source, genuine32stage proofs complete normal upstream phases and final aggregate"
+    }
+  ],
+  "measurements": {
+    "stagePage": 32,
+    "mintPage": 8,
+    "maxOperationsIncludingReserve": 18,
+    "maxWorkingBytes": 409010
+  },
+  "broadRegression": {
+    "status": "running",
+    "session": 43304,
+    "log": "work/b11-69-reference-full.log",
+    "manifest": "work/b11-69-reference-manifest.json"
+  },
+  "sourceHashes": {
+    "platform/recovery/v2-reconcile-legacy-aggregate.mjs": "d54ac0fcf7e9b47b06b12ce0439b09864fb826e90b5388d0c02103924eb07f7d",
+    "platform/recovery/v2-reconcile-legacy-aggregate.test.mjs": "716e64d82fb46a1499fdfa78b9b1e2d5e5dab3d1b47e05a16d27567cd50c28b9",
+    "platform/collect/legacy-economic-repository.fixtures.mjs": "bdc3d115f0b4369c100b9f3c6c770895e9435497db003e56efaa4845f3ba0714"
+  }
+}
