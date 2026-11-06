@@ -5,7 +5,7 @@
   "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
   "currentTask": "B11",
-  "lastUpdatedAt": "2026-11-06T06:03:32.649180+00:00",
+  "lastUpdatedAt": "2026-11-06T06:22:38.420129+00:00",
   "migrationAllocation": {
     "next": 52,
     "reserved": [
@@ -275,7 +275,7 @@
       "status": "in_progress",
       "owner": "coordinator",
       "baseCommit": "96cdfa1fb6334fcb27deb831d786243227b9d1a8",
-      "implementationCommit": "4d61f69",
+      "implementationCommit": "2478729cea675ff581c731c09325cb8405b750a0",
       "pushed": false,
       "evidence": [
         "platform/validation/runs/2026-11-06-overnight/B11-1.json",
@@ -311,9 +311,10 @@
         "platform/validation/runs/2026-11-06-overnight/B11-31-legacy-admission-audit.json",
         "platform/validation/runs/2026-11-06-overnight/B11-34-relation-working-bound.json",
         "platform/validation/runs/2026-11-06-overnight/B11-32-legacy-control-audit.json",
-        "platform/validation/runs/2026-11-06-overnight/B11-33-legacy-admission-source.json"
+        "platform/validation/runs/2026-11-06-overnight/B11-33-legacy-admission-source.json",
+        "platform/validation/runs/2026-11-06-overnight/B11-35-durable-source-relation.json"
       ],
-      "nextAction": "Stage25 10f5395 pushed after hash24CI42170371867success; identify/follow25CI then remainingqueuedcommits individually.33verified7Node+1D1;35durablerelationactive051uncommitted; parent29lineage/export10Nodepass14636ms.36legacyfreecutpreimageplanning. Noadoption.",
+      "nextAction": "B11 partial. Integrate35 durable relation;36 free-cut preimage and37 stage source in progress; next38 original mint source mapping. Remote fedef2d CI42173915192 running; prior10f5395 CI42171952039 passed. Sequential tested push queue:47454e1,c92aa90,cce2be6,ebf5b57,7280331,85b83f2,4d61f69,2478729,then35. No adoption authority yet.",
       "blocker": null
     },
     "B12": {

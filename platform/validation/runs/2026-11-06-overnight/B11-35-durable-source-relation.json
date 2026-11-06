@@ -1,0 +1,129 @@
+{
+  "task": "B11",
+  "slice": "B11.35 durable private source relation",
+  "status": "verified-private-relation-preparation; B11 remains partial",
+  "baseCommit": "2478729cea675ff581c731c09325cb8405b750a0",
+  "implementationCommit": null,
+  "recordedAt": "2026-11-06T06:19:31.479Z",
+  "sourceHashes": {
+    "platform/collect/legacy-relation-repository.mjs": "473678a5dfbf3d6653a09e9650abcea30d36677a8701505146aa44f93ef382c0",
+    "platform/collect/legacy-relation-repository.d.mts": "3f0118dfefb07328009f5299bf9e2c4e001636ce01d9cc92af8f5c77a9b7c54a",
+    "platform/collect/legacy-relation-repository.fixtures.mjs": "d88412850f048e14d95fcf973749595ce5c0fd35b19f4f8a9f67e5b882f87dcd",
+    "platform/collect/legacy-relation-repository.test.mjs": "dfa38d22c4cf8a7c039759bef6aceeac5c2e734dae7c2f55a85d5be30ec33007",
+    "platform/collect/legacy-relation-repository.README.md": "9a4c76f370150a13b468136e053332a575a85b2985824f9ab0aad31ab1df9536",
+    "platform/edge/test/legacy-relation-repository.test.mjs": "e86d0e3912df9399ed124702390e2c00a5d038ee4247004db925d5fd46d2d58b",
+    "platform/edge/test/fixtures/legacy-relation-repository-worker.ts": "279d0c45d17951706b3ecf33ebe966c049427c22602e835be4924307559a2597",
+    "platform/storage/051-legacy-relation-continuations.sql": "99624e2faf86e1bf46f75bdbfbac3ee9c2b9005356276bdb5362981e3129b95d",
+    "platform/recovery/schema.mjs": "f298d91b2cd73d9f2aaaf14b1a4173c9334b84b272078b4febb456b30aca13af",
+    "platform/collect/legacy-audit-repository.mjs": "666ffe0fa273584d486cee8ba03eb27443c3a228ad7b48bdf297fcdbd644cd37",
+    "platform/collect/legacy-audit-repository.d.mts": "06de8a639b531e1b081aa61349bafca3931ec7d76e204e4719aac586bea9b2c1",
+    "platform/collect/legacy-audit-repository.test.mjs": "265a3afd722423828eb6c4302922a397b9fc948a219c90849d8c3bded5bea284",
+    "platform/edge/test/fixtures/legacy-audit-repository-worker.ts": "dc2ff8d933bd23974654e23fa15b4e348b32468e7eee638a8f781981fbfe6a0f",
+    "platform/edge/test/legacy-audit-repository.test.mjs": "790111555607a73a74173f0d038f13414f58fd1d2ee80d42106f05e90ca05ac9"
+  },
+  "sharedDependencies": {
+    "platform/collect/legacy-audit-repository.mjs": "666ffe0fa273584d486cee8ba03eb27443c3a228ad7b48bdf297fcdbd644cd37",
+    "platform/collect/legacy-audit-repository.d.mts": "06de8a639b531e1b081aa61349bafca3931ec7d76e204e4719aac586bea9b2c1",
+    "platform/collect/source-seal-guard.mjs": "ca3ee3ceab6a201fecc552d3afedccfd9d00eba20fc3a46a1a162a3bf70d0091",
+    "platform/collect/legacy-source-relation.mjs": "1b4d574739b0c3a7cc9ec0654ed1aec3dd3b56abf23cc726be632dd8a0538517",
+    "platform/storage/051-legacy-relation-continuations.sql": "99624e2faf86e1bf46f75bdbfbac3ee9c2b9005356276bdb5362981e3129b95d",
+    "platform/recovery/schema.mjs": "f298d91b2cd73d9f2aaaf14b1a4173c9334b84b272078b4febb456b30aca13af"
+  },
+  "sharedDependencyNote": "Coordinator owns051, parent export/lineage/start race fixes and recovery control registration; hashes identify composition dependencies, not agent ownership.",
+  "checks": [
+    {
+      "command": "node --test platform/collect/legacy-relation-repository.test.mjs",
+      "result": "PASS",
+      "tests": 9,
+      "durationMs": 39295.3403,
+      "log": "work/b11-35-relation-node.log"
+    },
+    {
+      "command": "node --test platform/edge/test/legacy-relation-repository.test.mjs",
+      "result": "PASS",
+      "tests": 5,
+      "durationMs": 149435.3199,
+      "log": "work/b11-35-relation-edge.log",
+      "note": "Two top-level cases, including three explicit scope/source/schema subtests; no tests skipped."
+    },
+    {
+      "command": "node platform/edge/node_modules/typescript/bin/tsc --noEmit -p platform/edge",
+      "result": "PASS",
+      "log": "work/b11-35-relation-types.log"
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS"
+    },
+    {
+      "command": "node --test platform/collect/legacy-audit-repository.test.mjs",
+      "result": "PASS",
+      "tests": 11,
+      "durationMs": 15906.1527,
+      "log": "work/b11-parent-audit-final-node.log"
+    },
+    {
+      "command": "node --test platform/edge/test/legacy-audit-repository.test.mjs",
+      "result": "PASS",
+      "tests": 1,
+      "durationMs": 33004.4261,
+      "log": "work/b11-parent-audit-final-d1.log"
+    },
+    {
+      "command": "node --test platform/recovery/v2-watermark.test.mjs platform/recovery/v2-planning.test.mjs",
+      "result": "PASS",
+      "tests": 4,
+      "durationMs": 188.4613,
+      "log": "work/b11-35-recovery.log"
+    }
+  ],
+  "nodePhases": {
+    "classification": "synthetic32 maximal scalar stages/1000 maximal admissions/one10k list; full32x10k puregraph retained in34, not a full durable maximum claim",
+    "calls": 180,
+    "maxSql": 9,
+    "maxBatchBytes": 5669,
+    "maxWorkingBytes": 759869,
+    "maxCoreWorkingBytes": 738760,
+    "maxControlBytes": 1990,
+    "elapsedMs": 26639.0996
+  },
+  "d1": {
+    "schema": "051",
+    "steps": 81,
+    "calls": 92,
+    "maxSql": 9,
+    "maxBatchBytes": 5662,
+    "maxReturnedBytes": 91280,
+    "maxWorkingBytes": 759860,
+    "elapsedMs": 72103.7199,
+    "classification": "synthetic32 maximal scalar stages/1000 admissions/101-member list; real pinned parent and actual SQL; no adoption"
+  },
+  "acceptance": [
+    "Genuine parent raw/canonical workflow required; same owner/currentscope and committed035 source-seal receipt lineage.",
+    "Caller cannot supply prefix, root or digests; one child perparent; wrongowner, absent/notreadyparent and changedidentity rejected.",
+    "Normal and identical-generated-nonce start/step races have one writer; progress classification requires positivechanges plus retainednonce.",
+    "Lost start/prefix/final acknowledgements reconcile retained state; omittedwrite and reusedcurrentnonce do not advance; zerochanges with durableeffect returnsreplayed.",
+    "Forged loaded prefix fails exact SQL CAS even with recomputed pure checkpoint hash.",
+    "Source/scope/schema mutations between compute andwrite hold on Node andactualD1; replacementgeneration invalidates existingready results.",
+    "SQL final guards reject NULL/missingresult, wrongroot/declaration/counts, nonhexrelationdigest and premature verificationflags.",
+    "Control writes do not changebusiness watermark; both parent/child controls excludedfromrecovery export.",
+    "Full wrapper including controlcopies, SQLrequest andreadback fits1MiB with unmodified runtimebounds."
+  ],
+  "scope": {
+    "privateOnly": true,
+    "sourceRelation": true,
+    "rawAndCanonicalFromParent": true,
+    "economicsVerified": false,
+    "adoptionAuthorized": false,
+    "financialExecution": false,
+    "publicRoutes": false,
+    "remoteActions": false
+  },
+  "remaining": [
+    "Historical/economic/provenance audits and active legacy adoption remain separate unfinished B11 work.",
+    "Full32x10000 membership graph remains B11-34 pure comparison evidence; B11-35 measures maximal wrapper phases, not a full maximum durable walk.",
+    "ActualD1 tests use maximal scalar/admission roots with101-memberlist and real pinned hash parent; no32MiB D1 singlevalue claim.",
+    "Frozen source/generation/schema changes require a fresh parent and relation workflow; excludedcontrol rows are not restore authority."
+  ],
+  "integration": "Coordinator includes051 excluded control registration and parent committed-source lineage/start classification. Parent INSERT SELECT is equivalent to prior CTE form but exposes positive write changes on both drivers; start success requires positive changes and matching retained nonce."
+}
