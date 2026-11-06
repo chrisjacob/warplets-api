@@ -1,0 +1,24 @@
+{
+  "taskId": "B16",
+  "status": "verified",
+  "runId": 42299274676,
+  "url": "https://github.com/chrisjacob/warplets-api/actions/runs/42299274676",
+  "headSha": "751e37af8a3cc4f106f14c4f27c217911ebb8a9d",
+  "conclusion": "success",
+  "counts": {
+    "reference": 1132,
+    "viewer": 30,
+    "beacon": 3,
+    "edge": 162,
+    "total": 1327,
+    "failed": 0
+  },
+  "checks": [
+    "reference and recovery",
+    "viewer tests and build",
+    "offline beacon",
+    "Workers/D1/R2",
+    "types/contracts"
+  ],
+  "scope": "supported local diagnostic readiness; no financial execution or provider evidence upgrade"
+}

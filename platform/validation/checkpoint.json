@@ -1,5 +1,5 @@
 {
   "policy": "prd-1.2",
   "scope": "local",
-  "checkpoint": "blueprint-b16-source-bound-readiness-selected-requirements"
+  "checkpoint": "blueprint-b17-fairness-refresh-owner-recovery-acceptance"
 }
