@@ -10,6 +10,7 @@ export async function createOperationalEvent(input,{crypto,clock}){
  const runtime=own(input,'runtime'),kind=own(input,'kind'),outcome=own(input,'outcome'),reason=own(input,'reason')??'none',atMs=clock.nowMs();
  if(!['node','workerd'].includes(runtime)||!kinds.includes(kind)||!outcomes.includes(outcome)||!reasons.includes(reason)||!Number.isSafeInteger(atMs)||atMs<0)throw new TypeError('Invalid operational event labels.');
  const value={format:'10x.local.operational-event.v1',scope:'local-fixture',runtime,kind,outcome,reason,atMs,financialExecution:false},correlations={};
+ const operation=own(input,'operation');if(operation!==undefined){if(!['earn-admission','notice-consent','notice-delivery','notice-retention'].includes(operation))throw new TypeError('Invalid operational action.');value.operation=operation;}
  for(const key of ['durationMs','queueAgeMs','retryCount','sourceLagMs','rowsRead','rowsWritten','bytesRead','bytesWritten']){const n=own(input,key);if(n!==undefined){if(!Number.isSafeInteger(n)||n<0)throw new TypeError('Invalid operational counter.');value[key]=n;}}
  // Capture only bounded known fields before the first await. No raw URL, wallet,
  // cookie, signature, note, body or arbitrary label is copied to the event.

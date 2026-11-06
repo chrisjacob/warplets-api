@@ -25,7 +25,7 @@ export async function handleNotificationConsent(request,{service,authenticate,co
   const result=await service.setConsent(principal,{requestKey,input});
   if(result.kind==='conflict')return failure(409,result.code,'Refresh your preferences or recover the original request.');
   if(result.kind==='pending')return json(result,202);
-  return json(result);
+  return json(result,200,{'x-10x-local-outcome':result.replay?'replayed':'accepted'});
  }catch(error){
   if(error instanceof EarnError||error instanceof BodyInputError)return failure(error.status,error.code,error.message);
   throw error;

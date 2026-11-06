@@ -1,3 +1,5 @@
+import {createMutationEventObserver} from '../observability/mutation-events.mjs';
+import {createNodeCrypto} from '../security/node-crypto.mjs';
 import { handleAuth } from './auth.mjs';
 import { readApi } from './api.mjs';
 import { handleMarkets } from '../markets/catalog.mjs';
@@ -15,12 +17,13 @@ import { handleNotifications } from '../notifications/http.mjs';
 import { handleInteractiveQuotes } from '../quotes/interactive-http.mjs';
 import { createNodeQuoteService,createNodeFinancialReadService,createNodeGovernanceService } from '../application/node-context.mjs';
 import { consumeQuota,currentSession } from './auth.mjs';
-export function createApp(db,{clock=Date.now,artifactStore}={}) {
+export function createApp(db,{clock=Date.now,artifactStore,operationalEventSink}={}) {
   const quotes=createNodeQuoteService(db,{clock:{nowMs:clock},store:artifactStore});
   const financial=createNodeFinancialReadService(db,{clock:{nowMs:clock}});
   const governance=createNodeGovernanceService(db,{clock:{nowMs:clock}});
+  const observe=createMutationEventObserver({runtime:'node',crypto:createNodeCrypto(),clock:{nowMs:clock},write:operationalEventSink});
   let nextCleanup=0;
-  return async function dispatch(request,peer='loopback'){
+  async function dispatch(request,peer='loopback'){
     const now=clock();
     if(now>=nextCleanup) {
       db.prepare('DELETE FROM request_limits WHERE bucket IN (SELECT bucket FROM request_limits WHERE resets_at<=? ORDER BY resets_at LIMIT 100)').run(now);
@@ -39,5 +42,6 @@ export function createApp(db,{clock=Date.now,artifactStore}={}) {
         return dispatch(new Request(new URL(path,request.url)),peer);
       })??await handleWeb(request)??readApi(request);
     return represent(request,response,now);
-  };
+  }
+  return (request,peer='loopback')=>observe(request,()=>dispatch(request,peer));
 }

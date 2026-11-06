@@ -1,0 +1,9 @@
+# Local usage and operational events
+
+The private operator readiness snapshot uses bounded retained rows. Quota admissions, runner attempts, notice lease claims and committed effects have distinct counters. Notice history covers retained outbox rows only; purging does not prove zero lifetime activity. Historical refused/pending admission totals, actual provider calls/costs and unavailable transition times remain explicitly unknown. Creation age and current-head recording age are labelled separately from transition duration and upstream observation age.
+
+Actual Node and Worker HTTP dispatch emits a closed JSON event for each POST to Earn submissions or notification subscriptions. Fields are runtime, fixed operation/kind, outcome/reason, local timestamp/duration and disabled financial execution. No body, URL query, wallet, cookie, signature, request key, private note or arbitrary error text enters the event. Closed response metadata distinguishes accepted replay and application-pending responses; an unexpected transport failure remains unknown. Response/request streams are never consumed by the observer.
+
+The default sink is the local runtime console; Node can inject a sink for verification. Sink failure cannot change a committed response or authorize retry. Events are observations of requests reaching this handler, not a durable complete history or provider billing evidence. Durable B02 admission/settlement accounting remains authoritative. No telemetry provider, subscription, persistent log table or external delivery is configured. Host console retention is outside the database maintenance handler; private command/bootstrap output must not be relabelled as these redacted events.
+
+Tests: `node --test platform/observability/*.test.mjs`; main Worker integration also runs through `platform/edge/test/notification-http.test.mjs`. Evidence is under `platform/validation/runs/2026-11-06-overnight/`.

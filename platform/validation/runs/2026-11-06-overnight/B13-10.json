@@ -1,0 +1,79 @@
+{
+  "format": "10x.local.implementation-evidence.v1",
+  "task": "B13",
+  "slice": "runtime mutation event emission acceptance",
+  "baseCommit": "d526de41d2e646b47394dd44a7385cb07c874b28",
+  "implementationCommit": null,
+  "sourceHashes": {
+    "platform/observability/mutation-events.test.mjs": "bb0a60b4e66c0571e6d2a1635c4f84eaf8f8ef8c0f72cea0a663fcb87b6f8a96"
+  },
+  "coordinatorDependencyHashes": {
+    "platform/observability/mutation-events.mjs": "15d9feffeae107cc4d961bd4e6b0a9021c34750bb376477f482c4cb50caab5f1",
+    "platform/observability/events.mjs": "d767cd89bca74de1e48950b3b22b83d7c38140f24a9609fffb6f10514343e410",
+    "platform/server/application.mjs": "85562c8ba09b779b2b4ee27a5edc62ba45fb4dbe65d255a843b7e458568c8f1c",
+    "platform/notifications/consent-http.mjs": "b2ba8e25f5137d4119370d04e5069b743bc0d86e743364069480c4c78542a59d",
+    "platform/edge/src/worker.ts": "ad369263aaec57bed8cab05d620f2e42783735ca80cf9e3192f2bf5132dc4e1e",
+    "platform/edge/test/notification-http.test.mjs": "c5a2be0167d9a9fa39f58d4170e534d6a872e05b1d04a1dfa4e617e073ef15c7",
+    "platform/earn/guarded-service.mjs": "f86836e332989583489e1abdbffdb10083ca2c8821a375ef5ab81c727ce63b67",
+    "platform/earn/interactive-http.mjs": "9a3d4c84111296a9e9f9ea29f6076ff328357cfbef0ed955c0bb3c6ec4060713"
+  },
+  "checks": [
+    {
+      "command": "node --test platform/observability/mutation-events.test.mjs",
+      "passed": 4,
+      "failed": 0,
+      "durationMs": 1146.1836,
+      "log": "work/b13-mutation-events-node.log"
+    },
+    {
+      "command": "node --test platform/edge/test/notification-http.test.mjs",
+      "passed": 1,
+      "failed": 0,
+      "durationMs": 27448.8005,
+      "log": "work/b13-mutation-events-worker.log",
+      "scopeNote": "Earlier actual Worker consent run predates the Earn-only pending-header correction. Consent handler and Worker integration unchanged; final Node test covers the corrected Earn pending classification."
+    },
+    {
+      "command": "Parse actual workerd event lines; assert exact key allowlist and outcome counts; reject private cookie/wallet/signature/source strings",
+      "exitCode": 0,
+      "events": 7,
+      "accepted": 3,
+      "replayed": 1,
+      "refused": 3
+    },
+    {
+      "command": "git diff --check",
+      "exitCode": 0
+    },
+    {
+      "command": "node --test platform/observability/events.test.mjs platform/notifications/consent-http.test.mjs",
+      "passed": 6,
+      "failed": 0,
+      "durationMs": 857.1864,
+      "log": "work/b13-event-boundary.log"
+    },
+    {
+      "command": "pnpm --dir platform/edge exec tsc --noEmit",
+      "exitCode": 0,
+      "log": "work/b13-events-types.log"
+    },
+    {
+      "command": "node platform/contracts/generate.mjs --check",
+      "exitCode": 0
+    }
+  ],
+  "acceptance": [
+    "Actual Node createApp with a canonical wallet and origin-scoped hashed session emits6 observations for2 deduplicated consent effects, including accepted/replayed/refused and replay after revoke remains disabled.",
+    "Trusted response pending/refused labels override 503; generic 5xx stays transport-unknown. 202 classification, untrusted request outcome header ignored, original handler error identity, sink rejection isolation and non-allowlisted route passthrough.",
+    "Streaming request and response bodies remain unused, unlocked by the observer and not pulled; no body/header/query data enters event output.",
+    "Actual production Worker ran under local workerd/D1 and emitted7 console JSON events:3 accepted,1 replayed,3 refused. This is captured runtime log evidence, not a mocked Worker logger assertion.",
+    "Strict event key allowlist has no wallet, cookie, signature, arbitrary query/body, error text or raw correlation.",
+    "Actual Node Earn campaign without staffing emits pending/dependency (503), invalid URL emits refused, staffed retained-price admission emits accepted, exact retry replayed and body conflict refused: five observations for one committed admission. No service mocks."
+  ],
+  "limits": [
+    "Observed request event coverage only; not complete historical admission or actual external-call accounting.",
+    "Seeded session rows exercise genuine canonical-cookie authentication; this test does not claim a wallet signing flow.",
+    "202/generic 5xx/throw cases use isolated observer inputs; actual Node Earn verifies pending/accepted/replayed/refused, and actual Node/Worker consent verifies accepted/replayed/refused.",
+    "No backend edits, external delivery, signing, broadcast or financial execution."
+  ]
+}

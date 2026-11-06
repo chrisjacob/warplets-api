@@ -1,3 +1,5 @@
+import {createMutationEventObserver} from '../../observability/mutation-events.mjs';
+import {createWebCrypto} from '../../security/web-crypto.mjs';
 import {mintReservations} from './mint';
 import {collectionReads} from './collection-reads';
 import {progression} from './progression';
@@ -30,6 +32,7 @@ const digest = async (bytes: ArrayBuffer) => [...new Uint8Array(await crypto.sub
 const query = z.object({limit:z.coerce.number().int().min(1).max(100).default(25),
   cursor:z.string().regex(/^[A-Za-z0-9_-]{1,160}$/).optional()}).strict();
 
+app.use('*',async(c,next)=>createMutationEventObserver({runtime:'workerd',crypto:createWebCrypto(),clock:{nowMs:Date.now}})(c.req.raw,async()=>{await next();return c.res;}));
 app.use('*', async (c,next)=>{
   const requestId = crypto.randomUUID();
   c.set('requestId', requestId);

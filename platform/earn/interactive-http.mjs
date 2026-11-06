@@ -31,12 +31,12 @@ export async function handleInteractiveEarn(request,{service,authenticate,consum
    }
    if(!body||typeof body!=='object'||Array.isArray(body)||Object.keys(body).some(k=>!['tokenId','url'].includes(k)))return failure(400,'invalid_input','Supply only tokenId and url.');
    const result=await service.submitContent(principal,{tokenId:body.tokenId,url:body.url,requestKey:request.headers.get('idempotency-key')});
-   return json({mode:'local-fixture',...result.submission},result.replay?200:201);
+   return json({mode:'local-fixture',...result.submission},result.replay?200:201,{'x-10x-local-outcome':result.replay?'replayed':'accepted'});
   }
   const cursor=url.searchParams.get('cursor')??'0';if(!/^\d{1,15}$/.test(cursor))return failure(400,'invalid_cursor','Invalid cursor.');
   return json(claims?await service.readWalletClaims(principal,{after:Number(cursor)}):await service.readWalletSubmissions(principal,{after:Number(cursor)}));
  }catch(error){
-  if(error instanceof EarnError||error instanceof BodyInputError)return failure(error.status,error.code,error.message);
+  if(error instanceof EarnError||error instanceof BodyInputError)return failure(error.status,error.code,error.message,{'x-10x-local-outcome':error.operationalOutcome==='pending'?'pending':'refused'});
   throw error;
  }
 }

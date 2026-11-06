@@ -15,7 +15,7 @@ const errors={
 export function unwrapEarnOutcome(result){
  if(result.kind==='pending'||result.kind==='conflict'){
   const key=result.reason??result.code,args=errors[key]??[result.kind==='pending'?503:409,key.replaceAll('-','_'),'The Earn operation is not ready.'];
-  throw new EarnError(...args);
+  const error=new EarnError(...args);error.operationalOutcome=result.kind==='pending'?'pending':'refused';throw error;
  }return result;
 }
 // Reuse the common B01 command construction and domain validation. This facade
