@@ -1,4 +1,5 @@
 import type {Principal} from './ports';
+import type {QuoteDto,QuoteAccountName} from './quotes';
 /** Local preparation vocabulary; no action authorizes signing or execution. */
 export type ActionKind='launch'|'fund'|'claim'|'stake'|'unstake'|'harvest'|'swap'|'collection';
 export type ActionRequestV1=Readonly<{format:'10x.action-request.v1';maximumFeeUnits:string}>&(
@@ -13,3 +14,12 @@ export type ActionRequestV1=Readonly<{format:'10x.action-request.v1';maximumFeeU
 export type BoundActionRequestV1=Readonly<{format:'10x.bound-action-request.v1';principal:Principal;request:ActionRequestV1;economicIntentDigest:string;requestDigest:string;financialExecution:false}>;
 export type ActionEvidenceRequirement='registered-program-identity'|'typed-program-codec'|'recorded-unsigned-message'|'recorded-simulation'|'recorded-blockhash-lifetime'|'verified-funding-and-fees'|'registered-launch-source'|'original-supply-and-activation'|'complete-genesis-backing'|'activation-season-snapshot'|'launch-pool-and-fee-policy'|'reward-custody'|'registered-campaign'|'campaign-funding-plan'|'funding-destination-and-custody'|'original-earn-allocation'|'original-vesting-and-cumulative-claims'|'claim-custody'|'original-vault-manifest'|'original-slot-and-current-owner'|'registered-farm-policy'|'farm-deposit-permission'|'owner-stake-position'|'principal-withdrawal-permission'|'farm-harvest-permission'|'cumulative-harvest-state'|'verified-quote-source'|'current-quote-and-account-state'|'swap-account-derivation'|'captured-program-parity'|'published-stage-terms'|'current-stage-eligibility'|'collection-reservation-evidence'|'collection-program-policy'|'stored-progression-operation'|'current-participant-ownership-and-versions'|'retained-progression-outcome';
 export type UnsupportedActionPlan=Readonly<{kind:'unsupported';reason:'unsupported-factory';action:ActionKind;requiredEvidence:readonly ActionEvidenceRequirement[];evidenceStatus:'not-evaluated';wire:null;executable:false;financialExecution:false;serverSigning:false;broadcast:false}>;
+
+export type PreparedSwapPlan=Readonly<{
+ kind:'prepared-economic-plan';format:'10x.swap-economic-plan.v1';principal:Principal;
+ economicIntentDigest:string;requestDigest:string;planDigest:string;request:ActionRequestV1;quote:QuoteDto;
+ bindings:Readonly<{contextDigest:string;bindingDigest:string;inputDigest:string;receiptDigest:string;sourceId:string;sourceRevision:string;sourceConfigDigest:string;policyDigest:string;manifestDigest:string;originalSupplyUnits:string;activationMs:number;attMint:string;ogMint:string;poolAddress:string;poolProgram:string;programBinaryDigest:null;accountByteDigests:Readonly<Record<QuoteAccountName,string>>}>;
+ quotedAtMs:number;expiresAtMs:number;wire:null;wireStatus:'unsupported';unmetEvidence:readonly ActionEvidenceRequirement[];
+ executable:false;financialExecution:false;serverSigning:false;broadcast:false;
+}>;
+export type PendingSwapPlan=Readonly<{kind:'pending';reason:string;dependencyIds:readonly string[];wire:null;executable:false;financialExecution:false}>;

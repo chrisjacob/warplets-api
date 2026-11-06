@@ -1,0 +1,62 @@
+{
+  "status": "partial-B15-frozen-economic-swap-only",
+  "implementationCommit": null,
+  "baseCommit": "08de0253ad8c6b0cd21bee197b3baa573b99f157",
+  "fixture": "synthetic B04 quote captures; actual local Node/D1/R2, no external provider",
+  "checks": [
+    {
+      "command": "node --test platform/transactions/plan-contracts.test.mjs platform/transactions/swap-plan-service.test.mjs",
+      "passed": 7,
+      "durationMs": 1689.7281,
+      "log": "work/b15-swap-plan-node-final.log"
+    },
+    {
+      "command": "node --test platform/edge/test/swap-plan.test.mjs",
+      "passed": 1,
+      "calls": 5,
+      "pairedCalls": 3,
+      "durationMs": 25253.1981,
+      "log": "work/b15-swap-plan-edge.log"
+    },
+    {
+      "command": "node platform/edge/node_modules/typescript/bin/tsc --noEmit -p platform/edge/tsconfig.json",
+      "status": "passed",
+      "log": "work/b15-swap-plan-types-final.log"
+    },
+    {
+      "command": "browser bundle via pinned esbuild",
+      "status": "passed",
+      "bytesApprox": 15258,
+      "log": "work/b15-swap-plan-portable.log"
+    }
+  ],
+  "measurements": {
+    "successfulSqlReads": 5,
+    "artifactReads": 1,
+    "artifactWrites": 0,
+    "maximumResultBytes": 4659,
+    "contextBytesBound": 131072,
+    "planBytesBound": 16384,
+    "maximumAttempts": 2
+  },
+  "scope": [
+    "actual verified B14 service, not caller QuoteDto",
+    "request/principal captured before await",
+    "economic digest not forever-unique intent ID",
+    "exact retained source plus quote binding; full row rechecked after plan hash",
+    "original activation/supply/manifest/program address/accounts retained",
+    "wire null, executable/financialExecution/serverSigning/broadcast false",
+    "no persistence/schema/HTTP/tx_attempts",
+    "context bound checked after repository read; existing B14 read SQL unchanged"
+  ],
+  "ownedFiles": {
+    "platform/transactions/swap-plan-service.mjs": "eaa47e15db4839fcbc99c60f238acf85c587d9dbfec7850e4e539c1de16a9b69",
+    "platform/transactions/swap-plan-service.d.mts": "74b7781dbcf4fd3964984d2b0b33d85bdc793ae0b86560cffb1657de5411f322",
+    "platform/transactions/swap-plan-service.test.mjs": "44d19e0e196e1fce1c69641f43449b12e38862561a0b5ee82dcef767b3e4c8cf",
+    "platform/edge/test/swap-plan.test.mjs": "d55c1e010d2ef79ccbd4804245fcb9281f55a469e875f2e24fd40acd0bf5a57d",
+    "platform/edge/test/fixtures/swap-plan-worker.ts": "796e0ec32df6bd2794273c910a486312744eb79cc6de6ebc9f0b5253f1b241fd"
+  },
+  "sharedDependencies": {
+    "platform/application/action-plans.ts": "53a520fff041b5232fcc6a7b23e3a948d279cbdd4d8ae74dddecd084b34d304c"
+  }
+}
