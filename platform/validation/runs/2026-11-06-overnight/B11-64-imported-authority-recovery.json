@@ -1,0 +1,107 @@
+{
+  "checkpoint": "B11-64",
+  "title": "Imported authority and mixed modern command recovery",
+  "status": "verified-partial-isolated-aggregate-prerequisite",
+  "lastConfirmedBaseCommit": "c29b00ea58c6d375a0773dc5b71e947707bf7bde",
+  "implementationCommit": null,
+  "schemaThrough": 55,
+  "businessTables": 112,
+  "source": "synthetic-genuine-historical-activation-and-modern045-B04-046-fresh-Node-D1-R2",
+  "financialExecution": false,
+  "mainDispatchChanged": false,
+  "fullRecoveryReadiness": false,
+  "syntheticPrerequisite": {
+    "phase": "legacy-adoption-complete",
+    "purpose": "isolated downstream authority compatibility; aggregate historical producer is separate work",
+    "targetRemains": "restoring"
+  },
+  "limits": {
+    "operationsPerStep": 64,
+    "batchBytes": 262144,
+    "workingBytes": 1048576,
+    "checkpointBytes": 131072
+  },
+  "checks": [
+    {
+      "command": "node --test platform/recovery/v2-reconcile-imported-authority.test.mjs platform/recovery/v2-reconcile-collections.test.mjs platform/collect/legacy-adoption-authority.test.mjs",
+      "passed": 17,
+      "failed": 0,
+      "durationMs": 71786.4045,
+      "log": "work/b11-64-node-final.log",
+      "scope": "combined compatibility before final field-byte and temporal hardening; final hardening independently rerun below"
+    },
+    {
+      "command": "node --test platform/recovery/v2-reconcile-imported-authority.test.mjs",
+      "passed": 1,
+      "failed": 0,
+      "durationMs": 41183.2703,
+      "log": "work/b11-64-hardened-node.log",
+      "scope": "final hardened code; includes equality boundary and wrong-time rejection"
+    },
+    {
+      "command": "node --test platform/edge/test/recovery-imported-authority.test.mjs",
+      "passed": 1,
+      "failed": 0,
+      "durationMs": 122266.206,
+      "log": "work/b11-64-hardened-edge.log",
+      "scope": "final hardened actual Node/D1/R2 proof parity"
+    },
+    {
+      "command": "node platform/edge/node_modules/typescript/bin/tsc --noEmit --project platform/edge/tsconfig.json",
+      "result": "pass",
+      "log": "work/b11-64-types-final.log"
+    },
+    {
+      "command": "scoped git diff --check plus all nine source UTF-8/no-BOM/LF/trailing-space checks",
+      "result": "pass"
+    }
+  ],
+  "measured": {
+    "node": {
+      "maxOperations": 20,
+      "maxWorkingBytes": 338194,
+      "maxBatchBytes": 10232
+    },
+    "d1": {
+      "maxOperations": 27,
+      "maxWorkingBytes": 338608,
+      "maxBatchBytes": 103224
+    },
+    "exactNodeD1Proofs": 7,
+    "historicalAdmissions": 1,
+    "newAdmissions": 2,
+    "newFulfillments": 1,
+    "newStages": 1,
+    "admitted": 3,
+    "fulfilled": 2,
+    "authorityRevision": 4,
+    "financialIntents": 0
+  },
+  "acceptance": [
+    "actual immutable certificate and committed activation linkage",
+    "completion prerequisite exact digest/count/watermark",
+    "combined historical and modern lineage/prefix/uniqueness",
+    "original semantic slot uniqueness and quotas",
+    "stage and mint times at or after activation, exact equality accepted",
+    "omitted proof rolls back cursor",
+    "target mutation during async hashing rejected",
+    "missing modern B04 object holds fulfillment",
+    "existing modern admission and fulfillment reconciliation retained",
+    "no fabricated historical045/046 receipts or readiness claim"
+  ],
+  "sourceHashes": {
+    "platform/collect/legacy-adoption-authority.mjs": "cbd487650e7c151cccbed487b891ecdb09b3fdeda4b50216cea4143e24cdcf44",
+    "platform/collect/legacy-adoption-authority.d.mts": "9929352aa6078d5e7ab5c49ecac7c2b1a1d74a983e36610e15a20fee1da05852",
+    "platform/recovery/v2-reconcile-collections.mjs": "393830e12a6661f2e37fc77198acac28e76a2b478309acb7056baf9179f51721",
+    "platform/recovery/v2-reconcile-imported-authority.mjs": "2141e7568ed4dd4c4685d3e22407a8b63d6dc62bce5126d3a31a48b298ba41e8",
+    "platform/recovery/v2-imported-authority-fixtures.mjs": "8e1aea77e607a81529babec380e15470d6dabcc05777bd3f5e48d91c8d62ddbf",
+    "platform/recovery/v2-reconcile-imported-authority.test.mjs": "89c63f12e93f0a96b32e3b74a9ca52e593761824881124a705e1361fcee1ee4b",
+    "platform/edge/test/fixtures/recovery-imported-authority-worker.ts": "eb5e63fd734e51ef75aa05587deeed3c54cb004238b0b037a3f863517e52db00",
+    "platform/edge/test/recovery-imported-authority.test.mjs": "0361a956c34d462c33d16dfe200c04d766409d2c30a273440f587d0a8a363a85",
+    "platform/recovery/IMPORTED_AUTHORITY_RECOVERY.md": "7fc4a5b719242b3b995ac341dba68bec453ac6e2058167f4d0e055777d314e1b"
+  },
+  "schemaHashes": {
+    "platform/storage/054-collection-legacy-adoption.sql": "5f82a5fafe536c65b9889ec05c6ea4986b1323db17067ceb99104f0a61a7620e",
+    "platform/storage/055-collection-imported-admission.sql": "0ed9b1b39bed9efee13bc739a48cdd7748d9dd1726e3869ae6f5dbbbf504b750"
+  }
+}

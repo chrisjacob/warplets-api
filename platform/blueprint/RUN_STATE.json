@@ -5,7 +5,7 @@
   "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
   "currentTask": "B11",
-  "lastUpdatedAt": "2026-11-06T10:49:32.714615+00:00",
+  "lastUpdatedAt": "2026-11-06T11:10:19.363538+00:00",
   "migrationAllocation": {
     "next": 56,
     "reserved": [
@@ -359,9 +359,10 @@
         "platform/validation/runs/2026-11-06-overnight/B11-60-economic-stage-mapping.json",
         "platform/validation/runs/2026-11-06-overnight/B11-58-current-observations.json",
         "platform/validation/runs/2026-11-06-overnight/B11-61-economic-admission-mapping.json",
-        "platform/validation/runs/2026-11-06-overnight/B11-57-original-mint-recovery.json"
+        "platform/validation/runs/2026-11-06-overnight/B11-57-original-mint-recovery.json",
+        "platform/validation/runs/2026-11-06-overnight/B11-64-imported-authority-recovery.json"
       ],
-      "nextAction": "57originalmint final21Node+2actualD1 passed, maxpolicy56ops969257B.62root durableeconomics draft nextNode/D1;63agent original-chain objectclosure;64agent mixedauthority recovery audit. Maindispatch remains held. CI42203342848,next7944d3b.",
+      "nextAction": "64mixedauthority finalNode+D1pass, synthetic65gateisolated.62economics/current fiveprofilesNode+D1passed afterGenesiskeyorderfix; addingcontrolproof and59explicitbufferrelease for84KiBhistory, finaltestsnext.63objectclosurelargecontrolgate active;65aggregate drafted/stageProofChain+mainwiring pending.66agent pre-cut041design. CI7944d3bnewrunidpending,next81cef38.",
       "blocker": null
     },
     "B12": {

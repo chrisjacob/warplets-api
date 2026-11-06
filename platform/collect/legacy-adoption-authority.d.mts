@@ -1,4 +1,6 @@
 import type {CanonicalCrypto} from '../application/ports';
+/** Exact historical+modern lineage aggregation shared with private recovery. */
+export function legacyImportedAdmissionTotalsSql(input:Readonly<{inventoryId:string;historicalAdmissions:number;fulfilled:number}>):Readonly<{sql:string;values:readonly (string|number|null)[]}>;
 export type LegacyAdoptionCertificateRow=Readonly<{
  id:string;inventory_id:string;activation_command_id?:string;root_id:string;origin_digest:string;source_revision:number;
  raw_digest:string;canonical_digest:string;source_generation:string;source_watermark:number;schema_fingerprint:string;

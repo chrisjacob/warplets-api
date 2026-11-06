@@ -8,6 +8,7 @@ import {uniformDraw} from '../randomness/portable-draw.mjs';
 import {verifyPinnedBeacon} from '../beacon/portable.mjs';
 import {drawRequestPreimage} from '../randomness/request-plan.mjs';
 import {hashJson} from './inventory.mjs';
+import {verifyRecoveryImportedAuthority} from './v2-reconcile-imported-authority.mjs';
 const same=(a,b)=>canonicalJson(a)===canonicalJson(b);
 const need=(c,m)=>{if(!c)throw new TypeError('Recovery collection '+m);};
 const bound=(column,bytes,alias=column.split('.').at(-1))=>`CASE WHEN length(CAST(${column} AS BLOB))<=${bytes} THEN ${column} ELSE NULL END ${alias}`;
@@ -21,13 +22,16 @@ export function createRecoveryV2CollectionReconciler({driver,artifacts,crypto,be
  const checked=async(loaded,c,delta,scope,value,count=1)=>repository.advance(loaded,{delta,targetWatermark:c.targetWatermark,check:{phase:'collection',scope,ordinal:0,targetWatermark:c.targetWatermark,resultDigest:await hashJson(crypto,['v2-reconciled-collection',scope,value]),itemCount:count}});
  async function receipt(row,result,kind,ref){need(row.receipt_state==='committed'&&row.receipt_kind===kind&&row.receipt_ref===ref&&row.receipt_result===canonicalJson(result)&&row.receipt_digest===await hashJson(crypto,result),'committed receipt binding.');}
  async function authority(loaded,c){
-  const [rows]=await read([sql(`SELECT a.rowid cursor,a.inventory_id,a.origin_kind,a.initial_revision,a.revision,a.admitted,a.fulfilled,${bound('a.remaining_json',512)},h.kind,h.tranche,h.season_start,${bound('h.origin_digest',64)} FROM app_collection_authorities a JOIN collect_inventories h ON h.id=a.inventory_id WHERE a.rowid>? ORDER BY a.rowid LIMIT 1`,c.collectionAuthorityCursor??-9007199254740991)]);
+  const [rows]=await read([sql(`SELECT a.rowid cursor,a.inventory_id,a.origin_kind,a.initial_revision,${bound('a.initial_state_digest',64)},${bound('a.activation_command_id',128)},a.revision,a.admitted,a.fulfilled,${bound('a.remaining_json',512)},h.revision header_revision,h.kind,h.tranche,h.season_start,${bound('h.origin_digest',64)} FROM app_collection_authorities a JOIN collect_inventories h ON h.id=a.inventory_id WHERE a.rowid>? ORDER BY a.rowid LIMIT 1`,c.collectionAuthorityCursor??-9007199254740991)]);
   if(!rows.length)return checked(loaded,c,{phase:'reconcile-collection-admissions',collectionAdmissionCursor:-9007199254740991},'authorities',c.checkedCollectionAuthorities??0,c.checkedCollectionAuthorities??0);
   const a=rows[0],remaining=json(a.remaining_json,'remaining');need(Array.isArray(remaining)&&remaining.length===10&&remaining.every((n,i)=>Number.isInteger(n)&&n>=0&&n<=LEVEL_QUOTAS[i]),'remaining quotas.');
+  if(a.origin_kind==='verified-source-import'){
+   const verified=await verifyRecoveryImportedAuthority({loaded,c,authority:a},{driver,crypto});
+   return checked(loaded,c,{collectionAuthorityCursor:a.cursor,checkedCollectionAuthorities:(c.checkedCollectionAuthorities??0)+1},'authority:'+a.inventory_id,verified);
+  }
   const [counts,slots]=await read([sql(`SELECT (SELECT COUNT(*) FROM app_collection_stages WHERE inventory_id=?) stages,(SELECT COUNT(*) FROM app_collection_mint_admissions WHERE inventory_id=?) admitted,(SELECT COALESCE(MAX(ordinal),-1) FROM app_collection_mint_admissions WHERE inventory_id=?) last_admission,(SELECT COUNT(*) FROM app_collection_mint_fulfillments f JOIN app_collection_mint_admissions m ON m.operation_id=f.operation_id WHERE m.inventory_id=?) fulfilled,(SELECT COALESCE(MAX(m.ordinal),-1) FROM app_collection_mint_fulfillments f JOIN app_collection_mint_admissions m ON m.operation_id=f.operation_id WHERE m.inventory_id=?) last_fulfillment`,...Array(5).fill(a.inventory_id)),sql(`SELECT ${bound("json_extract(f.effect_json,'$.asset.slotJson')",512,'slot')},COUNT(*) n FROM app_collection_mint_fulfillments f JOIN app_collection_mint_admissions m ON m.operation_id=f.operation_id WHERE m.inventory_id=? GROUP BY json_extract(f.effect_json,'$.asset.slotJson') ORDER BY m.ordinal LIMIT 1001`,a.inventory_id)]);
   const n=counts[0];need(n.stages<=32&&n.admitted===a.admitted&&n.admitted<=1000&&n.last_admission===n.admitted-1&&n.fulfilled===a.fulfilled&&n.last_fulfillment===n.fulfilled-1&&slots.length===n.fulfilled,'admission/fulfillment exact ordinal prefix.');
-  // No imported authority is currently activated by the application. Avoid
-  // silently assigning empty-origin invariants to future source adoption.
+  // Empty origins preserve their original zero-based conservation rules.
   need(a.origin_kind==='empty-reference'&&a.initial_revision===0,'unsupported imported authority origin.');need(a.revision===n.stages+n.admitted+n.fulfilled,'authority revision conservation.');
   const used=Array(10).fill(0);for(const row of slots){const slot=json(row.slot,'minted slot');need(row.n===1&&slot.kind===a.kind,'unique original slot.');let level;if(a.kind==='genesis'){need(slot.tranche===a.tranche&&Number.isInteger(slot.level)&&slot.level>=1&&slot.level<=10&&Number.isInteger(slot.ordinal)&&slot.ordinal>=0&&slot.ordinal<LEVEL_QUOTAS[slot.level-1],'Genesis slot.');level=slot.level;}else{need(slot.seasonId===a.inventory_id&&Number.isInteger(slot.slotIndex)&&slot.slotIndex>=0&&slot.slotIndex<1000,'Season slot.');let end=0;level=LEVEL_QUOTAS.findIndex(q=>(end+=q)>slot.slotIndex)+1;}used[level-1]++;}
   need(same(remaining,LEVEL_QUOTAS.map((q,i)=>q-used[i])),'original-slot quota conservation.');need(a.origin_digest===await crypto.sha256(utf8(JSON.stringify([a.inventory_id,a.kind,a.tranche,a.season_start]))),'inventory origin digest.');

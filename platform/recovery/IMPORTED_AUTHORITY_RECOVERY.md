@@ -1,0 +1,13 @@
+# Imported authority recovery
+
+The private collection authority reconciler supports an activated historical inventory followed by current stage publications, mint admissions and mint fulfillments. Historical admissions remain immutable adoption anchors. Recovery neither fabricates historical 045/046 rows nor treats a certificate alone as proof of complete historical semantics.
+
+The imported branch requires the actual certificate hash, committed activation receipt and a durable `legacy-adoption-complete` check under the target watermark. That check has scope equal to the adoption ID, ordinal zero, item count equal to the certificate's admitted count, and digest `hashJson(['v2-legacy-adoption-complete', adoptionId, certificateDigest])`. The aggregate producer must verify the original stage, mint, economics, current graph and artifact closure before writing it.
+
+The authority check reuses the live imported-authority reader's exact SQL admission aggregation. It verifies combined ordinal, operation, wallet/request-key and commitment uniqueness; historical/modern prefix placement; fulfilled-prefix placement; exact operation lineage; and stage receipt linkage. Authority revision counts only new stage publications, new admissions and new fulfillments. Both new admission and fulfillment times must be at or after activation; equality is valid. Remaining quotas derive from the union of original historical and modern slots, with semantic slot uniqueness checked independently of JSON key order.
+
+The existing modern admission and fulfillment reconciliation then runs unchanged, including retained B04 evidence and artifact verification. Each imported check captures its input before awaits and verifies the current target watermark before and after hashing. SQL results, batch size and working memory are bounded; no full historical asset collection is hydrated.
+
+The isolated acceptance fixture creates a genuine historical activation, two genuine new admissions (one pending), B04-backed fulfillment and new stage publication, then captures and restores into separate Node and D1/R2 targets. It injects an explicitly synthetic aggregate prerequisite solely to test this downstream branch. Seven durable collection checks match exactly between Node and D1. The target remains restoring: this fixture does not establish complete adoption reconciliation or recovery readiness. Main dispatch is not changed by this milestone.
+
+Negative acceptance covers absent or wrong completion proof, incorrect aggregate prefix or lineage, duplicate slots, pre-activation modern time, omitted durable proof, target mutation across hashing, and missing modern B04 object. Financial execution remains disabled, and all historical chain/payment provenance remains synthetic.
