@@ -1,0 +1,37 @@
+{
+  "milestone": "B17 authenticated local refresh repository",
+  "status": "focused-node-verified; D1 and populated recovery next",
+  "tests": {
+    "node": {
+      "passed": 8,
+      "durationMs": 6371.311,
+      "log": "work/b17-refresh-repository-node.log"
+    },
+    "edgeTypes": "passed",
+    "directDeclarations": "passed"
+  },
+  "bounds": {
+    "maxMutationBatchBytes": 6423,
+    "maxParameters": 45,
+    "events": 16,
+    "checkpointBytes": 32768,
+    "fixtureDescriptorBytes": 8192,
+    "fixtureMediaBytes": 131072
+  },
+  "claims": {
+    "authenticatedLocalRevisions": true,
+    "atomicPrivateCatalog": true,
+    "provider": "recorded-synthetic-fixture",
+    "metadataApplied": false,
+    "financialExecution": false,
+    "chainAuthority": false,
+    "publicRoutes": false,
+    "independentRecoverySemanticPhase": false
+  },
+  "sources": {
+    "platform/nfts/refresh-repository.mjs": "192f76a7e8d0922fbdda1951200480567b44976666b01988967305b5b48cb9f5",
+    "platform/nfts/refresh-repository.d.mts": "3012869ddf00bfd6c7c3308a11a370322b75a429b6a4875746d5d18f0bda7a0f",
+    "platform/nfts/refresh-repository.fixtures.mjs": "d500ba836a4983249cdeec5ca7fef8200ec232900a81b1d029b7635890159399",
+    "platform/nfts/refresh-repository.test.mjs": "dc4bcf5e655366315a211698dee78a6d6985178f5bff92f44788aa67624dcfaa"
+  }
+}
