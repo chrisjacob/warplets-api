@@ -1,5 +1,6 @@
 import {createOperationalMetrics} from '../observability/metrics.mjs';
 import {readinessFromMetrics} from '../operations/readiness.mjs';
+import {createOperatorCostReadiness} from './cost-readiness-transport.mjs';
 import {createNodeAtomicDriver} from '../storage/node/atomic-driver.mjs';
 import {createWhitelistDraftTransport} from './whitelist-draft-transport.mjs';
 import {nodeArtifactStore} from '../artifacts/node.mjs';
@@ -26,9 +27,10 @@ function parseDate(value){
  if(!Number.isSafeInteger(ms)||ms<0||iso(ms).slice(0,10)!==value)throw new EarnError(400,'invalid_epoch','Invalid UTC date.');
  return ms/DAY_MS;
 }
-export function createOperatorApp(db,{bootToken,clock=Date.now,operatorId='local-founder',allowedKinds=[],artifacts}){
+export function createOperatorApp(db,{bootToken,clock=Date.now,operatorId='local-founder',allowedKinds=[],artifacts,costReadiness}){
  const sessions=createOperatorSessionAuthority({bootCode:bootToken,operatorId,allowedKinds,clock});
  const commands=createOperatorCommandTransport(db,{sessions,clock,artifacts}),uploads=createOperatorUploadTransport(db,{sessions,clock}),drafts=createWhitelistDraftTransport(db,{sessions,clock});
+ const costs=createOperatorCostReadiness(db,{clock,service:costReadiness});
  return async request=>{
   const {origin,hostname,pathname,searchParams}=new URL(request.url),now=clock();
   if(!['localhost','127.0.0.1'].includes(hostname))return failure(403,'local_only','Use the local operator origin.');
@@ -53,6 +55,7 @@ export function createOperatorApp(db,{bootToken,clock=Date.now,operatorId='local
    const raw=request.headers.get('authorization')?.match(/^Bearer ([A-Za-z0-9_-]{43})$/)?.[1];
    const authorization=sessions.authenticate(raw);
    if(pathname==='/ops/logout'&&request.method==='POST'){sessions.revoke();return json({revoked:true});}
+   if(pathname==='/ops/cost-readiness'&&request.method==='GET')return await costs(request,authorization);
    if(pathname==='/ops/status'&&request.method==='GET')return json({mode:'local-fixture',expiresAt:iso(authorization.expiresAtMs),asOf:iso(now),
     principal:authorization.principal,allowedKinds:authorization.allowedKinds,financialExecution:false,
     expectedRevisions:Object.fromEntries(db.prepare('SELECT name,revision FROM app_revisions ORDER BY name').all().map(r=>[r.name,String(r.revision)]))});

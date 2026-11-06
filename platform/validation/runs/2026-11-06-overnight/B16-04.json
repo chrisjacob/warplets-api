@@ -1,0 +1,79 @@
+{
+  "milestone": "B16 source-bound readonly cost readiness",
+  "status": "partial-verified",
+  "implementationCommit": null,
+  "baseCommit": "83e60d75ec45168e8d3a72a231d19fa0315a02a9",
+  "ownedFiles": [
+    "platform/costs/readiness-repository.mjs",
+    "platform/costs/readiness-repository.d.mts",
+    "platform/costs/readiness-service.mjs",
+    "platform/costs/readiness-service.d.mts",
+    "platform/costs/readiness.fixtures.mjs",
+    "platform/costs/readiness.test.mjs",
+    "platform/edge/test/cost-readiness.test.mjs",
+    "platform/edge/test/fixtures/cost-readiness-worker.ts"
+  ],
+  "sourceHashes": {
+    "platform/costs/readiness-repository.mjs": "06ad8b71231aa1b04ab262414d295094c30174fc86ec52ddbaa619cb0d78edad",
+    "platform/costs/readiness-repository.d.mts": "d205413ad023dc3ad48421fb934b6ff20456aaadf09023580cb04d10d19e57cb",
+    "platform/costs/readiness-service.mjs": "69e6b9d7f30df7385ac7beb3c13d7447ad85fc7682bbcfcd24720268ca0127a3",
+    "platform/costs/readiness-service.d.mts": "79a9d31d24ebd5906382a67e2583a3df46958bda61026be4bee2e87ced1ff4c6",
+    "platform/costs/readiness.fixtures.mjs": "ca04ee11a5fa8624a03e079649c74a1a346cfd8ed222a7adabbd8aa311ea0888",
+    "platform/costs/readiness.test.mjs": "3cbd75e451a55e2095259f76307cc093d4f829e94eb9397d8660084f1bb36137",
+    "platform/edge/test/cost-readiness.test.mjs": "3f557f81d198fccd2d8f15bc9979d153f6656431b13bb5bb66fab6724dece890",
+    "platform/edge/test/fixtures/cost-readiness-worker.ts": "1703786db7e6315148276f608680c8f08cea384d1b3aac181c1d4db27f8ffa05",
+    "platform/application/cost-readiness.ts": "d9ffca8c6b3c4b013cb4a2b2ad20123a7a63ec5df5a0afadc76a1c9c482fffef",
+    "platform/costs/packet-core.mjs": "c3a79f83d9993f3d952c1166dbaed368493b4e7300be38b66af6c7ee26cbc607",
+    "platform/costs/scenario-cashflow.mjs": "0f419bf765913a56adb14d646028ec6031ca512e4b3204615fc0dcd22de0115f"
+  },
+  "checks": [
+    {
+      "command": "node --test platform/costs/readiness.test.mjs",
+      "passed": 6,
+      "durationMs": 5367.5035,
+      "log": "work/b16-readiness-node-final.log"
+    },
+    {
+      "command": "node --test platform/edge/test/cost-readiness.test.mjs",
+      "passed": 1,
+      "durationMs": 27553.2704,
+      "log": "work/b16-readiness-edge.log",
+      "runtime": "pinned local D1/workerd; genuine B04 materialization and065 preparation; no remote reads"
+    },
+    {
+      "command": "platform/edge/node_modules/.bin/tsc --noEmit (cwd platform/edge)",
+      "passed": true
+    }
+  ],
+  "metrics": {
+    "actualD1ReadonlyCalls": 9,
+    "maxSqlStatements": 32,
+    "maxBatchBytes": 4667,
+    "maxResultBytes": 6277,
+    "maxReportBytes": 123624,
+    "inputLimitBytes": 65536,
+    "reportLimitBytes": 196608,
+    "enforcedSerializedWorkingLimitBytes": 1048576
+  },
+  "coverage": [
+    "Owner-only actual retained economic preparation and current quote binding under generation/watermark/revision fences",
+    "Actual operational metrics and retained usage/quota/optional reservation budget, unknown provider calls and actual external costs remain null",
+    "No business writes during reads; actual Node/D1 report equality including report hash",
+    "Query accessors rejected without execution and requests captured before async hashing",
+    "Current-source/usage/generation/expiry races fail closed; stable historical expiration and changed source remain explicitly visible",
+    "Exact buy/sell gross/net/fee unit conservation; company collectible unknown/null",
+    "Fourteen scenario summaries and caller-assumption comparisons/cashflows; first-board pending and selected-swap branch explicitly missing"
+  ],
+  "limitations": [
+    "No migration or report persistence; immutable captured report is hashed and returned readonly",
+    "Cost quotes are caller-supplied unverified planning references",
+    "B15 economic preparation has no wire, binary, funding proof or simulation; protocol readiness blocked",
+    "No selected swap account/instruction cost requirement graph yet; parent coordinates next slice",
+    "First ATT comparisons are generic caller planning assumptions; no verified board selection or closure authority",
+    "Not full B16 completion or full CI evidence"
+  ],
+  "financialExecution": false,
+  "serverSigning": false,
+  "broadcast": false,
+  "isAuthorization": false
+}

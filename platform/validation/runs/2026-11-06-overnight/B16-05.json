@@ -1,0 +1,92 @@
+{
+  "format": "10x.local-evidence.v1",
+  "task": "B16 operator read-only cost comparison",
+  "status": "locally-tested-partial-B16",
+  "source": "synthetic-local-fixture",
+  "financialExecution": false,
+  "tests": [
+    {
+      "command": "node platform/operator/cost-readiness-browser-qa.mjs",
+      "result": "PASS",
+      "log": "work/b16-cost-browser-final.log",
+      "widths": [
+        360,
+        390,
+        768,
+        1440
+      ]
+    },
+    {
+      "command": "node platform/operator/readiness-browser-qa.mjs",
+      "result": "PASS",
+      "log": "work/b16-readiness-browser-regression.log",
+      "widths": [
+        360,
+        390,
+        768,
+        1440
+      ]
+    },
+    {
+      "command": "node --check platform/operator/ui.mjs; node --check platform/operator/cost-readiness-browser-qa.mjs; scoped git diff --check",
+      "result": "PASS"
+    }
+  ],
+  "acceptance": [
+    "manual owner/intent/preparation selection; no auto-fetch or wallet enumeration",
+    "actual B04/065 retained preparation and authenticated local GET",
+    "explicit cost-review database scope; no command-kind permission",
+    "four comparison views, fourteen scenarios, per-payer/per-denomination peak/consumed/refundable cashflow",
+    "dated reference provenance retained; fee ceiling not quote; selected swap cost branch missing; protocol blocked",
+    "actual costs and provider calls unknown; budget-held optional work retains protected recovery",
+    "private usage canary excluded from response and DOM",
+    "read-only database effects; no signer, transaction preparation, broadcast, or approval control",
+    "input changes, delayed-response isolation, reload, expiration, logout and distinct-principal clearing",
+    "original expired preparation remains expired in displayed report"
+  ],
+  "limitations": [
+    "operator read-only view only; not full B16 acceptance",
+    "source-bound service and transport owned/tested separately by coordinator",
+    "all prices from dated reference input; no live fee provider or financial authority"
+  ],
+  "sourceHashes": {
+    "platform/operator/index.html": "234a7d121d7503e9401c2eae956fbcc5390e32f03f5bf76cc48030b976246447",
+    "platform/operator/ui.mjs": "83158a89a55c682811d4ff27fdfb735ddd1370e147598f2d73f1a14c16ac7ff9",
+    "platform/operator/cost-readiness-browser-qa.mjs": "41c38f376241ebb237b0938fbec5ef08d8fea5050d80e00018587cdb13d0deb4"
+  },
+  "runtimeDependencies": {
+    "platform/operator/console.mjs": "f046028f2e146c35d209eabdcd62741387c557f37b7f7cbbe0e85027eea4f7e9",
+    "platform/operator/cost-readiness-transport.mjs": "5dfd30d8c08ba860fae131a6ee3d7d24df2f1ab076d6b6ce25b1b257217ce209",
+    "platform/costs/readiness-service.mjs": "69e6b9d7f30df7385ac7beb3c13d7447ad85fc7682bbcfcd24720268ca0127a3",
+    "platform/application/cost-readiness.ts": "c80a39cf522d0f9362b242765c9939b9d9f821b4c41490cbf504c3d2381fd024"
+  },
+  "notes": [
+    "Final cost-browser run includes clearing manual selectors on client expiry timer as well as server401; earlier readiness regression unchanged by this cost-only timer cleanup."
+  ],
+  "coordinatorChecks": [
+    {
+      "command": "node --test platform/operator/cost-readiness-transport.test.mjs",
+      "passed": 3,
+      "durationMs": 2212.2804
+    },
+    {
+      "command": "node --test platform/operator/console.test.mjs",
+      "passed": 5,
+      "durationMs": 2371.3437
+    },
+    {
+      "command": "node platform/contracts/generate.mjs --check",
+      "status": "passed"
+    },
+    {
+      "command": "node platform/edge/node_modules/typescript/bin/tsc --noEmit -p platform/edge/tsconfig.json",
+      "status": "passed"
+    }
+  ],
+  "coordinatorSourceHashes": {
+    "platform/operator/console.mjs": "f046028f2e146c35d209eabdcd62741387c557f37b7f7cbbe0e85027eea4f7e9",
+    "platform/operator/cost-readiness-transport.mjs": "5dfd30d8c08ba860fae131a6ee3d7d24df2f1ab076d6b6ce25b1b257217ce209",
+    "platform/operator/cost-readiness-transport.test.mjs": "8886187e7b501e04fc0f4f032d60b535f85f700a800b0fdf1f7b2b6181ff57b2",
+    "platform/application/cost-readiness.ts": "d9ffca8c6b3c4b013cb4a2b2ad20123a7a63ec5df5a0afadc76a1c9c482fffef"
+  }
+}
