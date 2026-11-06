@@ -4927,6 +4927,21 @@
                 }
               }
             }
+          },
+          "503": {
+            "description": "Retained history is incomplete or changed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              },
+              "application/vnd.10x.v1+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           }
         }
       }
@@ -9377,7 +9392,16 @@
             "type": "string"
           },
           "state": {
-            "type": "string"
+            "enum": [
+              "validated",
+              "awaiting_signature",
+              "attempt_expired",
+              "submitted",
+              "unknown",
+              "confirmed",
+              "failed",
+              "finalized"
+            ]
           },
           "revision": {
             "type": "integer"
@@ -9400,6 +9424,131 @@
           },
           "executable": {
             "const": false
+          },
+          "financialExecution": {
+            "const": false
+          },
+          "provenance": {
+            "const": "legacy-recorded-unverified"
+          },
+          "createdAtMs": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "planExpiresAtMs": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "asOfMs": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "attemptCount": {
+            "type": "integer"
+          },
+          "currentAttempt": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "index": {
+                    "type": "integer"
+                  },
+                  "state": {
+                    "type": "string"
+                  },
+                  "messageHash": {
+                    "type": "string"
+                  },
+                  "blockhash": {
+                    "type": "string"
+                  },
+                  "lastValidBlockHeight": {
+                    "type": "integer"
+                  },
+                  "contextSlot": {
+                    "type": "integer"
+                  },
+                  "observedAtMs": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "hasRecordedSignature": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "id",
+                  "index",
+                  "state",
+                  "messageHash",
+                  "blockhash",
+                  "lastValidBlockHeight",
+                  "contextSlot",
+                  "observedAtMs",
+                  "hasRecordedSignature"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "receiptObservations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "eventId": {
+                  "type": "string"
+                },
+                "attemptId": {
+                  "type": "string"
+                },
+                "state": {
+                  "enum": [
+                    "unknown",
+                    "confirmed",
+                    "failed",
+                    "finalized"
+                  ]
+                }
+              },
+              "required": [
+                "eventId",
+                "attemptId",
+                "state"
+              ]
+            }
+          },
+          "nextLocalTransition": {
+            "enum": [
+              "prepare-recorded-packet",
+              "observe-or-expire-unsubmitted",
+              "replace-expired-unsubmitted",
+              "reconcile-existing-attempt",
+              "none"
+            ]
+          },
+          "requiredObservation": {
+            "anyOf": [
+              {
+                "enum": [
+                  "fresh-verified-preparation",
+                  "recorded-block-height-or-submission",
+                  "same-attempt-recorded-outcome"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "replacementEligible": {
+            "type": "boolean"
           }
         },
         "required": [
@@ -9411,7 +9560,18 @@
           "planHash",
           "attemptId",
           "source",
-          "executable"
+          "executable",
+          "financialExecution",
+          "provenance",
+          "createdAtMs",
+          "planExpiresAtMs",
+          "asOfMs",
+          "attemptCount",
+          "currentAttempt",
+          "receiptObservations",
+          "nextLocalTransition",
+          "requiredObservation",
+          "replacementEligible"
         ]
       }
     }

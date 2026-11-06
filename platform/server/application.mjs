@@ -32,7 +32,7 @@ export function createApp(db,{clock=Date.now,artifactStore,operationalEventSink}
       nextCleanup=now+60000;
     }
     const response=await handleAuth(db,request,peer,now)??handleOperations(db,request,now)??await handleInteractiveQuotes(request,{service:quotes,peer,consumeQuota:async(bucket,limit)=>consumeQuota(db,bucket,now,limit)})??handleMarkets(db,request,now)??
-      await handleFinancialReads(request,{service:financial,authenticate:async(req)=>{const session=currentSession(db,req,clock());return session?{kind:'wallet',wallet:session.wallet}:null;}})??handleTransactions(db,request,now)??await handleNotifications(db,request,peer,now)??
+      await handleFinancialReads(request,{service:financial,authenticate:async(req)=>{const session=currentSession(db,req,clock());return session?{kind:'wallet',wallet:session.wallet}:null;}})??await handleTransactions(db,request,now)??await handleNotifications(db,request,peer,now)??
       await handleInteractiveGovernance(request,{service:governance,peer,authenticate:async(req)=>{const session=currentSession(db,req,clock());return session?{kind:'wallet',wallet:session.wallet}:null;},consumeQuota:async(bucket,limit)=>consumeQuota(db,bucket,now,limit)})??
       await handleEarn(db,request,peer,now)??
       await handleCollect(db,request,peer,now)??

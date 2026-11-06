@@ -3,6 +3,7 @@ const route=(method,path)=>({method,path:'/api/v1'+path});
 const feature=(id,routes)=>({id,status:'local-validation',routes:routes.map(([method,path])=>route(method,path))});
 const shared=[
  ['discovery',[['GET','/capabilities'],['GET','/policy'],['GET','/collections'],['GET','/health'],['GET','/openapi.json']]],
+ ['transaction-receipt-preview',[['GET','/transactions/{id}']]],
  ['wallet-message-auth',[['POST','/auth/challenges'],['POST','/auth/verify'],['POST','/auth/logout'],['GET','/me'],['GET','/me/wallets']]],
  ['market-read',[['GET','/markets'],['GET','/markets/{id}'],['GET','/launch/fee-schedule']]],
  ['quote-preview',[['GET','/markets/{id}/quote-status'],['POST','/quotes']]],
@@ -21,7 +22,6 @@ const shared=[
 const nodeOnly=[
  ['launch-plan-preview',[['GET','/launch-plans'],['POST','/launch-plans/preview']]],
  ['earn-archive',[['GET','/earn/epochs/{epoch}/manifest'],['GET','/earn/claims/proof']]],
- ['transaction-receipt-preview',[['GET','/transactions/{id}']]],
  ['local-operation-status',[['GET','/operations/status']]],
 ];
 

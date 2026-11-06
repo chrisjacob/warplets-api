@@ -14,12 +14,13 @@ import {governance} from './governance';
 import { edgeAuth } from './wallet';
 import {earn} from './earn';
 import {notifications} from './notifications';
+import {transactions} from './transactions';
 import {quotes} from './quotes';
 import {financialReads} from './financial';
 import {r2ArtifactStore} from '../../artifacts/r2';
 
 const app = new Hono<{ Bindings: Env; Variables: { requestId: string } }>();
-const supportedPaths = new Set(['/notifications/capabilities','/notifications/subscriptions','/notifications/inbox','/health','/policy','/capabilities','/collections','/launch/fee-schedule','/markets','/markets/{id}',
+const supportedPaths = new Set(['/transactions/{id}','/notifications/capabilities','/notifications/subscriptions','/notifications/inbox','/health','/policy','/capabilities','/collections','/launch/fee-schedule','/markets','/markets/{id}',
   '/genesis/ballots','/genesis/ballots/{id}','/genesis/ballots/{id}/votes','/vault','/nfts/{id}/vault','/farms/{id}','/stake/positions','/earn/epochs/{epoch}/leaderboard','/earn/claims',
   '/earn/capacity','/earn/submissions','/earn/me','/earn/actions','/earn/actions/{actionId}/completions','/me','/me/wallets','/auth/challenges','/auth/verify','/auth/logout','/quotes','/markets/{id}/quote-status','/collect/inventories/{id}/stages/{stage}/reservations','/collect/inventories/{id}/progression','/collect/inventories/{id}/progression/quote','/collect/inventories','/collect/inventories/{id}','/collect/assets/{id}','/collect/me/assets','/collect/me/operations','/collect/me/operations/{id}']);
 const allRoutes = baseContract.paths as Record<string, object>;
@@ -100,6 +101,7 @@ app.get(base+'/manifests/:digest',async c=>{
 app.route(base,edgeAuth);
 app.route(base,earn);
 app.route(base,notifications);
+app.route(base,transactions);
 app.route(base,quotes);
 app.route(base,financialReads);
 app.route(base,governance);

@@ -43,7 +43,10 @@ export const featureShapes={
   Farm:o({marketId:s,fundedUnits:u,treasuryFeeBps:i,activationTime:s,emissionEnd:s,asOf:s,source:local,executable:{const:false},
     status:{enum:['scheduled','active','ended']},totalStakedUnits:u,earnedGrossUnits:u,unusedRecoverableUnits:u,roundingReserveUnits:u},
     ['marketId','fundedUnits','treasuryFeeBps','activationTime','emissionEnd','asOf','source','executable','status']),
-  TransactionIntent:o({id:s,action:s,subject:s,state:s,revision:i,planHash:s,attemptId:n(s),source:{const:'local-rehearsal'},executable:{const:false}}),
+  TransactionIntent:o({id:s,action:s,subject:s,state:{enum:['validated','awaiting_signature','attempt_expired','submitted','unknown','confirmed','failed','finalized']},revision:i,planHash:s,attemptId:n(s),source:{const:'local-rehearsal'},executable:{const:false},financialExecution:{const:false},provenance:{const:'legacy-recorded-unverified'},createdAtMs:ms,planExpiresAtMs:ms,asOfMs:ms,attemptCount:i,
+    currentAttempt:n(o({id:s,index:i,state:s,messageHash:s,blockhash:s,lastValidBlockHeight:i,contextSlot:i,observedAtMs:ms,hasRecordedSignature:b})),
+    receiptObservations:a(o({eventId:s,attemptId:s,state:{enum:['unknown','confirmed','failed','finalized']}})),
+    nextLocalTransition:{enum:['prepare-recorded-packet','observe-or-expire-unsubmitted','replace-expired-unsubmitted','reconcile-existing-attempt','none']},requiredObservation:n({enum:['fresh-verified-preparation','recorded-block-height-or-submission','same-attempt-recorded-outcome']}),replacementEligible:b}),
 };
 export const rawFeatureSuccess={
   getGenesisBallot:r('GenesisBallot'),

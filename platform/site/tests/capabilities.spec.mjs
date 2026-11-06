@@ -4,21 +4,21 @@ import { capabilityTransport } from '../src/capability-transport.mjs';
 import { createClient } from '../../contracts/client.mjs';
 import { makeCapabilities } from '../../contracts/capabilities.mjs';
 
-function setup(runtime='workerd-local') {
+function setup(runtime='workerd-local',exclude=[]) {
  const calls=[]; let time=0, broken=false;
  const transport=capabilityTransport({now:()=>time,fetchImpl:async(url,init)=>{
   calls.push([url,init?.method]);
   if(String(url).endsWith('/capabilities')) {
    if(broken)throw Error('offline');
-   return Response.json({data:makeCapabilities(runtime)});
+   const data=makeCapabilities(runtime);data.features=data.features.filter(feature=>!exclude.includes(feature.id));return Response.json({data});
   }
   return Response.json({data:[],meta:{}});
  }});
  return {calls,transport,client:createClient({fetchImpl:transport.fetch}),
    advance:()=>{time+=30001;},breakDiscovery:()=>{broken=true;}};
 }
-test('Worker allows mounted inventory reads and reviewed fixture mint requests but blocks transaction reads',async()=>{
- const {calls,client}=setup();
+test('restricted runtime allows mounted inventory and fixture mint requests but blocks unadvertised recovery reads',async()=>{
+ const {calls,client}=setup('workerd-local',['transaction-receipt-preview']);
  await client.listLocalInventories();
  await client.reserveLocalMint({path:{id:'a',stage:'b'},idempotencyKey:'synthetic-capability-check',body:{expectedTermsDigest:'a'.repeat(64)}});
  await assert.rejects(client.getTransaction({path:{id:'unknown'}}),/unavailable/);
@@ -77,7 +77,8 @@ test('React boundaries omit unsupported child components and preserve supported 
  function Child(){mounts++;return createElement('span',null,'Supported empty result');}
  for(const [runtime,expected] of [['workerd-local',false],['node-reference',true]]){
   const cache=new QueryClient();
-  cache.setQueryData(['runtime-capabilities','/api/v1',1],makeCapabilities(runtime));
+  const cap=makeCapabilities(runtime);if(!expected)cap.features=cap.features.filter(feature=>feature.id!=='transaction-receipt-preview');
+  cache.setQueryData(['runtime-capabilities','/api/v1',1],cap);
   const html=renderToStaticMarkup(createElement(QueryClientProvider,{client:cache},
    createElement(Capability,{path:'/api/v1/transactions/synthetic-operation'},createElement(Child))));
   assert.equal(html.includes('Supported empty result'),expected);
@@ -90,3 +91,5 @@ test('React boundaries omit unsupported child components and preserve supported 
  assert.deepEqual(principalKey('wallet-a','inventories'),['private','wallet-a','solana','inventories']);
  assert.deepEqual(principalKey(null,'inventories'),['public','solana','inventories']);
 });
+
+test('current Worker advertises and mounts owner recovery reads',async()=>{const {calls,client}=setup();await client.getTransaction({path:{id:'synthetic-intent'}});assert.deepEqual(calls,[['/api/v1/capabilities','GET'],['/api/v1/transactions/synthetic-intent','GET']]);});

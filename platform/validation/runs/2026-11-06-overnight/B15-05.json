@@ -1,0 +1,97 @@
+{
+  "format": "10x.local.implementation-evidence.v1",
+  "task": "B15",
+  "slice": "owner-only verified recovery HTTP and read-only React guidance",
+  "baseCommit": "83bc9ea8ecb2a738b29aa24fbaeea4656cdb7fe0",
+  "implementationCommit": null,
+  "sourceHashes": {
+    "platform/site/src/recovery.tsx": "6f88b186e238b1d3aae769a66e6b31a0b4af622335e6407ff46710106c6b79a2",
+    "platform/site/tests/recovery-runtime-qa.mjs": "62a2c72276ce7d45346297faeb80897c2293f370f1b928b1b42be6bddc20512d",
+    "platform/transactions/recovery-http.test.mjs": "e26196c4b21a3c76061c9f06d36355acf2cb57dc28bebc39b8cfa26b74d4cd2e",
+    "platform/edge/test/action-recovery-http.test.mjs": "dac093aa4b09fe95da36517861a73eb35fc63e550d98a0e98c9517701fa0bb1b"
+  },
+  "coordinatorDependencyHashes": {
+    "platform/transactions/recovery-http.mjs": "bb3d3546febde4ad8a71b2b7d01b76d9905279337bec1d256a9ecc1d39d40590",
+    "platform/transactions/http.mjs": "22e7d5f1b1849d22732c1b620801bea1b717441232bb1ff34c548403c274ea1b",
+    "platform/transactions/recovery-reads.mjs": "39a8807d20a35787438701f1256e341b792454587ddeae9a5bf17deb66854c6a",
+    "platform/transactions/recovery-read.fixtures.mjs": "ec59b6a3ba3e30be06254853b54802adc515efe08eb5a0fd3afe60c2843a89b4",
+    "platform/application/action-recovery.ts": "279a84a76638b76d1d8856c419bc0edb7fd84ca350784c5901745413cc4f3966",
+    "platform/edge/src/transactions.ts": "c65e70dfa1d8e4df0d300db0016150a482de54f3e9d35818bbf3c0b31c3bbe1f",
+    "platform/edge/src/worker.ts": "6458d5ea98a4c570722d583852101eaeac93656dfd870187846fd1ff0def25db",
+    "platform/server/application.mjs": "b4eb577ebcb7a360854130ddeb24de1a4653ad16a523d45d21c296ff5872708b",
+    "platform/contracts/capabilities.mjs": "3f5a41da4cad9d52355ee4e20f03c8104c4d40db54300d12a699d73f0f2daa0e",
+    "platform/contracts/feature-shapes.mjs": "dc883a22e95b015d3ac17b77e0b1b904715c1c10518ac52313b90ad73a26a574",
+    "platform/contracts/client.mjs": "338c9280a6da84ce5497a8b4cf40853cea22eae166e1f88f06c93d6274d43aa9",
+    "platform/site/tests/capabilities.spec.mjs": "3708b768b187cb9145369aeec97d431135fffea7b23c35aa304863091f2d6231",
+    "platform/site/tests/runtime-qa.mjs": "726b3bdadcbadf8916c8f8ae78322b50a902942bc42b132e297deb8db2e08a29"
+  },
+  "checks": [
+    {
+      "command": "node --test platform/transactions/recovery-http.test.mjs",
+      "passed": 1,
+      "profiles": 8,
+      "failed": 0,
+      "durationMs": 2888.823,
+      "log": "work/b15-recovery-http-node.log"
+    },
+    {
+      "command": "node --test platform/edge/test/action-recovery-http.test.mjs",
+      "passed": 1,
+      "profiles": 8,
+      "failed": 0,
+      "durationMs": 34803.4107,
+      "log": "work/b15-recovery-http-d1.log"
+    },
+    {
+      "command": "pnpm --dir platform/site build",
+      "exitCode": 0,
+      "includes": "TypeScript and Vite production build",
+      "log": "work/b15-recovery-site-build.log"
+    },
+    {
+      "command": "node platform/site/tests/recovery-runtime-qa.mjs",
+      "exitCode": 0,
+      "widths": [
+        360,
+        390,
+        768,
+        1440
+      ],
+      "statesPerWidth": [
+        3,
+        3,
+        3,
+        8
+      ],
+      "log": "work/b15-recovery-browser.log",
+      "screenshots": "work/b15-recovery-browser"
+    },
+    {
+      "command": "git diff --check -- owned paths",
+      "exitCode": 0
+    }
+  ],
+  "acceptance": [
+    "Actual Node and production main Worker on local D1 return identical full recovery DTO for all eight legacy states, including attemptId compatibility and false financial/executable flags.",
+    "Authenticated canonical wallet sessions, other-owner/missing404, unauthenticated/revoked401, invalid400, wrongmethod405 and corrupted-history503; private no-store and no mutation by successful reads.",
+    "Responses contain neither raw packet/account list nor recorded signature/simulation details. These retained synthetic labels are not chain authenticity.",
+    "Compiled React uses real Node API without positive response mocks; awaiting_signature, attempt_expired and unknown guidance at four widths, all eight states at1440.",
+    "Unknown reconciliation-only and explicit expired replacement review, not executable action. UI displays provenance legacy-recorded-unverified, required observation and observation time.",
+    "Corrupted history hides prior guidance, owner switch clears private result/input, different owner404, logout clears recovery UI.",
+    "Restricted/failed capability discovery cannot mount/query recovery; these two negative cases are explicitly injected capability faults only.",
+    "No transaction mutation/signing control; all transaction browser requests GET. No signing, simulation, broadcast, external calls or financial execution.",
+    "360px screenshot manually inspected: readable wrapped text and scrollable dialog, no horizontal overflow."
+  ],
+  "limits": [
+    "B15 remains partial: no evidence-derived action factory or atomic intent/observation preparation implemented by this slice.",
+    "Browser sessions are directly seeded canonical local fixture sessions, not a wallet-authentication/signature flow.",
+    "Browser uses actual Node; Worker parity is independently tested via production Worker HTTP.",
+    "The D1 fixture retains its recorded 2023 plan time while HTTP uses real current time; Node comparison uses returned asOf. Expired plans do not become replacement eligible. Browser fixed fixture evaluation demonstrates eligible expired-unsubmitted review separately.",
+    "No full-suite or current-CI pass claim; coordinator owns combined checkpoint."
+  ],
+  "coordinatorChecks": {
+    "contracts": "6PASS1012.7847ms work/b15-recovery-contracts.log",
+    "capabilityMounting": "8PASS2201.9429ms work/b15-recovery-capabilities.log",
+    "restrictedFixture": "Explicit transaction-receipt-preview exclusion preserves negative query mounting coverage after current Worker support."
+  }
+}
