@@ -1,0 +1,36 @@
+{
+  "scope": "B15 strict local intention vocabulary only; no preparation factory/persistence",
+  "files": {
+    "platform/transactions/plan-contracts.mjs": "86e7e84d1dc152b652f568817c4c9845221450de3a354535348b8c8035ebe946",
+    "platform/transactions/plan-contracts.d.mts": "d81eecdd8830f3b7c5aacfd9381e59c8de8401933ee64bdca2b116798a820a4b",
+    "platform/transactions/plan-contracts.test.mjs": "0db5461828357e0d5e839efb975120b5d7d46b0085475f354596bfb8e5a6bdf7"
+  },
+  "sharedDependency": {
+    "platform/application/action-plans.ts": "7c96c88ae3b1052774bceda187e0d269c19bf055efae888166fccc133a70ff1d"
+  },
+  "checks": {
+    "node": "4 PASS work/b15-plan-contracts-final.log",
+    "declarations": "PASS work/b15-plan-contracts-types.log",
+    "browserBundle": "PASS10.1KiB work/b15-plan-contracts-portable.log",
+    "diff": "PASS"
+  },
+  "requestVariants": 11,
+  "limits": {
+    "requestBytes": 2048,
+    "outputBytes": 4096,
+    "identifierCharacters": 128,
+    "amount": "canonical u64 decimal; input amount positive",
+    "slippageBps": "0..500"
+  },
+  "digests": {
+    "economic": "owner/action/economic parameters; excludes fee/slippage/reviewed terms binding",
+    "request": "owner and entire normalized request including reviewed protections"
+  },
+  "honestLimits": [
+    "All action wire factories remain unsupported at this foundation milestone.",
+    "requiredEvidence lists categories; evidenceStatus not-evaluated makes no missing-record assertion.",
+    "No source lookup, quote authority, persisted intent, signing, simulation, broadcast or financial capability.",
+    "Existing B14 verified quote service is next evidence-derived economic preparation path."
+  ],
+  "financialExecution": false
+}
