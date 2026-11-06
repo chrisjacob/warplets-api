@@ -5,7 +5,7 @@
   "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
   "currentTask": "B12",
-  "lastUpdatedAt": "2026-11-06T13:19:52.628241+00:00",
+  "lastUpdatedAt": "2026-11-06T13:28:04.705900+00:00",
   "migrationAllocation": {
     "next": 57,
     "reserved": [
@@ -385,12 +385,13 @@
       "status": "in_progress",
       "owner": "coordinator",
       "baseCommit": "b9efc0c8c97896a286c5f78ac4bf03e3a52727be",
-      "implementationCommit": null,
-      "pushed": false,
+      "implementationCommit": "4bed3c1",
+      "pushed": true,
       "evidence": [
-        "platform/validation/runs/2026-11-06-overnight/B12-01.json"
+        "platform/validation/runs/2026-11-06-overnight/B12-01.json",
+        "platform/validation/runs/2026-11-06-overnight/B12-02.json"
       ],
-      "nextAction": "Expose audited final-review command through typed registry, exact confirmation digest, transport and UI. Then remaining B12 collection/governance command audit.",
+      "nextAction": "Finish backward-compatible recovery tableOrder compaction; audited stage publication with reviewed revision fence and migration057.",
       "blocker": null
     },
     "B13": {

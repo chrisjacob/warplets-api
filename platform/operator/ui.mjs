@@ -1,5 +1,5 @@
 const el=id=>document.getElementById(id),day=el('day'),state=el('state');
-const STAFF='ops.configure-workload.v1',SCOPE='ops.change-scope.v1',journalKey='operator-command';
+const STAFF='ops.configure-workload.v1',SCOPE='ops.change-scope.v1',REVIEW='earn.final-review.v1',journalKey='operator-command';
 day.value=new Date().toISOString().slice(0,10);
 let cursor=null,revision=0,status=null,config=null,busy=false,pending=null;
 const msg=s=>{el('feedback').textContent=s;};
@@ -18,7 +18,12 @@ function review(row){
  const box=element('article');box.append(element('strong',row.tokenId),element('p',row.wallet));const link=element('a',row.url);
  try{const url=new URL(row.url);if(url.protocol==='https:'){link.href=url.href;link.target='_blank';link.rel='noreferrer noopener';}}catch{}
  box.append(link);if(row.contentScore!=null)box.append(element('p','Final score '+row.contentScore+' · '+row.reason));
- else box.append(element('p','Final moderation is unavailable in this console. Existing final decisions remain visible.'));
+ else if(status?.allowedKinds.includes(REVIEW)){
+  const form=element('form'),fields=element('fieldset');fields.dataset.reviewFields='true';fields.append(element('legend','Final content review'));
+  for(const [name,label,type] of [['score','Score (0–10)','number'],['reason','Review reason','text'],['sourceRef','Review evidence reference','text']]){const wrapper=element('label',label),input=element('input');input.name=name;input.type=type;input.required=true;if(name==='score'){input.min='0';input.max='10';input.step='1';}else input.maxLength=256;wrapper.append(input);fields.append(wrapper);}
+  fields.append(element('p','A confirmed final score cannot be edited. A score of 0 rejects content; held evidence is separate.'),element('button','Preview final review'));form.append(fields);
+  form.oninput=changed;form.onsubmit=event=>{event.preventDefault();const f=form.elements;void preview(REVIEW,{submissionId:row.id,score:Number(f.score.value),reason:f.reason.value.trim(),sourceRef:f.sourceRef.value.trim()});};box.append(form);
+ }else box.append(element('p','Final moderation is unavailable for this session. Existing final decisions remain visible.'));
  return box;
 }
 function controls(){
@@ -26,17 +31,19 @@ function controls(){
  el('staff-fields').disabled=locked||!status?.allowedKinds.includes(STAFF);el('scope-fields').disabled=locked||!status?.allowedKinds.includes(SCOPE);
  el('staff-permission').textContent=status?.allowedKinds.includes(STAFF)?'':'Staffing commands are unavailable for this session.';
  el('scope-permission').textContent=status?.allowedKinds.includes(SCOPE)?'':'Scope commands are unavailable for this session.';
- el('confirm').disabled=busy||!!pending?.rejected;el('discard').hidden=!!pending?.attempted&&!pending?.rejected;el('discard').textContent=pending?.rejected?'Discard rejected command':'Discard unsubmitted preview';
- el('confirm').textContent=pending?.attempted?'Retry exact command':'Confirm local change';
+ for(const fields of document.querySelectorAll('[data-review-fields]'))fields.disabled=locked||!status?.allowedKinds.includes(REVIEW);el('review-permission').textContent=status?.allowedKinds.includes(REVIEW)?'Final scores are immutable once committed.':'Final moderation is unavailable for this session.';
+ el('confirm').disabled=busy||!!pending?.rejected||!!pending&&!pending.attempted&&!/^[a-f0-9]{64}$/.test(pending.preview.confirmationDigest??'');el('discard').hidden=!!pending?.attempted&&!pending?.rejected;el('discard').textContent=pending?.rejected?'Discard rejected command':'Discard unsubmitted preview';
+ el('confirm').textContent=pending?.attempted&&!pending.preview.confirmationDigest?'Check original receipt':pending?.attempted?'Retry exact command':'Confirm local change';
 }
 function renderPreview(){
  el('preview').hidden=!pending;el('preview-details').replaceChildren();if(!pending){controls();return;}
  const {preview,request,attempted}=pending,s=preview.summary,rows=request.operationKind===STAFF?
  [['UTC date',new Date(s.effectiveEpoch*86400000).toISOString().slice(0,10)],['Staffed minutes',s.staffedMinutes],['Seconds per review',s.secondsPerReview],['Admission limit',s.admissionLimit],['Calculated capacity',s.calculatedCapacity],['Reason',s.reason]]:
+ request.operationKind===REVIEW?[['Submission',s.submissionId],['Final score',s.score],['Finality','This final decision cannot be edited.'],['Reason',s.reason],['Evidence reference',s.sourceRef]]:
  [['Scope',s.scope],['Change',s.paused?'Pause new work':'Resume new work'],['Previous scope revision',s.previousRevision??'No previous change'],['Reason',s.reason],['Evidence reference',s.evidenceRef]];
- rows.push(['Configuration revisions',Object.entries(preview.expectedRevisions).map(([k,v])=>k+': '+v).join(' · ')],['Command digest',preview.requestDigest]);
+ rows.push(['Configuration revisions',Object.entries(preview.expectedRevisions).map(([k,v])=>k+': '+v).join(' · ')],['Receipt request digest',preview.requestDigest],['Confirmation digest',preview.confirmationDigest??'Legacy preview: confirmation unavailable']);
  for(const [label,value] of rows)el('preview-details').append(element('dt',label),element('dd',String(value)));
- el('preview-state').textContent=pending.rejected?'The command was rejected. Discard it and create a new preview using current configuration.':attempted?'The outcome needs confirmation. Retry uses the saved body, key and preview digest.':'Review this exact local change before confirming.';
+ el('preview-state').textContent=!preview.confirmationDigest?'This saved request uses an earlier preview format. Its outcome is retained. Check the original receipt without executing a new change.':pending.rejected?'The command was rejected. Discard it and create a new preview using current configuration.':attempted?'The outcome needs confirmation. Retry uses the saved body, key and preview digest.':'Review this exact local change before confirming.';
  controls();
 }
 async function refreshConfig(){
@@ -49,7 +56,7 @@ async function refresh(next=false){
  const turn=++revision;
  try{const p=new URLSearchParams({date:day.value,state:state.value});if(next&&cursor)p.set('cursor',cursor);const data=await api('board?'+p);if(turn!==revision)return;
  const c=data.metrics.capacity;el('capacity').textContent=c.admitted+' admitted · '+c.remaining+' places available';
- const rows=data.queue.items??[];el('queue').replaceChildren(...(rows.length?rows.map(review):[element('p','No submissions in this queue.')]));cursor=data.queue.nextCursor;el('next').hidden=!cursor;
+ const rows=data.queue.items??[];el('queue').replaceChildren(...(rows.length?rows.map(review):[element('p','No submissions in this queue.')]));cursor=data.queue.nextCursor;el('next').hidden=!cursor;el('evidence-status').textContent='Held pricing observations: '+data.metrics.evidence.heldObservations+'. Held evidence is separate from content rejection.';controls();
  }catch(e){msg(e.message);}
 }
 async function open(){
@@ -60,8 +67,8 @@ async function open(){
 }
 async function preview(operationKind,input){
  if(busy||pending?.attempted)return;busy=true;controls();
- try{await refreshConfig();const request={operationKind,requestKey:crypto.randomUUID(),expectedRevisions:structuredClone(config.expectedRevisions),input};const result=await api('commands/preview',request);
- if(result.operationKind!==operationKind||result.requestKey!==request.requestKey||result.financialExecution!==false||!/^[a-f0-9]{64}$/.test(result.requestDigest))throw Error('Preview identity mismatch.');
+ try{await refreshConfig();const request={operationKind,requestKey:operationKind===REVIEW?input.submissionId:crypto.randomUUID(),expectedRevisions:structuredClone(config.expectedRevisions),input};const result=await api('commands/preview',request);
+ if(Object.entries(input).some(([key,value])=>result.summary?.[key]!==value)||Object.entries(request.expectedRevisions).some(([key,value])=>result.expectedRevisions?.[key]!==value)||operationKind===STAFF&&result.summary?.calculatedCapacity!==Math.min(input.admissionLimit,Math.floor(input.staffedMinutes*60/input.secondsPerReview))||result.operationKind!==operationKind||result.requestKey!==request.requestKey||result.financialExecution!==false||!/^[a-f0-9]{64}$/.test(result.requestDigest)||!/^[a-f0-9]{64}$/.test(result.confirmationDigest)||operationKind===REVIEW&&result.summary.final!==true)throw Error('Preview identity mismatch.');
  pending={principalId:status.principal.id,request,preview:result,attempted:false};save();renderPreview();msg('Preview ready. No change has been committed.');el('preview-title').focus();
  }catch(e){msg(e.message);}finally{busy=false;controls();}
 }
@@ -72,11 +79,11 @@ function changed(){if(pending&&!pending.attempted){pending=null;save();renderPre
 el('staff').oninput=el('scope-form').oninput=changed;
 el('confirm').onclick=async()=>{
  if(!pending||busy)return;busy=true;pending.attempted=true;save();renderPreview();const captured=pending;
- try{const result=await api('commands/execute',captured.request,{'x-operator-preview':captured.preview.requestDigest});
+ try{const result=await api(captured.preview.confirmationDigest?'commands/execute':'commands/receipt',captured.request,captured.preview.confirmationDigest?{'x-operator-preview':captured.preview.confirmationDigest}:{});
  if(result.kind==='pending'){msg('Command held: '+result.reason+'. Retry the saved command after the dependency is ready.');return;}
  if(!['committed','replayed'].includes(result.kind)||result.receipt?.requestDigest!==captured.preview.requestDigest||result.receipt?.operationKind!==captured.request.operationKind||result.receipt?.requestKey!==captured.request.requestKey)throw Error('Command response identity mismatch. The original request is retained.');
  pending=null;save();renderPreview();await refreshConfig();await refresh();msg('Local change '+(result.kind==='replayed'?'confirmed from its existing receipt.':'committed with an audit receipt.'));el('feedback').focus();
- }catch(e){if(pending===captured){if([400,403,409,422].includes(e.status)){pending.rejected=true;save();}msg(pending.rejected?'Command rejected: '+e.message+' Discard it before preparing a new command.':'Outcome not confirmed: '+e.message+' Retry the exact saved command.');renderPreview();}else msg(e.message);}
+ }catch(e){if(pending===captured){if([400,403,409,422].includes(e.status)){pending.rejected=true;save();}msg(pending.rejected?'Command rejected: '+e.message+' Discard it before preparing a new command.':'Outcome not confirmed: '+e.message+(captured.preview.confirmationDigest?' Retry the exact saved command.':' The saved request remains held; checking its receipt cannot execute it.'));renderPreview();}else msg(e.message);}
  finally{busy=false;controls();}
 };
 el('discard').onclick=()=>{if(pending?.attempted&&!pending?.rejected)return;pending=null;save();renderPreview();msg('Unsubmitted preview discarded.');};

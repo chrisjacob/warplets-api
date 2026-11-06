@@ -58,7 +58,7 @@ export function createOperatorApp(db,{bootToken,clock=Date.now,operatorId='local
     return json({metrics:workloadMetrics(db,{epoch,nowMs:now}),queue:moderatorQueue(db,{epoch,state,cursor:searchParams.get('cursor')})});
    }
    if(['/ops/capacity','/ops/reviews'].includes(pathname)&&request.method==='POST')
-    return failure(503,'command_unavailable','Use an available audited operator command. Final moderation is not yet available in this console.');
+    return failure(503,'command_unavailable','This legacy write endpoint is unavailable. Use an authorized audited command preview.');
    return failure(404,'not_found','Unknown operator resource.');
   }catch(error){
    if(error instanceof EarnError||error instanceof OperatorSessionError)return failure(error.status,error.code,error.message,error.retryAfterSeconds?{'retry-after':String(error.retryAfterSeconds)}:{});

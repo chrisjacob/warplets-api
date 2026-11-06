@@ -23,7 +23,7 @@ test('separate operator session, same-origin audited writes and unavailable lega
  const command={operationKind:'ops.configure-workload.v1',requestKey:'fixture-capacity',expectedRevisions:status.expectedRevisions,
  input:{effectiveEpoch:Math.floor(clock/86400000),staffedMinutes:30,secondsPerReview:180,admissionLimit:50,reason:'Staffed pilot'}};
  const preview=await (await handler(req('commands/preview',command,sessionToken))).json();
- assert.equal((await handler(req('commands/execute',command,sessionToken,{'x-operator-preview':preview.requestDigest}))).status,200);
+ assert.equal((await handler(req('commands/execute',command,sessionToken,{'x-operator-preview':preview.confirmationDigest}))).status,200);
  assert.equal((await handler(req('capacity',{date},sessionToken))).status,503);
  const wallet=encode58(Buffer.alloc(32,1));addCampaign(db,{tokenId:'dst',activationMs:clock-86400000,originalUnits:'200000'});
  recordStakeRead(db,{wallet,tokenId:'dst',observedMs:clock-1000,expiresMs:clock+1000,microUsd:'10000000',sourceRef:'operator_fixture'});

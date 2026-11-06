@@ -1,13 +1,18 @@
 import {createOperationsCommand,OPERATIONS} from '../storage/atomic-operations.mjs';
 import {controlledScopes} from '../operations/portable-controls.mjs';
 import {name,nat,requireValue} from '../earn/validation.mjs';
+import {FINAL_REVIEW,reviewRequestBytes} from './commands.mjs';
+import {canonicalJson,utf8} from '../security/canonical.mjs';
 
-export const LOCAL_OPERATOR_COMMANDS=Object.freeze([OPERATIONS.configureWorkload,OPERATIONS.changeScope]);
+export const LOCAL_OPERATOR_COMMANDS=Object.freeze([OPERATIONS.configureWorkload,OPERATIONS.changeScope,FINAL_REVIEW]);
+export const LOCAL_OPERATOR_SCOPES=Object.freeze({[OPERATIONS.configureWorkload]:'operations',[OPERATIONS.changeScope]:'operations',[FINAL_REVIEW]:'earn-review'});
+export function operatorCommandScope(kind){requireValue(LOCAL_OPERATOR_COMMANDS.includes(kind),'This operator command is unavailable.');return LOCAL_OPERATOR_SCOPES[kind];}
 const exact=(value,keys)=>value&&typeof value==='object'&&!Array.isArray(value)
  &&Object.keys(value).length===keys.length&&keys.every(key=>Object.hasOwn(value,key));
 const freeze=value=>{if(value&&typeof value==='object'){Object.values(value).forEach(freeze);Object.freeze(value);}return value;};
 const staffingFields=['effectiveEpoch','staffedMinutes','secondsPerReview','admissionLimit','reason'];
 const scopeFields=['scope','paused','previousRevision','reason','evidenceRef'];
+const reviewFields=['submissionId','score','reason','sourceRef'];
 
 /** This registry accepts trusted principal/time separately from the wire body.
  * A preview is descriptive, never session, scope or current-state authority. */
@@ -20,14 +25,18 @@ export async function prepareOperatorCommand({principal,request,nowMs},crypto){
  requireValue(typeof r.requestKey==='string'&&/^[A-Za-z0-9._:-]{1,128}$/.test(r.requestKey),'Invalid request key.');
  requireValue(exact(r.expectedRevisions,['earn','source','control'])&&Object.values(r.expectedRevisions).every(value=>
   typeof value==='string'&&/^(0|[1-9][0-9]*)$/.test(value)&&Number.isSafeInteger(Number(value))),'Supply all three exact safe revision strings.');
- const i=r.input,staffing=r.operationKind===OPERATIONS.configureWorkload;
- requireValue(exact(i,staffing?staffingFields:scopeFields),'Invalid operator input fields.');
+ const i=r.input,staffing=r.operationKind===OPERATIONS.configureWorkload,review=r.operationKind===FINAL_REVIEW;
+ requireValue(exact(i,staffing?staffingFields:review?reviewFields:scopeFields),'Invalid operator input fields.');
  name(i.reason,'reason');
  if(staffing){
   nat(i.effectiveEpoch,'epoch');
   requireValue(Number.isInteger(i.staffedMinutes)&&i.staffedMinutes>=0&&i.staffedMinutes<=1440,'Invalid staffed minutes.');
   requireValue(Number.isInteger(i.secondsPerReview)&&i.secondsPerReview>=1&&i.secondsPerReview<=3600,'Invalid review estimate.');
   requireValue(Number.isInteger(i.admissionLimit)&&i.admissionLimit>=0&&i.admissionLimit<=100,'Invalid pilot capacity.');
+ }else if(review){
+  name(i.submissionId,'submission');name(i.sourceRef,'source reference');
+  requireValue(r.requestKey===i.submissionId,'Final review request key must equal its submission ID.');
+  requireValue(Number.isInteger(i.score)&&i.score>=0&&i.score<=10,'Score must be 0–10.');
  }else{
   requireValue(controlledScopes.includes(i.scope),'Choose a controllable application scope. Claims, principal and recovery are protected.');
   requireValue(typeof i.paused==='boolean','Specify pause or resume.');
@@ -35,11 +44,14 @@ export async function prepareOperatorCommand({principal,request,nowMs},crypto){
   name(i.evidenceRef,'evidence reference');
  }
  freeze(p);freeze(r);
- const command=await createOperationsCommand(r.operationKind,{principal:p,requestKey:r.requestKey,input:i,nowMs:at,expectedRevisions:r.expectedRevisions},crypto);
+ const command=review?{principal:p,operationKind:FINAL_REVIEW,businessIdentity:i.submissionId,requestKey:r.requestKey,input:i,nowMs:at,expectedRevisions:r.expectedRevisions,
+  requestDigest:await crypto.sha256(reviewRequestBytes({principal:p,input:i}))}:
+  await createOperationsCommand(r.operationKind,{principal:p,requestKey:r.requestKey,input:i,nowMs:at,expectedRevisions:r.expectedRevisions},crypto);
+ const confirmationDigest=await crypto.sha256(utf8(canonicalJson(['10x-local-operator-confirmation-v1',p.id,r])));
  // Current-time/state predicates stay in the repository, after accepted replay.
- const preview={operationKind:r.operationKind,requestKey:r.requestKey,requestDigest:command.requestDigest,
+ const preview={operationKind:r.operationKind,requestKey:r.requestKey,requestDigest:command.requestDigest,confirmationDigest,
   expectedRevisions:r.expectedRevisions,financialExecution:false,
-  summary:staffing?{...i,calculatedCapacity:Math.min(i.admissionLimit,Math.floor(i.staffedMinutes*60/i.secondsPerReview)),currentOrFutureEpoch:i.effectiveEpoch>=Math.floor(at/86400000)}:{...i}};
+  summary:staffing?{...i,calculatedCapacity:Math.min(i.admissionLimit,Math.floor(i.staffedMinutes*60/i.secondsPerReview)),currentOrFutureEpoch:i.effectiveEpoch>=Math.floor(at/86400000)}:review?{...i,final:true}:{...i}};
  return freeze({command,preview});
 }
 
@@ -48,5 +60,6 @@ export async function prepareOperatorCommand({principal,request,nowMs},crypto){
 export function dispatchOperatorCommand(repository,prepared){
  const command=prepared?.command;
  requireValue(command&&LOCAL_OPERATOR_COMMANDS.includes(command.operationKind),'This operator command is unavailable.');
+ if(command.operationKind===FINAL_REVIEW){requireValue(typeof repository.recordFinalReview==='function','Final review is unavailable.');return repository.recordFinalReview(command);}
  return command.operationKind===OPERATIONS.configureWorkload?repository.configureWorkload(command):repository.changeScope(command);
 }

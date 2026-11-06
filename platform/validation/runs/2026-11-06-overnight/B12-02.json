@@ -1,0 +1,94 @@
+{
+  "task": "B12",
+  "slice": "B12-02",
+  "status": "verified-slice",
+  "baseCommit": "4bed3c1",
+  "scope": [
+    "Audited immutable final moderation exposed through exact typed registry and scoped local transport",
+    "Separate confirmation digest binds full request/revisions while preserving historical receipt digest",
+    "Read-only receipt resolution for older saved unknown outcomes; absent receipt never executes",
+    "Permission-gated final-score form and explicit irreversible preview; held evidence separate"
+  ],
+  "checks": {
+    "boundary": "23/23PASS2621.8748ms work/b12-review-boundary-final.log",
+    "receipt": "7/7PASS2546.9125ms work/b12-review-transport-receipt.log",
+    "registry": "8/8PASS175.5105ms plus strict declaration and Edge tscPASS",
+    "browser": {
+      "slice": "B12 audited final-review UI and retained confirmation compatibility",
+      "recordedAt": "2026-11-06T13:27:19.202575+00:00",
+      "sourceHashes": {
+        "platform/operator/ui.mjs": "4400a8d6f9807cde934a7e8829c10653edb85c9149afc574976c82ed20c51695",
+        "platform/operator/index.html": "00c323b5e8a117148a704152868009d956bea8948d3161814841808a047ae8bf",
+        "platform/operator/browser-qa.mjs": "dd00ccc56b7448f62251dd166caf5a61e1d5fe50230ec1c343a3b6f182091d2f"
+      },
+      "browser": {
+        "passed": true,
+        "widths": [
+          360,
+          390,
+          768,
+          1440
+        ],
+        "realCommandExecutions": 14,
+        "auditEvents": 10,
+        "newAuditEvents": 9,
+        "baselineAuditEvents": 1,
+        "previewReadOnly": true,
+        "negativeResponseLoss": true,
+        "exactRetryAfterReload": true,
+        "expiredSessionReauthentication": true,
+        "stablePrincipalRetry": true,
+        "differentPrincipalIsolation": true,
+        "negativeStalePreview": true,
+        "readOnlySession": true,
+        "auditedFinalReview": true,
+        "immutableReviewConflict": true,
+        "reviewExactReplay": true,
+        "confirmationRevisionBinding": true,
+        "negativePreviewMismatch": true,
+        "legacyReceiptReadOnly": true,
+        "missingLegacyReceiptHeld": true,
+        "keyboardFocus": true,
+        "logoutClearsPrivateState": true,
+        "financialExecution": false,
+        "screenshots": "work/b12-review-operator"
+      },
+      "checks": [
+        {
+          "command": "installed local Chromium / node platform/operator/browser-qa.mjs",
+          "log": "work/b12-review-browser.log",
+          "passed": true,
+          "elapsedSeconds": 8.3897406
+        },
+        {
+          "command": "node --test platform/operator/session.test.mjs platform/operator/console.test.mjs platform/operator/command-transport.test.mjs",
+          "log": "work/b12-review-focused.log",
+          "passed": 15,
+          "failed": 0,
+          "durationMs": 2738.856
+        },
+        {
+          "command": "node --check owned JS; git diff --check; UTF8/LF validation",
+          "passed": true
+        }
+      ],
+      "notes": [
+        "All positive commands use actual loopback APIs, explicit operations and earn-review grants, and genuine guarded audit receipts.",
+        "Response loss, altered preview summary, stale configuration, changed score and copied legacy journal are explicit negative/compatibility fixtures.",
+        "Each confirmation header uses confirmationDigest; receipt identity still uses requestDigest.",
+        "Review requestKey equals submissionId; irreversible finality is shown before confirmation and accepted rows have no edit form.",
+        "Queue exposes aggregate held pricing observations only; UI makes no invented per-submission held claim.",
+        "Legacy attempted journals without confirmationDigest can only check the original read-only receipt;404 preserves held payload without executing.",
+        "Financial execution remains false; no public operator route or release approval."
+      ]
+    }
+  },
+  "schemaChanges": false,
+  "financialExecution": false,
+  "ci": {
+    "run": 42221767194,
+    "source": "b9efc0c",
+    "status": "still-running; does not cover B12"
+  },
+  "next": "Finish backward-compatible recovery tableOrder compaction; audited stage publication with reviewed revision fence and migration057."
+}

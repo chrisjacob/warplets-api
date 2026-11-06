@@ -1,7 +1,9 @@
 import {randomUUID} from 'node:crypto';
-import {prepareOperatorCommand,dispatchOperatorCommand} from '../application/operator-commands.mjs';
+import {prepareOperatorCommand,dispatchOperatorCommand,operatorCommandScope} from '../application/operator-commands.mjs';
 import {createNodeAtomicDriver} from '../storage/node/atomic-driver.mjs';
 import {createAtomicOperationsRepository} from '../storage/atomic-operations.mjs';
+import {createAtomicReceipts} from '../storage/atomic-receipts.mjs';
+import {createAtomicEarnRepository} from '../storage/atomic-earn.mjs';
 import {createNodeCrypto} from '../security/node-crypto.mjs';
 import {json,failure} from '../server/api.mjs';
 import {EarnError} from '../earn/validation.mjs';
@@ -26,7 +28,7 @@ export function createOperatorCommandTransport(db,{sessions,clock=Date.now,crypt
  return async request=>{
   const {hostname,origin,pathname}=new URL(request.url);
   if(!['127.0.0.1','localhost'].includes(hostname))return failure(403,'local_only','Use the local operator origin.');
-  if(!['/ops/commands/preview','/ops/commands/execute'].includes(pathname))return failure(404,'not_found','Unknown operator command.');
+  if(!['/ops/commands/preview','/ops/commands/execute','/ops/commands/receipt'].includes(pathname))return failure(404,'not_found','Unknown operator command.');
   if(request.method!=='POST')return failure(405,'method_not_allowed','Use POST.',{allow:'POST'});
   if(request.headers.get('origin')!==origin)return failure(403,'invalid_origin','Use the operator origin.');
   try{
@@ -35,19 +37,23 @@ export function createOperatorCommandTransport(db,{sessions,clock=Date.now,crypt
    const body=await readOperatorBody(request),authorization=sessions.authorize(raw,body.operationKind);
    const prepared=await prepareOperatorCommand({principal:authorization.principal,request:body,nowMs:clock()},crypto);
    const driver=createNodeAtomicDriver(db,{transactionGuard:authorization.guard});
+   if(pathname.endsWith('/receipt')){
+    const result=await createAtomicReceipts(driver,{crypto,ids}).replay(prepared.command);
+    return result?json(result,result.kind==='conflict'?409:200):failure(404,'receipt_not_found','No accepted receipt matches this command. No change was executed.');
+   }
    if(pathname.endsWith('/preview')){
     const [version,scope]=await driver.batch([
      {sql:'SELECT name,revision FROM app_revisions ORDER BY name',values:[]},
-     {sql:"SELECT enabled FROM app_operator_scopes WHERE operator=? AND scope='operations'",values:[authorization.principal.id]},
+     {sql:"SELECT enabled FROM app_operator_scopes WHERE operator=? AND scope=?",values:[authorization.principal.id,operatorCommandScope(body.operationKind)]},
     ]);
     if(!scope.rows[0]?.enabled)return failure(403,'operator_scope_required','Operator scope is unavailable.');
     const current=Object.fromEntries(version.rows.map(r=>[r.name,String(r.revision)]));
     if(Object.entries(body.expectedRevisions).some(([key,value])=>current[key]!==value))return failure(409,'revision_conflict','Refresh the current configuration before preview.');
     return json(prepared.preview);
    }
-   if(request.headers.get('x-operator-preview')!==prepared.command.requestDigest)
+   if(request.headers.get('x-operator-preview')!==prepared.preview.confirmationDigest)
     return failure(409,'preview_required','Confirm the exact command preview.');
-   const result=await dispatchOperatorCommand(createAtomicOperationsRepository(driver,{crypto,ids}),prepared);
+   const result=await dispatchOperatorCommand({...createAtomicOperationsRepository(driver,{crypto,ids}),recordFinalReview:createAtomicEarnRepository(driver,{crypto,ids}).recordFinalReview},prepared);
    return json(result,result.kind==='conflict'?409:result.kind==='pending'?202:200);
   }catch(error){
    if(error instanceof EarnError||error instanceof OperatorSessionError)return failure(error.status,error.code,error.message);

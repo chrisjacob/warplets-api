@@ -1,3 +1,11 @@
+# Latest override — B12-02 audited final moderation tested
+
+B12-01 committed/pushed4bed3c1. B12-02 registry/transport/UI tested23focusedPASS2621.8748ms and browserPASS8.39s at4widths. Evidence B12-02.json. Exact confirmation covers revisions without changing historical receipt digests. Legacy saved commands resolve through read-only receipt lookup; missing receipts stay held. Final moderation now available with explicit session permission and earn-review database grant. Financial execution remains disabled.
+
+Commit/push B12-02 outcome follows this record. Uncommitted NEXT work must be preserved: coordinator stage-service/repository/declarations/test add reviewed-version fence and read-only stage preview (new focused1PASS848.0741ms); stage audit/migration057 NOT installed yet. Agent snapshot_acceptance owns recovery tableOrder compaction/helper/tests, needed before057 because056 checkpoint has100Bheadroom. Agent frontend_b09 finished/frozen final-review UI and is idle. Do not stage unfinished stage/recovery files with final-review milestone.
+
+Next: follow compaction tests, run one actual D1 modern-pending recovery after compaction, commit tested prerequisite, then add057 atomic stage audit plus stage-publication operator UI. Follow frozen integrated CI42221767194/session37792 to completion, then trigger a B12 checkpoint CI without canceling that evidence. Earlier current details below are superseded by this override where noted.
+
 # Current checkpoint — B12 scoped operator implementation
 
 Continue authorized B work without milestone stops. User requests token efficiency: task-sized context, compact logs, reuse passed evidence, no duplicate broad runs. No deployment, remote resources, spending, signing, external messages or R-stage work. Financial execution remains disabled.

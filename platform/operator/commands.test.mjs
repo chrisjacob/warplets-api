@@ -1,8 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {prepareOperatorCommand,dispatchOperatorCommand,LOCAL_OPERATOR_COMMANDS} from '../application/operator-commands.mjs';
+import {prepareOperatorCommand,dispatchOperatorCommand,LOCAL_OPERATOR_COMMANDS,LOCAL_OPERATOR_SCOPES,operatorCommandScope} from '../application/operator-commands.mjs';
 import {createOperationsCommand,OPERATIONS} from '../storage/atomic-operations.mjs';
 import {createNodeCrypto} from '../security/node-crypto.mjs';
+import {FINAL_REVIEW,reviewRequestBytes} from '../application/commands.mjs';
+import {canonicalJson,utf8} from '../security/canonical.mjs';
 
 const crypto=createNodeCrypto(),nowMs=Date.parse('2026-11-07T04:00:00Z'),epoch=Math.floor(nowMs/86400000);
 const principal={kind:'operator',id:'synthetic-local-operator'};
@@ -11,6 +13,8 @@ const staffing=()=>({operationKind:OPERATIONS.configureWorkload,requestKey:'synt
  input:{effectiveEpoch:epoch,staffedMinutes:5,secondsPerReview:45,admissionLimit:50,reason:'Synthetic staffed pilot'}});
 const pause=()=>({operationKind:OPERATIONS.changeScope,requestKey:'synthetic-pause',expectedRevisions:{...revisions},
  input:{scope:'earn-admission',paused:true,previousRevision:null,reason:'Synthetic pause',evidenceRef:'synthetic:operator-preview'}});
+const review=()=>({operationKind:FINAL_REVIEW,requestKey:'synthetic-submission',expectedRevisions:{...revisions},
+ input:{submissionId:'synthetic-submission',score:7,reason:'Synthetic final moderation',sourceRef:'synthetic:review'}});
 const prepare=request=>prepareOperatorCommand({principal,request,nowMs},crypto);
 const invalid=error=>error.code==='invalid_input';
 
@@ -25,7 +29,38 @@ test('local operator registry rejects member authority, extra fields, unknown co
  for(const badPrincipal of [{kind:'wallet',wallet:'synthetic'}, {...principal,sessionToken:'not-command-data'}, {kind:'operator',id:' '}])
   await assert.rejects(prepareOperatorCommand({principal:badPrincipal,request:staffing(),nowMs},counting),invalid);
  await assert.rejects(prepareOperatorCommand({principal,request:staffing(),nowMs:NaN},counting),invalid);
- assert.equal(hashes,0);assert.deepEqual(LOCAL_OPERATOR_COMMANDS,[OPERATIONS.configureWorkload,OPERATIONS.changeScope]);
+ assert.equal(hashes,0);assert.deepEqual(LOCAL_OPERATOR_COMMANDS,[OPERATIONS.configureWorkload,OPERATIONS.changeScope,FINAL_REVIEW]);
+});
+
+test('final moderation keeps historical receipt identity while confirmation binds explicit revisions',async()=>{
+ const request=review(),value=await prepare(request),changed=await prepare({...request,expectedRevisions:{...revisions,source:'13'}}),later=await prepareOperatorCommand({principal,request,nowMs:nowMs+86400000},crypto);
+ assert.equal(value.command.requestDigest,await crypto.sha256(reviewRequestBytes({principal,input:request.input})));
+ assert.equal(value.command.businessIdentity,request.input.submissionId);assert.equal(value.command.requestKey,request.input.submissionId);
+ assert.equal(changed.command.requestDigest,value.command.requestDigest);assert.equal(later.command.requestDigest,value.command.requestDigest);
+ assert.notEqual(changed.preview.confirmationDigest,value.preview.confirmationDigest);assert.equal(later.preview.confirmationDigest,value.preview.confirmationDigest);
+ assert.deepEqual(value.preview.summary,{...request.input,final:true});assert.equal(Object.isFrozen(value.preview.summary),true);
+ for(const score of [-1,11,1.5,'7'])await assert.rejects(prepare({...request,input:{...request.input,score}}),invalid);
+ for(const bad of [{...request,requestKey:'different'}, {...request,input:{...request.input,final:true}}, {...request,input:{...request.input,sourceRef:''}}, {...request,input:{...request.input,submissionId:''}}])await assert.rejects(prepare(bad),invalid);
+});
+
+test('all confirmation identities bind canonical captured request, principal, revisions and key',async()=>{
+ for(const request of [staffing(),pause(),review()]){
+  const value=await prepare(request),expected=await crypto.sha256(utf8(canonicalJson(['10x-local-operator-confirmation-v1',principal.id,request])));assert.equal(value.preview.confirmationDigest,expected);
+  const changedRevision=await prepare({...request,expectedRevisions:{...revisions,earn:'1'}});assert.notEqual(changedRevision.preview.confirmationDigest,expected);
+  const other=await prepareOperatorCommand({principal:{...principal,id:'another-operator'},request,nowMs},crypto);assert.notEqual(other.preview.confirmationDigest,expected);
+  const changed=request.operationKind===FINAL_REVIEW?{...request,requestKey:'other-submission',input:{...request.input,submissionId:'other-submission'}}:{...request,requestKey:'other-key'};
+  assert.notEqual((await prepare(changed)).preview.confirmationDigest,expected);
+ }
+ // Scope receipt identity excludes requestKey; confirmation must still bind it.
+ const a=await prepare(pause()),b=await prepare({...pause(),requestKey:'another-pause-key'});assert.equal(a.command.requestDigest,b.command.requestDigest);assert.notEqual(a.preview.confirmationDigest,b.preview.confirmationDigest);
+});
+
+test('final moderation dispatch is optional, named and requires its distinct operator scope',async()=>{
+ const value=await prepare(review()),result={kind:'replayed',receipt:{operationId:'synthetic-final'},value:{recorded:true,replayed:true}};let captured;
+ assert.throws(()=>dispatchOperatorCommand({},value),invalid);
+ assert.equal(await dispatchOperatorCommand({recordFinalReview(command){captured=command;return Promise.resolve(result);}},value),result);assert.equal(captured,value.command);
+ assert.equal(operatorCommandScope(FINAL_REVIEW),'earn-review');assert.equal(operatorCommandScope(OPERATIONS.configureWorkload),'operations');assert.equal(operatorCommandScope(OPERATIONS.changeScope),'operations');
+ assert.equal(Object.isFrozen(LOCAL_OPERATOR_SCOPES),true);assert.throws(()=>operatorCommandScope('unknown'),invalid);
 });
 
 test('preview validates economic and protected-scope bounds without inventing current authority',async()=>{

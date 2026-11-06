@@ -4,7 +4,7 @@
 <form id="login" hidden><h2>Open a local session</h2><label>Startup code<input type="password" name="code" required autocomplete="off"></label><button>Sign in</button></form>
 <section id="workspace" hidden>
 <div class="toolbar"><label>UTC board date<input type="date" id="day"></label><label>Queue<select id="state" aria-label="Queue"><option value="pending">Pending reviews</option><option value="reviewed">Final decisions</option></select></label><button id="logout">Sign out</button></div>
-<section><h2>Review capacity</h2><p id="capacity"></p><p id="staff-permission"></p>
+<section><h2>Review capacity</h2><p id="capacity"></p><p id="evidence-status"></p><p id="staff-permission"></p>
 <details><summary>Change staffing</summary><form id="staff"><fieldset id="staff-fields"><legend>Staffing plan</legend>
 <label>Minutes available<input name="staffedMinutes" type="number" min="0" max="1440" required></label>
 <label>Seconds per review<input name="secondsPerReview" type="number" min="1" max="3600" value="180" required></label>
@@ -15,5 +15,5 @@
 <label>Scope<select id="scope" name="scope" aria-label="Scope"></select></label><label>Action<select name="paused" aria-label="Action"><option value="true">Pause new work</option><option value="false">Resume new work</option></select></label>
 <label>Scope reason<input name="reason" maxlength="256" required></label><label>Evidence reference<input name="evidenceRef" maxlength="256" required></label><button>Preview scope change</button></fieldset></form></section>
 <section id="preview" hidden aria-labelledby="preview-title"><h2 id="preview-title" tabindex="-1">Review local change</h2><p id="preview-state"></p><dl id="preview-details"></dl><p>No spending or on-chain execution is authorized.</p><button id="confirm">Confirm local change</button> <button id="discard">Discard unsubmitted preview</button></section>
-<section><h2>Content reviews</h2><p>Final moderation is unavailable until its audited command is connected.</p><div id="queue"></div><button id="next" hidden>Next page</button></section>
+<section><h2>Content reviews</h2><p id="review-permission">Final moderation is unavailable for this session.</p><div id="queue"></div><button id="next" hidden>Next page</button></section>
 </section></main></body></html>
