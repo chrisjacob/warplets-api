@@ -8,11 +8,15 @@ const pending=reason=>({kind:'pending',reason});
 function uniqueObjects(items){const values=new Map();for(const raw of items){const i=artifactIdentity(raw),previous=values.get(i.key);demand(!previous||canonicalJson(previous)===canonicalJson(i),'Conflicting object identities in recovery inventory.');values.set(i.key,i);}return [...values.values()].sort((a,b)=>a.key.localeCompare(b.key,'en'));}
 function planTablePages(t){
  const result=[];let rows=[],index=0;
+ // A bounded128KiB collection root is retained as base64, so its immutable
+ // row can reach175KiB. The192KiB page leaves room for restore SQL under the
+ // existing256KiB atomic batch limit. Other tables retain their prior bound.
+ const pageLimit=t.name==='app_collection_records'?192*1024:128*1024;
  const page=()=>({format:'10x.local.recovery.table.v1',table:t.name,index,columns:t.columns,hasRowid:t.hasRowid,rows});
  let size=utf8(canonicalJson(page())).length;
  const flush=()=>{result.push({page:page(),bytes:utf8(canonicalJson(page()))});index++;rows=[];size=utf8(canonicalJson(page())).length;};
- for(const row of t.rows){const length=utf8(canonicalJson(row)).length;if(rows.length===100||size+length+Number(rows.length>0)>128*1024){if(rows.length)flush();}
-  demand(size+length+Number(rows.length>0)<=128*1024,'Private recovery row page bound.');size+=length+Number(rows.length>0);rows.push(row);
+ for(const row of t.rows){const length=utf8(canonicalJson(row)).length;if(rows.length===100||size+length+Number(rows.length>0)>pageLimit){if(rows.length)flush();}
+  demand(size+length+Number(rows.length>0)<=pageLimit,'Private recovery row page bound.');size+=length+Number(rows.length>0);rows.push(row);
  }if(rows.length)flush();return result;
 }
 export async function publicationPin(verified,codec){

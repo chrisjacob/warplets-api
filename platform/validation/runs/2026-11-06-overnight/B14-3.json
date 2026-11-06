@@ -236,7 +236,12 @@
     "remoteResourceMutations": 0
   },
   "pending": [
-    "Test-only CI for this milestone must be followed after push.",
-    "Captured-program quote parity remains explicitly missing; this is an R-stage gap, not local fixture parity."
-  ]
+    "Applicable captured-program quote parity remains explicitly missing; local B14 contract is complete."
+  ],
+  "ci": {
+    "runId": 42132784073,
+    "head": "2b5dbde07f3b78793e37b890af241922da9e7c35",
+    "status": "success",
+    "url": "https://github.com/chrisjacob/warplets-api/actions/runs/42132784073"
+  }
 }

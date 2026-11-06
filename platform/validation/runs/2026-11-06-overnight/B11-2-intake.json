@@ -1,0 +1,195 @@
+{
+  "taskId": "B11",
+  "substep": "B11.2-intake",
+  "status": "verified-local-substep",
+  "classification": "Private immutable collection source records and bounded record-closure seals only; no authoritative inventory, publication, member write or financial execution",
+  "lastTestedBaseCommit": "2b5dbde07f3b78793e37b890af241922da9e7c35",
+  "implementationCommit": null,
+  "commands": [
+    {
+      "command": "node --test platform/collect/source-intake.test.mjs",
+      "tests": 8,
+      "failed": 0,
+      "skipped": 0,
+      "exitCode": 0,
+      "durationMs": 23441.9817,
+      "log": "work/b11-source-intake-tests.log"
+    },
+    {
+      "command": "node --test platform/collect/source-recovery.test.mjs",
+      "tests": 1,
+      "failed": 0,
+      "skipped": 0,
+      "exitCode": 0,
+      "durationMs": 671.2979,
+      "log": "work/b11-source-recovery.log"
+    },
+    {
+      "command": "node --test platform/edge/test/collection-source.test.mjs",
+      "owner": "coordinator",
+      "tests": 1,
+      "failed": 0,
+      "skipped": 0,
+      "exitCode": 0,
+      "durationMs": 14058.7019,
+      "log": "work/b11-source-edge.log",
+      "note": "Coordinator reruns focused acceptance after final metadata bounds; initial successful run retained as evidence."
+    },
+    {
+      "command": "node platform/edge/node_modules/typescript/bin/tsc --noEmit -p platform/edge/tsconfig.json",
+      "exitCode": 0
+    },
+    {
+      "command": "git diff --check",
+      "exitCode": 0
+    },
+    {
+      "command": "node --test platform/edge/test/collection-source.test.mjs",
+      "tests": 1,
+      "failed": 0,
+      "skipped": 0,
+      "exitCode": 0,
+      "durationMs": 19534.0477,
+      "log": "work/b11-source-edge-final.log",
+      "note": "Final035 metadata bounds."
+    },
+    {
+      "command": "node platform/scripts/test-reference.mjs",
+      "tests": 373,
+      "failed": 0,
+      "skipped": 0,
+      "exitCode": 0,
+      "durationMs": 40286.5934,
+      "log": "work/b11-intake-reference.log"
+    },
+    {
+      "command": "node --test platform/edge/test/*.test.mjs",
+      "tests": 57,
+      "passed": 56,
+      "failed": 1,
+      "exitCode": 1,
+      "durationMs": 420801.1672,
+      "log": "work/b11-intake-edge-full.log",
+      "note": "UTC-midnight hosted fixture advanced admission into next epoch; repaired without changing stake eligibility."
+    },
+    {
+      "command": "node --test platform/edge/test/vertical-slice.test.mjs",
+      "tests": 1,
+      "failed": 0,
+      "skipped": 0,
+      "exitCode": 0,
+      "durationMs": 71267.0568,
+      "log": "work/b11-midnight-recovery.log",
+      "note": "Explicit final-second-before-midnight regression passes complete hosted settlement/publication/recovery."
+    },
+    {
+      "command": "node platform/contracts/generate.mjs --check",
+      "exitCode": 0
+    }
+  ],
+  "sourceHashes": {
+    "platform/collect/source-intake.mjs": "8e4c5ab7e9e48428935ca8cf2f62d96c639afcfe9b4ace38a452592b43d19545",
+    "platform/collect/source-intake.d.mts": "0cd42dc59e67eb475f04f4adf87f5aeb968a9b46792e3586da8882b3806e92a9",
+    "platform/collect/source-intake.test.mjs": "5e1298bfedd243cea4978bf2665b3d21c6f7c2d49b0b5014998e9806709dc126",
+    "platform/collect/source-repository.mjs": "14944b6a994df353d90b0f3db70c59c9177fa594df4558f25a6f12e09ad4b63a",
+    "platform/collect/source-recovery.test.mjs": "099477158d2666b247298257db4d78b8cbedaa630be43d9fcbb459875bc1b327",
+    "platform/collect/state-codec.mjs": "655127d8c6a023cf2a19163d2cf7f39c82606d24ae50af4ec45ebbc4e926852b",
+    "platform/storage/035-collection-source-intake.sql": "cf4bf49a98431edc8fddb2fc907766c4c07fd20e145e6ef6e3ea6820c318633b",
+    "platform/recovery/export.mjs": "88a848ebc75bf4e1494b2407c27dcf7dc4a024caf84dd82ab57812826bca9133",
+    "platform/recovery/schema.mjs": "c30b04fa3af009b8346446023b8df22bdf0c0cdad3ddc5f570d02422dbe78472",
+    "platform/edge/test/collection-source.test.mjs": "d7b01940bb29e32b8bab295cfac758510aeb3fc65cc45774a496c71a892aefdc",
+    "platform/application/fixtures/hosted-transcript.mjs": "53dd5c51b1cc351eff059c42ba8c83879326f34786381f2ed78f3294874d12e9",
+    "platform/edge/test/vertical-slice.test.mjs": "95e74583aea6811f5354abe78edcc2ae1076322342f8e0f8120363cf6c905838",
+    "platform/collect/SOURCE_INTAKE.md": "6d0dcbb450e580e4a74d47a0387b56827a8e34e830d427031ebc51dbe42386bd"
+  },
+  "authority": {
+    "visibility": "private-staging",
+    "verification": "record-closure-only",
+    "semanticStateDigestVerified": false,
+    "economicsVerified": false,
+    "provenanceVerified": false,
+    "activeInventoryPointer": false,
+    "financialExecution": false
+  },
+  "formats": {
+    "recordBytes": 131072,
+    "pageBytes": 65536,
+    "listManifestBytes": 16384,
+    "listMembers": 10000,
+    "listPages": 100,
+    "distinctLists": 32,
+    "admissions": 1000,
+    "admissionPages": 16,
+    "listReadBytes": 524288,
+    "sourceReadBytes": 2097152,
+    "sourceSealBytes": 32768,
+    "sqlBatchBytes": 262144,
+    "sqlParametersPerStatement": 100
+  },
+  "maximumLegalSyntheticIntake": {
+    "description": "32 distinct full10000-wallet lists plus1000 finalized admissions;128-character operation, commitment, stage and proof IDs;500-character Unicode rationales",
+    "records": 3245,
+    "totalRawBytes": 16299312,
+    "maxListReadBytes": 484346,
+    "maxListReadRecords": 101,
+    "sourceReadBytes": 1027025,
+    "sourceReadRecords": 45,
+    "admissionPages": 12,
+    "sourceSealBytes": 11273,
+    "fullGraphLoadedPerRuntimeCommand": false
+  },
+  "checks": [
+    "exact raw byte digest and canonical record format",
+    "missing, extra, duplicate, reordered and cross-kind records rejected",
+    "eligibility pages globally sorted and unique with full-list digest verification",
+    "explicit empty list has one empty page; empty source has no admission pages",
+    "admission stage references, operation/draw/proof uniqueness and remaining inventory counts checked",
+    "caller records, commands, revisions and principal captured before digest awaits",
+    "changed staged bytes prevent sealing",
+    "maximum Unicode root encoded without spreading128KiB into a single function call",
+    "request identity digest excludes retry clock but includes operator/input/key/expected revisions"
+  ],
+  "coordinatorD1InitialMetrics": {
+    "pairedCommands": 20,
+    "maxSqlStatements": 14,
+    "maxBatchBytes": 164115,
+    "maxParameters": 22,
+    "largeRecordBytes": 121134,
+    "records": 7,
+    "listSeals": 1,
+    "sourceSeals": 1,
+    "activeInventories": 0,
+    "transactionIntents": 0,
+    "transactionAttempts": 0
+  },
+  "privateRecovery": {
+    "tests": 1,
+    "businessTables": 93,
+    "populatedIntakeTables": 3,
+    "records": 5,
+    "exactReceipts": 7,
+    "largeRootBytes": 128774,
+    "maxPrivatePageBytes": 174516,
+    "maxRestoreBatchBytes": 180044,
+    "authenticationRowsRevoked": 2,
+    "heldTargetNewTableWritesRejected": true,
+    "revokedOperatorStateRetained": true,
+    "acceptedReceiptReplayAfterRestore": true,
+    "activeInventories": 0,
+    "transactionIntents": 0,
+    "fullMaximumGraphRecoveryTested": false,
+    "scope": "Populated private snapshot and a nearmaximum single root; existing aggregate recovery pilot bounds remain unchanged."
+  },
+  "review": {
+    "resolved": [
+      "Base64-expanded legal root exceeded old128KiB recovery row target; collection-record pages now192KiB while restore batch and artifact bounds stay256KiB",
+      "Sealed-list SQL JSON column and preparse aggregate metadata now have explicit byte bounds"
+    ],
+    "result": "No additional authority, replay or atomicity defect found in current repository and035 review."
+  },
+  "pending": [
+    "Test-only CI for the checkpoint must be followed.",
+    "Authoritative collection publication/reservation/observation and stored progression quotes remain unimplemented.",
+    "Governance vote storage/public composition is the next separate substep; B11 is not complete."
+  ]
+}

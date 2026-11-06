@@ -39,7 +39,10 @@ async function wakeHeld(runtime,job,digest){
 export async function verifyHostedTranscript(runtime,fixture){
  const began=performance.now(),crypto=createNodeCrypto(),codec=createManifestCodec({crypto}),schema=await readInstalledRecoverySchema(crypto);
  const sourceCommit=execFileSync('git',['rev-parse','HEAD'],{cwd:fileURLToPath(new URL('../../../',import.meta.url)),encoding:'utf8'}).trim();
- const {epoch,start,cutoff,accounts,principal}=fixture;let nowMs=fixture.nowMs+120000,mirror;
+ // Keep admission inside this fixture's original epoch. Near UTC midnight,
+ // advancing two minutes would select the deliberately zero closing stake
+ // observation and test a different day before the intended cutoff phase.
+ const {epoch,start,cutoff,accounts,principal}=fixture;let nowMs=Math.min(fixture.nowMs+120000,cutoff-1),mirror;
  const setNow=async value=>{nowMs=value;mirror?.setNow(value);return runtime.call({method:'set-clock',nowMs});};
  try{
   await setNow(nowMs);

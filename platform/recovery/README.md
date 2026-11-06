@@ -28,7 +28,9 @@ omitted. Recovery-control rows are not copied over the target's isolation state.
 The exporter preflights size budgets, then captures all application rows and
 counts in **one transactional driver batch**. Earn revision counters alone do not
 certify a whole-database snapshot. A changed size or schema causes an explicit
-refusal. Each private page contains at most 100 rows and 128 KiB; the complete
+refusal. Each private page contains at most 100 rows and 128 KiB, except collection
+source-record pages allow 192 KiB for the base64 encoding of a 128 KiB root.
+The restore still enforces its 256 KiB atomic SQL batch limit. The complete
 inventory is at most 256 KiB, total referenced objects at most 24 MiB, and tables
 at most 8,192 rows each. Capture and final reconciliation each preflight a
 conservative ceiling of 900 combined SQL/object operations. Larger sources are

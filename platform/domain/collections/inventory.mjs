@@ -83,31 +83,49 @@ export function freezeFreeStage(inventory, stageId, snapshot) {
  * The price is returned with the stage contract. No client-provided rarity or level.
  */
 export function admitMint(inventory, { operationId, wallet, stageId, at, drawCommitment, costLamports }) {
+  const stage=inventory.stages.find(stage=>stage.id===stageId);
+  const sameStage=inventory.admissions.filter(row=>row.stageId===stageId);
+  const prepared=prepareMintAdmission({stage,slots:inventory.slots,admissionCount:inventory.admissions.length,
+    stageAdmissionCount:sameStage.length,walletAdmissionCount:sameStage.filter(row=>row.wallet===wallet).length,
+    founderSpentLamports:stage?.type==='founder'?sameStage.reduce((sum,row)=>sum+row.costLamports,0n):0n,
+    eligible:stage?.type==='public'||Boolean(stage?.wallets?.includes(wallet)),
+    priorOperation:inventory.admissions.find(row=>row.operationId===operationId)??null,
+    commitmentUsed:inventory.admissions.some(row=>row.drawCommitment===drawCommitment)},
+    {operationId,wallet,stageId,at,drawCommitment,costLamports});
+  if(prepared.replayed)return inventory;
+  return update(inventory,{admissions:Object.freeze([...inventory.admissions,prepared.admission])});
+}
+
+/** Exact sufficient facts for the mint rule. Derive these from one repository
+ * revision and recheck atomically; they are never client-provided assertions. */
+export function prepareMintAdmission(facts,{operationId,wallet,stageId,at,drawCommitment,costLamports}){
   checkId(operationId);
   checkId(drawCommitment);
   checkId(wallet);
   checkTimestamp(at);
-  const prior = inventory.admissions.find(row => row.operationId === operationId);
+  const prior=facts.priorOperation;
   if (prior) {
     requirePolicy(prior.wallet === wallet && prior.stageId === stageId && prior.drawCommitment === drawCommitment
       && prior.costLamports === costLamports, 'conflicting_mint_retry');
-    return inventory;
+    return Object.freeze({replayed:true,admission:prior});
   }
-  const stage = inventory.stages.find(s => s.id === stageId);
-  requirePolicy(stage && stage.opensAt <= at && at < stage.closesAt, 'stage_unavailable');
-  requirePolicy(stage.type === 'public' || stage.wallets?.includes(wallet), 'wallet_ineligible');
+  const stage=facts.stage;
+  requirePolicy(stage && stage.id===stageId && stage.opensAt <= at && at < stage.closesAt, 'stage_unavailable');
+  requirePolicy(stage.type === 'public' || facts.eligible===true, 'wallet_ineligible');
   requirePolicy(typeof costLamports === 'bigint' && costLamports >= 0n, 'missing_cost_quote');
-  requirePolicy(!inventory.admissions.some(row => row.drawCommitment === drawCommitment), 'duplicate_draw_commitment');
-  const sameStage = inventory.admissions.filter(row => row.stageId === stageId);
-  requirePolicy(sameStage.filter(row => row.wallet === wallet).length < stage.walletLimit, 'stage_wallet_limit');
-  requirePolicy(sameStage.length < stage.allocation && inventory.admissions.length < inventory.slots, 'sold_out');
+  requirePolicy(typeof facts.commitmentUsed==='boolean'&&!facts.commitmentUsed, 'duplicate_draw_commitment');
+  requirePolicy([facts.slots,facts.admissionCount,facts.stageAdmissionCount,facts.walletAdmissionCount].every(value=>Number.isSafeInteger(value)&&value>=0)
+    &&facts.slots<=1000&&facts.walletAdmissionCount<=facts.stageAdmissionCount&&facts.stageAdmissionCount<=facts.admissionCount&&facts.admissionCount<=facts.slots,
+    'invalid_admission_facts');
+  requirePolicy(facts.walletAdmissionCount < stage.walletLimit, 'stage_wallet_limit');
+  requirePolicy(facts.stageAdmissionCount < stage.allocation && facts.admissionCount < facts.slots, 'sold_out');
   if (stage.type === 'founder') {
-    const spent = sameStage.reduce((sum, row) => sum + row.costLamports, 0n);
-    requirePolicy(spent + costLamports <= stage.approvedSpendLamports, 'founder_budget_exceeded');
+    requirePolicy(typeof facts.founderSpentLamports==='bigint'&&facts.founderSpentLamports>=0n,'invalid_admission_facts');
+    requirePolicy(facts.founderSpentLamports + costLamports <= stage.approvedSpendLamports, 'founder_budget_exceeded');
   }
   const row = Object.freeze({ operationId, wallet, stageId, drawCommitment, admittedAt: at,
     costLamports, level: null, proofId: null, ticket: null });
-  return update(inventory, { admissions: Object.freeze([...inventory.admissions, row]) });
+  return Object.freeze({replayed:false,admission:row});
 }
 
 /** Input comes exclusively from a future proof-verified entropy adapter. Published

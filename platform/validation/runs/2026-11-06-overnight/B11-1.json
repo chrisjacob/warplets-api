@@ -1,0 +1,149 @@
+{
+  "taskId": "B11",
+  "substep": "B11.1",
+  "status": "partial",
+  "classification": "portable source codec, named immutable commands and pure mint/governance/progression planning; no collection storage or HTTP authority",
+  "lastTestedBaseCommit": "2b5dbde07f3b78793e37b890af241922da9e7c35",
+  "implementationCommit": null,
+  "commands": [
+    {
+      "command": "node --test platform/application/collection-quotes.test.mjs platform/application/collection-governance.test.mjs platform/application/collection-planning.test.mjs platform/collect/state-codec.test.mjs platform/domain/collections/*.test.mjs platform/collect/collect.test.mjs",
+      "tests": 41,
+      "failed": 0,
+      "skipped": 0,
+      "exitCode": 0,
+      "durationMs": 5593.8248,
+      "log": "work/b11-1-combined.log"
+    },
+    {
+      "command": "node platform/edge/node_modules/typescript/bin/tsc --noEmit --target ES2022 --module ESNext --moduleResolution Bundler --strict --skipLibCheck --allowJs platform/application/collections.ts platform/application/collection-planning.d.mts platform/application/collection-governance.d.mts platform/application/collection-quotes.d.mts platform/collect/state-codec.d.mts",
+      "exitCode": 0
+    },
+    {
+      "command": "git diff --check -- <owned B11 source files>",
+      "exitCode": 0
+    }
+  ],
+  "sourceHashes": {
+    "platform/application/collections.ts": "5103273737aaebc490ee8ec04b2fa2b9ca1138311e4890583a44344545f86f0a",
+    "platform/application/collection-planning.mjs": "bc12d6cea1861c6dcd5c4ba7f6fbd5d6583e36be6feab764fdb1d1b72bf62736",
+    "platform/application/collection-planning.d.mts": "2ba768ed2e8d12b1dd2467e4de3690c1faddf80cafb348c0e7db3cc059533fe3",
+    "platform/application/collection-planning.test.mjs": "5c236e7a1956f30c1eb3781ffa75804c56b5b18fd611c84768f407dc0e3a6a18",
+    "platform/application/collection-governance.mjs": "0f064c7f14c5d2407204957c3d190f723b145ece6af9fe6cd9dcbfc133f161a7",
+    "platform/application/collection-governance.d.mts": "f3792cecec1ee830927bac794b6a910e632d24ad612614d8da8f3cba55932f1b",
+    "platform/application/collection-governance.test.mjs": "6006b786d686b9b14206f3aa7b7b497cf25a73ba40076cc1dfa5cd1186215074",
+    "platform/application/collection-quotes.mjs": "9696951db17e247c0c02de68f7d0d318069aaa081d1a3015c49a71e028de59fe",
+    "platform/application/collection-quotes.d.mts": "cd2512f54c8a79a79b7b47a83b77bd681b962c0b09edd85fc70f7588b7f775f0",
+    "platform/application/collection-quotes.test.mjs": "713c6bbdad5dc1fea58f87158d7386215a8b27ef9ce4182817c171271a8f1fab",
+    "platform/collect/state-codec.mjs": "655127d8c6a023cf2a19163d2cf7f39c82606d24ae50af4ec45ebbc4e926852b",
+    "platform/collect/state-codec.d.mts": "a3df5d2c3559129e095628097cf29e9af8c9daa6fca60bfb43bb8046b3a4b11b",
+    "platform/collect/state-codec.test.mjs": "34b51392fe641ab5c8fb45a8f3cd326becdfcae9b8fdc5e72a11f83ebcb11721",
+    "platform/collect/STATE_CODEC.md": "5dd2fda441ac5c1679491e2cac61b783f126215f3ce2d8b45b311d5fc57886ed",
+    "platform/domain/collections/inventory.mjs": "d5ba5a152b09afdeaa823b770cbb3014bff2cf71c706131433a985b3883643a6"
+  },
+  "implemented": [
+    "Content-addressed canonical source root/list/page records, complete offline reference reconstruction and bounded individual-record verification",
+    "Shared prepareMintAdmission rule used by legacy full-state reducer and sufficient-fact planner, with1000-admission full-history parity",
+    "Frozen union electorate pages, exact legacy ballot snapshot hash, selected-wallet vote parity and replay, immutable founder decision timing",
+    "Pure immutable progression quote derivation and acceptance planning for every upgrade Level1–9 and visual rerolls"
+  ],
+  "bounds": {
+    "rootBytes": 131072,
+    "listManifestBytes": 16384,
+    "pageBytes": 65536,
+    "entriesPerPage": 100,
+    "stages": 32,
+    "walletsPerList": 10000,
+    "admissions": 1000,
+    "admissionPages": 16,
+    "offlineBundleBytes": 33554432
+  },
+  "legacyMeasurements": [
+    {
+      "case": "existing B10 fixture synthetic-edge-genesis",
+      "bytes": 1319,
+      "stages": 1,
+      "admissions": 2
+    },
+    {
+      "case": "existing B10 fixture synthetic-edge-season",
+      "bytes": 35124,
+      "stages": 3,
+      "admissions": 102
+    },
+    {
+      "case": "1 published stages, each 10000 wallets",
+      "bytes": 471230,
+      "stages": 1,
+      "admissions": 0
+    },
+    {
+      "case": "4 published stages, each 10000 wallets",
+      "bytes": 1884446,
+      "stages": 4,
+      "admissions": 0
+    },
+    {
+      "case": "32 published stages, each 10000 wallets",
+      "bytes": 15074463,
+      "stages": 32,
+      "admissions": 0
+    },
+    {
+      "case": "legal maximum-length identifiers, 32 stages x10000 wallets, 1000 admissions",
+      "bytes": 15687464,
+      "stages": 32,
+      "admissions": 1000
+    },
+    {
+      "case": "same maximum terms without embedded lists/admissions (proposed normalized metadata)",
+      "bytes": 37505,
+      "stages": 32,
+      "admissions": 0
+    },
+    {
+      "case": "maximum-size standalone admission row",
+      "bytes": 612
+    },
+    {
+      "case": "1000 maximum-size admissions only",
+      "bytes": 613001
+    }
+  ],
+  "coveredFaults": [
+    "missing/tampered/reordered source pages",
+    "altered counts/source digest",
+    "maximum settled proof IDs",
+    "multibyte maximum stage rationale",
+    "mutable input during digest awaits",
+    "inconsistent aggregate counts or sealed membership identity",
+    "duplicate/conflicting vote and replay after close",
+    "empty electorate/zero turnout/concurrent notice",
+    "wrong quote owner/kind/participants/versions/policy/fee/ceiling/expiry",
+    "forged quote outcomes and source changes",
+    "current-time cooldown representability despite valid issue-time quote"
+  ],
+  "unimplemented": [
+    "Guarded staged source intake and published pointer",
+    "Normalized collection storage and atomic admission/fulfillment authority",
+    "Stored quote issuance and persisted binding lookup",
+    "Atomic operator scope/current revision/expiry enforcement",
+    "Atomic vote uniqueness and final decision persistence",
+    "Mint/Vault multi-effect parity and observed external transfer conflict",
+    "Shared HTTP/Worker capability wiring and actual D1/workerd collection tests"
+  ],
+  "fixtureClassification": "synthetic/offline local fixtures only; no chain completeness or production custody claim",
+  "costMeaning": {
+    "ceilingScope": "disclosed-local-components-only",
+    "networkCost": "unknown",
+    "totalCost": "unknown"
+  },
+  "financialExecution": false,
+  "externalProviderCalls": 0,
+  "notes": [
+    "B11 is not complete. Pure plans cannot authorize a mutation.",
+    "The existing store/domain tests run only as semantic reference evidence; no D1 collection parity is claimed.",
+    "Accepted receipt replay must precede fresh quote/admission planning in the future service.",
+    "Source stateDigest is canonical semantic identity, not a claim of byte-identical legacy property ordering."
+  ]
+}
