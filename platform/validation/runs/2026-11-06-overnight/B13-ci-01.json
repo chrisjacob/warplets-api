@@ -1,0 +1,15 @@
+{
+  "task": "B13",
+  "check": "test-only CI through local inbox runtime",
+  "runId": 42250589528,
+  "url": "https://github.com/chrisjacob/warplets-api/actions/runs/42250589528",
+  "head": "24d2b4266ead2bab6f1338f5a33013b62557a57e",
+  "conclusion": "success",
+  "stages": [
+    "reference domains/workflows/contracts/local recovery",
+    "primary viewer build/tests",
+    "frozen beacon offline",
+    "Workers D1 R2 local compilation/tests"
+  ],
+  "limits": "Does not cover later retention, mutation logging or B15. Next checkpoint includes B13-07 through10 and B15-01 through05; no deployment."
+}

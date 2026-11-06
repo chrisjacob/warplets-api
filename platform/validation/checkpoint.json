@@ -1,5 +1,5 @@
 {
   "policy": "prd-1.2",
   "scope": "local",
-  "checkpoint": "blueprint-b13-through-local-inbox-runtime"
+  "checkpoint": "blueprint-b13-complete-local-b15-recovery-swap-preview"
 }
