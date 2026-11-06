@@ -1,5 +1,5 @@
 {
   "policy": "prd-1.2",
   "scope": "local",
-  "checkpoint": "blueprint-b13-complete-local-b15-recovery-swap-preview"
+  "checkpoint": "blueprint-b15-economic-persistence-recorded-outcomes-recovery"
 }
