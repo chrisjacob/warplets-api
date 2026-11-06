@@ -168,7 +168,8 @@ export function purgeExpired(db,{now}) {
   nat(now,'now');
   return transaction(db,()=>{
     const outbox=db.prepare('DELETE FROM notice_outbox WHERE id IN (SELECT id FROM notice_outbox WHERE expires_ms<=? LIMIT 100)').run(now-DAY_MS*7);
-    const consent=db.prepare('DELETE FROM notice_consent_requests WHERE rowid IN (SELECT rowid FROM notice_consent_requests WHERE changed_ms<? LIMIT 100)').run(now-30*DAY_MS);
-    return {outboxRemoved:outbox.changes,consentRequestKeysRemoved:consent.changes};
+    // Accepted consent identities remain durable: expiry must not erase exact
+    // replay or let a previously used key acquire a different meaning.
+    return {outboxRemoved:outbox.changes,consentRequestKeysRemoved:0};
   });
 }

@@ -1,0 +1,86 @@
+{
+  "task": "B13",
+  "slice": "B13-01",
+  "status": "verified-slice",
+  "baseCommit": "8ec58b3",
+  "scope": [
+    "Portable owner-derived consent with historical hash/current preference replay",
+    "063 mandatory preference/key/cancellation/revoked-inbox effects",
+    "Unexposed portable HTTP consent boundary",
+    "Durable consent-key retention and leased-notice private restore fix"
+  ],
+  "checks": {
+    "node": "11PASS6333.9177ms work/b13-consent-node-final.log;270real local fixture deliveries/90days,6SQLbatch4349B34params",
+    "d1": "1PASS31823.337ms total (30853.4465ms case),23calls,max16SQL4156Bbatch34params940Bresult; work/b13-consent-edge-final.log",
+    "http": "2PASS772.9169ms work/b13-consent-http.log;unmounted",
+    "existingGuardRegression": "15PASS3223.3839ms work/b13-existing-guard-regression.log",
+    "types": "Edge project and direct declarationsPASS;work/b13-consent-types-final.log",
+    "portable": "Browser ESM bundling bothHTTP/repositoryPASS with9pure inputs/no installed dependency",
+    "retentionRecovery": {
+      "task": "B13 durable consent retention and leased-notice private recovery",
+      "createdAt": "2026-11-06T15:40:36.294482+00:00",
+      "sourceHashes": {
+        "platform/notifications/notices.mjs": "f3a731a5e96b92d67258325a8e704b5d5bbf3579beb130b1ba70c1e58321de61",
+        "platform/notifications/notices.test.mjs": "75dc2be6d8c0cb5f9402255d6164e208843316f2fdf4f2ce10e0296ad7271795",
+        "platform/notifications/README.md": "0ec321271a3362334f9fbdbb8f0c0770c1df49b90c7ac93634579b245ef0107f",
+        "platform/recovery/reconcile.mjs": "3481dae93e17a2681a53a0cd2e3799ca16fdd4280220972b161bd995243d0838",
+        "platform/recovery/v2-notifications.test.mjs": "90b1c25705efc19b2d1630587d4b8dc06cf11bed8e036a3d408c1c0204c126b4"
+      },
+      "checks": [
+        {
+          "command": "node --test platform/notifications/notices.test.mjs platform/recovery/v2-notifications.test.mjs",
+          "passed": 6,
+          "failed": 0,
+          "durationMs": 37351.408,
+          "log": "work/b13-retention-recovery.log"
+        },
+        {
+          "command": "node --check notices.mjs/reconcile.mjs/v2-notifications.test.mjs; git diff --check five owned paths",
+          "passed": true
+        }
+      ],
+      "restoreMetrics": {
+        "source": "synthetic-local-inbox",
+        "consentKeys": 3,
+        "outboxRows": 5,
+        "inboxRows": 1,
+        "restoreSteps": 1093,
+        "maxOperations": 18,
+        "maxBatchBytes": 104318,
+        "checkpointBytes": 88304,
+        "readyMsPreserved": true,
+        "staleLeaseFenced": true,
+        "oldAuthRevoked": true,
+        "externalTransport": false,
+        "financialExecution": false
+      },
+      "scope": [
+        "Accepted notice_consent_requests are no longer time-purged; existing return field consentRequestKeysRemoved remains0 for compatibility. Content purge remains bounded100 and seven-day retention.",
+        "61-day regression preserves accepted original revision and body conflict; old enable after revoke returns current disabled preference, and another wallet stays independent.",
+        "Actual Node migrated SQLite/private V2 capture to fresh target, immutable in-memory artifact store and normal complete reconciliation; no synthetic ready metadata or manual phase jumping.",
+        "Two-wallet source has3consent keys,5outbox rows (delivered/cancelled/leased/queued),1retained Bob inbox; Alice revoked inbox stays empty. Target exact rows match source except documented leased\u2192unknown and lease clearing; original ready_ms remains valid and unchanged.",
+        "Accepted final restore acknowledgement loss is injected after actual commit and resolved by same pin. Old session authentication returns401; stale Bob and Alice delivery leases are fenced; no dispatch is performed.",
+        "Initial full run reached ready but test comparison differed only plain/null-prototype object. Corrected expected SQLite row prototype before final6PASS run; all value equality assertions preserved.",
+        "This slice has actual Node V2 acceptance only, no new actualD1 recovery claim. Coordinator consent repository/063migration and broader parity are separate."
+      ],
+      "externalTransport": false,
+      "financialExecution": false,
+      "completion": "Owned slice frozen for coordinator checkpoint."
+    }
+  },
+  "sourceHashes": {
+    "platform/notifications/consent.mjs": "faf63ac0148913b28d63f10dc048c8b1f2fe3fa906da8afa5dd6ab1d32b85ce6",
+    "platform/notifications/consent.d.mts": "df5ae6e6184c3784c57b77ed759ec97ed927ad1c9f3bef57dd377f7116f29504",
+    "platform/notifications/consent.test.mjs": "10e24ea26c0c945f0752a3cef8aa8a8ea269fc8b76792ee56d291ff7eef97746",
+    "platform/storage/notification-consent.mjs": "e803524114e11eefc52fbe5a18f8f3e85e3671f3ca39408442734389e0b4577b",
+    "platform/storage/notification-consent.d.mts": "6bd4b1a16e3fb68904f0b139e35f9b1b4e0f59b480af58462f6fe83e7d467637",
+    "platform/storage/notification-consent.test.mjs": "550c00da4f034f48a461a0a430236e6bbcd7c5bd06f2c03b7299770031f18b14",
+    "platform/edge/test/notification-consent.test.mjs": "eb777a1fa131f97d03c8f64d25aa71a7aabe93dc484eea4984c894f13a6dc9e4",
+    "platform/edge/test/fixtures/notification-consent-worker.ts": "2469abcff55fa63cd6f71292ca9849f2e9d832b1cc9b2f68b92c1aa197f94bb5"
+  },
+  "migration": "063-notification-consent.sql",
+  "businessTables": 112,
+  "externalTransport": false,
+  "financialExecution": false,
+  "remaining": "Portable deterministic enqueue/local delivery/inbox and Worker/Node routes; bounded usage/readiness; retention/attempt accounting acceptance."
+}

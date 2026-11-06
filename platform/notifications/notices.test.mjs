@@ -87,3 +87,12 @@ test('session HTTP accepts only explicit wallet-owned consent and bounded JSON, 
   assert.equal(own.enabled,true);assert.equal(own.revision,1);assert.equal(own.terms,TERMS);
   const cap=await (await app(new Request(path+'capabilities'))).json();assert.equal(cap.externalTransport,false);
 });
+
+test('consent identities survive content retention beyond thirty days and cannot re-enable or change meaning',t=>{
+ const db=setup(t);const first=consent(db);queue(db);const lease=leaseDue(db,{now:at})[0];finishLease(db,{...lease,now:at});consent(db,{enabled:false,selectedTopics:[],expectedRevision:1,requestKey:'off',now:at+1});
+ const retained=db.prepare('SELECT * FROM notice_consent_requests ORDER BY request_key').all(),later=at+61*DAY_MS;
+ assert.deepEqual(purgeExpired(db,{now:later}),{outboxRemoved:1,consentRequestKeysRemoved:0});assert.deepEqual(db.prepare('SELECT * FROM notice_consent_requests ORDER BY request_key').all(),retained);
+ const replay=consent(db,{now:later});assert.equal(replay.replay,true);assert.equal(replay.appliedRevision,first.appliedRevision);assert.equal(replay.preference.enabled,false);assert.equal(replay.preference.revision,2);assert.deepEqual(replay.preference.topics,[]);assert.equal(inbox(db,{wallet,now:later}).items.length,0);
+ assert.throws(()=>consent(db,{selectedTopics:['voting'],now:later}),error=>error.code==='key_conflict');assert.equal(preferences(db,wallet).enabled,false);
+ consent(db,{wallet:'other',now:later});assert.equal(preferences(db,'other').enabled,true);assert.equal(preferences(db,wallet).enabled,false);assert.equal(purgeExpired(db,{now:later+31*DAY_MS}).consentRequestKeysRemoved,0);assert.throws(()=>consent(db,{enabled:false,selectedTopics:[],expectedRevision:2,now:later+31*DAY_MS}),error=>error.code==='key_conflict');
+});

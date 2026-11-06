@@ -5,9 +5,9 @@
   "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
   "currentTask": "B13",
-  "lastUpdatedAt": "2026-11-06T15:35:37.651151+00:00",
+  "lastUpdatedAt": "2026-11-06T15:46:19.708146+00:00",
   "migrationAllocation": {
-    "next": 63,
+    "next": 64,
     "reserved": [
       {
         "version": 31,
@@ -168,6 +168,11 @@
         "version": 62,
         "task": "B12",
         "purpose": "mandatory collection fixture observation audit; no new tables"
+      },
+      {
+        "version": 63,
+        "task": "B13",
+        "purpose": "guarded member consent mandatory effects, retained replay identities and indexed cancellation"
       }
     ],
     "historicalGap": 19
@@ -415,7 +420,7 @@
       "status": "verified",
       "owner": "coordinator",
       "baseCommit": "b9efc0c8c97896a286c5f78ac4bf03e3a52727be",
-      "implementationCommit": "1979d9a",
+      "implementationCommit": "8ec58b3",
       "pushed": true,
       "evidence": [
         "platform/validation/runs/2026-11-06-overnight/B12-01.json",
@@ -445,8 +450,10 @@
       "baseCommit": "1979d9a",
       "implementationCommit": null,
       "pushed": false,
-      "evidence": [],
-      "nextAction": "Implement portable consent/repository contract preserving historical digest and current-preference replay; retain consent replay keys. Read work/b13-consent-plan.json when ready.",
+      "evidence": [
+        "platform/validation/runs/2026-11-06-overnight/B13-01.json"
+      ],
+      "nextAction": "Commit/push B13-01 consent/retention recovery, then port deterministic notice enqueue/delivery/inbox and mount verified routes. Readonlymetrics agent active; backend planningdelivery. CI42242947709 on5aa1d4b pending.",
       "blocker": null
     },
     "B14": {

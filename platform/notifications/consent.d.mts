@@ -1,0 +1,10 @@
+import type {CanonicalCrypto,Principal} from '../application/ports';
+import type {NotificationConsentInput,NotificationConsentCommand,NotificationConsentServicePorts,NotificationConsentService} from '../application/notifications';
+export type {NotificationConsentInput as ConsentInput,NotificationConsentCommand as ConsentCommand,NotificationConsentOutcome as ConsentOutcome,NotificationPreference as ConsentPreference,NotificationConsentRepository as ConsentRepository} from '../application/notifications';
+export const SET_NOTIFICATION_CONSENT:'notifications.set-consent.v1';
+export const NOTICE_TERMS:'10x-notice-local-inbox-v1';
+export const NOTICE_TOPICS:readonly ['launch','voting','rewards'];
+export function notificationPrincipal(value:unknown):Principal;
+export function normalizeNotificationConsentInput(value:unknown):NotificationConsentInput;
+export function buildNotificationConsentCommand(value:{principal:Principal;requestKey:string;input:NotificationConsentInput;nowMs:number},crypto:CanonicalCrypto):Promise<NotificationConsentCommand>;
+export function createNotificationConsentService(ports:NotificationConsentServicePorts):NotificationConsentService;

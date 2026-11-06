@@ -12,7 +12,9 @@ export function fenceRow(table,row,{generation,createdMs}){
  }
  if(table.name==='app_job_attempts'&&get('ended_ms')===null){set('ended_ms',createdMs);set('outcome','recovery-fenced');}
  if(table.name==='app_execution_fences'){set('holder_token','recovery:'+generation);set('expires_ms',0);set('revision',get('revision')+1);}
- if(table.name==='notice_outbox'&&get('state')==='leased'){set('state','unknown');set('lease',null);set('lease_until_ms',null);set('ready_ms',null);}
+ // ready_ms is required and retains its original scheduling fact; unknown work
+ // cannot be leased until explicit reconciliation, regardless of that time.
+ if(table.name==='notice_outbox'&&get('state')==='leased'){set('state','unknown');set('lease',null);set('lease_until_ms',null);}
  return row;
 }
 export async function readRecoveryPage(artifacts,identity,table,index,crypto){
