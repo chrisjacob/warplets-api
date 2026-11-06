@@ -1,0 +1,106 @@
+{
+  "task": "B11",
+  "slice": "B11.45 bounded imported collection authority read compatibility",
+  "status": "verified-private-read-and-retained-schema-guards; B11 remains partial",
+  "baseCommit": "d95d5b429737f7a5160263303896815a096682e3",
+  "implementationCommit": null,
+  "recordedAt": "2026-11-06T09:00:08.845687+00:00",
+  "sourceHashes": {
+    "platform/collect/legacy-adoption-authority.mjs": "fcb4c797d473ad7f8f56fd5aef64a8e2cf0ad95e96ef40ec7cf94953391f5f37",
+    "platform/collect/legacy-adoption-authority.d.mts": "85299f8952fc4db24e0dae4a916cf9b74acf02661b6881504b32b45e9e885892",
+    "platform/collect/legacy-adoption-authority.fixtures.mjs": "d2e11d85965bd058cad4d1d30051367309d8f71b18ce1c45624b87d723239bb4",
+    "platform/collect/legacy-adoption-authority.test.mjs": "4e47e8af684763d77deab3dda1992d021ddf123b03d0e55e0532d7ad1df6a27b",
+    "platform/collect/legacy-adoption-authority.README.md": "7b94dc34bc300219dfa56d1d2d7dec8c83dc9183e231213e12c99ca400fe0915",
+    "platform/collect/legacy-adoption-schema.test.mjs": "3e3df3d3c47b11efa94f8deb382c66fb705a20e065928e4ffe738c0bbd1e5851",
+    "platform/edge/test/legacy-adoption-authority.test.mjs": "21ed13596652efa7a430d2ab59e3c6e9a217196ed9c932aeda332ffa2db06d5a",
+    "platform/edge/test/fixtures/legacy-adoption-authority-worker.ts": "973a3728d07fbff5fa77135b06aed5667931f2091c013c8a831bddbb65b56bdd"
+  },
+  "sharedDependencies": {
+    "platform/storage/054-collection-legacy-adoption.sql": "5f82a5fafe536c65b9889ec05c6ea4986b1323db17067ceb99104f0a61a7620e",
+    "platform/collect/source-intake.mjs": "7d1b975db02032bacba704742c2416a2dad7d1761f4da89c656ead556cf15a3c",
+    "platform/collect/source-seal-guard.mjs": "ca3ee3ceab6a201fecc552d3afedccfd9d00eba20fc3a46a1a162a3bf70d0091",
+    "platform/collect/legacy-adoption-preparation-plan.mjs": "b94a3e2e25654b9eb739d95179693e973459fe79f0d84030b04ac38b96b999f9",
+    "platform/storage/atomic-driver.mjs": "761a240c3eb8fb89a4a2b2571a9b737b3bdebdc3bef9a1244b1663f4172c54cc",
+    "platform/domain/collections/policy.mjs": "c4c6840278f35334df286f5d040e6c2827d49ff8b4365585e13992051f760ca1"
+  },
+  "installedSchema": {
+    "lastMigration": "054-collection-legacy-adoption.sql",
+    "migrations": 53,
+    "businessTables": 112,
+    "runner": "Node openDatabase and actual workerd localRuntime apply installed migration files; temporary schema copy and pending test were removed."
+  },
+  "checks": [
+    {
+      "command": "node --test platform/collect/legacy-adoption-authority.test.mjs platform/collect/legacy-adoption-schema.test.mjs",
+      "result": "PASS",
+      "tests": 15,
+      "durationMs": 34591.7008,
+      "log": "work/b11-45-authority-final-node.log"
+    },
+    {
+      "command": "node --test platform/edge/test/legacy-adoption-authority.test.mjs",
+      "result": "PASS",
+      "tests": 1,
+      "durationMs": 34732.9551,
+      "caseDurationMs": 33290.8436,
+      "log": "work/b11-45-authority-final-d1.log"
+    },
+    {
+      "command": "node platform/edge/node_modules/typescript/bin/tsc -p platform/edge/tsconfig.json --noEmit",
+      "result": "PASS"
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS"
+    }
+  ],
+  "metrics": {
+    "bounds": {
+      "sql": 64,
+      "sqlBatchBytes": 262144,
+      "workingBytes": 1048576
+    },
+    "nodeMaximum": {
+      "historicalAdmissions": 1000,
+      "fulfilled": 1000,
+      "stages": 32,
+      "unicodeRationaleCharactersPerStage": 500,
+      "sql": 28,
+      "maxBatchBytes": 12427,
+      "maxParameters": 7,
+      "maxReturnedBytes": 85763,
+      "workingBytes": 442049
+    },
+    "actualD1": {
+      "historicalFounderAdmissions": 3,
+      "stages": 32,
+      "founderSpentLamports": "13835058055282163712",
+      "sql": 28,
+      "maxBatchBytes": 12425,
+      "maxParameters": 7,
+      "maxReturnedBytes": 23751,
+      "workingBytes": 162713
+    }
+  },
+  "acceptedCases": [
+    "Exact canonical certificate/economic/preparation/parent/quiescence digest and field bindings; immutable caller capture before digest awaits.",
+    "Named035root byte/hash/header/count verification; retain only32 small term hashes and compare imported043terms/list identity.",
+    "Original originDigest pins actual header tuple and UTC Season month; current generation/watermark separate from historical source pin.",
+    "Exact accepted parent/child request and output hashes, principal/business/key/ref/time bindings; accepted history survives current scope revocation.",
+    "Combined historical anchors and modern045 counts, disjoint operation/commitment/ordinal/wallet-request identities, complete prefix, actual Collect operation coverage and exact stage price/cost.",
+    "BigInt founder aggregation above signed64 and JS safe integers; no monetary SQLSUM.",
+    "RealB04 ingestion and guarded046 fulfillment after a synthetic modern admission; original046slot controls remaining quotas despite later current asset Level.",
+    "Zero-stage/zero-admission baseline; malformed or missingroot, missing/altered receipts, changed parent preimage/quiescence, wrong cost/ordinal, source mutation duringhash produce pending.",
+    "Installed054directSQL rejects missing/null projections, malformedprivateSHA/semantic/size/visibility, omittedstage/anchor/object, parentbeforechild, cross-family identity overlap and mutation of adoptedoriginaleffects.",
+    "ActualD1 parses allmandatorytriggers using no-opreceiptUPDATE, finalizes32exactchild receipts andparent, retains immutableimport rows and returns404for unmountedpublicroute."
+  ],
+  "limitations": [
+    "The accepted import/staged import receipts and private-ready fixture checkpoint are explicitly synthetic test data; checkpoint report says verifiedRecovery:false. Genuine053-to054activation authority is not implemented or claimed by this slice.",
+    "The one modern045admission used for countercomposition is a syntheticaccepted-receipt fixture; its subsequentB04ingestion and046fulfillment are genuineguarded local service calls.",
+    "No imported-source restored-ready acceptance, publicroute, active capability, financial execution or deployed resource is claimed.",
+    "Mutation callers must compare the returned current fence to their own bounded snapshot and recheck it in the actual claim, after resolving accepted replay; load this helper before retaining largefairpolicy inputs.",
+    "Current asset history/economic restoration remains independent; this reader binds retained effects/counters and does not authorize arbitrary laterasset mutations.",
+    "Fresh parent-copy full053proof and source/schema/scope activationrace tests remain coordinator-owned activation integration work."
+  ],
+  "nextExecutableStep": "Coordinator checkpoints054retained schema + reader compatibility, then implements genuine guarded activation and independent retained-original recovery reconciliation before enabling imports."
+}

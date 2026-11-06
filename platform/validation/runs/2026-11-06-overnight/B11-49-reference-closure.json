@@ -1,0 +1,25 @@
+{
+  "checkpoint": "B11-49-reference-closure",
+  "status": "verified-local-node",
+  "classification": "synthetic accepted-import fixture; retained reference capture only, not genuine activation or populated restore acceptance",
+  "checks": [
+    {
+      "command": "node --test platform/recovery/v2-adoption-references.test.mjs platform/recovery/v2-capture-references.test.mjs",
+      "passed": 6,
+      "failed": 0,
+      "durationMs": 12414.3859,
+      "log": "work/b11-54-adoption-references-final.log"
+    }
+  ],
+  "assertions": [
+    "Retained adoption object absent from general artifact catalog is captured from sealed source rows.",
+    "Missing/corrupt bytes retain cursor; omitted ledger child cannot advance.",
+    "Legacy private exporter includes and verifies adoption references.",
+    "New reference source appended to preserve earlier continuation indices."
+  ],
+  "sourceHashes": {
+    "platform/recovery/export.mjs": "6d3e563b2ebe1379399f5e430a0d86c5b927d79128be943d112e44fc84a40a1c",
+    "platform/recovery/v2-capture-references.mjs": "874115d5d0f688abd05287d197f2b0a5aa0181e9a2fb4575130198a73f971f12",
+    "platform/recovery/v2-adoption-references.test.mjs": "0ad0dc9d0a9fb51edb768cc132d15646623e6e6785abf54cc127e8935fb55a70"
+  }
+}

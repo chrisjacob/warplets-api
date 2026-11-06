@@ -1,6 +1,6 @@
 import {sql} from '../storage/atomic-driver.mjs';
 import {canonicalJson,utf8} from '../security/canonical.mjs';
-import {artifactIdentity} from '../artifacts/identity.mjs';
+import {artifactIdentity,privateIdentity} from '../artifacts/identity.mjs';
 import {createPinnedInventory,clone,demand,hashJson,RECOVERY_LIMITS,verifyObject,persistObject,schemaDescriptor} from './inventory.mjs';
 import {readSchema,tableListSql,rowExpression,rowOrder,objectRow,quote} from './schema.mjs';
 
@@ -69,6 +69,7 @@ export function createRecoveryExporter({driver,artifacts,codec,crypto,clock,sche
    const rowsOf=name=>{const t=data.find(t=>t.name===name);return t.rows.map(r=>objectRow(t,r));};
    const catalog=rowsOf('manifest_catalog');
    const referenced=rowsOf('app_private_artifacts').map(r=>({key:r.object_key,byteDigest:r.byte_digest,size:r.size,semanticDigest:r.semantic_digest,visibility:'private',contentType:r.content_type}));
+   for(const row of rowsOf('app_collection_legacy_adoption_objects')){const identity=privateIdentity(JSON.parse(row.identity_json));demand(identity.key===row.object_key,'Adoption retained object key mismatch.');referenced.push(identity);}
    for(const p of rowsOf('app_artifact_publications')){const chunks=JSON.parse(p.staging_json);demand(Array.isArray(chunks),'Invalid publication staging inventory.');referenced.push(...chunks);}
    let planned;try{planned=data.map(t=>planTablePages(t));}catch(error){if(/bound/.test(error.message))return pending('private-row-page-bound');throw error;}
    const provisional=uniqueObjects([...referenced,...catalog.map(r=>({key:r.object_key,byteDigest:r.byte_digest,size:r.size_bytes,semanticDigest:null,visibility:'public',contentType:'application/json'}))]);

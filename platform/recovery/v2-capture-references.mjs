@@ -6,7 +6,8 @@ import {publicationPin} from './export.mjs';
 import {objectRow} from './schema.mjs';
 import {RECOVERY_V2_LIMITS} from './v2-codec.mjs';
 
-const referenceTables=['app_private_artifacts','app_artifact_publications','manifest_catalog'];
+// Append new sources so existing private continuation indices retain their meaning.
+const referenceTables=['app_private_artifacts','app_artifact_publications','manifest_catalog','app_collection_legacy_adoption_objects'];
 const same=(a,b)=>canonicalJson(a)===canonicalJson(b);
 function need(condition,message){if(!condition)throw new TypeError(message);}
 /** Reads one immutable captured page and verifies at most one referenced object
@@ -44,6 +45,7 @@ export function createRecoveryV2ReferenceCapture({driver,artifacts,crypto,codec,
   while(item<page.rows.length){
    row=objectRow(table,page.rows[item]);
    if(name==='app_private_artifacts'){reference=privateIdentity({key:row.object_key,byteDigest:row.byte_digest,size:row.size,semanticDigest:row.semantic_digest,visibility:'private',contentType:row.content_type});break;}
+   if(name==='app_collection_legacy_adoption_objects'){reference=privateIdentity(JSON.parse(row.identity_json));need(reference.key===row.object_key,'Adoption retained object key mismatch.');break;}
    if(name==='manifest_catalog'){need(row.kind==='earn-archive-v1','Unknown public catalog kind.');reference=artifactIdentity({key:row.object_key,byteDigest:row.byte_digest,size:row.size_bytes,semanticDigest:null,visibility:'public',contentType:'application/json'});break;}
    const chunks=JSON.parse(row.staging_json);need(Array.isArray(chunks)&&chunks.length<=32,'Invalid bounded publication staging chunks.');
    if(part<chunks.length){reference=privateIdentity(chunks[part]);break;}item++;part=0;
