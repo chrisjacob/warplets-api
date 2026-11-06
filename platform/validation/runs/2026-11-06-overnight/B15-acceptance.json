@@ -1,0 +1,182 @@
+{
+  "task": "B15",
+  "auditMode": "Read-only card/evidence/current named-source review; no tests or network run by this audit",
+  "status": "local-acceptance-covered-pending-final-gates",
+  "decision": "No additional mandatory local implementation gap identified after the recorded068 writer and semantic-recovery slices. The earlier portable outcome/expiry/replacement gaps are closed. This is a recommendation to finish final contract/type/capability/CI gates, not a completion or production-readiness claim.",
+  "evidence": {
+    "B15-01": "platform/validation/runs/2026-11-06-overnight/B15-01.json",
+    "B15-02": "platform/validation/runs/2026-11-06-overnight/B15-02.json",
+    "B15-03": "platform/validation/runs/2026-11-06-overnight/B15-03.json",
+    "B15-04": "platform/validation/runs/2026-11-06-overnight/B15-04.json",
+    "B15-05": "platform/validation/runs/2026-11-06-overnight/B15-05.json",
+    "B15-06": "platform/validation/runs/2026-11-06-overnight/B15-06.json",
+    "B15-07": "platform/validation/runs/2026-11-06-overnight/B15-07.json",
+    "B15-08": "platform/validation/runs/2026-11-06-overnight/B15-08.json",
+    "B15-09": "platform/validation/runs/2026-11-06-overnight/B15-09.json",
+    "B15-10": "platform/validation/runs/2026-11-06-overnight/B15-10.json",
+    "B15-11": "platform/validation/runs/2026-11-06-overnight/B15-11.json",
+    "068-writer": "platform/validation/runs/2026-11-06-overnight/B15-12.json",
+    "068-recovery": "platform/validation/runs/2026-11-06-overnight/B15-13.json"
+  },
+  "orderedRequirements": [
+    {
+      "step": 1,
+      "status": "covered",
+      "evidence": [
+        "B15-03"
+      ],
+      "finding": "Versioned exact11 request variants; wallet/economic/request identity separation; typed unsupported-factory categories; no authoritative caller accounts, recipients, instructions or burn."
+    },
+    {
+      "step": 2,
+      "status": "covered-supported-economic-swap",
+      "evidence": [
+        "B15-04",
+        "B15-06",
+        "B15-07"
+      ],
+      "finding": "Actual B14 quote and registered source bind owner, business key, request/source/config/manifest/account digests, original supply/activation, outputs/fee ceiling/expiry. Atomic immutable economic retention and historical reconstruction after source correction. These plans have wire=null and cannot enter legacy attempts."
+    },
+    {
+      "step": 3,
+      "status": "covered-by-explicit-wire-gates",
+      "evidence": [
+        "B15-03",
+        "B15-04"
+      ],
+      "finding": "No launch/farm/claim/collection wire factory is enabled. Required evidence includes complete Genesis backing, activation snapshot, custody, original vesting/cumulative claims and permissions. Requirements are not fabricated DB observations. Since no first ATT wire plan is produced, a positive launch/full-split wire factory is not required to be invented for this local card."
+    },
+    {
+      "step": 4,
+      "status": "covered-recorded-compatibility-only",
+      "evidence": [
+        "B15-01",
+        "B15-02",
+        "068-writer",
+        "068-recovery"
+      ],
+      "finding": "Compatible retained synthetic unsigned packet is decoded against the independently retained immutable legacy plan: signers/order/program/instruction bytes/account privileges/genesis/lifetime, recorded simulation fee/output. Legacy plan and recorded simulation authority remain explicitly unverified. Nonempty lookups hold for independent lookup evidence; typed economic-program wire factories remain unsupported."
+    },
+    {
+      "step": 5,
+      "status": "covered",
+      "evidence": [
+        "B15-06",
+        "B15-08",
+        "B15-10",
+        "068-writer"
+      ],
+      "finding": "Atomic economic plans plus provenance-bound recorded outcome, unsigned expiry and preparation/replacement. Expected intent/source/recovery/current-clock fences, exact-key replay, changed-body conflict, omitted-child rollback, concurrent duplicate/lost-ack handling. No reservation-to-payment/mint promotion."
+    },
+    {
+      "step": 6,
+      "status": "covered",
+      "evidence": [
+        "B15-01",
+        "B15-05",
+        "B15-07",
+        "B15-09",
+        "B15-11",
+        "068-recovery"
+      ],
+      "finding": "Actual owner-only Node/main Worker GET and React guidance show exact unresolved attempt/required observation/next local transition. Unknown remains reconciliation-only. Fresh Node/D1 private restore verifies historical sources and preserves original tx identities/rowids, packets and sidecars through replacement and later expiry."
+    }
+  ],
+  "acceptanceCases": [
+    {
+      "case": "changed recipient/amount",
+      "evidence": [
+        "B15-02",
+        "B15-03",
+        "B15-06",
+        "068-writer"
+      ],
+      "coverage": "Authoritative recipient fields rejected; changed economics conflicts under the same intent key; exact retained packet program/account/instruction comparison remains mandatory. No new recipient derivation authority."
+    },
+    {
+      "case": "stale quote/source/program/config",
+      "evidence": [
+        "B15-04",
+        "B15-06",
+        "B15-07",
+        "068-writer"
+      ],
+      "coverage": "Quote/source and final SQL freshness races fail closed. Registered program/config bound; caller binary digest rejected. No positive binary-parity claim: missing typed codec/program evidence keeps wire unsupported."
+    },
+    {
+      "case": "unknown lookup evidence",
+      "evidence": [
+        "068-writer",
+        "068-recovery"
+      ],
+      "coverage": "Nonempty lookups explicitly held; no duplicated same-source table is treated as independent provenance."
+    },
+    {
+      "case": "duplicate business intent/conflicting idempotency",
+      "evidence": [
+        "B15-06",
+        "B15-08",
+        "B15-10",
+        "068-writer"
+      ],
+      "coverage": "Real Node/D1 concurrency and replay; economic intentKey differs from an economic digest, allowing intentional repeated trades. Changed same-key body conflicts."
+    },
+    {
+      "case": "unsubmitted expiry/replacement",
+      "evidence": [
+        "B15-10",
+        "B15-11",
+        "068-writer",
+        "068-recovery"
+      ],
+      "coverage": "Strict height>lastValid, unsigned latest only, fresh message/blockhash and nonregressing slot/time/height. Actual Node/D1 initial068\u2192067\u2192068 and fresh restoration of two preparations/two expiries. Expired predecessor immutable."
+    },
+    {
+      "case": "unknown reconciliation-only",
+      "evidence": [
+        "B15-01",
+        "B15-05",
+        "B15-08",
+        "B15-09",
+        "068-writer"
+      ],
+      "coverage": "Existing unknown recorded outcome reconciles to confirmed/finalized or failed; submitted/unknown/confirmed/terminal attempts never expire or replace. No signature or submitted transition invented."
+    },
+    {
+      "case": "false financial capabilities",
+      "evidence": [
+        "B15-03",
+        "B15-04",
+        "B15-05",
+        "068-writer"
+      ],
+      "coverage": "Closed no-burn vocabulary; new services have no signing/broadcast method or public mutation route. Current capabilities financialExecution/serverSigning/broadcast/deposits/claimExecution remain false."
+    }
+  ],
+  "latestFocusedEvidence": {
+    "068Writer": "10 Node PASS16643.6802ms; actual D1 21 calls PASS28191.9903ms; max23SQL/11513B/52params/1object; types PASS",
+    "068Recovery": "4 Node PASS132341.891ms; actual D1 PASS101212.7673ms; max30operations/110729Bbatch/371432Bserialized-working; types PASS",
+    "installedGolden": "117 tables; checkpoint peak126931B under131072 (4141B margin); exact object/identity retention; no new limits",
+    "earlierContracts": "B15-05 records6 contract checks and8 capability mounting tests; these precede final068 and are not a final current-tree result"
+  },
+  "remainingMandatoryImplementation": [],
+  "remainingFinalization": [
+    "Coordinator must publish/freeze068 writer+recovery evidence and commit dependency-closed final code; verify hashes against the final tree.",
+    "Run/record final generated-contract check, capability assertions, application/edge typechecks and required test-only CI on the final commit. Evidence reviewed does not establish a final full edge-suite run after068.",
+    "Only then update task status/run state. Existing partial evidence labels are checkpoint history, not proof the final gates passed."
+  ],
+  "explicitLimitsNotNewTasks": [
+    "No authenticated production binary, RPC simulation, funding/custody or chain-finality evidence. Synthetic recordings remain synthetic and original legacy plan/signature provenance remains unverified.",
+    "Only economic swap preparation plus retained legacy recorded-packet compatibility is implemented. Launch/fund/claim/stake/unstake/harvest/collection wire factories remain typed unsupported; public preparation/recording UI is not required by this card.",
+    "Accepted replay is historical receipt retrieval, not renewed usability after source/config/clock changes. Every new claim rechecks current evidence and expiry; there is no executable path for an old packet.",
+    "Fresh restore tests prove exact retained rows and semantic readiness. This audit does not claim a separate post-restore call to each business replay API where none is explicitly recorded; standalone replay and exact restoration are independently evidenced.",
+    "No optional lookup-table implementation or later production release work inferred."
+  ],
+  "authority": {
+    "productEdits": false,
+    "testsRun": false,
+    "network": false,
+    "financialExecution": false,
+    "taskMarkedComplete": false
+  }
+}
