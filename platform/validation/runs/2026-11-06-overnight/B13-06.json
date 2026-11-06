@@ -1,0 +1,82 @@
+{
+  "task": "B13",
+  "slice": "B13-06",
+  "status": "verified-slice",
+  "baseCommit": "0d0fdab",
+  "scope": [
+    "Guarded consent and bounded owner inbox reads in Node and actual mainWorker",
+    "Accurate shared local-inbox capability inventory; externalnotifications/financialexecution false",
+    "Actual React authenticated inbox journey, session/cache ownership and restricted runtime negatives"
+  ],
+  "checks": {
+    "nodeHttp": "8PASS2040.0904ms work/b13-inbox-http-node.log",
+    "mainWorker": "1PASS26934.1876ms work/b13-inbox-mainworker.log;actual SQLclock, discovery4routes, ownerisolation,25+1pagination,TTL,revokecleanup,acceptedreplay, no enqueue/delivery route",
+    "capabilities": "3PASS850.3904ms work/b13-inbox-capabilities-final.log",
+    "featureContracts": "3PASS988.2044ms work/b13-feature-contracts.log;HTTPfixture now actualDate.now forrealSQLfence",
+    "typesAndDrift": "Edge tsc and contracts/generate --check PASS",
+    "browser": {
+      "format": "10x.local.implementation-evidence.v1",
+      "task": "B13",
+      "slice": "member local notification browser acceptance",
+      "baseCommit": "0d0fdab38ef26595b319a1fc066ebbf17b09fbfa",
+      "implementationCommit": null,
+      "sourceHashes": {
+        "platform/site/tests/notifications-runtime-qa.mjs": "ceb735c4f0aaa8512fddffdb25da12ec251f81279d0215f7f3d49c72ab1f1c1e"
+      },
+      "testedDependencyHashes": {
+        "platform/site/tests/runtime-qa.mjs": "35b9854ece45206c65d3db53e6de4496dcc6eb6c2d613e2bf14060232901e421",
+        "platform/site/src/notifications.tsx": "d32e9799dc9494220bd89ad1a5f65cc65f5f5985e5079bf31df99a5e5ccefbdd",
+        "platform/storage/notification-delivery.mjs": "2bffdd499dc9467c81a0703c34bf0b9a564b2792d43cc5f5eb703df131d77f81",
+        "platform/storage/064-notification-delivery.sql": "e466a69bcaeb21f42454e88d132641016dc9d2eebfb53e595c58a3a10f4b3cac",
+        "platform/notifications/consent-http.mjs": "c1a5f52a37dafad5ec92e04899139c7139500806ec87e30f52f655049ad39c20"
+      },
+      "checks": [
+        {
+          "command": "pnpm --dir platform/site build",
+          "exitCode": 0,
+          "includesTypecheck": true,
+          "log": "work/b13-notifications-site-build.log"
+        },
+        {
+          "command": "node platform/site/tests/notifications-runtime-qa.mjs",
+          "exitCode": 0,
+          "widths": [
+            360,
+            390,
+            768,
+            1440
+          ],
+          "generatedWalletSignatures": 12,
+          "log": "work/b13-notifications-browser.log"
+        },
+        {
+          "command": "node --check platform/site/tests/notifications-runtime-qa.mjs; git diff --check",
+          "exitCode": 0
+        }
+      ],
+      "acceptance": [
+        "Actual compiled React + migrated Node API, same-origin loopback only; generated Wallet Standard accounts sign local authentication messages, never transactions.",
+        "Two owners per width explicitly enable launch topic only; no selected default topics or notice queries before opening signed-in settings.",
+        "Actual named enqueue command, scoped notification-work worker, guarded lease and finish create two deduped enqueue receipts and two delivery receipts per fixture. Repeating enqueue/finish creates no duplicate messages.",
+        "Each owner sees only their own inbox ID/link, with no-store headers. Logout and account switch remove prior private React query data.",
+        "Revocation clears only the current owner inbox, retains the other inbox, and exact original enable body/key replay does not re-enable consent.",
+        "New delivery is fetched with normal page reload, respecting existing 15-second client query freshness; no live polling claim.",
+        "Existing explicitly restricted runtime-profile fixture passes all four widths with no notifications/transactions/collection queries. Failed capability discovery permits only policy/capability reads."
+      ],
+      "scope": [
+        "Only one new acceptance harness owned; no site product changes.",
+        "Restricted/failed capability responses are labelled negative fixtures; positive notification/auth flows use actual APIs.",
+        "Node browser evidence complements separately coordinated main-Worker HTTP/D1 evidence, not a claim this browser ran against D1.",
+        "No external delivery, production signer, financial execution or release action."
+      ],
+      "screenshots": "work/b13-notifications-member"
+    }
+  },
+  "fixtureNotes": [
+    "Restricted-profile browser fixture explicitly excludeslocal-inbox after currentWorker gains it; unchanged noquery assertions plus positive actualAPI acceptance.",
+    "MainWorker inbox fixture rows are explicitly retainedlegacyread fixtures; actualguardeddelivery proven separately andbrowserusesgenuine64commands."
+  ],
+  "remaining": "Boundedpurge/B03maintenance, scopedCLIport,guardedreceiptprivate recovery andB13finalacceptance.",
+  "financialExecution": false,
+  "externalTransport": false
+}

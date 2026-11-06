@@ -5,17 +5,18 @@ const json=(value,status=200,headers={})=>new Response(JSON.stringify(value),{st
 const failure=(status,code,message,headers={})=>json({error:{code,message}},status,headers);
 export const portableNoticeCapabilities=Object.freeze({channel:'local-inbox',topics:NOTICE_TOPICS,terms:NOTICE_TERMS,delivery:'in-app fixture only',externalTransport:false,dailyLimit:3});
 /** Portable private consent boundary. No enqueue, recipient or delivery input. */
-export async function handleNotificationConsent(request,{service,authenticate,consumeQuota,capabilities=portableNoticeCapabilities}){
+export async function handleNotificationConsent(request,{service,authenticate,consumeQuota,readInbox,capabilities=portableNoticeCapabilities}){
  const url=new URL(request.url),path=url.pathname,base='/api/v1/notifications';
- const caps=path===base+'/capabilities',subscriptions=path===base+'/subscriptions';
- if(!caps&&!subscriptions)return null;
- const methods=caps?['GET']:['GET','POST'];
+ const caps=path===base+'/capabilities',subscriptions=path===base+'/subscriptions',inbox=path===base+'/inbox'&&typeof readInbox==='function';
+ if(!caps&&!subscriptions&&!inbox)return null;
+ const methods=caps||inbox?['GET']:['GET','POST'];
  if(!methods.includes(request.method))return failure(405,'method_not_allowed','Unsupported method.',{allow:methods.join(', ')});
  if(caps)return json(capabilities);
  if(request.method==='POST'&&request.headers.get('origin')!==url.origin)return failure(403,'invalid_origin','Use the configured local origin.');
  try{
   const principal=await authenticate(request);if(!principal)return failure(401,'authentication_required','Connect your wallet.');
   const quota=await consumeQuota('notice:'+request.method+':'+principal.wallet,request.method==='POST'?10:60);if(quota)return quota;
+  if(inbox){const cursor=url.searchParams.get('cursor');if(cursor!==null&&!/^(\d{1,16})\.([a-f0-9]{64})$/.test(cursor))return failure(400,'invalid_cursor','Invalid inbox cursor.');return json(await readInbox(principal,{cursor,limit:25}));}
   if(request.method==='GET')return json(await service.readPreferences(principal));
   if(request.headers.get('content-type')?.split(';')[0].trim()!=='application/json')return failure(415,'unsupported_media_type','Use application/json.');
   const body=await boundedJson(request,2048),requestKey=request.headers.get('idempotency-key');

@@ -16,13 +16,13 @@ const shared=[
  ['collection-asset-operation-read',[['GET','/collect/assets/{id}'],['GET','/collect/me/assets'],['GET','/collect/me/operations'],['GET','/collect/me/operations/{id}']]],
  ['collection-progression-preview',[['POST','/collect/inventories/{id}/progression'],['POST','/collect/inventories/{id}/progression/quote']]],
  ['genesis-advisory-vote',[['GET','/genesis/ballots'],['GET','/genesis/ballots/{id}'],['POST','/genesis/ballots/{id}/votes']]],
+ ['local-inbox',[['GET','/notifications/capabilities'],['GET','/notifications/subscriptions'],['POST','/notifications/subscriptions'],['GET','/notifications/inbox']]],
 ];
 const nodeOnly=[
  ['launch-plan-preview',[['GET','/launch-plans'],['POST','/launch-plans/preview']]],
  ['earn-archive',[['GET','/earn/epochs/{epoch}/manifest'],['GET','/earn/claims/proof']]],
  ['transaction-receipt-preview',[['GET','/transactions/{id}']]],
  ['local-operation-status',[['GET','/operations/status']]],
- ['local-inbox',[['GET','/notifications/capabilities'],['GET','/notifications/subscriptions'],['POST','/notifications/subscriptions'],['GET','/notifications/inbox']]],
 ];
 
 export function makeCapabilities(runtime) {

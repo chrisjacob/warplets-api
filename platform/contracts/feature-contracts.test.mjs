@@ -46,7 +46,7 @@ function schemasFor(spec,operationId) {
 }
 test('generated client authenticates and exercises exact feature schemas through the application router',async t=>{
   const db=openDatabase();t.after(()=>db.close());
-  const now=20_001*DAY_MS+5000,epoch=Math.floor(now/DAY_MS),origin='http://localhost';
+  const now=Date.now(),epoch=Math.floor(now/DAY_MS),origin='http://localhost';
   configureWorkload(db,{effectiveEpoch:epoch,atMs:now-1,staffedMinutes:10,secondsPerReview:6,admissionLimit:100,operator:'synthetic-reviewer',reason:'Explicit HTTP fixture staffing'});
   const app=createApp(db,{clock:()=>now}),spec=openapi();let cookie='';
   const client=createClient({baseUrl:origin+'/api/v1',fetchImpl:async(url,init)=>{

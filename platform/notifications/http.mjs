@@ -5,9 +5,8 @@ import {createNotificationConsentRepository} from '../storage/notification-conse
 import {createNodeAtomicDriver} from '../storage/node/atomic-driver.mjs';
 import {createNodeCrypto} from '../security/node-crypto.mjs';
 import {randomUUID} from 'node:crypto';
-import { failure, json } from '../server/api.mjs';
-import { EarnError } from '../earn/checks.mjs';
-import { inbox, TERMS } from './notices.mjs';
+import {NOTICE_TERMS as TERMS} from './consent.mjs';
+import {createNotificationDeliveryRepository} from '../storage/notification-delivery.mjs';
 
 const base='/api/v1/notifications';
 const response=description=>({description,content:{'application/json':{schema:{type:'object'}}}});
@@ -29,22 +28,7 @@ export const notificationPaths={
 export async function handleNotifications(db,request,peer,now) {
   const u=new URL(request.url),which=u.pathname.slice(base.length);
   if(!u.pathname.startsWith(base+'/')||!['/capabilities','/subscriptions','/inbox'].includes(which))return null;
-  if(which!=='/inbox'){
-    const ports={crypto:createNodeCrypto(),ids:{next:randomUUID},clock:{nowMs:()=>now}},service=createNotificationConsentService({...ports,repository:createNotificationConsentRepository(createNodeAtomicDriver(db),ports)});
-    return handleNotificationConsent(request,{service,authenticate:async req=>{const session=currentSession(db,req,now);return session?{kind:'wallet',wallet:session.wallet}:null;},consumeQuota:async(bucket,limit)=>consumeQuota(db,bucket,now,limit)});
-  }
-  if(request.method!=='GET')return failure(405,'method_not_allowed','Unsupported method.',{allow:'GET'});
-  const session=currentSession(db,request,now);if(!session)return failure(401,'authentication_required','Connect your wallet.');
-  const quota=consumeQuota(db,'notice:'+request.method+':'+session.wallet,now,request.method==='POST'?10:60);if(quota)return quota;
-  try {
-    if(which==='/inbox') {
-      const cursor=u.searchParams.get('cursor');
-      const match=cursor==null?null:/^(\d{1,15})\.([a-f0-9]{64})$/.exec(cursor);
-      if(cursor!=null&&!match)return failure(400,'invalid_cursor','Invalid inbox cursor.');
-      return json(inbox(db,{wallet:session.wallet,now,...(match?{beforeMs:Number(match[1]),beforeId:match[2]}:{})}));
-    }
-  } catch(error) {
-    if(error instanceof EarnError)return failure(error.status,error.code,error.message);
-    throw error;
-  }
+  const ports={crypto:createNodeCrypto(),ids:{next:randomUUID},clock:{nowMs:()=>now}},driver=createNodeAtomicDriver(db);
+  const service=createNotificationConsentService({...ports,repository:createNotificationConsentRepository(driver,ports)}),reads=createNotificationDeliveryRepository(driver,ports);
+  return handleNotificationConsent(request,{service,readInbox:reads.readInbox,authenticate:async req=>{const session=currentSession(db,req,now);return session?{kind:'wallet',wallet:session.wallet}:null;},consumeQuota:async(bucket,limit)=>consumeQuota(db,bucket,now,limit)});
 }

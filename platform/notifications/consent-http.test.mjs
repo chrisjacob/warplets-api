@@ -32,3 +32,10 @@ test('portable consent HTTP rejects unauthenticated, cross-origin, extra identit
  for(const [options,status] of [[{who:null},401],[{body:input,headers:{origin:'https://elsewhere.invalid'}},403],[{body:{...input,wallet:other}},400],[{body:{...input,topics:['launch','launch']}},400],[{body:input,key:'invalid key'},400],[{body:input,headers:{'content-type':'text/plain'}},415],[{body:'{broken'},400],[{body:' '.repeat(2049)},413],[{method:'DELETE'},405]])assert.equal((await send('/subscriptions',options)).status,status);
  assert.equal(await send('/inbox'),null);assert.equal((await send('/capabilities',{method:'POST',body:input})).status,405);assert.equal(db.prepare('SELECT total_changes() n').get().n,before);
 });
+
+test('inbox HTTP binds authenticated principal and rejects invalid cursors before a read',async()=>{
+ const seen=[],principal={kind:'wallet',wallet},ports={service:{},authenticate:async()=>principal,consumeQuota:async()=>null,readInbox:async(p,q)=>{seen.push({p,q});return {mode:'local-inbox',items:[],nextCursor:null};}};
+ const response=await handleNotificationConsent(new Request(base+'/inbox?wallet='+other),ports);assert.equal(response.status,200);assert.equal(response.headers.get('cache-control'),'no-store');assert.deepEqual(seen,[{p:principal,q:{cursor:null,limit:25}}]);
+ assert.equal((await handleNotificationConsent(new Request(base+'/inbox?cursor=bad'),ports)).status,400);assert.equal(seen.length,1);
+ assert.equal((await handleNotificationConsent(new Request(base+'/inbox',{method:'POST'}),ports)).status,405);assert.equal(seen.length,1);
+});

@@ -5,16 +5,18 @@ import {createD1AtomicDriver} from '../../storage/d1/atomic-driver';
 import {createWebCrypto} from '../../security/web-crypto.mjs';
 import {createNotificationConsentService} from '../../notifications/consent.mjs';
 import {createNotificationConsentRepository} from '../../storage/notification-consent.mjs';
+import {createNotificationDeliveryRepository} from '../../storage/notification-delivery.mjs';
 import {handleNotificationConsent} from '../../notifications/consent-http.mjs';
 export function createWorkerConsentService(db:D1Database,nowMs=Date.now()){
  const ports={crypto:createWebCrypto(),clock:{nowMs:()=>nowMs},ids:{next:()=>crypto.randomUUID()}};
  return createNotificationConsentService({...ports,repository:createNotificationConsentRepository(createD1AtomicDriver(db),ports)});
 }
-// No enqueue/delivery endpoint. Mount only after runtime acceptance/capability update.
+// Authenticated local consent/inbox only. No enqueue or delivery endpoint.
 export const notifications=new Hono<{Bindings:Env}>();
 notifications.all('/notifications/*',async(c,next)=>{
  const at=Date.now(),service=createWorkerConsentService(c.env.DB,at);
- const response=await handleNotificationConsent(c.req.raw,{service,
+ const reads=createNotificationDeliveryRepository(createD1AtomicDriver(c.env.DB),{crypto:createWebCrypto(),clock:{nowMs:()=>at},ids:{next:()=>crypto.randomUUID()}});
+ const response=await handleNotificationConsent(c.req.raw,{service,readInbox:reads.readInbox,
   authenticate:async(request:Request)=>{const wallet=await sessionOwner(request,c.env.DB,getCookie(c,sessionCookie));return wallet?{kind:'wallet' as const,wallet}:null;},
   consumeQuota:async(bucket:string,limit:number)=>{
    const row=await c.env.DB.prepare(`INSERT INTO request_limits VALUES(?,?,1) ON CONFLICT(bucket) DO UPDATE SET
