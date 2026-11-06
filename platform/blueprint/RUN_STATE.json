@@ -5,9 +5,9 @@
   "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
   "currentTask": "B16",
-  "lastUpdatedAt": "2026-11-06T21:58:23.078136+00:00",
+  "lastUpdatedAt": "2026-11-06T22:04:33.088037+00:00",
   "migrationAllocation": {
-    "next": 69,
+    "next": 70,
     "reserved": [
       {
         "version": 31,
@@ -198,6 +198,11 @@
         "version": 68,
         "task": "B15",
         "purpose": "guarded imports of existing recorded unsigned packets and safe never-submitted replacement"
+      },
+      {
+        "version": 69,
+        "task": "B17",
+        "purpose": "immutable private refresh revision and checkpoint receipt lineage"
       }
     ],
     "historicalGap": 19
@@ -558,16 +563,18 @@
       "status": "in_progress",
       "owner": "coordinator",
       "baseCommit": "a1d1d78",
-      "implementationCommit": "8ff516f",
+      "implementationCommit": "d0cfde1",
       "pushed": true,
       "evidence": [
         "platform/validation/runs/2026-11-06-overnight/B17-01.json",
         "platform/validation/runs/2026-11-06-overnight/B17-02.json",
         "platform/validation/runs/2026-11-06-overnight/B17-03.json",
         "platform/validation/runs/2026-11-06-overnight/B17-04.json",
-        "platform/validation/runs/2026-11-06-overnight/B17-05.json"
+        "platform/validation/runs/2026-11-06-overnight/B17-05.json",
+        "platform/validation/runs/2026-11-06-overnight/B17-06.json",
+        "platform/validation/runs/2026-11-06-overnight/B17-07.json"
       ],
-      "nextAction": "Pure foundations pass 20 Worker calls; private checkpoint passes 4 Node tests and 13 actual R2 calls. Finish normalized fairness reader, then authenticated refresh revision repository and collection UI. Full B17 remains partial.",
+      "nextAction": "Normalized fairness reader passes Node and actual D1 parity; owner HTTP/UI integration underway. Migration069 plus authenticated refresh repository in progress. Checkpoint118-table recovery peak128346/131072; verify069 final schema/receipt checks before commit.",
       "blocker": null
     },
     "B18": {

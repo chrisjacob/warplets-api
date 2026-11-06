@@ -1,0 +1,65 @@
+{
+  "milestone": "B17 normalized owner-only mint fairness reads",
+  "status": "local-node-tested-partial-no-http-mount",
+  "base": "d0cfde1442fc095444eb4bdfb901a4fd2372e4d2",
+  "implementationCommit": null,
+  "sourceHashes": {
+    "platform/collect/fairness-repository.mjs": "184597dee11e2b82f3601a50ab7672ba6b96b1914da9214b2c2d43583227ad0d",
+    "platform/collect/fairness-repository.d.mts": "50d728afde37b49bc9b08e7f0a9002378f6208712d6dc6d02ed7a8de8ba4d8de",
+    "platform/collect/fairness-repository.fixtures.mjs": "a491e87302d243aec48c333ce319d0bc095bef23c8eb219673b04ea6296244d1",
+    "platform/collect/fairness-repository.test.mjs": "bd8c4a5b4aca0333d9f9a6bb96027fdbc12a4509d17fe79b23e39b778beaa761"
+  },
+  "checks": [
+    {
+      "command": "node --test platform/collect/fairness-repository.test.mjs platform/collect/fairness-projection.test.mjs",
+      "passed": 10,
+      "failed": 0,
+      "durationMs": 9081.1449,
+      "log": "work/b17-fairness-repository-node.log"
+    },
+    {
+      "command": "node platform/edge/node_modules/typescript/bin/tsc --noEmit -p platform/edge/tsconfig.json",
+      "status": "passed",
+      "log": "work/b17-fairness-repository-types.log"
+    },
+    {
+      "command": "git diff --check -- <four owned source paths>",
+      "status": "passed"
+    }
+  ],
+  "measuredDisclosedRead": {
+    "sqlStatements": 8,
+    "maxSqlBatchBytes": 6864,
+    "maxResultBatchBytes": 4308,
+    "serializedWorkingBytes": 37230
+  },
+  "limits": {
+    "sqlStatements": 16,
+    "rowsPerBatch": 16,
+    "resultBatchBytes": 196608,
+    "serializedWorkingBytes": 1048576,
+    "traitBytes": 131072,
+    "outputBytes": 262144
+  },
+  "coverage": [
+    "Actual local B04 evidence ingestion, guarded 045 admission, 046 irreversible fulfillment and applied 041 reveal linkage",
+    "Pinned installed BLS verification; no network call or altered entropy selection",
+    "Owner isolation, read-only SQL, deterministic restart, stable opaque commitment before/after disclosure",
+    "Selected reveal cannot disclose earlier concealed quota outcomes; complete prior prefix reveals only selected transcript and original quota vector",
+    "Historical accepted reveal survives operator scope revocation and evidence-head removal",
+    "Source revision, recovery generation, local clock and post-BLS races suppress output",
+    "Corrupt admission/fulfillment/receipt linkage, missing prefix, malformed proof and oversized policy stay sealed or pending",
+    "Manual normalized outcomes remain manual sealed; legacy/unadopted profile unsupported; restoring target pending"
+  ],
+  "limitsAndUnfinished": [
+    "Node acceptance only; actual D1 integration still required",
+    "No HTTP or React surface mounted in this slice",
+    "Only exact owner normalized mint 045/046 profile; progression and legacy/imported profiles remain unsupported",
+    "Trait policies above 128KiB explicitly hold; no partial policy or future reserved mapping is exposed",
+    "Applied reveal authority relies on retained immutable 041/B04/command linkage; this read does not independently fetch all historical evidence objects",
+    "Transcript verifies recorded beacon draw only; whole reserved-policy closure, production order/custody and release remain unverified"
+  ],
+  "financialExecution": false,
+  "serverSigning": false,
+  "broadcast": false
+}

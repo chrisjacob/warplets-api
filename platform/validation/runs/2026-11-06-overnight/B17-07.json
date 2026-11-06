@@ -1,0 +1,42 @@
+{
+  "milestone": "B17 normalized fairness actual D1 parity",
+  "status": "passed-private-fixture-only",
+  "sourceHashes": {
+    "platform/edge/test/collection-fairness.test.mjs": "b4789a1a3d54580180a91e696c3aee9556c523c2279d7789bea671f706afaa03",
+    "platform/edge/test/fixtures/collection-fairness-worker.ts": "fa6e40c30cd87904f7488c515b29061e6a88bd22f4aa020d1fd97bfa2ba0e791"
+  },
+  "checks": [
+    {
+      "command": "node --test platform/edge/test/collection-fairness.test.mjs",
+      "passed": 1,
+      "failed": 0,
+      "durationMs": 78075.8531,
+      "log": "work/b17-fairness-d1.log"
+    },
+    {
+      "command": "node platform/edge/node_modules/typescript/bin/tsc --noEmit -p platform/edge/tsconfig.json",
+      "status": "passed"
+    }
+  ],
+  "metrics": {
+    "pairedReads": 7,
+    "maxStatements": 8,
+    "maxBatchBytes": 6864,
+    "maxResultBytes": 4303,
+    "maxWorkingBytes": 37209
+  },
+  "coverage": [
+    "Installed migration runner actual workerd/D1/R2",
+    "Two actual admitted mints and B04/046 pinned BLS fulfillment",
+    "B04/041 actual applied reveals and hidden predecessor gate",
+    "Node/D1 exact projections, owner isolation, no read business writes",
+    "Final source change after actual BLS suppresses disclosure"
+  ],
+  "financialExecution": false,
+  "serverSigning": false,
+  "broadcast": false,
+  "notes": [
+    "Test required local loopback escalation after sandbox fetch denial. No external provider calls.",
+    "Production HTTP and UI are subsequent slice."
+  ]
+}
