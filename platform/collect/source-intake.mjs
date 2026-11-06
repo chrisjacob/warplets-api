@@ -60,6 +60,9 @@ function shape(body){
  return body;
 }
 async function document(record,crypto){return shape(await createCollectionStateCodec({crypto}).verifyRecord(record,record.id));}
+/** Shared035 byte/canonical/shape verification, with the same defensive copy
+ * and bounds as intake. This grants no seal, economics or source authority. */
+export async function verifyCollectionRecordBody(value,crypto){return document(captureRecord(value),crypto);}
 
 /** Format/byte verification only; no source economics or publication approval. */
 export async function prepareCollectionRecord(value,crypto){

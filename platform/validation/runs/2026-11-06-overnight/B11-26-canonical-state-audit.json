@@ -1,0 +1,139 @@
+{
+  "task": "B11",
+  "slice": "B11.26 bounded canonical035 source projection audit",
+  "status": "verified-pure-projection-audit; B11 remains partial",
+  "baseCommit": "10f539598b5f4b2ae6ad6e6f7d11d913607e7abd",
+  "implementationCommit": null,
+  "recordedAt": "2026-11-06T05:14:40.630Z",
+  "sourceHashes": {
+    "platform/collect/legacy-state-audit.mjs": "96c6d90260ca9a7b002d0f812b51fc2e5a16ad99343e0a9c75ecb2daad618d0b",
+    "platform/collect/legacy-state-audit.d.mts": "1138d66ee6f4019183b4e581234989fe9c519a8391f6e84dddf49cad96e29fb7",
+    "platform/collect/legacy-state-audit.fixtures.mjs": "1f34c91ad90dc7e01f5db20e57c63fc963ebef40fa9f79e0e2c90c05c4528458",
+    "platform/collect/legacy-state-audit.test.mjs": "c4e5e5ec156ca23d36b4007aaa6e019e42f1652d5179ab27ac5b46a01cd2dc64",
+    "platform/collect/legacy-state-audit.capacity.test.mjs": "1ce44c965c6919354649a1d6da9192f8ddba315f37f35811533c131ac790d3c2",
+    "platform/collect/legacy-state-audit.README.md": "b899b4930e591d03680c243512387da16e4757040d17fde4ec185ef4b5ca1ce7",
+    "platform/collect/source-intake.mjs": "7d1b975db02032bacba704742c2416a2dad7d1761f4da89c656ead556cf15a3c",
+    "platform/collect/source-intake.d.mts": "d42beab18801ef9a9c1e9e2893e67037392e25f659bd659fc2b935de2b7452ab",
+    "platform/edge/test/legacy-state-audit.test.mjs": "4ae04756e2993b6c458fe33ffb5c225d046a33cd2944f82d6b8f3ebfa2ab5b55",
+    "platform/edge/test/fixtures/legacy-state-audit-worker.ts": "204cdc7ceba6be70cb39c0130d0aed816d83ef998f8aaf313cbac15435c81a96"
+  },
+  "checks": [
+    {
+      "command": "node --test platform/collect/legacy-state-audit.test.mjs platform/collect/source-intake.test.mjs platform/collect/state-codec.test.mjs",
+      "result": "PASS",
+      "tests": 20,
+      "durationMs": 33243.7023,
+      "log": "work/b11-legacy-state-focused.log",
+      "note": "Subsequent test-only cleanup removed one redundant defensive-capture invocation; final six focused tests below reran exact final source."
+    },
+    {
+      "command": "node --test platform/collect/legacy-state-audit.test.mjs",
+      "result": "PASS",
+      "tests": 6,
+      "durationMs": 483.3318,
+      "log": "work/b11-legacy-state-final-focused.log"
+    },
+    {
+      "command": "node --test platform/collect/legacy-state-audit.capacity.test.mjs",
+      "result": "PASS",
+      "tests": 1,
+      "durationMs": 49745.2875,
+      "log": "work/b11-legacy-state-capacity.log"
+    },
+    {
+      "command": "node --test platform/edge/test/legacy-state-audit.test.mjs",
+      "result": "PASS",
+      "tests": 1,
+      "durationMs": 25521.7123,
+      "log": "work/b11-legacy-state-edge.log"
+    },
+    {
+      "command": "node platform/edge/node_modules/typescript/bin/tsc --noEmit -p platform/edge",
+      "result": "PASS",
+      "log": "work/b11-legacy-state-types.log"
+    },
+    {
+      "command": "git diff --check -- <all ten owned paths>",
+      "result": "PASS"
+    }
+  ],
+  "maximum": {
+    "classification": "synthetic source projection only; Node native-copy fixture hash; no source/adoption authority",
+    "records": 3245,
+    "listManifests": 32,
+    "pages": 3212,
+    "sourceBytes": 16301094,
+    "transcriptBytes": 15836660,
+    "steps": 3248,
+    "maxRecords": 3,
+    "maxWorkingBytes": 747582,
+    "maxCheckpointBytes": 741,
+    "elapsedMs": 49399.317800000004
+  },
+  "workerd": {
+    "source": "synthetic035 actual retained rows; pinned optional adapter fixture only",
+    "implementationPin": "@noble/hashes@2.2.0:sha256-source:eca9066af2132571a2e991f8acf66b976caa077705fc84428709ababa234f25d",
+    "totalCalls": 66,
+    "maxQueries": 3,
+    "maxReturnedBytes": 37135,
+    "maxWorkingBytes": 223058,
+    "maxCheckpointBytes": 1279,
+    "results": [
+      {
+        "rootId": "7f722954cd0c14abf72f98c9acdb6788a30f116b9cad91dc11a9cb5e6e8256cf",
+        "steps": 4,
+        "kind": "verified",
+        "digest": "fc2095b3f3aaf9d35818b392a5e051febbd55efa040e884b3c8b81b6016c4349",
+        "bytes": 161
+      },
+      {
+        "rootId": "3910a7e9ff483478623be6a23673a84db4c72654268c80491f3e940065028eb8",
+        "steps": 8,
+        "kind": "verified",
+        "digest": "e9f55ba22344730947072de36cbbcddbc00421346eafb135c3da04071559e2f2",
+        "bytes": 945
+      },
+      {
+        "rootId": "6bf8c692b2cb512ee23241d48f6175c842186d56f6c017746507c6dad231ba25",
+        "steps": 23,
+        "kind": "verified",
+        "digest": "0953e1c9536a4d43b584951c2ec3bf0fe005c073bf79eb31afd9545bcd1b73db",
+        "bytes": 297007
+      },
+      {
+        "rootId": "b52f4ed89de00452aca933d43771dea0ba65e33f0c597ffd952ca33fe7b4ee53",
+        "steps": 23,
+        "kind": "held",
+        "reason": "legacy-state-projection-digest-mismatch"
+      }
+    ],
+    "elapsedMs": 24094.8105,
+    "applicationAuthority": false
+  },
+  "acceptance": [
+    "Exact canonical admissions-first object transcript matches offline035 state codec and native full-message SHA; original raw JSON ordering intentionally yields a different raw digest.",
+    "Every invocation re-verifies root and at most one list manifest plus one named page through shared035 record/canonical/shape verifier.",
+    "Empty inventories/lists, shared/distinct lists, explicit-null versus omitted tranche, pending/fixed free lists, lamport wrappers, Unicode and pending admission bytes are preserved.",
+    "Changed declared digest, wrong source revision/identity, unknown stage scalar, missing/reordered/wrong-kind page, count/digest mismatch and cross-page wallet order/duplicate all hold.",
+    "Checkpoint digest, phase/cursor/counter and prefix-byte mismatch hold; interrupted step replay uses original checkpoint; caller checkpoint/record mutation during injected digest cannot change captured input.",
+    "Maximum32distinct10000 lists and1000 admissions with max-length IDs/proofIDs/Unicode rationale/u64 costs:3245records,3248steps,747582workingbytes,exact complete digest.",
+    "ActualD1 intake rows:66paired/replay/fault calls with fresh pinned adapter in every separate Node/workerd invocation; all checkpoint compression words and final values match."
+  ],
+  "trust": {
+    "verification": "projection-digest-only",
+    "rawSourceRelationVerified": false,
+    "economicsVerified": false,
+    "adoptionAuthorized": false,
+    "financialExecution": false,
+    "checkpointDigest": "integrity only, not authentication/reachable-prefix proof",
+    "hash": "trusted injected private B11-24 pinned resumable adapter; native-copy cache used only by labeled Node transcript tests",
+    "sharedChange": "export-only verifyCollectionRecordBody wrapper around existing captureRecord/document, plus declaration; no035 semantics changed",
+    "optionalDependencies": "No static optional hash dependency in reference modules/tests; actual pinned import confined to edge test and private Worker fixture."
+  },
+  "remaining": [
+    "No SQL source-to-projection relation, original raw-byte identity, historical/economic/eligibility proof or application activation is provided.",
+    "No durable audit state, CAS/generation/header/watermark fence, schema or public route is installed. Authentic private continuation lineage is required before any future authority consumer.",
+    "Maximum complete graph capacity is measured in Node with the labeled native-copy adapter; actualD1 named-record parity covers all phase forms and1000admissions with shared201wallet lists, not the full32x10000 graph.",
+    "One-stage original publication hashes and free-cut membership remain separate required audits."
+  ]
+}

@@ -1,5 +1,5 @@
 import type {CanonicalCrypto,OperatorPrincipal,Revisions,RepositoryOutcome} from '../application/ports';
-import type {CollectionSourceRecord} from './state-codec.mjs';
+import type {CollectionSourceRecord,CollectionSourceDocument} from './state-codec.mjs';
 export const STAGE_COLLECTION_RECORD:'collection.stage-record.v1';
 export const SEAL_COLLECTION_LIST:'collection.seal-list.v1';
 export const SEAL_COLLECTION_SOURCE:'collection.seal-source.v1';
@@ -29,6 +29,7 @@ export interface CollectionSourceIntakeService {
  sealSource(principal:OperatorPrincipal,input:CollectionIntakeRequest&Readonly<{id:string}>):Promise<CollectionIntakeResult>;
 }
 export function prepareCollectionRecord(record:CollectionSourceRecord,crypto:CanonicalCrypto):Promise<VerifiedCollectionRecord>;
+export function verifyCollectionRecordBody(record:CollectionSourceRecord,crypto:CanonicalCrypto):Promise<CollectionSourceDocument>;
 export function prepareCollectionList(input:{manifest:CollectionSourceRecord;pages:readonly CollectionSourceRecord[]},crypto:CanonicalCrypto):Promise<CollectionListSeal>;
 export function prepareCollectionSource(input:{root:CollectionSourceRecord;lists:readonly CollectionListSeal[];admissionPages:readonly CollectionSourceRecord[]},crypto:CanonicalCrypto):Promise<CollectionSourceSeal>;
 export function collectionIntakeCommandBytes(command:Omit<CollectionIntakeCommand,'requestDigest'>):Uint8Array;
