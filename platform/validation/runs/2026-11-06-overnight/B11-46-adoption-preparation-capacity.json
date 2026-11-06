@@ -1,0 +1,84 @@
+{
+  "checkpoint": "B11-46",
+  "title": "Actual32stage1000settled original legacy preparation capacity",
+  "status": "verified-local-node-capacity-no-activation",
+  "lastConfirmedBaseCommit": "8169ef0c9746b0574574266596b047fbf3f33d99",
+  "implementationCommit": null,
+  "source": "synthetic-genuine-legacy-publications-admissions-fulfillments-original-preimages-and-actual050051052053-continuations",
+  "runtimeCoverage": "Node SQLite only; full maximum D1 capacity remains unmeasured",
+  "financialExecution": false,
+  "applicationActivation": false,
+  "packageChanges": false,
+  "businessTables": 108,
+  "schemaThrough": 53,
+  "checks": [
+    {
+      "command": "node --test platform/collect/legacy-adoption-preparation.capacity.test.mjs",
+      "passed": 1,
+      "failed": 0,
+      "durationMs": 969879.0787,
+      "log": "work/b11-adoption-preparation-capacity.log"
+    },
+    {
+      "command": "capacity test UTF8 LF, syntax and trailing-whitespace checks",
+      "status": "passed"
+    }
+  ],
+  "measurement": {
+    "actualStages": 32,
+    "actualAdmissions": 1000,
+    "fulfilled": 1000,
+    "rawBytes": 337079,
+    "rootBytes": 16912,
+    "graphBytes": 339598,
+    "fingerprintCalls": 85,
+    "relationCalls": 79,
+    "economicCalls": 6036,
+    "preparationCalls": 3069,
+    "objectCount": 2032,
+    "objectBytes": 1604564,
+    "levels": [
+      489,
+      256,
+      128,
+      64,
+      32,
+      16,
+      8,
+      4,
+      2,
+      1
+    ],
+    "maxEconomicOperations": 27,
+    "maxEconomicWorkingBytes": 338838,
+    "maxOperations": 50,
+    "maxWorkingBytes": 260663,
+    "maxSqlBatchBytes": 64386,
+    "elapsedMs": 969257.2994,
+    "adoption": false
+  },
+  "acceptance": [
+    "All32 original stage preimages verified.",
+    "1000 genuine sequential reserveMint and fulfillMint calls; no fabricated ready rows or counters.",
+    "All050/051/052/053 continuations execute persisted private named phases.",
+    "1000 immutable anchors have exact ordinal, operation and asset identities plus zero-based Season slots.",
+    "The original10 Level quota distribution and remaining-zero aggregate are preserved.",
+    "2032 unique objects (32 stage originals,1000 manual originals,1000 control selections) fit2048 objects and16MiB.",
+    "Every invocation stays within64 operations,256KiB SQL and1MiB conservative working payload.",
+    "Original header and business watermark remain unchanged; no active authority is created."
+  ],
+  "remaining": [
+    "Full maximum profile execution in actual D1 is not claimed; representative manual/configured D1 coverage remains B11-44.",
+    "Business activation and private-recovery certificates remain separate work.",
+    "Oversized historical-control compatibility holds remain documented in B11-44."
+  ],
+  "sourceHashes": {
+    "platform/collect/legacy-adoption-preparation.capacity.test.mjs": "543218358c38da08db3467b4657f283ab1f54ea05b4b247117b39ab24771756f",
+    "platform/collect/legacy-adoption-preparation.mjs": "07b2e85c0c477a11d9f9fd18f692423b47d02b15c42ad43806c157bb7d670ffe",
+    "platform/collect/legacy-adoption-preparation-plan.mjs": "b94a3e2e25654b9eb739d95179693e973459fe79f0d84030b04ac38b96b999f9",
+    "platform/collect/legacy-current-asset-audit.mjs": "8694e2edbf3f361ce91df7225b744722419cd378074a7106c98f5d68cb102fc3",
+    "platform/collect/legacy-economic-repository.mjs": "322a8ff3808b1fb729f79786901f9c474e6e02ffc2b97107a9ea749eb9377347",
+    "platform/collect/legacy-control-audit.mjs": "6f91bc20c363c36701f41617188659b486751fb9f3564188a70946b91653d5d7",
+    "platform/storage/053-legacy-adoption-preparations.sql": "d9884b7a256f3bc6e64467aa3b2e8d666b6cecf4b7895cc6fdd394dbd68dfd6f"
+  }
+}

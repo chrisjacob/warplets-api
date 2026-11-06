@@ -5,7 +5,7 @@
   "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
   "currentTask": "B11",
-  "lastUpdatedAt": "2026-11-06T08:04:35.377154+00:00",
+  "lastUpdatedAt": "2026-11-06T08:25:18.857130+00:00",
   "migrationAllocation": {
     "next": 54,
     "reserved": [
@@ -285,7 +285,7 @@
       "status": "in_progress",
       "owner": "coordinator",
       "baseCommit": "96cdfa1fb6334fcb27deb831d786243227b9d1a8",
-      "implementationCommit": "1eb8d6877c95cab2b8ac845099dd139678e097c9",
+      "implementationCommit": "8169ef0c9746b0574574266596b047fbf3f33d99",
       "pushed": false,
       "evidence": [
         "platform/validation/runs/2026-11-06-overnight/B11-1.json",
@@ -330,9 +330,10 @@
         "platform/validation/runs/2026-11-06-overnight/B11-40-legacy-membership-source.json",
         "platform/validation/runs/2026-11-06-overnight/B11-41-legacy-economic-repository.json",
         "platform/validation/runs/2026-11-06-overnight/B11-43-current-asset-audit.json",
-        "platform/validation/runs/2026-11-06-overnight/B11-44-adoption-preparation.json"
+        "platform/validation/runs/2026-11-06-overnight/B11-44-adoption-preparation.json",
+        "platform/validation/runs/2026-11-06-overnight/B11-46-adoption-preparation-capacity.json"
       ],
-      "nextAction": "B11-44 private preparation verified; run actual32stage/1000settled preparation capacity and combined regression, then B11-45 active-certificate/helper and guarded activation/mixed mint/read/recovery. 054 remains draft; no activation.",
+      "nextAction": "B11-46 full32stage/1000settled preparation capacity verified Node-only. Fix B11-47 restore checkpoint regression (broad767pass/11fail; retain131072bound), complete45authority helper, then054schema/activation/mixed operations and recovery. No activation yet.",
       "blocker": null
     },
     "B12": {
