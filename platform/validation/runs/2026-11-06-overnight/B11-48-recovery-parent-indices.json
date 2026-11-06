@@ -1,0 +1,409 @@
+{
+  "checkpoint": "B11-48",
+  "title": "Compact schema-pinned recovery parent indices with legacy checkpoint compatibility",
+  "status": "verified-local-node-and-d1",
+  "lastConfirmedBaseCommit": "57371eca312b6d976793b8138866c0069fd9c4b0",
+  "implementationCommit": null,
+  "source": "synthetic-local-private-recovery-fixtures",
+  "schemaThrough": 53,
+  "businessTables": 108,
+  "financialExecution": false,
+  "applicationActivation": false,
+  "limits": {
+    "checkpointBytes": 131072,
+    "operationsPerStep": 64,
+    "batchBytes": 262144,
+    "workingBytes": 1048576
+  },
+  "changes": [
+    "Transient parent graph stores arrays of indices into the schema-pinned BUSINESS_TABLES inventory.",
+    "Old name-keyed parent maps validate and convert at the next metadata continuation, including a complete map awaiting topological sort.",
+    "Unknown names, invalid indices, duplicate or self edges, missing graph entries and dependency cycles hold before import.",
+    "Topological sort retains exact deterministic table order and existing synthetic Earn dependencies. No DDL or installed-schema changes."
+  ],
+  "checks": [
+    {
+      "command": "node --test platform/recovery/v2-parent-indices.test.mjs platform/recovery/v2-checkpoint-lifecycle.test.mjs",
+      "passed": 2,
+      "failed": 0,
+      "durationMs": 33326.1134,
+      "log": "work/b11-48-parent-lifecycle.log"
+    },
+    {
+      "command": "node --test platform/edge/test/recovery-v2-restore.test.mjs",
+      "passed": 2,
+      "failed": 0,
+      "durationMs": 159276.5304,
+      "log": "work/b11-48-parent-edge.log"
+    },
+    {
+      "command": "node platform/edge/node_modules/typescript/bin/tsc --noEmit -p platform/edge/tsconfig.json",
+      "status": "passed"
+    },
+    {
+      "scope": "Scoped git diff whitespace and new/changed sources UTF-8 LF/trailing whitespace",
+      "status": "passed"
+    }
+  ],
+  "nodeMeasurements": [
+    {
+      "limit": 131072,
+      "iterations": 1013,
+      "maxCheckpointBytes": 119550,
+      "peaks": {
+        "metadata": {
+          "bytes": 117158,
+          "fields": {
+            "descriptor": 69954,
+            "tables": 37666,
+            "root": 7422,
+            "parents": 638,
+            "tableOrder": 4,
+            "restoredRevisions": 4
+          }
+        },
+        "objects": {
+          "bytes": 119058,
+          "fields": {
+            "descriptor": 69954,
+            "tables": 37666,
+            "root": 7422,
+            "parents": 4,
+            "tableOrder": 2384,
+            "restoredRevisions": 4
+          }
+        },
+        "publications": {
+          "bytes": 118678,
+          "fields": {
+            "descriptor": 69954,
+            "tables": 37666,
+            "root": 7422,
+            "parents": 4,
+            "tableOrder": 2384,
+            "restoredRevisions": 4
+          }
+        },
+        "tables": {
+          "bytes": 119550,
+          "fields": {
+            "descriptor": 69954,
+            "tables": 37666,
+            "root": 7422,
+            "parents": 4,
+            "tableOrder": 2384,
+            "restoredRevisions": 95
+          }
+        },
+        "fences": {
+          "bytes": 116214,
+          "fields": {
+            "descriptor": 69954,
+            "tables": 37666,
+            "root": 7422,
+            "parents": 4,
+            "tableOrder": 4,
+            "restoredRevisions": 95
+          }
+        },
+        "pin-target": {
+          "bytes": 116127,
+          "fields": {
+            "descriptor": 69954,
+            "tables": 37666,
+            "root": 7422,
+            "parents": 4,
+            "tableOrder": 4,
+            "restoredRevisions": 4
+          }
+        },
+        "reconcile-objects": {
+          "bytes": 117561,
+          "fields": {
+            "descriptor": 69954,
+            "tables": 37666,
+            "root": 7422,
+            "parents": 4,
+            "tableOrder": 4,
+            "restoredRevisions": 4
+          }
+        },
+        "reconcile-table-metadata": {
+          "bytes": 117513,
+          "fields": {
+            "descriptor": 69954,
+            "tables": 37666,
+            "root": 7422,
+            "parents": 4,
+            "tableOrder": 4,
+            "restoredRevisions": 4
+          }
+        },
+        "reconcile-tables": {
+          "bytes": 117625,
+          "fields": {
+            "descriptor": 69954,
+            "tables": 37666,
+            "root": 7422,
+            "parents": 4,
+            "tableOrder": 4,
+            "restoredRevisions": 4
+          }
+        },
+        "reconcile-audit": {
+          "bytes": 116671,
+          "fields": {
+            "descriptor": 69954,
+            "tables": 37666,
+            "root": 7422,
+            "parents": 4,
+            "tableOrder": 4,
+            "restoredRevisions": 4
+          }
+        },
+        "reconcile-economics": {
+          "bytes": 116836,
+          "fields": {
+            "descriptor": 69954,
+            "tables": 37666,
+            "root": 7422,
+            "parents": 4,
+            "tableOrder": 4,
+            "restoredRevisions": 4
+          }
+        },
+        "reconcile-collection-authorities": {
+          "bytes": 116899,
+          "fields": {
+            "descriptor": 69954,
+            "tables": 37666,
+            "root": 7422,
+            "parents": 4,
+            "tableOrder": 4,
+            "restoredRevisions": 4
+          }
+        },
+        "reconcile-collection-admissions": {
+          "bytes": 116944,
+          "fields": {
+            "descriptor": 69954,
+            "tables": 37666,
+            "root": 7422,
+            "parents": 4,
+            "tableOrder": 4,
+            "restoredRevisions": 4
+          }
+        },
+        "reconcile-collection-fulfillments": {
+          "bytes": 116995,
+          "fields": {
+            "descriptor": 69954,
+            "tables": 37666,
+            "root": 7422,
+            "parents": 4,
+            "tableOrder": 4,
+            "restoredRevisions": 4
+          }
+        },
+        "reconcile-free-cut-records": {
+          "bytes": 116706,
+          "fields": {
+            "descriptor": 69954,
+            "tables": 37666,
+            "root": 7422,
+            "parents": 4,
+            "tableOrder": 4,
+            "restoredRevisions": 4
+          }
+        },
+        "reconcile-free-cut-attempts": {
+          "bytes": 116744,
+          "fields": {
+            "descriptor": 69954,
+            "tables": 37666,
+            "root": 7422,
+            "parents": 4,
+            "tableOrder": 4,
+            "restoredRevisions": 4
+          }
+        },
+        "reconcile-free-cut-validations": {
+          "bytes": 116787,
+          "fields": {
+            "descriptor": 69954,
+            "tables": 37666,
+            "root": 7422,
+            "parents": 4,
+            "tableOrder": 4,
+            "restoredRevisions": 4
+          }
+        },
+        "reconcile-free-cut-lists": {
+          "bytes": 116800,
+          "fields": {
+            "descriptor": 69954,
+            "tables": 37666,
+            "root": 7422,
+            "parents": 4,
+            "tableOrder": 4,
+            "restoredRevisions": 4
+          }
+        },
+        "reconcile-free-cut-bindings": {
+          "bytes": 116840,
+          "fields": {
+            "descriptor": 69954,
+            "tables": 37666,
+            "root": 7422,
+            "parents": 4,
+            "tableOrder": 4,
+            "restoredRevisions": 4
+          }
+        },
+        "reconcile-publications": {
+          "bytes": 118179,
+          "fields": {
+            "descriptor": 69954,
+            "tables": 37666,
+            "root": 7422,
+            "parents": 4,
+            "tableOrder": 4,
+            "restoredRevisions": 4
+          }
+        },
+        "reconcile-checkpoints": {
+          "bytes": 117166,
+          "fields": {
+            "descriptor": 69954,
+            "tables": 37666,
+            "root": 7422,
+            "parents": 4,
+            "tableOrder": 4,
+            "restoredRevisions": 4
+          }
+        },
+        "reconcile-final": {
+          "bytes": 117160,
+          "fields": {
+            "descriptor": 69954,
+            "tables": 37666,
+            "root": 7422,
+            "parents": 4,
+            "tableOrder": 4,
+            "restoredRevisions": 4
+          }
+        },
+        "final-ready": {
+          "bytes": 117427,
+          "fields": {
+            "descriptor": 69954,
+            "tables": 37666,
+            "root": 7422,
+            "parents": 4,
+            "tableOrder": 4,
+            "restoredRevisions": 4
+          }
+        }
+      },
+      "retired": {
+        "objects": {
+          "beforeBytes": 116201,
+          "afterBytes": 117653
+        },
+        "fences": {
+          "beforeBytes": 118594,
+          "afterBytes": 116214
+        },
+        "pin-target": {
+          "beforeBytes": 116214,
+          "afterBytes": 116127
+        }
+      },
+      "fences": {
+        "sessions": 0,
+        "revisions": [
+          {
+            "name": "control",
+            "revision": 2
+          },
+          {
+            "name": "earn",
+            "revision": 17
+          },
+          {
+            "name": "source",
+            "revision": 17
+          }
+        ]
+      },
+      "finalBytes": 117427
+    },
+    {
+      "tables": 108,
+      "indexedParentBytes": 638,
+      "legacyParentBytes": 5497,
+      "savingsBytes": 4859,
+      "maxMetadataCheckpointBytes": 117158,
+      "legacyMidMetadataResume": true,
+      "legacyCompleteMetadataResume": true,
+      "rejected": [
+        "negative",
+        "fraction",
+        "overflow",
+        "unknown-name",
+        "extra-name",
+        "missing-name",
+        "self",
+        "duplicate",
+        "wrong-length",
+        "cycle",
+        "legacy-cycle"
+      ],
+      "limitsUnchanged": true
+    }
+  ],
+  "actualD1Measurements": [
+    {
+      "steps": 1058,
+      "objects": 172,
+      "faults": [
+        "omit-check",
+        "omit-final-state",
+        "lost-final-ack"
+      ],
+      "maxOperations": 17,
+      "maxBatchBytes": 95299,
+      "maxParameters": 29,
+      "maxSerializedWorkingBytes": 321858,
+      "separateBuckets": true,
+      "oldLeaseRejected": true,
+      "financialExecution": false
+    },
+    {
+      "configuredMint": 1,
+      "policyBytes": 311075,
+      "fragments": 16,
+      "fragmentFaults": [
+        "omit-fragment",
+        "omit-fragment-row",
+        "omit-fragment-check"
+      ],
+      "pinnedBls": true,
+      "tables": 108,
+      "traitContinuations": 3,
+      "steps": 1238,
+      "maxOperations": 51,
+      "maxSerializedWorkingBytes": 321322,
+      "financialExecution": false
+    }
+  ],
+  "limitations": [
+    "Migration054 was not installed during these checks; its metadata projection is separately measured by the coordinator.",
+    "Parent checkpoints are private trusted continuation state, never caller-supplied authority.",
+    "No new financial, public or adoption capability is activated."
+  ],
+  "sourceHashes": {
+    "platform/recovery/v2-restore.mjs": "1608c5cfc58fcb4cdfd0249bf631e083ccd4739597a1c723ed5efb34c5add0f2",
+    "platform/recovery/v2-parent-indices.test.mjs": "3997510269cd3423f4398973702624a440c2280b120f459252e6a3e0dd6c3c2c"
+  }
+}

@@ -2,7 +2,7 @@
 
 User refreshed usage and resumed. Continue autonomously after checkpoints; no stopping condition reached. Workspace is existing implementation repository, branch work/10x-prd-foundation. B00-B10/B14 verified; B11 partial; validator only B11ready. B20-core b18dec7/CI42125215062 passed; skip B20 until full prerequisites pass.
 
-Latest tested local milestones:5358d76 durable052economics;1eb8d68 currentasset43;8169ef0 excluded053preparation44;433fc07 fullcapacity46;47recoveryfix beingcommitted now. Source/evidence under platform/validation/runs/2026-11-06-overnight. 053installed,next054notreserved/uninstalled.108business tables,132totaltables.
+Latest tested local milestones:5358d76 durable052economics;1eb8d68 currentasset43;8169ef0 excluded053preparation44;433fc07 fullcapacity46;47recoveryfix57371ec;48parentindices beingcommitted now. Source/evidence under platform/validation/runs/2026-11-06-overnight. 053installed,next054notreserved/uninstalled.108business tables,132totaltables.
 
 Latest pushed85b83f27039ab23694cf26daa521b1d05cdac520 memory34; CI42189072071 runningwatchPTY3903/work/ci-42189072071.log. Prior7280331 economic31 passed42186695513; ebf5b57 relation30 passed42184363670; cce2be6 durable29 passed42182082641; c92aa90 originalmint27 passed42178613399. Push tested exactSHAs sequentially afterprecedingCIpass:4d61f69,2478729,2414b2c,cd7fc4c,7944d3b,81cef38,6bbebac,b1186e6,5358d76,1eb8d68. Then bundle44/46 with47fix instead ofpushingknown-broken44alone. No acceptance weakening; noforcepush/merge.
 
@@ -21,3 +21,5 @@ Coordinator owns054draft work/b11-054.sql, generatedbywork/create054.py thenwork
 Before054checkpoint: register4BUSINESS_TABLES/recoveryobjectreferences, replace45draftschemafixture, runactualbaseline recoveryandreaderacceptance underinstalledschema. Activation/mixedstage-mint-read/045049counterguard andretainedoriginalrecoveryreconciliation remainrequired; originalcurrent046completion alreadycompatiblein45fixture. No fakehistoricalpublication or045/046receipts. Rootguardreview fixedparentall22facts/time/typedobjectidentity/absentfairhistoryinsertion. Node inventoryread alreadyqueriesallactualcollect_operations; do notdoublecountanchors.
 
 No deployment, remoteCloudflaremutation/provisioning, money/funding/broadcast/subscriptions/messages, main/devmerge/forcepush orRstage. Financialflagsfalse;Sydneyhours/laterpricesopen. Keepwork/untracked; stageexplicitverifiedhashpaths andcheckpointstate/docs, gitdiffcachedcheck beforecommit. Preserveunrelatedchanges. Continueaftercontextreset.
+
+48 verified2Node33326.1134ms and2actualD1/R2159276.5304ms, unchanged bounds. Metadata117158B, overall table-import peak119550B, final117427B. Old name-map checkpoints resume; malformed dependencies/cycles hold. Evidence B11-48-recovery-parent-indices.json. Proceed054 install and actual installed-schema headroom validation; projection alone is not acceptance.

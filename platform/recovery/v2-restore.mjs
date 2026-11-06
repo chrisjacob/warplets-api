@@ -13,6 +13,21 @@ const clone=v=>JSON.parse(canonicalJson(v)),same=(a,b)=>canonicalJson(a)===canon
 function need(c,message){if(!c)throw new TypeError(message);}
 const conflict=code=>({kind:'conflict',code});
 class MissingObject extends Error {}
+// Array position and each dependency index refer to the schema-pinned sorted
+// BUSINESS_TABLES inventory. Older private checkpoints used a name-keyed map.
+function parentIndices(value,count){
+ need(Number.isSafeInteger(count)&&count>=0&&count<=BUSINESS_TABLES.length,'Private v2 parent graph count invalid.');
+ if(value==null){need(count===0,'Private v2 parent graph missing.');return [];}
+ let rows;
+ if(Array.isArray(value)){need(value.length===count,'Private v2 parent graph length invalid.');rows=value;}
+ else{
+  need(value!==null&&typeof value==='object','Private v2 legacy parent graph invalid.');
+  const names=Object.keys(value);need(names.length===count&&names.every(name=>BUSINESS_TABLES.slice(0,count).includes(name)),'Private v2 legacy parent graph names invalid.');
+  rows=BUSINESS_TABLES.slice(0,count).map(name=>{const parents=value[name];need(Array.isArray(parents)&&parents.every(parent=>typeof parent==='string'&&BUSINESS_TABLES.includes(parent)),'Private v2 legacy parent dependency invalid.');return parents.map(parent=>BUSINESS_TABLES.indexOf(parent));});
+ }
+ return rows.map((parents,index)=>{need(Array.isArray(parents)&&parents.every(parent=>Number.isSafeInteger(parent)&&parent>=0&&parent<BUSINESS_TABLES.length&&parent!==index)&&new Set(parents).size===parents.length,'Private v2 parent dependency indices invalid.');return [...parents];});
+}
+
 /** Private continued importer and reconciler. No public runtime route or
  * financial execution capability is implied by this local composition. */
 export function createRecoveryV2Restore({driver,artifacts,sourceArtifacts=artifacts,crypto,clock,ids,schema,v2Codec,codec,beaconVerifier,createDigest}){
@@ -27,16 +42,16 @@ export function createRecoveryV2Restore({driver,artifacts,sourceArtifacts=artifa
  }
  async function walk(kind,pointer,cursor){const result=await reader.step({kind,pointer,cursor});if(result.kind==='pending')throw new MissingObject(result.reason);return result;}
  async function metadata(loaded,c){
-  const result=await walk('tables',c.root.tables,c.tableCursor),records=[];if(result.metadata)records.push(await copied(result.metadata.identity,result.metadata.bytes));
-  const delta={tableCursor:result.cursor};
+  const parents=parentIndices(c.parents,c.tables.length),result=await walk('tables',c.root.tables,c.tableCursor),records=[];if(result.metadata)records.push(await copied(result.metadata.identity,result.metadata.bytes));
+  const delta={tableCursor:result.cursor,parents};
   if(result.kind==='entry'){
    const table=await v2Codec.verifyTableDescriptor(result.value);need(table.name===BUSINESS_TABLES[c.tables.length],'Private v2 table inventory is missing, duplicated or unordered.');
    const [columns,relationships]=await read([sql('SELECT name,type,pk FROM pragma_table_info(?) ORDER BY cid',table.name),sql('SELECT "table" parent FROM pragma_foreign_key_list(?)',table.name)]),definition=c.descriptor.schemaInventory.find(r=>r.type==='table'&&r.name===table.name);
    need(definition&&columns.length>0&&columns.every(col=>['TEXT','INTEGER'].includes(col.type))&&same(columns.map(col=>col.name),table.columns)&&same(columns.filter(col=>col.pk>0).sort((a,b)=>a.pk-b.pk).map(col=>col.name),table.primaryKey)&&table.hasRowid===!/\bWITHOUT\s+ROWID\b/i.test(definition.sql),'Private v2 table columns differ from installed schema.');
-   delta.tables=[...c.tables,table];delta.parents={...c.parents,[table.name]:[...new Set(relationships.map(r=>r.parent).filter(name=>name!==table.name&&BUSINESS_TABLES.includes(name)))]};
+   delta.tables=[...c.tables,table];delta.parents=[...parents,[...new Set(relationships.map(r=>BUSINESS_TABLES.indexOf(r.parent)).filter(index=>index>=0&&index!==c.tables.length))]];
   }
   if(result.kind==='done'){
-   need(c.tables.length===BUSINESS_TABLES.length&&c.tables.length===c.root.tables.count,'Private v2 table inventory incomplete.');const remaining=new Map(Object.entries(c.parents).map(([name,parents])=>[name,new Set(parents)]));remaining.get('app_epoch_freezes').add('earn_submissions');remaining.get('earn_admission_counts').add('earn_submissions');
+   need(c.tables.length===BUSINESS_TABLES.length&&c.tables.length===c.root.tables.count,'Private v2 table inventory incomplete.');const remaining=new Map(parents.map((dependencies,index)=>[BUSINESS_TABLES[index],new Set(dependencies.map(parent=>BUSINESS_TABLES[parent]))]));remaining.get('app_epoch_freezes').add('earn_submissions');remaining.get('earn_admission_counts').add('earn_submissions');
    const order=[];while(remaining.size){const ready=[...remaining].filter(([,deps])=>[...deps].every(name=>order.includes(name))).map(([name])=>name).sort();need(ready.length>0,'Private v2 table dependency cycle.');for(const name of ready){order.push(name);remaining.delete(name);}}
    Object.assign(delta,{phase:'objects',tableOrder:order,parents:null,objectCursor:null,tableCursor:null});
   }
