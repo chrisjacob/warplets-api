@@ -1,7 +1,10 @@
+import {CollectionPolicyError} from '../domain/collections/policy.mjs';
 import {randomUUID} from 'node:crypto';
 import {prepareOperatorCommand,dispatchOperatorCommand,operatorCommandScope} from '../application/operator-commands.mjs';
 import {createNodeAtomicDriver} from '../storage/node/atomic-driver.mjs';
 import {createAtomicOperationsRepository} from '../storage/atomic-operations.mjs';
+import {createStagePublicationRepository} from '../collect/stage-repository.mjs';
+import {PUBLISH_COLLECTION_STAGE} from '../collect/stage-service.mjs';
 import {createAtomicReceipts} from '../storage/atomic-receipts.mjs';
 import {createAtomicEarnRepository} from '../storage/atomic-earn.mjs';
 import {createNodeCrypto} from '../security/node-crypto.mjs';
@@ -37,6 +40,7 @@ export function createOperatorCommandTransport(db,{sessions,clock=Date.now,crypt
    const body=await readOperatorBody(request),authorization=sessions.authorize(raw,body.operationKind);
    const prepared=await prepareOperatorCommand({principal:authorization.principal,request:body,nowMs:clock()},crypto);
    const driver=createNodeAtomicDriver(db,{transactionGuard:authorization.guard});
+   const stages=createStagePublicationRepository(driver,{crypto,ids,clock:{nowMs:clock}});
    if(pathname.endsWith('/receipt')){
     const result=await createAtomicReceipts(driver,{crypto,ids}).replay(prepared.command);
     return result?json(result,result.kind==='conflict'?409:200):failure(404,'receipt_not_found','No accepted receipt matches this command. No change was executed.');
@@ -49,14 +53,22 @@ export function createOperatorCommandTransport(db,{sessions,clock=Date.now,crypt
     if(!scope.rows[0]?.enabled)return failure(403,'operator_scope_required','Operator scope is unavailable.');
     const current=Object.fromEntries(version.rows.map(r=>[r.name,String(r.revision)]));
     if(Object.entries(body.expectedRevisions).some(([key,value])=>current[key]!==value))return failure(409,'revision_conflict','Refresh the current configuration before preview.');
+    if(prepared.command.operationKind===PUBLISH_COLLECTION_STAGE){
+     const derived=await stages.previewStage(prepared.command);
+     if(derived.kind!=='preview')return json(derived,derived.kind==='conflict'?409:derived.kind==='pending'?202:200);
+     authorization.guard();
+     return json({...prepared.preview,summary:{...prepared.preview.summary,termsDigest:derived.value.termsDigest,
+      eligibility:derived.value.eligibility,costUncertainty:derived.value.costUncertainty}});
+    }
     return json(prepared.preview);
    }
    if(request.headers.get('x-operator-preview')!==prepared.preview.confirmationDigest)
     return failure(409,'preview_required','Confirm the exact command preview.');
-   const result=await dispatchOperatorCommand({...createAtomicOperationsRepository(driver,{crypto,ids}),recordFinalReview:createAtomicEarnRepository(driver,{crypto,ids}).recordFinalReview},prepared);
+   const result=await dispatchOperatorCommand({...createAtomicOperationsRepository(driver,{crypto,ids}),recordFinalReview:createAtomicEarnRepository(driver,{crypto,ids}).recordFinalReview,publishStage:stages.publishStage},prepared);
    return json(result,result.kind==='conflict'?409:result.kind==='pending'?202:200);
   }catch(error){
    if(error instanceof EarnError||error instanceof OperatorSessionError)return failure(error.status,error.code,error.message);
+   if(error instanceof CollectionPolicyError)return failure(400,error.code,'Invalid local collection command.');
    if(error instanceof TypeError||error instanceof RangeError)return failure(400,'invalid_command','Invalid operator command.');
    return failure(500,'internal_error','Operator command failed.');
   }

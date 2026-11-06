@@ -41,7 +41,7 @@ try{
  await page.getByRole('button',{name:'Preview final review',exact:true}).waitFor();await page.getByText('Held pricing observations: 0. Held evidence is separate from content rejection.',{exact:true}).waitFor();
  for(const [index,width] of [360,390,768,1440].entries()){
   await page.setViewportSize({width,height:900});now+=1000;
-  if(!await page.locator('details').evaluate(n=>n.open))await page.getByText('Change staffing',{exact:true}).click();
+  if(!await page.locator('details').filter({has:page.locator('#staff')}).evaluate(n=>n.open))await page.getByText('Change staffing',{exact:true}).click();
   await page.getByLabel('Minutes available').fill(String(30+index*3));await page.getByLabel('Admission limit').fill('50');await page.getByLabel('Staffing reason').fill('Synthetic staffed pilot '+width);
   const before=db.prepare('SELECT COUNT(*) n FROM ops_config_audit').get().n;
   await page.getByRole('button',{name:'Preview staffing',exact:true}).focus();await page.keyboard.press('Enter');await page.getByRole('heading',{name:'Review local change'}).waitFor();

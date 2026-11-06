@@ -3,9 +3,11 @@ import {controlledScopes} from '../operations/portable-controls.mjs';
 import {name,nat,requireValue} from '../earn/validation.mjs';
 import {FINAL_REVIEW,reviewRequestBytes} from './commands.mjs';
 import {canonicalJson,utf8} from '../security/canonical.mjs';
+import {buildStagePublicationCommand,PUBLISH_COLLECTION_STAGE} from '../collect/stage-service.mjs';
+import {normalizeStagePublication} from '../collect/stage-plan.mjs';
 
-export const LOCAL_OPERATOR_COMMANDS=Object.freeze([OPERATIONS.configureWorkload,OPERATIONS.changeScope,FINAL_REVIEW]);
-export const LOCAL_OPERATOR_SCOPES=Object.freeze({[OPERATIONS.configureWorkload]:'operations',[OPERATIONS.changeScope]:'operations',[FINAL_REVIEW]:'earn-review'});
+export const LOCAL_OPERATOR_COMMANDS=Object.freeze([OPERATIONS.configureWorkload,OPERATIONS.changeScope,FINAL_REVIEW,PUBLISH_COLLECTION_STAGE]);
+export const LOCAL_OPERATOR_SCOPES=Object.freeze({[OPERATIONS.configureWorkload]:'operations',[OPERATIONS.changeScope]:'operations',[FINAL_REVIEW]:'earn-review',[PUBLISH_COLLECTION_STAGE]:'collection-publication'});
 export function operatorCommandScope(kind){requireValue(LOCAL_OPERATOR_COMMANDS.includes(kind),'This operator command is unavailable.');return LOCAL_OPERATOR_SCOPES[kind];}
 const exact=(value,keys)=>value&&typeof value==='object'&&!Array.isArray(value)
  &&Object.keys(value).length===keys.length&&keys.every(key=>Object.hasOwn(value,key));
@@ -25,10 +27,12 @@ export async function prepareOperatorCommand({principal,request,nowMs},crypto){
  requireValue(typeof r.requestKey==='string'&&/^[A-Za-z0-9._:-]{1,128}$/.test(r.requestKey),'Invalid request key.');
  requireValue(exact(r.expectedRevisions,['earn','source','control'])&&Object.values(r.expectedRevisions).every(value=>
   typeof value==='string'&&/^(0|[1-9][0-9]*)$/.test(value)&&Number.isSafeInteger(Number(value))),'Supply all three exact safe revision strings.');
- const i=r.input,staffing=r.operationKind===OPERATIONS.configureWorkload,review=r.operationKind===FINAL_REVIEW;
- requireValue(exact(i,staffing?staffingFields:review?reviewFields:scopeFields),'Invalid operator input fields.');
- name(i.reason,'reason');
- if(staffing){
+ const i=r.input,staffing=r.operationKind===OPERATIONS.configureWorkload,review=r.operationKind===FINAL_REVIEW,stage=r.operationKind===PUBLISH_COLLECTION_STAGE;
+ if(!stage){requireValue(exact(i,staffing?staffingFields:review?reviewFields:scopeFields),'Invalid operator input fields.');name(i.reason,'reason');}
+ if(stage){
+  normalizeStagePublication(i);
+  requireValue(i.type==='whitelist'&&i.founderApproved===false&&i.approvedSpendLamports===null&&i.inventoryOverrideReason===null&&i.ballotId===null,'Only whitelist publication without founder, spend, override or ballot approval is available here.');
+ }else if(staffing){
   nat(i.effectiveEpoch,'epoch');
   requireValue(Number.isInteger(i.staffedMinutes)&&i.staffedMinutes>=0&&i.staffedMinutes<=1440,'Invalid staffed minutes.');
   requireValue(Number.isInteger(i.secondsPerReview)&&i.secondsPerReview>=1&&i.secondsPerReview<=3600,'Invalid review estimate.');
@@ -44,7 +48,7 @@ export async function prepareOperatorCommand({principal,request,nowMs},crypto){
   name(i.evidenceRef,'evidence reference');
  }
  freeze(p);freeze(r);
- const command=review?{principal:p,operationKind:FINAL_REVIEW,businessIdentity:i.submissionId,requestKey:r.requestKey,input:i,nowMs:at,expectedRevisions:r.expectedRevisions,
+ const command=stage?await buildStagePublicationCommand(p,{requestKey:r.requestKey,input:i,expectedRevisions:r.expectedRevisions},crypto):review?{principal:p,operationKind:FINAL_REVIEW,businessIdentity:i.submissionId,requestKey:r.requestKey,input:i,nowMs:at,expectedRevisions:r.expectedRevisions,
   requestDigest:await crypto.sha256(reviewRequestBytes({principal:p,input:i}))}:
   await createOperationsCommand(r.operationKind,{principal:p,requestKey:r.requestKey,input:i,nowMs:at,expectedRevisions:r.expectedRevisions},crypto);
  const confirmationDigest=await crypto.sha256(utf8(canonicalJson(['10x-local-operator-confirmation-v1',p.id,r])));
@@ -60,6 +64,7 @@ export async function prepareOperatorCommand({principal,request,nowMs},crypto){
 export function dispatchOperatorCommand(repository,prepared){
  const command=prepared?.command;
  requireValue(command&&LOCAL_OPERATOR_COMMANDS.includes(command.operationKind),'This operator command is unavailable.');
+ if(command.operationKind===PUBLISH_COLLECTION_STAGE){requireValue(typeof repository.publishStage==='function','Stage publication is unavailable.');return repository.publishStage(command);}
  if(command.operationKind===FINAL_REVIEW){requireValue(typeof repository.recordFinalReview==='function','Final review is unavailable.');return repository.recordFinalReview(command);}
  return command.operationKind===OPERATIONS.configureWorkload?repository.configureWorkload(command):repository.changeScope(command);
 }

@@ -50,7 +50,7 @@ export function createOperatorApp(db,{bootToken,clock=Date.now,operatorId='local
     expectedRevisions:Object.fromEntries(db.prepare('SELECT name,revision FROM app_revisions ORDER BY name').all().map(r=>[r.name,String(r.revision)]))});
    if(pathname==='/ops/config'&&request.method==='GET'){
     const latest=db.prepare('SELECT revision,paused FROM ops_scope_log WHERE scope=? ORDER BY at_ms DESC LIMIT 1');
-    return json({expectedRevisions:Object.fromEntries(db.prepare('SELECT name,revision FROM app_revisions ORDER BY name').all().map(r=>[r.name,String(r.revision)])),
+    return json({nowMs:clock(),expectedRevisions:Object.fromEntries(db.prepare('SELECT name,revision FROM app_revisions ORDER BY name').all().map(r=>[r.name,String(r.revision)])),
      scopes:controlledScopes.map(scope=>{const row=latest.get(scope);return {scope,paused:!!row?.paused,revision:row?.revision??null};}),financialExecution:false});
    }
    if(pathname==='/ops/board'&&request.method==='GET'){

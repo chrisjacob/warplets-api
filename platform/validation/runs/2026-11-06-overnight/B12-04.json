@@ -1,0 +1,123 @@
+{
+  "task": "B12",
+  "slice": "B12-04",
+  "status": "verified-slice",
+  "baseCommit": "9cfca73",
+  "scope": [
+    "Scoped whitelist-only local publication with sealed/indexed list and exact derived terms preview",
+    "Explicit reviewed revisions fence new stage commits without changing historical command or terms digests",
+    "Stage business/authority/audit/receipt atomic under additive057 guard",
+    "Price/time inputs remain explicit; founder/public/spending overrides excluded from this console slice"
+  ],
+  "checks": {
+    "node": "25/25PASS12636.894ms work/b12-stage-node.log",
+    "registry": "10/10PASS196.0942ms plus declarations/typesPASS",
+    "D1": "1/1PASS56829.8352ms work/b12-stage-audit-edge.log;10000-wallet fixture; max7517Bbatch/34parameters",
+    "recoveryD1": "1/1PASS100256.8833ms work/b12-stage-recovery-d1.log;112tables61rows;129260Bmaxcheckpoint/131072limit;29maxoperations103461Bmaxbatch",
+    "browser": {
+      "slice": "B12 whitelist stage publication UI",
+      "recordedAt": "2026-11-06T13:40:09.588235+00:00",
+      "sourceHashes": {
+        "platform/operator/ui.mjs": "3608084d296daf6d9cd899d08ccc6c48bb47986d7e644c3bd84664bfb85c8c79",
+        "platform/operator/index.html": "40bf507cf7daa8de82ba7e8c3fd19f2ac2c25188bfe0ecb849ab22a1dee565af",
+        "platform/operator/stage-browser-qa.mjs": "891f31b84b0646e6a2146b4f1609eb4853bdfc8d3984b507a15ea4cad46c1eea",
+        "platform/operator/browser-qa.mjs": "66a38c65e164c06b293d2316e6b4a963ec3fd8399f1b53cc2931b3d1f5edcc4f"
+      },
+      "stageBrowser": {
+        "passed": true,
+        "widths": [
+          360,
+          390,
+          768,
+          1440
+        ],
+        "clock": "actual Date.now with database execution-time fence",
+        "source": "synthetic-local-operator-fixture",
+        "missingListHold": "Preview held: electorate-seal-missing. No publication has been confirmed.",
+        "missingTrancheHeld": true,
+        "noLaunchDefaults": true,
+        "exactUtcTimes": true,
+        "derivedTerms": true,
+        "eligibilityCount": 3,
+        "previewReadOnly": true,
+        "staleConfirmationRejected": true,
+        "negativeLostResponse": true,
+        "negativeResponseIdentity": true,
+        "exactReplayAfterScopeRevocation": true,
+        "immutablePublishedTerms": true,
+        "auditEvents": 1,
+        "readOnlyPermission": true,
+        "financialExecution": false,
+        "screenshots": "work/b12-stage-operator"
+      },
+      "reviewRegression": {
+        "passed": true,
+        "widths": [
+          360,
+          390,
+          768,
+          1440
+        ],
+        "realCommandExecutions": 14,
+        "auditEvents": 10,
+        "newAuditEvents": 9,
+        "baselineAuditEvents": 1,
+        "previewReadOnly": true,
+        "negativeResponseLoss": true,
+        "exactRetryAfterReload": true,
+        "expiredSessionReauthentication": true,
+        "stablePrincipalRetry": true,
+        "differentPrincipalIsolation": true,
+        "negativeStalePreview": true,
+        "readOnlySession": true,
+        "auditedFinalReview": true,
+        "immutableReviewConflict": true,
+        "reviewExactReplay": true,
+        "confirmationRevisionBinding": true,
+        "negativePreviewMismatch": true,
+        "legacyReceiptReadOnly": true,
+        "missingLegacyReceiptHeld": true,
+        "keyboardFocus": true,
+        "logoutClearsPrivateState": true,
+        "financialExecution": false,
+        "screenshots": "work/b12-stage-review-regression"
+      },
+      "checks": [
+        {
+          "command": "node platform/operator/stage-browser-qa.mjs with installed local Chromium",
+          "log": "work/b12-stage-browser.log",
+          "passed": true,
+          "elapsedSeconds": 5.7039493
+        },
+        {
+          "command": "node platform/operator/browser-qa.mjs with installed local Chromium",
+          "log": "work/b12-stage-review-regression.log",
+          "passed": true,
+          "elapsedSeconds": 8.4556337,
+          "note": "All previous assertions preserved; only staffing details selector scoped to its form. Ran immediately before stage-only returned terms identity guard; final stage browser covers that guard."
+        },
+        {
+          "command": "node --check owned JS; git diff --check; UTF8/LF byte validation",
+          "passed": true
+        }
+      ],
+      "notes": [
+        "Positive stage flow uses genuine sealed/indexed list fixture, explicit collection-publication grant and real loopback API plus actual database clock.",
+        "UTC opening/closing, price/cost, allocation and wallet limit have no defaults. PublishedAt comes from fresh server config.nowMs.",
+        "Only whitelist stage input is exposed: founderApproved=false, approvedSpendLamports=null, ballotId=null, inventoryOverrideReason=null, sourceKind=synthetic-local-operator-fixture.",
+        "Preview binds exact terms digest and eligibility list/count, with explicit local cost uncertainty and immutable publication wording.",
+        "Missing list and missing previous tranche produce held previews without a confirmation journal or writes.",
+        "Lost response and altered returned terms digest are negative-only fault injection. Original body/key/confirmation survive retry after scope revocation; one publication and one audit event remain.",
+        "Existing review browser received only an authorized selector compatibility change; all tests retained.",
+        "360px screenshot visually inspected; overflow and keyboard focus verified at360/390/768/1440.",
+        "No remote publication, financial execution or launch-time/later-price decision is authorized by these fixture choices."
+      ]
+    },
+    "types": "PASS work/b12-stage-types.log and agent check",
+    "contracts": "PASS",
+    "plan": "PASS"
+  },
+  "migration": "057-stage-audit.sql",
+  "financialExecution": false,
+  "next": "Audited governance publication/decision and remaining collection/free-cut/source/future-action operator boundaries; B12 not complete."
+}

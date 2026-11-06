@@ -1,3 +1,11 @@
+# Latest checkpoint — B12-04 audited whitelist publication
+
+B12-03 committed/pushed9cfca73. B12-04 now tested: Node25PASS12636.894ms; actualD1 10000wallet acceptance1PASS56829.8352ms; normalD1/R2 modern-pending recovery1PASS100256.8833ms (129260Bmaxcheckpoint); types/contracts/planPASS;4widthstagebrowserPASS5.70s and existingreviewbrowserPASS8.46s. Evidence B12-04.json. Migration057 installed; next058. Stage UI onlywhitelist without founder/public/spend overrides; explicitblankprice/opening inputs preserve undecided launch choices. Derived preview fences versions and exact terms/list/count; unknown outcomes retain exact receipt identity.
+
+Commit/push stage milestone follows this record. Next ongoing uncommitted file: governance/operator-repository.mjs coordinator added atomic audit-child preparation for publication/decision/adoption; mandatory058 guard NOT written/installed yet. Existing governance suite running24150, work/b12-governance-audit-smoke.log. Both agents idle after stagesuite completion. Next implement058 mandatory governance audit guards, focused rollback/legacy tests, then scoped advisory governance UI; continue remaining B12 free-cut/source/future-action boundaries. Do not mark B12 complete.
+
+Frozen integrated CI42221767194 still running on b9efc0c at last observation; watch37792. Do not claim it covers B12. Once it completes, trigger consolidated tested B12 checkpoint CI without cancelling old evidence.
+
 # Latest prerequisite checkpoint — B12-03 recovery order compaction
 
 B12-02 committed/pushed ecde28f. Recovery compaction verified: Node4PASS59452.4438ms, actualD1/R2 modern-pending1PASS96214.7474ms, maxcheckpoint129153/131072B, exact112tables/61rows. Legacy name arrays resume via guarded CAS; malformed orders hold; no bounds raised. Evidence B12-03.json. Fixture includes pending coordinator stage audit row; no057 migration yet.

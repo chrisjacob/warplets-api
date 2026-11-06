@@ -5,6 +5,7 @@ import {createOperationsCommand,OPERATIONS} from '../storage/atomic-operations.m
 import {createNodeCrypto} from '../security/node-crypto.mjs';
 import {FINAL_REVIEW,reviewRequestBytes} from '../application/commands.mjs';
 import {canonicalJson,utf8} from '../security/canonical.mjs';
+import {PUBLISH_COLLECTION_STAGE,buildStagePublicationCommand} from '../collect/stage-service.mjs';
 
 const crypto=createNodeCrypto(),nowMs=Date.parse('2026-11-07T04:00:00Z'),epoch=Math.floor(nowMs/86400000);
 const principal={kind:'operator',id:'synthetic-local-operator'};
@@ -15,6 +16,9 @@ const pause=()=>({operationKind:OPERATIONS.changeScope,requestKey:'synthetic-pau
  input:{scope:'earn-admission',paused:true,previousRevision:null,reason:'Synthetic pause',evidenceRef:'synthetic:operator-preview'}});
 const review=()=>({operationKind:FINAL_REVIEW,requestKey:'synthetic-submission',expectedRevisions:{...revisions},
  input:{submissionId:'synthetic-submission',score:7,reason:'Synthetic final moderation',sourceRef:'synthetic:review'}});
+const stage=()=>({operationKind:PUBLISH_COLLECTION_STAGE,requestKey:'synthetic-stage',expectedRevisions:{...revisions},input:{
+ inventoryId:'synthetic-inventory',stageId:'synthetic-whitelist',type:'whitelist',publishedAt:nowMs,opensAt:nowMs+2*86400000,closesAt:nowMs+3*86400000,
+ priceLamports:'100000000',costLamports:'5000',allocation:100,walletLimit:1,founderApproved:false,approvedSpendLamports:null,ballotId:null,inventoryOverrideReason:null,eligibilityListId:'a'.repeat(64),sourceKind:'synthetic-local-operator-fixture'}});
 const prepare=request=>prepareOperatorCommand({principal,request,nowMs},crypto);
 const invalid=error=>error.code==='invalid_input';
 
@@ -29,7 +33,7 @@ test('local operator registry rejects member authority, extra fields, unknown co
  for(const badPrincipal of [{kind:'wallet',wallet:'synthetic'}, {...principal,sessionToken:'not-command-data'}, {kind:'operator',id:' '}])
   await assert.rejects(prepareOperatorCommand({principal:badPrincipal,request:staffing(),nowMs},counting),invalid);
  await assert.rejects(prepareOperatorCommand({principal,request:staffing(),nowMs:NaN},counting),invalid);
- assert.equal(hashes,0);assert.deepEqual(LOCAL_OPERATOR_COMMANDS,[OPERATIONS.configureWorkload,OPERATIONS.changeScope,FINAL_REVIEW]);
+ assert.equal(hashes,0);assert.deepEqual(LOCAL_OPERATOR_COMMANDS,[OPERATIONS.configureWorkload,OPERATIONS.changeScope,FINAL_REVIEW,PUBLISH_COLLECTION_STAGE]);
 });
 
 test('final moderation keeps historical receipt identity while confirmation binds explicit revisions',async()=>{
@@ -44,7 +48,7 @@ test('final moderation keeps historical receipt identity while confirmation bind
 });
 
 test('all confirmation identities bind canonical captured request, principal, revisions and key',async()=>{
- for(const request of [staffing(),pause(),review()]){
+ for(const request of [staffing(),pause(),review(),stage()]){
   const value=await prepare(request),expected=await crypto.sha256(utf8(canonicalJson(['10x-local-operator-confirmation-v1',principal.id,request])));assert.equal(value.preview.confirmationDigest,expected);
   const changedRevision=await prepare({...request,expectedRevisions:{...revisions,earn:'1'}});assert.notEqual(changedRevision.preview.confirmationDigest,expected);
   const other=await prepareOperatorCommand({principal:{...principal,id:'another-operator'},request,nowMs},crypto);assert.notEqual(other.preview.confirmationDigest,expected);
@@ -53,6 +57,27 @@ test('all confirmation identities bind canonical captured request, principal, re
  }
  // Scope receipt identity excludes requestKey; confirmation must still bind it.
  const a=await prepare(pause()),b=await prepare({...pause(),requestKey:'another-pause-key'});assert.equal(a.command.requestDigest,b.command.requestDigest);assert.notEqual(a.preview.confirmationDigest,b.preview.confirmationDigest);
+});
+
+test('whitelist publication preserves historical digest and carries exact reviewed revisions without claiming derived terms',async()=>{
+ const request=stage(),prepared=await prepare(request),historical=await buildStagePublicationCommand(principal,{requestKey:request.requestKey,input:request.input},crypto);
+ assert.equal(prepared.command.requestDigest,historical.requestDigest);assert.equal(prepared.command.businessIdentity,historical.businessIdentity);assert.deepEqual(prepared.command.expectedRevisions,revisions);
+ const changed=await prepare({...request,expectedRevisions:{...revisions,source:'13'}});assert.equal(changed.command.requestDigest,prepared.command.requestDigest);assert.notEqual(changed.preview.confirmationDigest,prepared.preview.confirmationDigest);
+ assert.deepEqual(prepared.preview.summary,request.input);assert.equal(prepared.preview.financialExecution,false);assert.equal(Object.hasOwn(prepared.preview.summary,'termsDigest'),false);assert.equal(Object.hasOwn(prepared.preview.summary,'eligibleCount'),false);
+ assert.equal(operatorCommandScope(PUBLISH_COLLECTION_STAGE),'collection-publication');assert.throws(()=>dispatchOperatorCommand({},prepared),invalid);
+ const accepted={kind:'replayed',receipt:{operationId:'synthetic-stage-receipt'},value:{executable:false}};let seen;
+ assert.equal(await dispatchOperatorCommand({publishStage(command){seen=command;return Promise.resolve(accepted);}},prepared),accepted);assert.equal(seen,prepared.command);
+ for(const input of [{...request.input,type:'public',eligibilityListId:null},{...request.input,type:'free',eligibilityListId:null},{...request.input,type:'founder'},
+  {...request.input,founderApproved:true},{...request.input,approvedSpendLamports:'1'},{...request.input,inventoryOverrideReason:'explicit override'},{...request.input,ballotId:'synthetic-ballot'}])await assert.rejects(prepare({...request,input}),invalid);
+ for(const input of [{...request.input,extra:true},{...request.input,eligibilityListId:'invalid'},{...request.input,priceLamports:'-1'}])await assert.rejects(prepare({...request,input}));
+ await assert.rejects(prepare({...request,expectedRevisions:{earn:'0',source:'12'}}),invalid);
+});
+
+test('whitelist input and confirmation remain immutable across awaited stage command hashing',async()=>{
+ let release,started;const gate=new Promise(resolve=>{release=resolve;}),entered=new Promise(resolve=>{started=resolve;});
+ const request=stage(),original=structuredClone(request),p={...principal},delayed={...crypto,async sha256(bytes){started();await gate;return crypto.sha256(bytes);}};
+ const pending=prepareOperatorCommand({principal:p,request,nowMs},delayed);await entered;request.input.priceLamports='999';request.input.eligibilityListId='b'.repeat(64);request.expectedRevisions.source='99';p.id='other';release();
+ const prepared=await pending;assert.deepEqual(prepared,await prepare(original));assert.equal(Object.isFrozen(prepared.command.input),true);assert.equal(Object.isFrozen(prepared.preview.summary),true);
 });
 
 test('final moderation dispatch is optional, named and requires its distinct operator scope',async()=>{

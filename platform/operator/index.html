@@ -14,6 +14,14 @@
 <form id="scope-form"><fieldset id="scope-fields"><legend>Application scope</legend>
 <label>Scope<select id="scope" name="scope" aria-label="Scope"></select></label><label>Action<select name="paused" aria-label="Action"><option value="true">Pause new work</option><option value="false">Resume new work</option></select></label>
 <label>Scope reason<input name="reason" maxlength="256" required></label><label>Evidence reference<input name="evidenceRef" maxlength="256" required></label><button>Preview scope change</button></fieldset></form></section>
+<section><h2>Whitelist stage publication</h2><p>Publish immutable local fixture terms from a sealed, indexed whitelist. Genesis tranche 1 or an eligible Season may be supported; missing prerequisites remain held.</p><p id="stage-permission"></p>
+<details><summary>Prepare whitelist stage</summary><form id="stage-form"><fieldset id="stage-fields"><legend>Exact stage terms</legend>
+<label>Inventory ID<input name="inventoryId" maxlength="128" required></label><label>Stage ID<input name="stageId" maxlength="128" required></label>
+<label>Sealed whitelist ID<input name="eligibilityListId" pattern="[a-f0-9]{64}" maxlength="64" required></label>
+<label>Opening (UTC)<input name="opensAt" type="datetime-local" step="1" required></label><label>Closing (UTC)<input name="closesAt" type="datetime-local" step="1" required></label>
+<label>Stage price (lamports)<input name="priceLamports" inputmode="numeric" pattern="0|[1-9][0-9]{0,19}" required></label><label>Local cost estimate (lamports)<input name="costLamports" inputmode="numeric" pattern="0|[1-9][0-9]{0,19}" required></label>
+<label>Stage allocation<input name="allocation" type="number" min="1" max="1000" required></label><label>Per-wallet limit<input name="walletLimit" type="number" min="1" max="1000" required></label>
+<p>Times are UTC. Enter every price and schedule choice explicitly. This console authorizes no payment or transaction.</p><button>Preview whitelist stage</button></fieldset></form></details></section>
 <section id="preview" hidden aria-labelledby="preview-title"><h2 id="preview-title" tabindex="-1">Review local change</h2><p id="preview-state"></p><dl id="preview-details"></dl><p>No spending or on-chain execution is authorized.</p><button id="confirm">Confirm local change</button> <button id="discard">Discard unsubmitted preview</button></section>
 <section><h2>Content reviews</h2><p id="review-permission">Final moderation is unavailable for this session.</p><div id="queue"></div><button id="next" hidden>Next page</button></section>
 </section></main></body></html>

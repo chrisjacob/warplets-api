@@ -5,6 +5,7 @@ import {createCollection,publishCollectionStage} from './store.mjs';
 import {governanceOperatorFixture,governanceWallets} from '../governance/operator-test-fixture.mjs';
 import {createStagePublicationRepository} from './stage-repository.mjs';
 import {createStagePublicationService} from './stage-service.mjs';
+import {verifyConfigChain} from '../operations/audit.mjs';
 import {measureBatch} from '../storage/atomic-driver.mjs';
 const principal={kind:'operator',id:'synthetic-stage-publisher'};
 async function setup(t,{kind='genesis',fault=null,large=false}={}){
@@ -15,7 +16,8 @@ async function setup(t,{kind='genesis',fault=null,large=false}={}){
  const metrics=[];let fired=false;
  const driver={...f.base,async batch(statements){
   if(!fired&&statements.some(s=>s.sql.startsWith('INSERT INTO app_collection_stages'))){fired=true;
-   if(fault?.startsWith('omit-')){const needle={'omit-authority':'INSERT INTO app_collection_authorities','omit-revision':'UPDATE app_collection_authorities','omit-stage':'INSERT INTO app_collection_stages'}[fault];statements=statements.filter(s=>!s.sql.startsWith(needle));}
+   if(fault?.startsWith('omit-')){const needle={'omit-authority':'INSERT INTO app_collection_authorities','omit-revision':'UPDATE app_collection_authorities','omit-stage':'INSERT INTO app_collection_stages','omit-audit':'INSERT INTO ops_config_audit'}[fault];statements=statements.filter(s=>!s.sql.startsWith(needle));}
+   if(fault==='alter-audit')statements=statements.map(s=>s.sql.startsWith('INSERT INTO ops_config_audit')?{...s,values:s.values.map((v,n)=>n===7?'wrong-operator':v)}:s);
    if(fault==='revoke')f.db.prepare("UPDATE app_operator_scopes SET enabled=0 WHERE operator=? AND scope='collection-publication'").run(principal.id);
   }
   metrics.push(measureBatch(statements));const result=await f.base.batch(statements);if(fault==='lost-response'&&statements.some(s=>s.sql.startsWith('INSERT INTO app_collection_stages')))throw Error('Synthetic acknowledgement loss.');return result;
@@ -33,7 +35,7 @@ test('normalized private publication stores compact exact legacy terms and prese
  assert.equal((await f.publish({costLamports:'500001'})).code,'idempotency_conflict');assert.throws(()=>f.db.prepare('UPDATE app_collection_stages SET opens_ms=opens_ms').run(),/immutable/);
 });
 test('every omitted authority, revision or publication child aborts the command receipt and all effects',async t=>{
- for(const fault of ['omit-authority','omit-revision','omit-stage']){const f=await setup(t,{fault}),before=f.db.prepare('SELECT COUNT(*) n FROM app_command_receipts').get().n;await assert.rejects(f.publish());
+ for(const fault of ['omit-authority','omit-revision','omit-stage','omit-audit','alter-audit']){const f=await setup(t,{fault}),before=f.db.prepare('SELECT COUNT(*) n FROM app_command_receipts').get().n;await assert.rejects(f.publish());
   assert.equal(f.db.prepare('SELECT COUNT(*) n FROM app_collection_authorities').get().n,0);assert.equal(f.db.prepare('SELECT COUNT(*) n FROM app_collection_stages').get().n,0);assert.equal(f.db.prepare('SELECT COUNT(*) n FROM app_command_receipts').get().n,before);
  }
 });
@@ -56,4 +58,31 @@ test('free publication waits for paid phase schedule and founder/public records 
 test('populated legacy inventory is explicitly held instead of silently creating a second admission authority',async t=>{
  const f=await setup(t),{inventoryId,stageId,eligibilityListId,sourceKind,...terms}=f.input;publishCollectionStage(f.db,{inventoryId,stage:{...terms,id:stageId,wallets:f.holders}},f.getNow());
  assert.equal((await f.publish()).reason,'stage-populated-reference-adoption-required');assert.equal(f.db.prepare('SELECT COUNT(*) n FROM app_collection_authorities').get().n,0);
+});
+
+test('stage preview derives exact sealed terms without writes and fences reviewed revisions',async t=>{
+ const f=await setup(t),service=createStagePublicationService({...f.ports,repository:createStagePublicationRepository(f.base,f.ports)});
+ const versions=()=>Object.fromEntries(f.db.prepare('SELECT name,revision FROM app_revisions').all().map(r=>[r.name,String(r.revision)]));
+ const request={requestKey:'previewed-stage',input:f.input,expectedRevisions:versions()},before=f.db.prepare('SELECT COUNT(*) n FROM app_command_receipts').get().n;
+ const preview=await service.previewStage(principal,request);assert.equal(preview.kind,'preview');assert.equal(preview.value.financialExecution,false);assert.equal(preview.value.eligibility.listId,f.input.eligibilityListId);
+ assert.equal(f.db.prepare('SELECT COUNT(*) n FROM app_collection_stages').get().n,0);assert.equal(f.db.prepare('SELECT COUNT(*) n FROM app_command_receipts').get().n,before);
+ f.db.prepare('UPDATE app_operator_scopes SET revision=revision+1 WHERE operator=?').run(principal.id);
+ assert.equal((await service.publishStage(principal,request)).code,'revision_conflict');
+ const refreshed={...request,expectedRevisions:versions()},next=await service.previewStage(principal,refreshed),accepted=await service.publishStage(principal,refreshed);
+ assert.equal(accepted.kind,'committed');assert.equal(accepted.value.termsDigest,next.value.termsDigest);assert.equal(next.value.termsDigest,preview.value.termsDigest);
+ f.db.prepare('UPDATE app_operator_scopes SET enabled=0 WHERE operator=?').run(principal.id);
+ assert.equal((await service.publishStage(principal,refreshed)).kind,'replayed');
+});
+
+
+test('publication audit binds derived terms and list; competing inventory publications cannot fork its head',async t=>{
+ const f=await setup(t),second='synthetic-second-audit-inventory';createCollection(f.db,{id:second,kind:'season',seasonStart:f.getNow()});
+ const other={inventoryId:second,stageId:'synthetic-second-stage',walletLimit:2};
+ const pair=await Promise.all([f.publish(),f.publish(other,'second-publication')]);
+ assert.equal(pair.filter(r=>r.kind==='committed').length,1);assert.equal(pair.filter(r=>r.code==='revision_conflict').length,1);
+ const retry=pair[0].kind==='committed'?await f.publish(other,'second-publication'):await f.publish();assert.equal(retry.kind,'committed');
+ const rows=f.db.prepare("SELECT * FROM ops_config_audit WHERE category='collection-stage' ORDER BY seq").all();assert.equal(rows.length,2);verifyConfigChain(f.db);
+ for(const row of rows){const body=JSON.parse(row.payload),stage=f.db.prepare('SELECT terms_digest,list_id,eligible_count FROM app_collection_stages WHERE inventory_id=? AND stage_id=?').get(body.inventoryId,body.stageId);
+  assert.equal(body.termsDigest,stage.terms_digest);assert.equal(body.eligibility.listId,stage.list_id);assert.equal(body.eligibility.count,stage.eligible_count);assert.equal(row.actor,principal.id);}
+ assert.equal((await f.publish()).kind,'replayed');assert.equal(f.db.prepare("SELECT COUNT(*) n FROM ops_config_audit WHERE category='collection-stage'").get().n,2);
 });
