@@ -13,10 +13,11 @@ test('scoped advisory governance preview and final decision share atomic audit r
  const handler=createOperatorCommandTransport(f.db,{sessions,clock:f.getNow});
  const revisions=()=>Object.fromEntries(f.db.prepare('SELECT name,revision FROM app_revisions').all().map(r=>[r.name,String(r.revision)]));
  const request=(path,body,confirmation)=>new Request(origin+'/ops/commands/'+path,{method:'POST',headers:{origin,'content-type':'application/json',authorization:'Bearer '+token,...(confirmation?{'x-operator-preview':confirmation}:{})},body:JSON.stringify(body)});
+ const auditBefore=verifyConfigChain(f.db).events;assert.equal(auditBefore,12,'Exact genuine source/index fixture audit baseline');
  const publication={operationKind:'governance.publish-ballot.v1',requestKey:'synthetic-console-ballot',input:f.input,expectedRevisions:revisions()};
  const previewResponse=await handler(request('preview',publication));assert.equal(previewResponse.status,200);const preview=await previewResponse.json();
  assert.equal(preview.summary.advisory,true);assert.equal(preview.summary.financialExecution,false);assert.equal(preview.summary.snapshotHash,f.expectedHash);assert.equal(preview.summary.eligibleCount,4);
- assert.equal(f.db.prepare('SELECT COUNT(*) n FROM genesis_ballots').get().n,0);assert.equal(f.db.prepare('SELECT COUNT(*) n FROM ops_config_audit').get().n,0);
+ assert.equal(f.db.prepare('SELECT COUNT(*) n FROM genesis_ballots').get().n,0);assert.equal(f.db.prepare('SELECT COUNT(*) n FROM ops_config_audit').get().n,auditBefore);
  const published=await handler(request('execute',publication,preview.confirmationDigest));assert.equal(published.status,200);assert.equal((await published.json()).kind,'committed');
  f.setNow(GOVERNANCE_OPEN+2*DAY);assert.equal((await handler(request('receipt',publication))).status,401);
  token=sessions.login(sessions.issueBootCode()).sessionToken;
@@ -27,5 +28,5 @@ test('scoped advisory governance preview and final decision share atomic audit r
  const accepted=await handler(request('execute',decision,dp.confirmationDigest));assert.equal(accepted.status,200);assert.equal((await accepted.json()).kind,'committed');
  f.db.exec("UPDATE app_operator_scopes SET enabled=0,revision=revision+1 WHERE scope='governance-decision'");
  assert.equal((await (await handler(request('execute',decision,dp.confirmationDigest))).json()).kind,'replayed');
- assert.equal(verifyConfigChain(f.db).events,2);assert.equal(f.db.prepare('SELECT COUNT(*) n FROM collect_inventories').get().n,0);
+ assert.equal(verifyConfigChain(f.db).events,auditBefore+2);assert.equal(f.db.prepare('SELECT COUNT(*) n FROM collect_inventories').get().n,0);
 });

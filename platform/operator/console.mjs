@@ -7,7 +7,7 @@ import {fileURLToPath,pathToFileURL} from 'node:url';
 import {openDatabase} from '../storage/database.mjs';
 import {createLocalServer} from '../server/start.mjs';
 import {json,failure} from '../server/api.mjs';
-import {moderatorQueue,workloadMetrics} from '../earn/operations.mjs';
+import {readOperatorBoard} from './board-projection.mjs';
 import {createOperatorSessionAuthority,OperatorSessionError} from './session.mjs';
 import {createOperatorCommandTransport,readOperatorBody} from './command-transport.mjs';
 import {EarnError} from '../earn/checks.mjs';
@@ -60,7 +60,7 @@ export function createOperatorApp(db,{bootToken,clock=Date.now,operatorId='local
    }
    if(pathname==='/ops/board'&&request.method==='GET'){
     const epoch=parseDate(searchParams.get('date')??iso(now).slice(0,10)),state=searchParams.get('state')??'pending';
-    return json({metrics:workloadMetrics(db,{epoch,nowMs:now}),queue:moderatorQueue(db,{epoch,state,cursor:searchParams.get('cursor')})});
+    return json(readOperatorBoard(db,{epoch,nowMs:now,state,cursor:searchParams.get('cursor')}));
    }
    if(['/ops/capacity','/ops/reviews'].includes(pathname)&&request.method==='POST')
     return failure(503,'command_unavailable','This legacy write endpoint is unavailable. Use an authorized audited command preview.');

@@ -54,7 +54,7 @@ try{
    await page.getByRole('button',{name:'Retry exact command',exact:true}).click();await page.getByText('Local change confirmed from its existing receipt.',{exact:true}).waitFor();assert.deepEqual(executions[1],executions[0]);
   }else await page.getByText('Local change committed with an audit receipt.',{exact:true}).waitFor();
   assert.equal(db.prepare('SELECT COUNT(*) n FROM ops_config_audit').get().n,before+1,'exact retry has one audit child');
-  await page.getByText('1 admitted · '+(9+index)+' places available',{exact:true}).waitFor();
+  await page.getByText('1 admitted · '+(9+index)+' remaining staffed capacity (limit '+(10+index)+'). Admission gate: available; wallet and evidence checks still apply.',{exact:true}).waitFor();
   now+=1000;await page.getByLabel('Scope',{exact:true}).selectOption('optional-refresh');await page.getByLabel('Action',{exact:true}).selectOption(index%2===0?'true':'false');await page.getByLabel('Scope reason').fill('Synthetic scoped pause '+width);await page.getByLabel('Evidence reference',{exact:true}).fill('fixture/operator-browser/'+width);
   await page.getByRole('button',{name:'Preview scope change',exact:true}).click();await page.getByRole('heading',{name:'Review local change'}).waitFor();
   await page.screenshot({path:screens+'/preview-'+width+'.png',fullPage:true});

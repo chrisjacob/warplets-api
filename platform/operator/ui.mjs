@@ -115,7 +115,7 @@ async function refreshConfig(){
 async function refresh(next=false){
  const turn=++revision;
  try{const p=new URLSearchParams({date:day.value,state:state.value});if(next&&cursor)p.set('cursor',cursor);const data=await api('board?'+p);if(turn!==revision)return;
- const c=data.metrics.capacity;el('capacity').textContent=c.admitted+' admitted · '+c.remaining+' places available';
+ const c=data.metrics.capacity,reasons={'staffing-required':'staffing has not been configured','operator-pause':'Earn admission is paused','epoch-not-current':'the selected UTC board is not current','board_closed':'the selected board is closed','budget-limit':'the operating budget limit has been reached','operating-input-bound':'operating inputs exceed the safe read bound','board_capacity':'staffed capacity is exhausted','read_only_archive':'this recovery archive is read-only'};el('capacity').textContent=c.admitted+' admitted · '+c.remaining+' remaining staffed capacity (limit '+c.limit+'). '+(c.accepting===true&&c.reason==='available'?'Admission gate: available; wallet and evidence checks still apply.':'New admissions held: '+(reasons[c.reason]??'admission availability could not be verified')+'.');
  const rows=data.queue.items??[];el('queue').replaceChildren(...(rows.length?rows.map(review):[element('p','No submissions in this queue.')]));cursor=data.queue.nextCursor;el('next').hidden=!cursor;el('evidence-status').textContent='Held pricing observations: '+data.metrics.evidence.heldObservations+'. Held evidence is separate from content rejection.';controls();
  }catch(e){msg(e.message);}
 }

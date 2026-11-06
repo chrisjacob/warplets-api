@@ -1,0 +1,115 @@
+{
+  "task": "B12",
+  "slice": "B12-14",
+  "status": "verified-slice",
+  "baseCommit": "1979d9a",
+  "scope": [
+    "Guarded operator capacity projection with explicit staffing/pause/current epoch/budget/closed gates",
+    "Read-only board snapshot and truthful capacity UI",
+    "Preserved genuine061 audit ancestry in governance parity fixtures"
+  ],
+  "checks": {
+    "backend": "17PASS2803.2929ms work/b12-console-capacity.log",
+    "operatorSuite": "74/75PASS7612.6533ms work/b12-final-operator.log; sole failure outdated zero-audit baseline corrected to exact12source audits plus2governance, targeted1PASS1054.6822ms work/b12-governance-transport-final.log; other74 unchanged",
+    "governanceD1": "10000union1PASS87567.6018ms work/b12-governance-ancestry-edge.log;26SQL7717Bbatch33parameters; fault/legacyadoption1PASS30070.8258ms work/b12-governance-ancestry-faults.log. Initial fault rerun exposed missing test baseline variable, corrected; acceptance remains exact full audit chain and relative new-event counts.",
+    "browser": {
+      "task": "B12 explicit staffed capacity versus admission holds",
+      "createdAt": "2026-11-06T15:34:53.278726+00:00",
+      "sourceHashes": {
+        "platform/operator/ui.mjs": "4c5d1ad0fe192f24432f6a51c867dd97a5fb6a701e756fe5190da862ab511ed0",
+        "platform/operator/browser-qa.mjs": "82b94adeeaa90b888ac05a059f77ef83354963485bfdfe8ee4e206a53914a68a",
+        "platform/operator/capacity-browser-qa.mjs": "7dbaaae912dd7bdc1c015d05d5ed522fa43502ca318d88cc229ffe1dc519e4ec"
+      },
+      "checks": [
+        {
+          "command": "node platform/operator/capacity-browser-qa.mjs",
+          "passed": true,
+          "log": "work/b12-capacity-capacity-browser-qa.log"
+        },
+        {
+          "command": "node platform/operator/browser-qa.mjs",
+          "passed": true,
+          "log": "work/b12-capacity-browser-qa.log"
+        },
+        {
+          "command": "node --check three owned modules; git diff --check three owned paths",
+          "passed": true
+        }
+      ],
+      "browserResults": {
+        "work/b12-capacity-capacity-browser-qa.log": {
+          "passed": true,
+          "widths": [
+            360,
+            390,
+            768,
+            1440
+          ],
+          "source": "synthetic-local-operator-fixture",
+          "reasons": [
+            "staffing-required",
+            "available",
+            "operator-pause",
+            "epoch-not-current",
+            "board_capacity",
+            "budget-limit",
+            "board_closed"
+          ],
+          "pausedRemainingNotAdmissionPermission": true,
+          "missingStaffingLimitZero": true,
+          "readOnlyDatabaseChecks": true,
+          "walletEvidenceCaveat": true,
+          "financialExecution": false,
+          "screenshots": "work/b12-capacity-operator"
+        },
+        "work/b12-capacity-browser-qa.log": {
+          "passed": true,
+          "widths": [
+            360,
+            390,
+            768,
+            1440
+          ],
+          "realCommandExecutions": 14,
+          "auditEvents": 10,
+          "newAuditEvents": 9,
+          "baselineAuditEvents": 1,
+          "previewReadOnly": true,
+          "localReviewPacketDownload": true,
+          "packetNoAuthorityOrPrivateData": true,
+          "packetDisabledAfterAttempt": true,
+          "negativeResponseLoss": true,
+          "exactRetryAfterReload": true,
+          "expiredSessionReauthentication": true,
+          "stablePrincipalRetry": true,
+          "differentPrincipalIsolation": true,
+          "negativeStalePreview": true,
+          "readOnlySession": true,
+          "auditedFinalReview": true,
+          "immutableReviewConflict": true,
+          "reviewExactReplay": true,
+          "confirmationRevisionBinding": true,
+          "negativePreviewMismatch": true,
+          "legacyReceiptReadOnly": true,
+          "missingLegacyReceiptHeld": true,
+          "keyboardFocus": true,
+          "logoutClearsPrivateState": true,
+          "financialExecution": false,
+          "screenshots": "work/b12-operator"
+        }
+      },
+      "scope": [
+        "Preserves all backend capacity fields; remaining staffed capacity is explicitly distinct from permission for new admission.",
+        "Available gate still states that wallet and evidence checks apply. Unknown reason fails closed in display.",
+        "Actual local backend response coverage: staffing-required,available,operator-pause,epoch-not-current,board_capacity,budget-limit,board_closed. Existing unchanged enum mappings operating-input-bound and read_only_archive have clear held copy, but no new dedicated browser fixtures in this slice.",
+        "Four widths exercise unstaffed and paused states with no overflow; each board read leaves SQLite total_changes unchanged.",
+        "Synthetic direct count-only and closed-board fixtures test read projection, not settlement, payment or actual admission verification.",
+        "Existing operator14-execution/9newaudit journal, review and reauthentication browser assertions preserved."
+      ],
+      "financialExecution": false,
+      "completion": "Owned slice frozen for coordinator checkpoint."
+    }
+  },
+  "financialExecution": false,
+  "ci": "42242947709 remains active on5aa1d4b; does not cover latest fixes. Follow before triggering next checkpoint."
+}

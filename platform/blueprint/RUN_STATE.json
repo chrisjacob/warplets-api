@@ -4,8 +4,8 @@
   "phase": "executing",
   "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
-  "currentTask": "B12",
-  "lastUpdatedAt": "2026-11-06T15:32:02.047314+00:00",
+  "currentTask": "B13",
+  "lastUpdatedAt": "2026-11-06T15:35:37.651151+00:00",
   "migrationAllocation": {
     "next": 63,
     "reserved": [
@@ -412,10 +412,10 @@
       "blocker": null
     },
     "B12": {
-      "status": "in_progress",
+      "status": "verified",
       "owner": "coordinator",
       "baseCommit": "b9efc0c8c97896a286c5f78ac4bf03e3a52727be",
-      "implementationCommit": "5aa1d4b",
+      "implementationCommit": "1979d9a",
       "pushed": true,
       "evidence": [
         "platform/validation/runs/2026-11-06-overnight/B12-01.json",
@@ -432,19 +432,21 @@
         "platform/validation/runs/2026-11-06-overnight/B12-11.json",
         "platform/validation/runs/2026-11-06-overnight/B12-12.json",
         "platform/validation/runs/2026-11-06-overnight/B12-ci-03.json",
-        "platform/validation/runs/2026-11-06-overnight/B12-13.json"
+        "platform/validation/runs/2026-11-06-overnight/B12-13.json",
+        "platform/validation/runs/2026-11-06-overnight/B12-14.json",
+        "platform/validation/runs/2026-11-06-overnight/B12-acceptance.json"
       ],
-      "nextAction": "Finish capacity board display and final acceptance matrix. CI42242947709 on5aa1d4b in progress. Stage opening local checks passed; governance D1 ancestry fixture regression running. Budget32%.",
+      "nextAction": "Local acceptance verified. Follow CI42242947709 on5aa1d4b; latest ancestry fixes not in frozen run. Continue B13, then consolidated checkpoint after current CI completion.",
       "blocker": null
     },
     "B13": {
-      "status": "not_started",
-      "owner": null,
-      "baseCommit": null,
+      "status": "in_progress",
+      "owner": "coordinator",
+      "baseCommit": "1979d9a",
       "implementationCommit": null,
       "pushed": false,
       "evidence": [],
-      "nextAction": null,
+      "nextAction": "Implement portable consent/repository contract preserving historical digest and current-preference replay; retain consent replay keys. Read work/b13-consent-plan.json when ready.",
       "blocker": null
     },
     "B14": {

@@ -1,0 +1,349 @@
+{
+  "task": "B12",
+  "kind": "read-only-acceptance-audit",
+  "observedHead": "5aa1d4ba90811c0608973611cbd0af91522d60d7",
+  "completionDecision": "B12 local acceptance verified; full consolidated CI still pending and not represented as passed",
+  "registryCount": 17,
+  "matrix": [
+    {
+      "operationKind": "collection.validate-whitelist.v1",
+      "scope": "collection-import",
+      "secondaryScopes": {},
+      "channel": "draft",
+      "meaning": "read-only; no receipt/audit or staging",
+      "evidence": "platform/validation/runs/2026-11-06-overnight/B12-12.json",
+      "test": "platform/operator/whitelist-draft-transport.test.mjs"
+    },
+    {
+      "operationKind": "collection.observe-asset.v1",
+      "scope": "collection-evidence",
+      "secondaryScopes": {},
+      "channel": "standard",
+      "meaning": "retained synthetic B04 observation; conflicting pending operation stays held",
+      "evidence": "platform/validation/runs/2026-11-06-overnight/B12-11.json",
+      "test": "platform/collect/observation-operator-audit.test.mjs"
+    },
+    {
+      "operationKind": "collection.stage-record.v1",
+      "scope": "collection-import",
+      "secondaryScopes": {},
+      "channel": "upload",
+      "meaning": "private canonical record, at most131072 bytes",
+      "evidence": "platform/validation/runs/2026-11-06-overnight/B12-10.json",
+      "test": "platform/operator/upload-transport.test.mjs"
+    },
+    {
+      "operationKind": "collection.stage-cut-record.v1",
+      "scope": "collection-evidence",
+      "secondaryScopes": {},
+      "channel": "upload",
+      "meaning": "private fixed-cut record, at most65536 bytes",
+      "evidence": "platform/validation/runs/2026-11-06-overnight/B12-10.json",
+      "test": "platform/collect/free-cut-audit.test.mjs"
+    },
+    {
+      "operationKind": "collection.seal-list.v1",
+      "scope": "collection-import",
+      "secondaryScopes": {},
+      "channel": "standard",
+      "meaning": "immutable record closure, not economic authority",
+      "evidence": "platform/validation/runs/2026-11-06-overnight/B12-09.json",
+      "test": "platform/collect/source-operator-audit.test.mjs"
+    },
+    {
+      "operationKind": "collection.seal-source.v1",
+      "scope": "collection-import",
+      "secondaryScopes": {},
+      "channel": "standard",
+      "meaning": "immutable source closure, not activation authority",
+      "evidence": "platform/validation/runs/2026-11-06-overnight/B12-09.json",
+      "test": "platform/collect/source-operator-audit.test.mjs"
+    },
+    {
+      "operationKind": "collection.materialize-eligibility-page.v1",
+      "scope": "collection-import",
+      "secondaryScopes": {},
+      "channel": "standard",
+      "meaning": "verified sealed-list page index",
+      "evidence": "platform/validation/runs/2026-11-06-overnight/B12-09.json",
+      "test": "platform/collect/eligibility-index-repository.test.mjs"
+    },
+    {
+      "operationKind": "earn.configure-action.v1",
+      "scope": "earn-action-policy",
+      "secondaryScopes": {},
+      "channel": "standard",
+      "meaning": "future epoch only; stable definition; no issuer grant",
+      "evidence": "platform/validation/runs/2026-11-06-overnight/B12-08.json",
+      "test": "platform/earn/action-policy-repository.test.mjs"
+    },
+    {
+      "operationKind": "ops.configure-workload.v1",
+      "scope": "operations",
+      "secondaryScopes": {},
+      "channel": "standard",
+      "meaning": "current/future staffing and admission ceiling; never ranking or payout",
+      "evidence": "platform/validation/runs/2026-11-06-overnight/B12-01.json",
+      "test": "platform/storage/atomic-operations.test.mjs"
+    },
+    {
+      "operationKind": "ops.change-scope.v1",
+      "scope": "operations",
+      "secondaryScopes": {},
+      "channel": "standard",
+      "meaning": "named application pause/resume; protects claims, principal and recovery",
+      "evidence": "platform/validation/runs/2026-11-06-overnight/B12-01.json",
+      "test": "platform/operations/controls.test.mjs"
+    },
+    {
+      "operationKind": "earn.final-review.v1",
+      "scope": "earn-review",
+      "secondaryScopes": {},
+      "channel": "standard",
+      "meaning": "immutable score0..10; request key equals submission ID",
+      "evidence": "platform/validation/runs/2026-11-06-overnight/B12-02.json",
+      "test": "platform/storage/final-review-audit.test.mjs"
+    },
+    {
+      "operationKind": "collection.publish-stage.v1",
+      "scope": "collection-publication",
+      "secondaryScopes": {
+        "collection-founder": "required for public/founder stages or any non-null inventoryOverrideReason"
+      },
+      "channel": "standard",
+      "meaning": "immutable four-type local terms; first later-Genesis opening policy retained",
+      "evidence": "platform/validation/runs/2026-11-06-overnight/B12-07.json",
+      "test": "platform/collect/stage-repository.test.mjs"
+    },
+    {
+      "operationKind": "governance.publish-ballot.v1",
+      "scope": "governance-publication",
+      "secondaryScopes": {},
+      "channel": "standard",
+      "meaning": "immutable retained electorate and advisory ballot",
+      "evidence": "platform/validation/runs/2026-11-06-overnight/B12-05.json",
+      "test": "platform/governance/operator-audit.test.mjs"
+    },
+    {
+      "operationKind": "governance.record-decision.v1",
+      "scope": "governance-decision",
+      "secondaryScopes": {},
+      "channel": "standard",
+      "meaning": "retained advisory decision and earliest opening; no automatic stage opening",
+      "evidence": "platform/validation/runs/2026-11-06-overnight/B12-05.json",
+      "test": "platform/governance/operator-audit.test.mjs"
+    },
+    {
+      "operationKind": "collection.begin-free-cut.v1",
+      "scope": "collection-evidence",
+      "secondaryScopes": {},
+      "channel": "standard",
+      "meaning": "named immutable root at published opensAt",
+      "evidence": "platform/validation/runs/2026-11-06-overnight/B12-06.json",
+      "test": "platform/collect/free-cut-audit.test.mjs"
+    },
+    {
+      "operationKind": "collection.validate-cut-page.v1",
+      "scope": "collection-evidence",
+      "secondaryScopes": {},
+      "channel": "standard",
+      "meaning": "named page of retained attempt; bounded evidence check",
+      "evidence": "platform/validation/runs/2026-11-06-overnight/B12-06.json",
+      "test": "platform/collect/free-cut-audit.test.mjs"
+    },
+    {
+      "operationKind": "collection.seal-free-cut.v1",
+      "scope": "collection-evidence",
+      "secondaryScopes": {},
+      "channel": "standard",
+      "meaning": "exact complete retained set; never caller-selected acceptance cutoff",
+      "evidence": "platform/validation/runs/2026-11-06-overnight/B12-06.json",
+      "test": "platform/collect/free-cut-audit.test.mjs"
+    }
+  ],
+  "sharedBoundary": {
+    "session": "Loopback one-time-code, stable typed operator, explicit allowed kinds, two-hour bounded expiry/revocation, live synchronous transaction guard; member session never accepted. Accepted replay still requires live authorized operator session but does not require current business grant.",
+    "standard": "POST /ops/commands/{preview,execute,receipt}; JSON<=16384 bytes; exact three revisions; confirmation binds full request/principal; historical request digests preserved.",
+    "upload": "POST /ops/uploads/{preview,execute,receipt}; metadata header<=2048 bytes, exact bounded octet stream, no persisted browser bytes, metadata-only receipt lookup.",
+    "draft": "POST /ops/drafts/whitelist; JSON<=524288 bytes, <=10000 entries; current import scope/revision/session rechecked; no writes or authorization.",
+    "financialExecution": false
+  },
+  "acceptance": [
+    {
+      "requirement": "Exact commands/scopes, session expiry/revocation/member denial/origin/body limits",
+      "evidence": [
+        "platform/validation/runs/2026-11-06-overnight/B12-01.json",
+        "platform/validation/runs/2026-11-06-overnight/B12-10.json",
+        "platform/validation/runs/2026-11-06-overnight/B12-12.json"
+      ],
+      "tests": [
+        "platform/operator/session.test.mjs",
+        "platform/operator/commands.test.mjs",
+        "platform/operator/command-transport.test.mjs",
+        "platform/operator/upload-transport.test.mjs",
+        "platform/operator/whitelist-draft-transport.test.mjs"
+      ]
+    },
+    {
+      "requirement": "Staffing/admission policy and scoped pause",
+      "implementation": "Capacity=min(admissionLimit,floor(staffedMinutes*60/secondsPerReview)); pilot admissionLimit<=100; recorded current/future only; finalized boards cannot be rewritten. Missing guarded staffing holds. No score or ranking changes. Controlled scopes launch-preparation,earn-admission,collection-mint,collection-progression,optional-refresh,optional-images,optional-notifications. Protected principal-withdrawal,stake-harvest,vault-claim,earn-claim,reconciliation,operation-recovery.",
+      "evidence": [
+        "platform/validation/runs/2026-11-06-overnight/B12-01.json"
+      ],
+      "tests": [
+        "platform/storage/atomic-operations.test.mjs",
+        "platform/storage/atomic-earn.test.mjs",
+        "platform/operations/controls.test.mjs"
+      ],
+      "remaining": "Console projection mismatch detailed below."
+    },
+    {
+      "requirement": "Atomic business/receipt/audit and headCAS; lost response/revocation replay; immutable finality",
+      "evidence": [
+        "platform/validation/runs/2026-11-06-overnight/B12-01.json",
+        "platform/validation/runs/2026-11-06-overnight/B12-02.json",
+        "platform/validation/runs/2026-11-06-overnight/B12-04.json",
+        "platform/validation/runs/2026-11-06-overnight/B12-05.json",
+        "platform/validation/runs/2026-11-06-overnight/B12-06.json",
+        "platform/validation/runs/2026-11-06-overnight/B12-08.json",
+        "platform/validation/runs/2026-11-06-overnight/B12-09.json",
+        "platform/validation/runs/2026-11-06-overnight/B12-11.json"
+      ],
+      "tests": [
+        "platform/storage/final-review-audit.test.mjs",
+        "platform/collect/stage-repository.test.mjs",
+        "platform/governance/operator-audit.test.mjs",
+        "platform/collect/free-cut-audit.test.mjs",
+        "platform/earn/action-policy-repository.test.mjs",
+        "platform/collect/source-operator-audit.test.mjs",
+        "platform/collect/observation-operator-audit.test.mjs"
+      ]
+    },
+    {
+      "requirement": "Derived safe previews and fixed opening cut; held evidence distinct from rejected score",
+      "evidence": [
+        "platform/validation/runs/2026-11-06-overnight/B12-02.json",
+        "platform/validation/runs/2026-11-06-overnight/B12-04.json",
+        "platform/validation/runs/2026-11-06-overnight/B12-05.json",
+        "platform/validation/runs/2026-11-06-overnight/B12-06.json",
+        "platform/validation/runs/2026-11-06-overnight/B12-07.json",
+        "platform/validation/runs/2026-11-06-overnight/B12-09.json",
+        "platform/validation/runs/2026-11-06-overnight/B12-11.json",
+        "platform/validation/runs/2026-11-06-overnight/B12-12.json"
+      ],
+      "tests": [
+        "platform/operator/stage-transport.test.mjs",
+        "platform/operator/governance-transport.test.mjs",
+        "platform/operator/cut-transport.test.mjs",
+        "platform/operator/source-summary.test.mjs",
+        "platform/operator/observation-transport.test.mjs"
+      ],
+      "latestOpening": "25 stage/mint-plan focused cases PASS17417.5363ms work/b12-stage-opening-final.log; UI/transport final evidence still in progress."
+    },
+    {
+      "requirement": "Private approval packet, no hidden outcomes/raw wallet exports, unknown receipt recovery",
+      "evidence": [
+        "platform/validation/runs/2026-11-06-overnight/B12-06.json",
+        "platform/validation/runs/2026-11-06-overnight/B12-09.json",
+        "platform/validation/runs/2026-11-06-overnight/B12-10.json",
+        "platform/validation/runs/2026-11-06-overnight/B12-11.json",
+        "platform/validation/runs/2026-11-06-overnight/B12-12.json"
+      ],
+      "tests": [
+        "platform/operator/approval-packet.test.mjs",
+        "platform/operator/whitelist-draft-packet.test.mjs",
+        "platform/operator/upload-transport.test.mjs"
+      ]
+    },
+    {
+      "requirement": "Installed browser360/390/768/1440, focus/errors/keyboard/logout/reload",
+      "evidence": [
+        "platform/validation/runs/2026-11-06-overnight/B12-01.json",
+        "platform/validation/runs/2026-11-06-overnight/B12-02.json",
+        "platform/validation/runs/2026-11-06-overnight/B12-04.json",
+        "platform/validation/runs/2026-11-06-overnight/B12-05.json",
+        "platform/validation/runs/2026-11-06-overnight/B12-06.json",
+        "platform/validation/runs/2026-11-06-overnight/B12-07.json",
+        "platform/validation/runs/2026-11-06-overnight/B12-08.json",
+        "platform/validation/runs/2026-11-06-overnight/B12-09.json",
+        "platform/validation/runs/2026-11-06-overnight/B12-10.json",
+        "platform/validation/runs/2026-11-06-overnight/B12-11.json",
+        "platform/validation/runs/2026-11-06-overnight/B12-12.json"
+      ],
+      "tests": [
+        "platform/operator/browser-qa.mjs",
+        "platform/operator/stage-browser-qa.mjs",
+        "platform/operator/governance-browser-qa.mjs",
+        "platform/operator/cut-browser-qa.mjs",
+        "platform/operator/action-browser-qa.mjs",
+        "platform/operator/source-browser-qa.mjs",
+        "platform/operator/upload-browser-qa.mjs",
+        "platform/operator/observation-browser-qa.mjs",
+        "platform/operator/draft-browser-qa.mjs"
+      ],
+      "remaining": "Current opening UI still being integrated; old evidence hashes must not be represented as current UI passes."
+    },
+    {
+      "requirement": "Node/D1 business parity and audited recovery compatibility",
+      "evidence": [
+        "platform/validation/runs/2026-11-06-overnight/B12-03.json",
+        "platform/validation/runs/2026-11-06-overnight/B12-04.json",
+        "platform/validation/runs/2026-11-06-overnight/B12-05.json",
+        "platform/validation/runs/2026-11-06-overnight/B12-06.json",
+        "platform/validation/runs/2026-11-06-overnight/B12-08.json",
+        "platform/validation/runs/2026-11-06-overnight/B12-09.json",
+        "platform/validation/runs/2026-11-06-overnight/B12-11.json"
+      ],
+      "note": "Operator session transport intentionally Node loopback only; no hosted identity claim. D1 tests cover underlying guarded services. Some isolated observation tests explicitly inject upstream proof and do not claim whole recovery readiness; separate genuine fresh-target checks are recorded."
+    }
+  ],
+  "actionableGaps": [
+    {
+      "priority": "required",
+      "issue": "Unstaffed console capacity contradicts guarded admission",
+      "trigger": "Fresh DB without effective earn_workload_policies row: /ops/board invokes workloadMetrics->legacy capacityAt with pilot-default100; UI says100 places available. atomic-earn.admitSubmission holds staffing-required and atomic-operations.capacityAt correctly uses0.",
+      "paths": [
+        "platform/operator/console.mjs:63",
+        "platform/earn/operations.mjs:28",
+        "platform/storage/atomic-operations.mjs:162",
+        "platform/storage/atomic-earn.mjs:64",
+        "platform/operator/ui.mjs:118"
+      ],
+      "minimumFix": "Use guarded capacity projection for operator board without changing legacy reference semantics; expose current pause/closed/unstaffed status clearly. Add fresh-DB console assertion, configured capacity assertion and pause/finalized-board acceptance status.",
+      "followup": {
+        "status": "backend fixed; UI wording pending coordinator",
+        "files": [
+          "platform/operator/board-projection.mjs",
+          "platform/operator/console.mjs",
+          "platform/operator/console.test.mjs"
+        ],
+        "log": "work/b12-console-capacity.log",
+        "tests": "Focused console/session/transport passed; no-policy/current/future/pause/resume/closed/exhausted/budget cases. Legacy helper unchanged."
+      }
+    },
+    {
+      "priority": "required-documentation",
+      "issue": "Operator README still enumerates six kinds and claims whitelist-only/no founder-public overrides",
+      "path": "platform/operator/README.md",
+      "minimumFix": "Refresh exact17-kind matrix, three transport channels and secondary founder scope; distinguish live operator kind permission from DB scope and fixture approval from spend."
+    },
+    {
+      "priority": "required-finalization",
+      "issue": "Opening-policy UI integration and final-source regression/evidence pending",
+      "minimumFix": "Finish ongoing stage transport/packet/browser lane; then checkpoint-scoped final boundary/browser checks and acceptance evidence referencing exact source hashes. No need to invent new command kinds."
+    }
+  ],
+  "notNewB12Scope": [
+    "Hosted production identity and independent external audit retention are release gates.",
+    "Actual custody/payment/signing/spending/provider subscription/remote deployment remain disabled.",
+    "Fairness provider selection and new public transcript obligations remain B17/owning adapter work; descriptive packet must retain unavailable labels.",
+    "Unsupported legacy migration profiles remain explicit holds; B12 does not authorize expanding them.",
+    "Sydney launch hours and later mint prices remain explicit open inputs."
+  ],
+  "auditLimits": "Read-only code/evidence review; no tests executed and no product files edited. Evidence files retain their original source/version scope.",
+  "resolvedAfterAudit": {
+    "opening": "1979d9a / B12-13.json",
+    "documentation": "1979d9a operator README exact17-kind matrix",
+    "capacity": "B12-14.json backend and browser evidence; legacy reference semantics preserved"
+  }
+}
