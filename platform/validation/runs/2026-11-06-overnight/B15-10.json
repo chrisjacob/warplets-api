@@ -1,0 +1,74 @@
+{
+  "task": "B15",
+  "status": "partial-frozen-recorded-height-expiry",
+  "baseCommit": "3679e0541e9b4cb2614a53c3eb39f3b748c7a8e9",
+  "implementationCommit": null,
+  "schema": "installed067; no draft fallback",
+  "checks": [
+    {
+      "command": "node --test platform/storage/recorded-attempt-expiries.test.mjs platform/transactions/recorded-height-evidence.test.mjs",
+      "passed": 7,
+      "durationMs": 6848.1642,
+      "log": "work/b15-recorded-height-node-final.log"
+    },
+    {
+      "command": "node --test platform/edge/test/recorded-heights.test.mjs",
+      "passed": 1,
+      "calls": 19,
+      "durationMs": 28560.3117,
+      "log": "work/b15-recorded-height-edge-final.log"
+    },
+    {
+      "command": "node platform/edge/node_modules/typescript/bin/tsc --noEmit -p platform/edge/tsconfig.json",
+      "status": "passed",
+      "log": "work/b15-recorded-height-types-final.log"
+    }
+  ],
+  "metrics": {
+    "maxSqlStatements": 22,
+    "maxBatchBytes": 9376,
+    "maxParameters": 52,
+    "maxObjectReads": 1,
+    "heightRawBytesBound": 4096
+  },
+  "acceptance": [
+    "B04 registered synthetic height and immutable private bytes independently reverified; exact source/target/clock/revision/watermark fences",
+    "Height equal last-valid remains pending; strictlygreater height expires onlylatestawaiting_signature with actualsignatureNULL/no receipts",
+    "Original attempt ID/message/blockhash/rawpacket remainunchanged; no new attempt or observation receipt",
+    "All3mandatoryeffects missing and substitutedheight roll back state/sidecar/receipt",
+    "Node6genuine existinghistory states reject including submitted/unknown/confirmed/failed/finalized/alreadyexpired; D1 currentstate negatives explicitly fixturemutations, not authenticatedsubmission",
+    "Node/D1 same acceptedresult and concurrent1committed1replayed",
+    "Node lostack+missingprivateobject and Node/D1 scope/head/clockrace failclosed",
+    "Accepted originalkey replays aftergrantrevocation/expiry/rawsourceabsence onNode; actualD1revokedlaterclock replay unchanged",
+    "Boundexpiredattempt identity/signature/state protected; existingrecovery guidance markseligible expiredunsubmitted understillvalidplan, no actualreplacement method"
+  ],
+  "limits": [
+    "Private recorded rehearsal only; source and legacy submission/plan authority remain unverified",
+    "No submission observation, packet preparation, replacement, signature generation, simulation call or broadcast",
+    "ActualD1 lostcommitack is not independently exercised by this test; Node does and prior066/065sharedatomicD1 did",
+    "067 fresh V2 semantic restoration handled separately; no claim in this evidence"
+  ],
+  "flags": {
+    "financialExecution": false,
+    "serverSigning": false,
+    "broadcast": false,
+    "B15Complete": false
+  },
+  "ownedFiles": {
+    "platform/storage/recorded-attempt-expiries.mjs": "766a865647b7647071272d5b3ec2b692f2a359f0a96541f49c621c7fff7d1216",
+    "platform/storage/recorded-attempt-expiries.d.mts": "d79c9ce4381ca0e4ea91896cf4df236b36b07b89669cdd7f4435eb327de827f0",
+    "platform/storage/recorded-attempt-expiries.test.mjs": "dc1a1fc6a5493f04228a5ec11109958b13cff99b0a3b27263fe1c2c5fd65d3f4",
+    "platform/storage/recorded-attempt-expiries.fixtures.mjs": "ed1c3ef4afe7842ab77b592888bb252ff3ced5a967c0b4edf8d5bde713321cd5",
+    "platform/edge/test/recorded-heights.test.mjs": "725f035a039e67c19b94b49ba9e78d5a313f69eb7ec21d722be96bff95e6eb62",
+    "platform/edge/test/fixtures/recorded-height-worker.ts": "2fe4615bd43c0f452e19c81b922f9d5eb08c7f9a6890063e726699777a64dbfa"
+  },
+  "dependencies": {
+    "platform/storage/067-recorded-attempt-expiries.sql": "fa119010fba1b51dc1bda342710aa0f16cd0c58a6a0d18dd80cba076b1f57673",
+    "platform/application/recorded-heights.ts": "4477393f1200aad529facbfe572b691091e99f1f68ad7d196bf7fd234cc96857",
+    "platform/transactions/recorded-height-evidence.mjs": "fa814c8ba665a73d58887f02bc7a5b277c172ba2927888673b8046605d865b4e",
+    "platform/transactions/recorded-height-evidence.d.mts": "6c2d6d9420c6dddde41202ee49288e86be1d7b648aa9fe39ac064de97cc32aa8",
+    "platform/transactions/recorded-height-evidence.test.mjs": "29b67a70f5875ded29cabffcfbe461c5d8cde25171cf846746055cc7ecb45e09",
+    "platform/transactions/recorded-height-service.mjs": "5b659780b7f13df2172bb17bcc6134a9d5e28c887a1cb44cc616b417c87880c0",
+    "platform/transactions/recorded-height-service.d.mts": "279c70fa14eb606ddf8878dc6ec0947a34248ecf489a6a1c936b4a880bbefd29"
+  }
+}

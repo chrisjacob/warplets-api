@@ -5,9 +5,9 @@
   "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
   "currentTask": "B15",
-  "lastUpdatedAt": "2026-11-06T17:37:55.227064+00:00",
+  "lastUpdatedAt": "2026-11-06T17:47:12.564560+00:00",
   "migrationAllocation": {
-    "next": 67,
+    "next": 68,
     "reserved": [
       {
         "version": 31,
@@ -188,6 +188,11 @@
         "version": 66,
         "task": "B15",
         "purpose": "guarded private synthetic recorded outcome provenance and exact legacy state transitions"
+      },
+      {
+        "version": 67,
+        "task": "B15",
+        "purpose": "guarded recorded-height expiry for existing never-submitted unsigned attempts"
       }
     ],
     "historicalGap": 19
@@ -501,7 +506,7 @@
       "status": "in_progress",
       "owner": "snapshot_acceptance",
       "baseCommit": "24d2b4266ead2bab6f1338f5a33013b62557a57e",
-      "implementationCommit": "0ce40d5",
+      "implementationCommit": "384c745",
       "pushed": true,
       "evidence": [
         "platform/validation/runs/2026-11-06-overnight/B15-01.json",
@@ -512,9 +517,11 @@
         "platform/validation/runs/2026-11-06-overnight/B15-06.json",
         "platform/validation/runs/2026-11-06-overnight/B15-07.json",
         "platform/validation/runs/2026-11-06-overnight/B15-08.json",
-        "platform/validation/runs/2026-11-06-overnight/B15-09.json"
+        "platform/validation/runs/2026-11-06-overnight/B15-09.json",
+        "platform/validation/runs/2026-11-06-overnight/B15-10.json",
+        "platform/validation/runs/2026-11-06-overnight/B15-11.json"
       ],
-      "nextAction": "066 recorded outcomes and exact historical Node/D1 restoration verified. Next install/test draft067 recorded-height expiry, then compatible recordedunsigned packet preparation/replacement. Never submitted/unknown replacement or signing/broadcast.",
+      "nextAction": "067 recorded-height expiry and historical Node/D1 restore verified. Next068 compatible recorded unsigned packet import/replacement under existing legacy expectations; no manufactured wire/signature/simulation or unknown replacement. Keep financial flags false.",
       "blocker": null
     },
     "B16": {

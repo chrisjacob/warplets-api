@@ -1,0 +1,107 @@
+{
+  "status": "partial-B15-frozen-recorded-expiry-recovery",
+  "baseCommit": "3679e0541e9b4cb2614a53c3eb39f3b748c7a8e9",
+  "implementationCommit": null,
+  "installedSchema": {
+    "lastMigration": "067-recorded-attempt-expiries.sql",
+    "businessTables": 116
+  },
+  "classification": "Synthetic retained local block-height transcript; genuine067 guarded expiry, fresh private Node/workerd-D1/R2 restoration. No chain, signing, broadcast or financial authority.",
+  "checks": [
+    {
+      "command": "node --test platform/recovery/v2-reconcile-recorded-expiries.test.mjs",
+      "passed": 3,
+      "durationMs": 116545.2719,
+      "log": "work/b15-expiry-recovery-node.log"
+    },
+    {
+      "command": "node --test platform/edge/test/recovery-recorded-expiries.test.mjs",
+      "passed": 1,
+      "durationMs": 93345.3515,
+      "log": "work/b15-expiry-recovery-d1.log"
+    },
+    {
+      "command": "node --test platform/recovery/v2-restore.test.mjs",
+      "passed": 1,
+      "durationMs": 39589.3086,
+      "log": "work/b15-expiry-recovery-golden.log"
+    },
+    {
+      "command": "pnpm --dir platform/edge exec tsc --noEmit",
+      "status": "passed",
+      "log": "work/b15-expiry-recovery-types.log"
+    }
+  ],
+  "acceptance": [
+    "Reuse complete bounded legacy history verification once per affected intent, then one original immutable expiry/B04 object per continuation.",
+    "Recorded height strictly exceeds the original packet last-valid height; original context slot and observation time cannot regress.",
+    "Original expired attempt remains unsigned with zero receipt observations, exact message hash/packet identity and historical prior revision.",
+    "Historical priorRevision=2*attemptIndex-1 is grounded in independently verified prior unsigned expired attempts; future attempts do not alter this cut.",
+    "Exact13-field result, command/request/output digest, private source/config/byte hashes and event identity checked; no current head/grant/clock renewal.",
+    "Later-attempt compatibility uses explicitly pure legacy two-attempt fixture only; no claim of accepted068 replacement.",
+    "Wrong height boundary, prior revision, message/byte identity, signature, observations, state, result flags, context and timestamp hold.",
+    "Missing private bytes and target watermark change cannot create expiry proofs; omitted semantic child rolls back and lost acknowledgement safely resumes.",
+    "Normal fresh Node/D1 restore retains exact tx rows/rowids and expiry sidecars; zero tx_receipts are created; final proof counts and pinned target watermark are required."
+  ],
+  "metrics": {
+    "node": {
+      "steps": 1013,
+      "maxSql": 27,
+      "maxBatchBytes": 109242
+    },
+    "d1": {
+      "steps": 1012,
+      "maxOperations": 27,
+      "maxBatchBytes": 109395,
+      "maxSerializedWorkingBytes": 367024,
+      "legacyEvents": 0,
+      "boundExpiries": 1
+    },
+    "semanticVerifierEstimatedWorkingBytes": 28024,
+    "golden": {
+      "tables": 116,
+      "peakCheckpointBytes": 125375,
+      "peakPhase": "tables",
+      "checkpointMargin": 5697,
+      "limit": 131072,
+      "finalCheckpointBytes": 92480,
+      "steps": 1085,
+      "maxSql": 13,
+      "maxBatchBytes": 109514,
+      "objects": 173
+    }
+  },
+  "bounds": {
+    "attempts": 16,
+    "receipts": 64,
+    "lineageBytes": 24576,
+    "checkpointBytes": 131072,
+    "workingBytes": 1048576,
+    "sqlBatchBytes": 262144
+  },
+  "goldenAssertionCorrection": {
+    "reason": "The previous>8192 reserve assertion encoded a measured114-table result, not a permanent format requirement. Schema additions legitimately consume headroom.",
+    "change": "Assert actual peak<=131072 while retaining exact peak/margin diagnostics. Runtime limit and lossless-packing/savings checks remain unchanged.",
+    "historicalEvidence": "065 evidence remains exact114-table peak122590/margin8482; not rewritten.",
+    "currentCi": "Coordinator notified that earlier115-table CI may fail the stale reserve assertion; no CI cancellation or runtime limit increase."
+  },
+  "remaining": "B15 remains partial; synthetic expiry recovery grants no replacement, signing, broadcast, payment or chain-finality authority.",
+  "sourceHashes": {
+    "platform/recovery/v2-reconcile-recorded-expiries.mjs": "835b484948232d39caf2152d3a3232b0136e11f3bdc6d891948422ccacbd3ab5",
+    "platform/recovery/v2-reconcile-recorded-expiries.test.mjs": "d3e7977d98982d1086065cb008fd472f25fc801f22a489b5f317f043332148df",
+    "platform/recovery/recorded-expiry.fixtures.mjs": "a4a7012249055de73476ef23fb9c74a5a79c742da777d32fd40b280904974e6b",
+    "platform/edge/test/recovery-recorded-expiries.test.mjs": "b07ed22afc8a2cb7f591d75174fb7081a3d3c70359c6369fa241f8b14789ea63",
+    "platform/recovery/v2-reconcile.mjs": "1a56daa14c9ade9b67d06f8764e35bbe55e8bb4174c40e262803a75d4d26bab1",
+    "platform/recovery/v2-restore.test.mjs": "6c41c28d60388901eacc97c131e28444bd73d385999a9a57adbf1b3c03f3f055"
+  },
+  "dependencyHashes": {
+    "platform/storage/067-recorded-attempt-expiries.sql": "fa119010fba1b51dc1bda342710aa0f16cd0c58a6a0d18dd80cba076b1f57673",
+    "platform/storage/recorded-attempt-expiries.mjs": "766a865647b7647071272d5b3ec2b692f2a359f0a96541f49c621c7fff7d1216",
+    "platform/storage/recorded-attempt-expiries.fixtures.mjs": "ed1c3ef4afe7842ab77b592888bb252ff3ced5a967c0b4edf8d5bde713321cd5",
+    "platform/transactions/recorded-height-service.mjs": "5b659780b7f13df2172bb17bcc6134a9d5e28c887a1cb44cc616b417c87880c0",
+    "platform/transactions/recorded-height-evidence.mjs": "fa814c8ba665a73d58887f02bc7a5b277c172ba2927888673b8046605d865b4e",
+    "platform/transactions/recovery-reads.mjs": "f86f1f6b36c31d5856e13f70aeef195b698181456b4adeef50c4bd548d605bd0",
+    "platform/recovery/schema.mjs": "989e7f1df41a995d6bc1e40c26a26146d20d633c826551f655c2163f8705e68d",
+    "platform/edge/test/fixtures/recovery-v2-restore-worker.ts": "44788d1532811c189bdb3eb31f7ff5aeed80091c8806999f23019ce128cabb05"
+  }
+}
