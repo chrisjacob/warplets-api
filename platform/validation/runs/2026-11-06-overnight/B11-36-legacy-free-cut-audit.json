@@ -1,0 +1,124 @@
+{
+  "checkpoint": "B11-36",
+  "title": "Continued exact legacy Season free-cut preimage and wallet projection audit",
+  "status": "partial-private-preimage-only-no-adoption-authority",
+  "lastConfirmedBaseCommit": "2414b2c14ee4f5db281b214f132cbdc09639727e",
+  "implementationCommit": null,
+  "source": "synthetic-actual-legacy-snapshots-and035fixed-lists",
+  "financialExecution": false,
+  "applicationActivation": false,
+  "schemaChanges": false,
+  "packageChanges": false,
+  "sharedChanges": false,
+  "checks": [
+    {
+      "command": "node --test platform/collect/legacy-free-cut-audit.test.mjs",
+      "passed": 11,
+      "failed": 0,
+      "durationMs": 7369.9078,
+      "log": "work/b11-legacy-free-cut-audit-node.log"
+    },
+    {
+      "command": "node --test platform/edge/test/legacy-free-cut-audit.test.mjs",
+      "passed": 1,
+      "failed": 0,
+      "durationMs": 100596.8086,
+      "log": "work/b11-legacy-free-cut-audit-edge.log"
+    },
+    {
+      "command": "node platform/edge/node_modules/typescript/bin/tsc --noEmit -p platform/edge/tsconfig.json",
+      "result": "pass",
+      "log": "work/b11-legacy-free-cut-audit-types.log"
+    },
+    {
+      "command": "7ownedfiles LF/trailing-whitespace check",
+      "result": "pass"
+    }
+  ],
+  "metrics": {
+    "nodeMaximum": {
+      "holdings": 10000,
+      "wallets": 10000,
+      "steps": 602,
+      "maxWorkingBytes": 243391,
+      "maxOperations": 34,
+      "maxCheckpointBytes": 7683,
+      "totalReads": 10803,
+      "durationMs": 4362.2458
+    },
+    "largeIgnoredJson": {
+      "rawPageBytes": 60203,
+      "steps": 4,
+      "maxWorkingBytes": 640556,
+      "maxOperations": 3,
+      "maxCheckpointBytes": 1343,
+      "totalReads": 7
+    },
+    "actualD1": {
+      "holdings": 10000,
+      "eligibleWallets": 10000,
+      "steps": 602,
+      "maxSql": 35,
+      "maxStorageOperations": 35,
+      "maxWorkingBytes": 244303,
+      "maxReturnedBytes": 9246,
+      "maxCheckpointBytes": 7984,
+      "continuedAuditElapsedMs": 52592.7713,
+      "freshPinnedHashEachInvocation": true,
+      "watermarkUnchanged": true
+    }
+  },
+  "bounds": {
+    "holdings": 10000,
+    "holdingsPerPage": 100,
+    "membershipsPerStep": 32,
+    "operationsPerStep": 64,
+    "checkpointBytes": 16384,
+    "workingBytes": 1048576,
+    "rawPageBytes": 65536,
+    "sourceRootBytes": 131072,
+    "manifestBytes": 32768,
+    "listBytes": 16384,
+    "listPageBytes": 8192,
+    "bitmapBytesAtMaximum": 1250,
+    "legacyTranscriptBytes": 33554432
+  },
+  "verified": [
+    "Exact legacy JSON.stringify tuple and fixed holding-field insertion order, original null defaults and ignored nested JSON order",
+    "Actual legacy freezeSeasonSnapshot digest compared with completed continued hash",
+    "Original Season free-stage opening and immutable035list binding",
+    "Empty cuts, scalar-compatible047pages and explicit distinction between paged content IDs and old flat digest",
+    "Full target-list canonical/order/digest verification followed by sequential same-content-ID positional membership proofs",
+    "Bitmap deduplicates wallets across pages and requires complete equality with fixed list",
+    "Missing transcripts/records/locators, incorrect opening/digest/locator, changed raw bytes and extra fixed-list wallet hold",
+    "Captured input and locator mutation across await cannot alter accepted transcript",
+    "Interrupted prior prefix replay produces identical continuation; actualR2 corruption held and restored page restart succeeds",
+    "Maximum10k full602step Node/workerd parity with pinned SHA recreated each invocation, actualD1records/eligibility indices and actualR2originalpages",
+    "No writes during audit and no public route"
+  ],
+  "limitations": [
+    "This pure component verifies original preimage and wallet projection only. It does not verify known local asset completeness, historical ownership, original finality, ingestion authenticity or chain/payment provenance. It deliberately cannot issue authoritative31freeCutAudit.",
+    "Checkpoint checksum and structural SHA state do not prove reachability. A future private guarded repository must retain only its own committed prefixes and fence source generation/revision, snapshot/list/transcript identities and cursor around every step.",
+    "Original ignored JSON may exceed64KiB per100holdingpage. Such historically valid originals remain an explicit compatibility hold; no rewritten legacy preimage or enlarged active047limit is accepted.",
+    "Lookup positions are untrusted and verified against content-addressed list pages. Concrete lookup query-plan cost and durable source fencing remain a later repository task.",
+    "Working metrics conservatively account serialized copies, buffers, checkpoint, metadata and bitmap; they are not engine heap measurements.",
+    "The actualD1test uses offline fixture setup to copy legacy headers and staged receipts. This does not authorize runtime unbounded ingestion or create045/046admission receipts."
+  ],
+  "sourceHashes": {
+    "platform/collect/legacy-free-cut-audit.mjs": "8370c016e3f1a85330e6332581d6b281f61f0938477ae145d81ef754b415cdb1",
+    "platform/collect/legacy-free-cut-audit.d.mts": "39cf311f0b9321e79bd655dee4ce3d8ff534670e8a3e761e60fdd3a7e5faaf38",
+    "platform/collect/legacy-free-cut-audit.fixtures.mjs": "1ab41193d4761e91c3c6c33f0d443126be8b84f492c32448aea2958a76a20187",
+    "platform/collect/legacy-free-cut-audit.test.mjs": "a964afbafd93323a10b24e8c101054837198a28888eac2b758e394a04208c328",
+    "platform/collect/LEGACY_FREE_CUT_AUDIT.md": "be3919e558d3c59399b0278a7f8bf2dc3a3f70ae3ce5150036f22de7abff494f",
+    "platform/edge/test/legacy-free-cut-audit.test.mjs": "abb849705411ce563c5840244131fab87c9e88ba3d852aae237f65e4658ec3f6",
+    "platform/edge/test/fixtures/legacy-free-cut-audit-worker.ts": "dae4910a1cf852e2e3489ed576d29ec8cdb5afa18898e8c6a41ba5e1100bc3a8"
+  },
+  "reusedDependencyHashes": {
+    "platform/collect/store.mjs": "373b43aa4ec8338b9b7912652d9c719891577de460f4752462a6310d271dd014",
+    "platform/domain/collections/policy.mjs": "c4c6840278f35334df286f5d040e6c2827d49ff8b4365585e13992051f760ca1",
+    "platform/collect/source-intake.mjs": "7d1b975db02032bacba704742c2416a2dad7d1761f4da89c656ead556cf15a3c",
+    "platform/collect/free-cut-codec.mjs": "fb2ef03587c789473d84fec6687195da947925b86e07054c17d7690df2339001",
+    "platform/collect/legacy-audit-hash.mjs": "078ac51a1b9df3b6e5fbe762b7ee1222c777bc383917ac27541a84e46a8083a2",
+    "platform/collect/legacy-state-audit.fixtures.mjs": "1f34c91ad90dc7e01f5db20e57c63fc963ebef40fa9f79e0e2c90c05c4528458"
+  }
+}
