@@ -1,3 +1,9 @@
+Guide draft: outputs/10X_MEME_User_Guide.pdf and .html under currentchat directory;16pages/9actualfixture screenshots, allpages visuallychecked. Generator work/user-guide/build.py in currentchat directory. Agentuser_guide can update finalstatus afterB18/B20. Independentbounded B19 review foundnoactionableissue; no runtime rerunclaimed.
+
+# Active integration runs
+
+CombinedB17/B19CI42314862967 at ee02bbd36cbf257e0cb81a2e4485e5cc93710a66 is inprogress; logwork/ci-42314862967.log. Localfullreference session27197/logwork/b17-b19-full-reference.log runningunrestricted afterWindowsrelative-pathfix. No newmarkeruntilCIends. GuideagentperformingboundedB19review, noedits. Usercap50%,last4%.
+
 # Current: repaired B17 plus B19 integration
 
 PriorB17CI42308923046 FAILED18/1190: earlymissingbeacon dependency, staleprivacy/count assertions, isolatedrefreshprerequisite and oversized fabricatedlegacycheckpoint. Allfixes pass49focusedtests (22fairness,23schema,4recovery). Exact128KiB cap preserved: genuinelegacy129623Bfullready; modernpending130107Bfullready. Frozenbeaconinstall movedbefore reference; no versionchange. Windowsrunner nowrelativepaths (old ENAMETOOLONG), fullsuite requires unrestrictedtempfilesystem (7artifacttestspass; sandboxhardlinksreturnedunknown). Earlierfullruns aborted; no fullpassclaimed.
