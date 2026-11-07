@@ -1,5 +1,25 @@
 # Local pilot load and cost gate
 
+## B20 full-profile attempted load
+
+Run `node platform/performance/earn-load.mjs --full` for the original one-campaign case, ten-campaign case and reduced-staffing case. Acceptance runs with `node --test platform/performance/earn-load.test.mjs`; setting `B20_LOAD_EVIDENCE=work/b20-load-results.json` saves measured JSON. The November 7, 2026 Node 24.22.1 Windows run passed one integrated test covering all 3,000 HTTP attempts in 15,412.9003 ms.
+
+| Campaigns | Total distinct contributors / attempts | Staffed minutes | Accepted / refused | Local HTTP p95 ms | Aggregate export bytes | Sampled process RSS peak bytes |
+|---:|---:|---:|---:|---:|---:|---:|
+| 1 | 1,000 | 300 | 100 / 900 | 18.935 | 28,451 | 158,892,032 |
+| 10 | 1,000 | 300 | 100 / 900 | 17.605 | 80,747 | 204,738,560 |
+| 10 | 1,000 | 60 | 20 / 980 | 4.421 | 19,547 | 185,180,160 |
+
+The ten-campaign cases distribute 100 attempts per campaign, not 1,000 each. The global board cap remains 100; the staffed cap uses three minutes per review. Ten campaigns therefore admit ten posts each, or two each at 60 staffed minutes. Each scenario exports one global board and one allocation per campaign. Missing source completeness holds the board before successful finalization. All responses are checked: expected capacity refusals are counted, unexpected errors fail the run.
+
+The original harness required explicit staffing seeding to remain compatible with the current fail-closed admission policy. This is a synthetic policy configuration, not a relaxed limit. Ten distinct Sydney launch dates span eight days and two hours: the first two cross Sydney midnight within one UTC date, then subsequent launches occur daily. Original activation timestamps are retained; allocation days remain within the existing 1–10 policy. This deliberately synthetic timing does not select launch hours or resolve the separate day-eleven release-ratification gate.
+
+Measured admission maxima were 30 SQL statements and ten returned rows per request in all three scenarios; tested query plans use indexed searches. Tests bound admission to 50 statements/30 returned rows, each allocation artifact below 64 KiB and the aggregate below 1 MiB. SQL counters observe the SQLite/JavaScript boundary, not D1 billing. Memory is sampled after each request and phase, includes the process and prior scenario allocations, and may miss transient allocation peaks. Fixture setup, review setup and settlement timings remain separately reported. Hypothetical source sharing now accounts for four shared closing sources per active campaign: 640 logical reads for 100 accepted posts across ten campaigns, versus 604 for one campaign. Actual provider calls remain zero.
+
+This harness measures the applicable Node SQLite loopback adapter. Actual workerd/D1 parity and recovery are separate hosted-core evidence; no 1,000-attempt D1 load or geographic p95 is claimed. Machine refusal throughput is not staffed moderation throughput, physical-wallet compatibility or production financial approval. Exact machine results are in `work/b20-load-results.json` and test output in `work/b20-load-test.log` for integration capture.
+
+## Historical pilot measurements
+
 These measurements check whether admission limits, idempotency and published awards hold as demand grows. They do not establish a paid-provider capacity or price. Results were measured on Windows, Node 22.22.3, with a single process serving real HTTP over loopback and an in-memory SQLite database. Every account, token and balance was synthetic.
 
 Run from the repository root:

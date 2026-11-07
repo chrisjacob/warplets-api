@@ -1,0 +1,305 @@
+{
+  "format": "10x.b20.journey-evidence.v1",
+  "recordedAtMs": 1794013774008,
+  "head": "df67809c9ee6c61a17994830dd6876f72178d479",
+  "status": "bounded-journey-review-passed",
+  "fullB20Status": "pending-load-traceability-and-final-CI",
+  "financialExecution": false,
+  "newTestsAuthored": false,
+  "rerunReason": "Earlier fairness UI source hash pins predated later combined changes. Refresh27/27andcost3/3sourcehashesunchanged;reuseexistingpassedruns.",
+  "checks": [
+    {
+      "command": "node platform/site/tests/fairness-runtime-qa.mjs",
+      "exitCode": 0,
+      "viewportProfiles": 4
+    },
+    {
+      "command": "node platform/site/tests/fairness-progression-runtime-qa.mjs",
+      "exitCode": 0,
+      "operationProfiles": 2
+    }
+  ],
+  "reusedCI": {
+    "runId": 42314862967,
+    "head": "ee02bbd36cbf257e0cb81a2e4485e5cc93710a66",
+    "passed": 1420,
+    "failed": 0
+  },
+  "limitations": [
+    "Synthetic local evidence only;physicalwallet/provider/marketplace/fundedchainexecution manual releasegates",
+    "Evidence scopesareseparate;notonefinancialendtoendtransaction",
+    "CurrentfinalCI andA01-A58traceabilityownedbycoordinator"
+  ],
+  "journeys": [
+    {
+      "id": "collection-stage-free-eligibility-bound-progression",
+      "evidence": [
+        "work/b18-browser/browser-qa.log",
+        "platform/validation/runs/2026-11-06-overnight/B17-B19-ci.json"
+      ],
+      "assertions": [
+        "Collection fixed-cut eligibility and100assetbound, expired pair reactivation, paginated material selection, stale pair holds at360/390/768/1440",
+        "CI stage/free publication, exactbound quote/fulfillment tests"
+      ],
+      "sources": [
+        "platform/site/tests/collections-qa.mjs",
+        "platform/site/tests/collection-edges-qa.mjs",
+        "platform/collect/stage-plan.test.mjs",
+        "platform/collect/fulfillment-plan.test.mjs"
+      ]
+    },
+    {
+      "id": "operation-recovery-and-private-identity",
+      "evidence": [
+        "work/b18-browser/wallet-evidence.json",
+        "work/b18-browser/browser-qa.log"
+      ],
+      "assertions": [
+        "Original receipt survives expiry/logout/relogin withsameintent andzeroattempts",
+        "Cross-owner receipt rejection and cacheclearing onoffline return/sessionloss"
+      ],
+      "sources": [
+        "platform/site/tests/standard-wallet.mjs"
+      ]
+    },
+    {
+      "id": "operator-notices-budget-stops",
+      "evidence": [
+        "platform/validation/runs/2026-11-06-overnight/B17-B19-ci.json",
+        "work/b18-browser/browser-qa.log",
+        "work/b16-cost-ui-requirements-evidence.json"
+      ],
+      "assertions": [
+        "Separate scoped operator sessions and auditedwrites",
+        "Notices enable/revoke and originalreceipt retained",
+        "Warning/hardbudget holds onlyoptionalnewwork; replay/claimsaccess retained"
+      ],
+      "sources": [
+        "platform/operator/console.test.mjs",
+        "platform/operations/controls.test.mjs",
+        "platform/notifications/notices.test.mjs"
+      ]
+    },
+    {
+      "id": "quotes-unsigned-plans-cost-gaps",
+      "evidence": [
+        "work/b18-browser/browser-qa.log",
+        "platform/validation/runs/2026-11-06-overnight/B17-B19-ci.json",
+        "work/b16-cost-ui-requirements-evidence.json"
+      ],
+      "assertions": [
+        "Both quote directions precisionfeesFDVslippage andunavailable runtime gating",
+        "Retained quote creates immutable unsigned economicplan without wire/businesswrites",
+        "Unknown fundingrequirements remainunknown andno paymentcontrols"
+      ],
+      "sources": [
+        "platform/site/tests/quote-qa.mjs",
+        "platform/transactions/swap-plan-service.test.mjs",
+        "platform/operator/cost-readiness-browser-qa.mjs"
+      ]
+    },
+    {
+      "id": "concealed-fairness-and-progression",
+      "evidence": [
+        "work/b20-fairness-browser.log",
+        "work/b20-progression-browser.log"
+      ],
+      "assertions": [
+        "Actual React/Node API concealedselected/prefixreveal atfourwidths",
+        "Upgrade andvisual at390 preserve nullableconcealed fields, independent receiptrefresh andwithheldtime"
+      ],
+      "sources": [
+        "platform/site/tests/fairness-runtime-qa.mjs",
+        "platform/site/tests/fairness-progression-runtime-qa.mjs"
+      ]
+    },
+    {
+      "id": "metadata-proposals-and-refresh",
+      "evidence": [
+        "work/b17-refresh-owner-http-ui-evidence.json",
+        "platform/validation/runs/2026-11-06-overnight/B17-B19-ci.json"
+      ],
+      "assertions": [
+        "All27recorded sourcehashes unchanged",
+        "Ownerproposal exactrevision/review/receiptidentity andno paidgeneration/signing controls"
+      ],
+      "sources": [
+        "platform/site/tests/refresh-runtime-qa.mjs",
+        "platform/nfts/refresh-owner-http.test.mjs"
+      ]
+    },
+    {
+      "id": "portable-vault-exports-and-recovery",
+      "evidence": [
+        "platform/validation/runs/2026-11-06-overnight/B19-acceptance.json",
+        "platform/validation/runs/2026-11-06-overnight/B17-B19-ci.json"
+      ],
+      "assertions": [
+        "Fullindependentlypinnedrestore185objects1149steps129652Bpeakcheckpoint",
+        "Unminted liability, cumulativeclaims, transfer andSeasonexpiry retained",
+        "Component/indexverification doesnotassertfullgraphauthentication"
+      ],
+      "sources": [
+        "platform/vault/recovery.test.mjs",
+        "platform/vault/archive-index.test.mjs"
+      ]
+    },
+    {
+      "id": "hosted-core",
+      "evidence": [
+        "platform/validation/runs/2026-11-06-overnight/B20-core.json",
+        "platform/validation/runs/2026-11-06-overnight/B17-B19-ci.json"
+      ],
+      "assertions": [
+        "Existing synthetic loopback browserworkerd/D1/R2 core retained;1420CIincludesverticalslice andEarn recoverydrill",
+        "No fullcore rerun warranted byB18testonlychanges"
+      ],
+      "sources": [
+        "platform/scripts/rehearse-hosted-slice.mjs",
+        "platform/recovery/integrated-rehearsal.mjs"
+      ]
+    }
+  ],
+  "files": [
+    {
+      "path": "work/b18-browser/browser-qa.log",
+      "sha256": "5f798d960da4d61e569d00449a41b99c5cbc0f3cfbbe04fef91f9747bb5a6120",
+      "bytes": 4896
+    },
+    {
+      "path": "platform/validation/runs/2026-11-06-overnight/B17-B19-ci.json",
+      "sha256": "d09672ac72e22df02b7da38107816c1f28f1d9834deb1eac775d822bc782f6ca",
+      "bytes": 796
+    },
+    {
+      "path": "platform/site/tests/collections-qa.mjs",
+      "sha256": "79522a5cab8aebb5b6c275be48628458692826d825f8701c6bef0fc22a187694",
+      "bytes": 3796
+    },
+    {
+      "path": "platform/site/tests/collection-edges-qa.mjs",
+      "sha256": "c2caa4f10f892ac71cfbe5bfdd14314a7d7aae2e053dc65844eb6ce3996d2710",
+      "bytes": 10968
+    },
+    {
+      "path": "platform/collect/stage-plan.test.mjs",
+      "sha256": "6dec8ca340aea716289c93eaaf0770af9661fdc3c5391e2b9ca9aab732cfd250",
+      "bytes": 7325
+    },
+    {
+      "path": "platform/collect/fulfillment-plan.test.mjs",
+      "sha256": "e858402026d24a29556e3a9a0bedad19d343efd5dd828af43720959c813e0d05",
+      "bytes": 8868
+    },
+    {
+      "path": "work/b18-browser/wallet-evidence.json",
+      "sha256": "1ebfdda304cfe310eb68af823dbc3d8e95fd39092352e0cc2750b930290e92b3",
+      "bytes": 1306
+    },
+    {
+      "path": "platform/site/tests/standard-wallet.mjs",
+      "sha256": "377adbdd46677dbb6dec51f45246b06a8c84db39773eca88c5aeba0967eac2a7",
+      "bytes": 19477
+    },
+    {
+      "path": "work/b16-cost-ui-requirements-evidence.json",
+      "sha256": "9a41ae4d899a1250119ec9d790e51f9bfc4a835b1e6134a3adffd571d328da46",
+      "bytes": 1973
+    },
+    {
+      "path": "platform/operator/console.test.mjs",
+      "sha256": "5b26e5fa2ce56c5accdd354f4debe1dee24557db33e7de52e855671c283115af",
+      "bytes": 10746
+    },
+    {
+      "path": "platform/operations/controls.test.mjs",
+      "sha256": "ac387514922ea5554570389f2adcfb64cd35a756456d06d15a55cc04ff33b04c",
+      "bytes": 6368
+    },
+    {
+      "path": "platform/notifications/notices.test.mjs",
+      "sha256": "c88c2a2929ee7601502d9c458b2c8432baf3b049452faa04140b3edcbd6e8815",
+      "bytes": 7419
+    },
+    {
+      "path": "platform/site/tests/quote-qa.mjs",
+      "sha256": "0b96cc8e6d7b5a5dfcb33b7a64ad04ac8efaefe6e72dbe751d2fcdbb80729128",
+      "bytes": 2082
+    },
+    {
+      "path": "platform/transactions/swap-plan-service.test.mjs",
+      "sha256": "44d19e0e196e1fce1c69641f43449b12e38862561a0b5ee82dcef767b3e4c8cf",
+      "bytes": 4803
+    },
+    {
+      "path": "platform/operator/cost-readiness-browser-qa.mjs",
+      "sha256": "cecdc13d184ee97e06eea3eecb788a3b39b3d4405f2e258e9ca4f22a89ae23ee",
+      "bytes": 9837
+    },
+    {
+      "path": "work/b20-fairness-browser.log",
+      "sha256": "6a321616ed725eb32eee65b6018b79a8daac57ef03bcc794cabc37ad7f9894ff",
+      "bytes": 1134
+    },
+    {
+      "path": "work/b20-progression-browser.log",
+      "sha256": "9b9292b9c4514429088c2f3b11f0711c7a44f32dd01c646afbfcb1273001c0e1",
+      "bytes": 574
+    },
+    {
+      "path": "platform/site/tests/fairness-runtime-qa.mjs",
+      "sha256": "1172c9b1ab765667e09291a85368730d9fac04f8fe8d246487f10f1152b6a48f",
+      "bytes": 8292
+    },
+    {
+      "path": "platform/site/tests/fairness-progression-runtime-qa.mjs",
+      "sha256": "f4d64233c959abe620fa6aea6fb11af9a3432e3f790896fe1e351d3cceb245b5",
+      "bytes": 4181
+    },
+    {
+      "path": "work/b17-refresh-owner-http-ui-evidence.json",
+      "sha256": "45b64f99707783a9f4691d7491c0d27abc579061ea0ebfa5ab762f18d3dadda8",
+      "bytes": 7425
+    },
+    {
+      "path": "platform/site/tests/refresh-runtime-qa.mjs",
+      "sha256": "ac92e7803c18adbd6da4c5b78a8282821647247d900c231cb8e12d31ef05efbf",
+      "bytes": 6946
+    },
+    {
+      "path": "platform/nfts/refresh-owner-http.test.mjs",
+      "sha256": "0d48a66d6bb91e67c929a1703e348d0f3325e662e35d35b610684cbe59761d33",
+      "bytes": 4137
+    },
+    {
+      "path": "platform/validation/runs/2026-11-06-overnight/B19-acceptance.json",
+      "sha256": "f9c5360898ef12ae783fed62cfd526ab1d12a9ef3f1a15a5a64ad33ec08146aa",
+      "bytes": 2702
+    },
+    {
+      "path": "platform/vault/recovery.test.mjs",
+      "sha256": "4e8a685287646b6e5e2716391c2d8b6cc878e95c4a45dc0358b2c7302640c480",
+      "bytes": 5882
+    },
+    {
+      "path": "platform/vault/archive-index.test.mjs",
+      "sha256": "e5288259b4a8ad074f2232c80e30420c91702bfb64785cdba3fff49d341b16b3",
+      "bytes": 4533
+    },
+    {
+      "path": "platform/validation/runs/2026-11-06-overnight/B20-core.json",
+      "sha256": "62e534af2631b5fff636a6de3fd93e54cb53c2f6e2aabe7564f17de7e38656d2",
+      "bytes": 11175
+    },
+    {
+      "path": "platform/scripts/rehearse-hosted-slice.mjs",
+      "sha256": "c6eaa2eef3866c0cf8b7c2e65397fb09619b66fcf14b7f4a73502c2c7f64568b",
+      "bytes": 1859
+    },
+    {
+      "path": "platform/recovery/integrated-rehearsal.mjs",
+      "sha256": "c77226c73b640e0188d059559bb9a0de9440805c1ff10a084f34d38ea36c56be",
+      "bytes": 16616
+    }
+  ]
+}

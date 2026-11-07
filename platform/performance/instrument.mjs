@@ -23,10 +23,10 @@ export function percentiles(values) {
   const at=p=>Number(sorted[Math.ceil(sorted.length*p)-1].toFixed(3));
   return {p50:at(0.5),p95:at(0.95),p99:at(0.99)};
 }
-export function logicalBudget(contributors,accepted) {
+export function logicalBudget(contributors,accepted,campaignCount=1) {
   // Five logical source records at admission and closing. At one token's common
   // cutoff, four market records can be shared plus one farm read per position.
-  const unshared=accepted*10, shared=accepted*6+(accepted?4:0);
+  const unshared=accepted*10, shared=accepted*6+Math.min(accepted,campaignCount)*4;
   return {
     assumedMinutesPerReview:3,acceptedReviewHours:accepted*3/60,
     uncappedOnePostHours:contributors*3/60,uncappedTenPostsHours:contributors*10*3/60,

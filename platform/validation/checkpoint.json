@@ -1,5 +1,5 @@
 {
   "policy": "prd-1.2",
   "scope": "local",
-  "checkpoint": "blueprint-b17-b19-repaired-integration"
+  "checkpoint": "blueprint-b20-full-integration"
 }

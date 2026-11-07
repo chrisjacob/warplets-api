@@ -1,0 +1,35 @@
+{
+  "task": "B20-full-load",
+  "command": "node --test platform/performance/earn-load.test.mjs",
+  "tests": 1,
+  "passed": 1,
+  "failed": 0,
+  "durationMs": 15412.9003,
+  "httpAttempts": 3000,
+  "files": [
+    {
+      "path": "platform/performance/earn-load.mjs",
+      "sha256": "cdae8dcc0367dd92703713c9fbcb50423cdcd8057e16b2a74f1181d988d34e60"
+    },
+    {
+      "path": "platform/performance/earn-load.test.mjs",
+      "sha256": "48e458984026cfe14eef162db583b2c9cd5fc6434fe632d74cf5153d0e8e7e91"
+    },
+    {
+      "path": "platform/performance/instrument.mjs",
+      "sha256": "08869b46162b440614506262fe876a61f73b2773c88ca67844f232ccdc961775"
+    },
+    {
+      "path": "platform/performance/README.md",
+      "sha256": "203bd7e9a7a3c054bb62b5648522eee3eb11ee5afdbd09712728f39087982a4f"
+    },
+    {
+      "path": "work/b20-load-results.json",
+      "sha256": "91c12ea52222ac279f88cf956b89657a679078a08a1cb30e980cdcffda0e86f1"
+    },
+    {
+      "path": "work/b20-load-test.log",
+      "sha256": "abd23f034b00bd9e5d44b79138df1e24b973912d0b3af1c6e13d122e2b96d600"
+    }
+  ]
+}

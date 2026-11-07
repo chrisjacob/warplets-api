@@ -1,0 +1,610 @@
+{
+  "recordedAt": "2026-11-07T01:11:21.946Z",
+  "mode": "synthetic-local-node-sqlite-loopback",
+  "node": "v22.22.3",
+  "platform": "win32",
+  "arch": "x64",
+  "scenarios": [
+    {
+      "contributors": 1000,
+      "campaignCount": 1,
+      "campaigns": [
+        {
+          "tokenId": "fixture-ATT",
+          "activationMs": 1728086430000
+        }
+      ],
+      "byCampaign": {
+        "fixture-ATT": {
+          "attempts": 1000,
+          "accepted": 100,
+          "capacity": 900
+        }
+      },
+      "globalAdmissionLimit": 100,
+      "counts": {
+        "accepted": 100,
+        "capacity": 900
+      },
+      "errorStates": {
+        "board_capacity": 900,
+        "incompleteSourceHeld": true,
+        "unexpected": 0
+      },
+      "maxIngressRequest": {
+        "statements": 30,
+        "rowsReturned": 10,
+        "rowsChanged": 3
+      },
+      "memory": {
+        "baseline": {
+          "rss": 57835520,
+          "heapTotal": 19763200,
+          "heapUsed": 11727200,
+          "external": 4294103,
+          "arrayBuffers": 84550
+        },
+        "sampledPeak": {
+          "rss": 158892032,
+          "heapTotal": 72413184,
+          "heapUsed": 52176560,
+          "external": 4466217,
+          "arrayBuffers": 477659
+        },
+        "samples": 1003
+      },
+      "adapter": "node-sqlite-loopback",
+      "financialExecution": false,
+      "providerCalls": 0,
+      "artifactBytes": {
+        "aggregate": 28451,
+        "allocations": [
+          {
+            "tokenId": "fixture-ATT",
+            "bytes": 5785
+          }
+        ]
+      },
+      "latencyMs": {
+        "p50": 3.463,
+        "p95": 18.935,
+        "p99": 26.111
+      },
+      "httpElapsedMs": 5438.88,
+      "sequentialRequestsPerSecond": 183.9,
+      "ingressMetrics": {
+        "statements": 19803,
+        "rowsReturned": 8199,
+        "rowsChanged": 300,
+        "sqliteChangedRows": 2000
+      },
+      "fixtureSeedBytes": 491520,
+      "wholeRunDatabaseGrowth": 1093632,
+      "reviewFixtureSetupMs": 76.69,
+      "finalizeAllocateExportMs": 52.77,
+      "settlementMetrics": {
+        "statements": 1227,
+        "rowsReturned": 507,
+        "rowsChanged": 402,
+        "sqliteChangedRows": 1408
+      },
+      "manifestBytes": 28451,
+      "plans": {
+        "session": [
+          "SEARCH sessions USING INDEX sqlite_autoindex_sessions_1 (token_hash=?)"
+        ],
+        "entryEvidence": [
+          "SEARCH price_observations USING INDEX price_checkpoint (wallet=? AND token_id=? AND as_of_ms<?)"
+        ],
+        "idempotency": [
+          "SEARCH earn_submissions USING INDEX sqlite_autoindex_earn_submissions_2 (wallet=? AND request_key=?)"
+        ],
+        "boardCapacity": [
+          "SEARCH earn_admission_counts USING INTEGER PRIMARY KEY (rowid=?)"
+        ],
+        "publicBoard": [
+          "SEARCH earn_boards USING INTEGER PRIMARY KEY (rowid=?)"
+        ],
+        "portfolio": [
+          "SEARCH earn_owner_snapshots USING INDEX sqlite_autoindex_earn_owner_snapshots_1 (epoch=? AND wallet=?)"
+        ],
+        "vestedAwards": [
+          "SEARCH earn_awards USING INDEX earn_awards_by_wallet (wallet=? AND rowid>?)"
+        ]
+      },
+      "budget": {
+        "assumedMinutesPerReview": 3,
+        "acceptedReviewHours": 5,
+        "uncappedOnePostHours": 50,
+        "uncappedTenPostsHours": 500,
+        "independentSourceReads": 1000,
+        "sourceReadsWithSharedClose": 604,
+        "rpcAttemptBudgetIfOneCallPerReadAndOneRetry": 1208,
+        "measuredRpcCalls": 0,
+        "measuredTransfers": 0,
+        "providerUnitPriceUsd": null
+      }
+    },
+    {
+      "contributors": 1000,
+      "campaignCount": 10,
+      "campaigns": [
+        {
+          "tokenId": "fixture-ATT-0",
+          "activationMs": 1728136800000
+        },
+        {
+          "tokenId": "fixture-ATT-1",
+          "activationMs": 1728050400000
+        },
+        {
+          "tokenId": "fixture-ATT-2",
+          "activationMs": 1727964000000
+        },
+        {
+          "tokenId": "fixture-ATT-3",
+          "activationMs": 1727877600000
+        },
+        {
+          "tokenId": "fixture-ATT-4",
+          "activationMs": 1727791200000
+        },
+        {
+          "tokenId": "fixture-ATT-5",
+          "activationMs": 1727704800000
+        },
+        {
+          "tokenId": "fixture-ATT-6",
+          "activationMs": 1727618400000
+        },
+        {
+          "tokenId": "fixture-ATT-7",
+          "activationMs": 1727532000000
+        },
+        {
+          "tokenId": "fixture-ATT-8",
+          "activationMs": 1727445600000
+        },
+        {
+          "tokenId": "fixture-ATT-9",
+          "activationMs": 1727438400000
+        }
+      ],
+      "byCampaign": {
+        "fixture-ATT-0": {
+          "attempts": 100,
+          "accepted": 10,
+          "capacity": 90
+        },
+        "fixture-ATT-1": {
+          "attempts": 100,
+          "accepted": 10,
+          "capacity": 90
+        },
+        "fixture-ATT-2": {
+          "attempts": 100,
+          "accepted": 10,
+          "capacity": 90
+        },
+        "fixture-ATT-3": {
+          "attempts": 100,
+          "accepted": 10,
+          "capacity": 90
+        },
+        "fixture-ATT-4": {
+          "attempts": 100,
+          "accepted": 10,
+          "capacity": 90
+        },
+        "fixture-ATT-5": {
+          "attempts": 100,
+          "accepted": 10,
+          "capacity": 90
+        },
+        "fixture-ATT-6": {
+          "attempts": 100,
+          "accepted": 10,
+          "capacity": 90
+        },
+        "fixture-ATT-7": {
+          "attempts": 100,
+          "accepted": 10,
+          "capacity": 90
+        },
+        "fixture-ATT-8": {
+          "attempts": 100,
+          "accepted": 10,
+          "capacity": 90
+        },
+        "fixture-ATT-9": {
+          "attempts": 100,
+          "accepted": 10,
+          "capacity": 90
+        }
+      },
+      "globalAdmissionLimit": 100,
+      "counts": {
+        "accepted": 100,
+        "capacity": 900
+      },
+      "errorStates": {
+        "board_capacity": 900,
+        "incompleteSourceHeld": true,
+        "unexpected": 0
+      },
+      "maxIngressRequest": {
+        "statements": 30,
+        "rowsReturned": 10,
+        "rowsChanged": 3
+      },
+      "memory": {
+        "baseline": {
+          "rss": 137383936,
+          "heapTotal": 72413184,
+          "heapUsed": 52508016,
+          "external": 4449815,
+          "arrayBuffers": 431099
+        },
+        "sampledPeak": {
+          "rss": 204738560,
+          "heapTotal": 91492352,
+          "heapUsed": 67373072,
+          "external": 4764616,
+          "arrayBuffers": 745900
+        },
+        "samples": 1003
+      },
+      "adapter": "node-sqlite-loopback",
+      "financialExecution": false,
+      "providerCalls": 0,
+      "artifactBytes": {
+        "aggregate": 80747,
+        "allocations": [
+          {
+            "tokenId": "fixture-ATT-0",
+            "bytes": 5787
+          },
+          {
+            "tokenId": "fixture-ATT-1",
+            "bytes": 5787
+          },
+          {
+            "tokenId": "fixture-ATT-2",
+            "bytes": 5787
+          },
+          {
+            "tokenId": "fixture-ATT-3",
+            "bytes": 5787
+          },
+          {
+            "tokenId": "fixture-ATT-4",
+            "bytes": 5787
+          },
+          {
+            "tokenId": "fixture-ATT-5",
+            "bytes": 5787
+          },
+          {
+            "tokenId": "fixture-ATT-6",
+            "bytes": 5787
+          },
+          {
+            "tokenId": "fixture-ATT-7",
+            "bytes": 5787
+          },
+          {
+            "tokenId": "fixture-ATT-8",
+            "bytes": 5788
+          },
+          {
+            "tokenId": "fixture-ATT-9",
+            "bytes": 5788
+          }
+        ]
+      },
+      "latencyMs": {
+        "p50": 2.69,
+        "p95": 17.605,
+        "p99": 20.18
+      },
+      "httpElapsedMs": 4596.28,
+      "sequentialRequestsPerSecond": 217.6,
+      "ingressMetrics": {
+        "statements": 19803,
+        "rowsReturned": 8199,
+        "rowsChanged": 300,
+        "sqliteChangedRows": 2000
+      },
+      "fixtureSeedBytes": 499712,
+      "wholeRunDatabaseGrowth": 1224704,
+      "reviewFixtureSetupMs": 81.84,
+      "finalizeAllocateExportMs": 96.86,
+      "settlementMetrics": {
+        "statements": 2199,
+        "rowsReturned": 1452,
+        "rowsChanged": 1311,
+        "sqliteChangedRows": 5044
+      },
+      "manifestBytes": 80747,
+      "plans": {
+        "session": [
+          "SEARCH sessions USING INDEX sqlite_autoindex_sessions_1 (token_hash=?)"
+        ],
+        "entryEvidence": [
+          "SEARCH price_observations USING INDEX price_checkpoint (wallet=? AND token_id=? AND as_of_ms<?)"
+        ],
+        "idempotency": [
+          "SEARCH earn_submissions USING INDEX sqlite_autoindex_earn_submissions_2 (wallet=? AND request_key=?)"
+        ],
+        "boardCapacity": [
+          "SEARCH earn_admission_counts USING INTEGER PRIMARY KEY (rowid=?)"
+        ],
+        "publicBoard": [
+          "SEARCH earn_boards USING INTEGER PRIMARY KEY (rowid=?)"
+        ],
+        "portfolio": [
+          "SEARCH earn_owner_snapshots USING INDEX sqlite_autoindex_earn_owner_snapshots_1 (epoch=? AND wallet=?)"
+        ],
+        "vestedAwards": [
+          "SEARCH earn_awards USING INDEX earn_awards_by_wallet (wallet=? AND rowid>?)"
+        ]
+      },
+      "budget": {
+        "assumedMinutesPerReview": 3,
+        "acceptedReviewHours": 5,
+        "uncappedOnePostHours": 50,
+        "uncappedTenPostsHours": 500,
+        "independentSourceReads": 1000,
+        "sourceReadsWithSharedClose": 640,
+        "rpcAttemptBudgetIfOneCallPerReadAndOneRetry": 1280,
+        "measuredRpcCalls": 0,
+        "measuredTransfers": 0,
+        "providerUnitPriceUsd": null
+      }
+    },
+    {
+      "contributors": 1000,
+      "campaignCount": 10,
+      "campaigns": [
+        {
+          "tokenId": "fixture-ATT-0",
+          "activationMs": 1728136800000
+        },
+        {
+          "tokenId": "fixture-ATT-1",
+          "activationMs": 1728050400000
+        },
+        {
+          "tokenId": "fixture-ATT-2",
+          "activationMs": 1727964000000
+        },
+        {
+          "tokenId": "fixture-ATT-3",
+          "activationMs": 1727877600000
+        },
+        {
+          "tokenId": "fixture-ATT-4",
+          "activationMs": 1727791200000
+        },
+        {
+          "tokenId": "fixture-ATT-5",
+          "activationMs": 1727704800000
+        },
+        {
+          "tokenId": "fixture-ATT-6",
+          "activationMs": 1727618400000
+        },
+        {
+          "tokenId": "fixture-ATT-7",
+          "activationMs": 1727532000000
+        },
+        {
+          "tokenId": "fixture-ATT-8",
+          "activationMs": 1727445600000
+        },
+        {
+          "tokenId": "fixture-ATT-9",
+          "activationMs": 1727438400000
+        }
+      ],
+      "byCampaign": {
+        "fixture-ATT-0": {
+          "attempts": 100,
+          "accepted": 2,
+          "capacity": 98
+        },
+        "fixture-ATT-1": {
+          "attempts": 100,
+          "accepted": 2,
+          "capacity": 98
+        },
+        "fixture-ATT-2": {
+          "attempts": 100,
+          "accepted": 2,
+          "capacity": 98
+        },
+        "fixture-ATT-3": {
+          "attempts": 100,
+          "accepted": 2,
+          "capacity": 98
+        },
+        "fixture-ATT-4": {
+          "attempts": 100,
+          "accepted": 2,
+          "capacity": 98
+        },
+        "fixture-ATT-5": {
+          "attempts": 100,
+          "accepted": 2,
+          "capacity": 98
+        },
+        "fixture-ATT-6": {
+          "attempts": 100,
+          "accepted": 2,
+          "capacity": 98
+        },
+        "fixture-ATT-7": {
+          "attempts": 100,
+          "accepted": 2,
+          "capacity": 98
+        },
+        "fixture-ATT-8": {
+          "attempts": 100,
+          "accepted": 2,
+          "capacity": 98
+        },
+        "fixture-ATT-9": {
+          "attempts": 100,
+          "accepted": 2,
+          "capacity": 98
+        }
+      },
+      "globalAdmissionLimit": 20,
+      "counts": {
+        "accepted": 20,
+        "capacity": 980
+      },
+      "errorStates": {
+        "board_capacity": 980,
+        "incompleteSourceHeld": true,
+        "unexpected": 0
+      },
+      "maxIngressRequest": {
+        "statements": 30,
+        "rowsReturned": 10,
+        "rowsChanged": 3
+      },
+      "memory": {
+        "baseline": {
+          "rss": 145727488,
+          "heapTotal": 65392640,
+          "heapUsed": 30401752,
+          "external": 4369548,
+          "arrayBuffers": 350832
+        },
+        "sampledPeak": {
+          "rss": 185180160,
+          "heapTotal": 96784384,
+          "heapUsed": 73218944,
+          "external": 4560475,
+          "arrayBuffers": 541759
+        },
+        "samples": 1003
+      },
+      "adapter": "node-sqlite-loopback",
+      "financialExecution": false,
+      "providerCalls": 0,
+      "artifactBytes": {
+        "aggregate": 19547,
+        "allocations": [
+          {
+            "tokenId": "fixture-ATT-0",
+            "bytes": 1467
+          },
+          {
+            "tokenId": "fixture-ATT-1",
+            "bytes": 1467
+          },
+          {
+            "tokenId": "fixture-ATT-2",
+            "bytes": 1467
+          },
+          {
+            "tokenId": "fixture-ATT-3",
+            "bytes": 1467
+          },
+          {
+            "tokenId": "fixture-ATT-4",
+            "bytes": 1467
+          },
+          {
+            "tokenId": "fixture-ATT-5",
+            "bytes": 1467
+          },
+          {
+            "tokenId": "fixture-ATT-6",
+            "bytes": 1467
+          },
+          {
+            "tokenId": "fixture-ATT-7",
+            "bytes": 1467
+          },
+          {
+            "tokenId": "fixture-ATT-8",
+            "bytes": 1468
+          },
+          {
+            "tokenId": "fixture-ATT-9",
+            "bytes": 1468
+          }
+        ]
+      },
+      "latencyMs": {
+        "p50": 2.513,
+        "p95": 4.421,
+        "p99": 16.757
+      },
+      "httpElapsedMs": 3192.67,
+      "sequentialRequestsPerSecond": 313.2,
+      "ingressMetrics": {
+        "statements": 19163,
+        "rowsReturned": 8039,
+        "rowsChanged": 60,
+        "sqliteChangedRows": 1200
+      },
+      "fixtureSeedBytes": 266240,
+      "wholeRunDatabaseGrowth": 466944,
+      "reviewFixtureSetupMs": 17.58,
+      "finalizeAllocateExportMs": 26.37,
+      "settlementMetrics": {
+        "statements": 519,
+        "rowsReturned": 332,
+        "rowsChanged": 271,
+        "sqliteChangedRows": 1044
+      },
+      "manifestBytes": 19547,
+      "plans": {
+        "session": [
+          "SEARCH sessions USING INDEX sqlite_autoindex_sessions_1 (token_hash=?)"
+        ],
+        "entryEvidence": [
+          "SEARCH price_observations USING INDEX price_checkpoint (wallet=? AND token_id=? AND as_of_ms<?)"
+        ],
+        "idempotency": [
+          "SEARCH earn_submissions USING INDEX sqlite_autoindex_earn_submissions_2 (wallet=? AND request_key=?)"
+        ],
+        "boardCapacity": [
+          "SEARCH earn_admission_counts USING INTEGER PRIMARY KEY (rowid=?)"
+        ],
+        "publicBoard": [
+          "SEARCH earn_boards USING INTEGER PRIMARY KEY (rowid=?)"
+        ],
+        "portfolio": [
+          "SEARCH earn_owner_snapshots USING INDEX sqlite_autoindex_earn_owner_snapshots_1 (epoch=? AND wallet=?)"
+        ],
+        "vestedAwards": [
+          "SEARCH earn_awards USING INDEX earn_awards_by_wallet (wallet=? AND rowid>?)"
+        ]
+      },
+      "budget": {
+        "assumedMinutesPerReview": 3,
+        "acceptedReviewHours": 1,
+        "uncappedOnePostHours": 50,
+        "uncappedTenPostsHours": 500,
+        "independentSourceReads": 200,
+        "sourceReadsWithSharedClose": 160,
+        "rpcAttemptBudgetIfOneCallPerReadAndOneRetry": 320,
+        "measuredRpcCalls": 0,
+        "measuredTransfers": 0,
+        "providerUnitPriceUsd": null
+      }
+    }
+  ],
+  "limitations": [
+    "Memory is sampled process memory, not an isolated exact allocator high-water mark.",
+    "Returned SQL rows are not D1 billable rows.",
+    "Loopback timing is not geographic p95 or staffed moderation throughput.",
+    "No D1 1000-attempt load performed; separate hosted core verifies actual D1 parity.",
+    "Ten synthetic Sydney dates preserve original clocks and day1\u00e2\u20ac\u201c10 allocation; no launch hour or day11 policy selected."
+  ]
+}

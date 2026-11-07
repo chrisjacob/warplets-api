@@ -4,11 +4,11 @@ Branch: `work/10x-prd-foundation`. Latest pushed checkpoint: `9e8c6040d1b0a666d4
 
 ## Progress and next executable step
 
-B00â€“B17 and B19 are verified. Combined CI [42314862967](https://github.com/chrisjacob/warplets-api/actions/runs/42314862967) passed at `ee02bbd36cbf257e0cb81a2e4485e5cc93710a66`: 1,218 reference + 30 viewer + 3 beacon + 169 Worker/D1/R2 = 1,420 tests, zero failures. Builds, types, generated contracts and recovery drill passed. Exact evidence: B17-B19-ci.json.
+B00–B17 and B19 are verified. Combined CI [42314862967](https://github.com/chrisjacob/warplets-api/actions/runs/42314862967) passed at `ee02bbd36cbf257e0cb81a2e4485e5cc93710a66`: 1,218 reference + 30 viewer + 3 beacon + 169 Worker/D1/R2 = 1,420 tests, zero failures. Builds, types, generated contracts and recovery drill passed. Exact evidence: B17-B19-ci.json.
 
-B18 focused acceptance passed at `7deb2628c0934b469d113d089dc311240ab834cf`: eight pure compatibility tests, 30 site tests, build and complete browser QA including 48 new wallet boundary groups at four widths. Fourteen machine-readable evidence rows preserve physical/marketplace gaps. B18 has no production UI changes. B20-full is now ready; its final combined CI will include B18. Do not repeat core merely because B20 remains in progress.
+B18 focused acceptance passed at `7deb2628c0934b469d113d089dc311240ab834cf`: eight pure compatibility tests, 30 site tests, build and complete browser QA including 48 new wallet boundary groups at four widths. Fourteen machine-readable evidence rows preserve physical/marketplace gaps. B18 has no production UI changes. B20-full local acceptance is complete; final combined CI will include B18, fixture-clock repairs and new load checks. Do not repeat core merely because B20 remains in progress.
 
-Current estimates: 398/411 points implemented, 13 remaining; 390 strictly verified. User stop cap is 50% account usage; latest observed 9%. Final B20 must cover the ten-campaign attempted-load, integrated journeys, traceability, final CI and screenshot guide update. No R-stage work.
+Current estimates: 398/411 points implemented, 13 remaining; 390 strictly verified. User stop cap is 50% account usage; latest observed 9%. Ten-campaign attempted-load, integrated journey review and all58 traceability are complete. Next follow final CI, record exact results, then finalize the guide and mark full profile complete. No R-stage work.
 
 ## Recent validation
 
