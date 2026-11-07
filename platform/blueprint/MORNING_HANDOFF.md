@@ -1,18 +1,18 @@
 # Current implementation handoff
 
-Branch: `work/10x-prd-foundation`. Latest pushed checkpoint: `9e8c6040d1b0a666d49787c93483c38a3ca766e7`. Preserve untracked `work/` scratch. Earlier checkpoint history remains in Git and the task evidence directory; this document describes current state only.
+Branch: `work/10x-prd-foundation`. Latest tested local integration checkpoint: `6e3666dc4ac00e2d642d0cfd2f4412337ae02c22`. Preserve untracked `work/` scratch. Earlier checkpoint history remains in Git and the task evidence directory; this document describes current state only.
 
 ## Progress and next executable step
 
 B00–B17 and B19 are verified. Combined CI [42314862967](https://github.com/chrisjacob/warplets-api/actions/runs/42314862967) passed at `ee02bbd36cbf257e0cb81a2e4485e5cc93710a66`: 1,218 reference + 30 viewer + 3 beacon + 169 Worker/D1/R2 = 1,420 tests, zero failures. Builds, types, generated contracts and recovery drill passed. Exact evidence: B17-B19-ci.json.
 
-B18 focused acceptance passed at `7deb2628c0934b469d113d089dc311240ab834cf`: eight pure compatibility tests, 30 site tests, build and complete browser QA including 48 new wallet boundary groups at four widths. Fourteen machine-readable evidence rows preserve physical/marketplace gaps. B18 has no production UI changes. B20-full local acceptance is complete; final combined CI will include B18, fixture-clock repairs and new load checks. Do not repeat core merely because B20 remains in progress.
+B18 focused acceptance passed at `7deb2628c0934b469d113d089dc311240ab834cf`: eight pure compatibility tests, 30 site tests, build and complete browser QA including 48 new wallet boundary groups at four widths. Fourteen machine-readable evidence rows preserve physical/marketplace gaps. B18 has no production UI changes. B20-full local acceptance is complete; final combined [CI42322879462](https://github.com/chrisjacob/warplets-api/actions/runs/42322879462) at6e3666d includes B18, fixture-clock repairs and new load checks. Watch session65802; log `work/ci-42322879462.log`. Follow to final; do not cancel with another marker. Do not repeat core merely because B20 remains in progress.
 
-Current estimates: 398/411 points implemented, 13 remaining; 390 strictly verified. User stop cap is 50% account usage; latest observed 9%. Ten-campaign attempted-load, integrated journey review and all58 traceability are complete. Next follow final CI, record exact results, then finalize the guide and mark full profile complete. No R-stage work.
+Current estimates: 398/411 points implemented, 13 remaining; 390 strictly verified. User stop cap is 50% account usage; latest observed 12%. Ten-campaign attempted-load, integrated journey review and all58 traceability are complete. Next follow final CI, record exact results, then finalize the guide and mark full profile complete. No R-stage work.
 
 ## Recent validation
 
-The local full reference run at ee02bbd completed 1,218 tests: 1,214 passed and four historical fixture setup failures. This is not a full local pass. Those four failures are repaired in 9e8c604 by sharing the original historical clock across JavaScript and SQL fixture setup. All 21 affected Node tests and two actual Worker/D1 tests pass. No production clock, lease guard or expiry behavior changed. CAST/ROUND diagnostics did not demonstrate a conversion bug. The fixture-only repair is newer than the active CI head.
+The local full reference run at ee02bbd completed 1,218 tests: 1,214 passed and four historical fixture setup failures. This is not a full local pass. Those four failures are repaired in 9e8c604 by sharing the original historical clock across JavaScript and SQL fixture setup. All 21 affected Node tests and two actual Worker/D1 tests pass. No production clock, lease guard or expiry behavior changed. CAST/ROUND diagnostics did not demonstrate a conversion bug. The fixture-only repair is newer than prior CI42314862967 and included in final CI42322879462.
 
 B19 acceptance: 32 focused tests plus actual full private Vault restoration passed. The compact archive index references 15 required tables; full restoration retained 185 objects in 1,149 steps with a 129,652-byte peak checkpoint under the unchanged 131,072-byte bound. Claim history, partial claims through transfer, expired Season history and unminted obligations survive restoration. Public commitments omit private allocation/ownership data. Program Merkle-vector gaps and production custody remain unresolved.
 
