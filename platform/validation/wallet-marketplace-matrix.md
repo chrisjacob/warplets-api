@@ -6,19 +6,19 @@ This matrix describes local software coverage. **No physical wallet or marketpla
 
 | Configuration / feature | Local evidence | Status | Limit |
 |---|---|---|---|
-| Synthetic Wallet Standard provider — discovery/message authentication | Existing browser fixture plus B18 browser acceptance recorded separately by the browser runner | See exact browser evidence record; do not infer physical support | Disposable local message-authentication keys only |
-| Synthetic recorded wallet capability adapter — legacy unsigned packet | B15 `packetRecording` vector and existing `validatePacket` verifier; B18 focused tests | passed-local | Preparation verification only; no signer or broadcaster |
-| Synthetic recorded wallet capability adapter — v0 unsigned packet | Explicit pure decoder-format variation of the same B15 unsigned bytes, with empty lookup vector | passed-local | This is newly derived local format coverage, not a frozen physical-wallet or program-execution result |
+| Synthetic Wallet Standard provider â€” discovery/message authentication | Chromium 156.0.8078.4 / Windows 11 Enterprise 10.0.26200; fixture 1.0.0; 48 boundary groups at four widths | passed-local; physical support unverified | Disposable local message-authentication keys only |
+| Synthetic recorded wallet capability adapter â€” legacy unsigned packet | B15 `packetRecording` vector and existing `validatePacket` verifier; B18 focused tests | passed-local | Preparation verification only; no signer or broadcaster |
+| Synthetic recorded wallet capability adapter â€” v0 unsigned packet | Explicit pure decoder-format variation of the same B15 unsigned bytes, with empty lookup vector | passed-local | This is newly derived local format coverage, not a frozen physical-wallet or program-execution result |
 | Synthetic adapter without required version, account capacity, size or expected signer display | Capability-negative tests | incompatible for unsigned-packet feature | Other features retain their own independent status |
-| Any physical wallet — transaction signing and return | No performed physical-device evidence | manual-required | Exact device/OS/browser/wallet versions and reviewed message required |
-| Candidate Core asset and collection policy — direct private transfer | Existing historical protocol evidence is separately scoped; no physical marketplace run | manual-required | No assumption about plugins, escrow or current-owner claim authority |
-| Unselected venue — listing | No execution evidence | manual-required | No native listing action |
-| Unselected venue — buy/fill | No execution evidence | manual-required | No native purchase action |
-| Unselected venue — cancellation | No execution evidence | manual-required | No native cancellation action |
-| Unselected venue — royalties | Target/enforcement/realized income unknown | untested | Unknown is null, not zero or guaranteed income |
-| Unselected venue — metadata refresh visibility | No observed venue refresh | manual-required | App rehearsal does not prove venue cache behavior |
+| Any physical wallet â€” transaction signing and return | No performed physical-device evidence | manual-required | Exact device/OS/browser/wallet versions and reviewed message required |
+| Candidate Core asset and collection policy â€” direct private transfer | Existing historical protocol evidence is separately scoped; no physical marketplace run | manual-required | No assumption about plugins, escrow or current-owner claim authority |
+| Unselected venue â€” listing | No execution evidence | manual-required | No native listing action |
+| Unselected venue â€” buy/fill | No execution evidence | manual-required | No native purchase action |
+| Unselected venue â€” cancellation | No execution evidence | manual-required | No native cancellation action |
+| Unselected venue â€” royalties | Target/enforcement/realized income unknown | untested | Unknown is null, not zero or guaranteed income |
+| Unselected venue â€” metadata refresh visibility | No observed venue refresh | manual-required | App rehearsal does not prove venue cache behavior |
 
-The browser runner's final record must include exact Chromium/OS versions, date, screenshots, source hashes and command results. Do not turn the first row into a generic wallet-brand support claim. The physical checklist remains unfilled even when every local browser case passes.
+Recorded 7 November 2026 UTC: full browser suite passed, including 48 new wallet boundary groups and 12 screenshots; site tests 30/30 and build passed. Exact versions, source/log/screenshot hashes and commands are retained in `runs/2026-11-06-overnight/B18-browser.json`. The 14-row canonical matrix is `runs/2026-11-06-overnight/B18-matrix.json`, pinned to source commit `7deb2628c0934b469d113d089dc311240ab834cf` and exact source bytes. Do not turn the first row into a generic wallet-brand support claim. The physical checklist remains unfilled even when every local browser case passes.
 
 ## Packet validation scope
 
