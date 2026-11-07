@@ -1,0 +1,47 @@
+{
+  "task": "B18",
+  "scope": "Pure local compatibility matrix, unsigned B15 packet verifier, readonly marketplace descriptors, unperformed physical-device packet",
+  "recordedAtUtc": "2026-11-07T01:04:53.5199509Z",
+  "command": "node --test platform/compatibility/compatibility.test.mjs",
+  "tests": 8,
+  "passed": 8,
+  "failed": 0,
+  "durationMs": 552.2463,
+  "log": "work/b18-compatibility-tests.log",
+  "sourceHashes": [
+    {
+      "path": "platform/compatibility/matrix.mjs",
+      "sha256": "3315e6a3a03a0d932ca7b9742e261354b40a205472342be92b63312197eea3f9"
+    },
+    {
+      "path": "platform/compatibility/harness.mjs",
+      "sha256": "71347bd8da648fe10c35e0d0e7a1443afed02aa622f597eccdaae733939d5794"
+    },
+    {
+      "path": "platform/compatibility/fixtures.mjs",
+      "sha256": "5978153f70f8fbad2ba012d1eb00338e319b4ec02b071159553aebcf233b60a4"
+    },
+    {
+      "path": "platform/compatibility/compatibility.test.mjs",
+      "sha256": "840b1348b5f5b61cba8ce44a5a82fad5fa7558e30d4a02be8d6cd6ca84d11ef0"
+    },
+    {
+      "path": "platform/compatibility/physical-device-checklist.md",
+      "sha256": "e496cabe68e51488c672cfea01895efb35fd2855f9f73a2eaa3c1405ce1c3168"
+    },
+    {
+      "path": "platform/validation/wallet-marketplace-matrix.md",
+      "sha256": "6d387c86d7d409ac2699134843475a161156601812c36c7a611db01bc54c0578"
+    }
+  ],
+  "retainedSourceBlobsVerified": true,
+  "verificationMethod": "git show <recorded commit>:<path> bytes compared with SHA256 pinned in fixtures",
+  "financialExecution": false,
+  "physicalSupportVerified": false,
+  "limitations": [
+    "Browser acceptance pending separate runner evidence",
+    "No physical signing, transfer or marketplace execution verified",
+    "Version 0 is a derived decoder-format variation, not a retained program execution vector",
+    "Current owner claim authority, royalty realization and venue metadata refresh remain unverified"
+  ]
+}

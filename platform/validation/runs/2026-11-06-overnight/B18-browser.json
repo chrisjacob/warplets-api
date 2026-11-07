@@ -1,0 +1,146 @@
+{
+  "recordedAtMs": 1794013550426,
+  "scope": "local-browser synthetic Wallet Standard only",
+  "os": {
+    "release": "10.0.26200",
+    "version": "Windows 11 Enterprise",
+    "type": "Windows_NT",
+    "arch": "x64"
+  },
+  "browser": {
+    "passed": true,
+    "exitCode": 0,
+    "newBoundaryGroups": 12,
+    "viewports": [
+      360,
+      390,
+      768,
+      1440
+    ],
+    "newBoundaryExecutions": 48,
+    "walletScreenshots": 12,
+    "existingSuite": "All existing modules passed; see browser-qa.log"
+  },
+  "playwright": "1.64.1",
+  "node": "v24.22.1",
+  "commands": [
+    "pnpm --dir platform/site test",
+    "pnpm --dir platform/site build",
+    "node platform/site/tests/browser-qa.mjs"
+  ],
+  "siteTests": {
+    "total": 30,
+    "passed": 30,
+    "failed": 0,
+    "durationMs": 11028.0559
+  },
+  "build": {
+    "passed": true,
+    "viteDurationSeconds": 3.8
+  },
+  "financialExecution": false,
+  "files": [
+    {
+      "path": "platform/site/tests/standard-wallet.mjs",
+      "sha256": "377adbdd46677dbb6dec51f45246b06a8c84db39773eca88c5aeba0967eac2a7",
+      "bytes": 19477,
+      "modifiedAtMs": 1794013550316.9568
+    },
+    {
+      "path": "work/b18-browser/browser-qa.log",
+      "sha256": "5f798d960da4d61e569d00449a41b99c5cbc0f3cfbbe04fef91f9747bb5a6120",
+      "bytes": 4896,
+      "modifiedAtMs": 1794013526452.1448
+    },
+    {
+      "path": "work/b18-browser/site-build.log",
+      "sha256": "fa475954ae8ccf15fdd9d436937f9504cb1e91e3ad8ed1ef3f7a74a124e9a053",
+      "bytes": 2202,
+      "modifiedAtMs": 1794013225674.2634
+    },
+    {
+      "path": "work/b18-browser/site-test.log",
+      "sha256": "be37f74a71b625bb0991fd9bf894129fb0f1598f7a25db17c1d44b179af32015",
+      "bytes": 8753,
+      "modifiedAtMs": 1794013214275.1797
+    },
+    {
+      "path": "work/b18-browser/wallet-evidence.json",
+      "sha256": "1ebfdda304cfe310eb68af823dbc3d8e95fd39092352e0cc2750b930290e92b3",
+      "bytes": 1306,
+      "modifiedAtMs": 1794013521550.6167
+    },
+    {
+      "path": "work/b18-browser/wallet-message-1440.png",
+      "sha256": "f6c8c8acdc5121569ffd4971c0d8fd1af410bc85338555e75e1b387d04f1a060",
+      "bytes": 83353,
+      "modifiedAtMs": 1794013519907.3784
+    },
+    {
+      "path": "work/b18-browser/wallet-message-360.png",
+      "sha256": "e6017d247280d34448736d7f04a3cd260933397ba5358e9c2f03fb8852c380d5",
+      "bytes": 51873,
+      "modifiedAtMs": 1794013511861.8818
+    },
+    {
+      "path": "work/b18-browser/wallet-message-390.png",
+      "sha256": "c4851939b37c9a299d477357146f8e952a749785cb3778dabf055379aa60c2fc",
+      "bytes": 51863,
+      "modifiedAtMs": 1794013514551.7473
+    },
+    {
+      "path": "work/b18-browser/wallet-message-768.png",
+      "sha256": "b2949512bbc4359e0e386dff35d5642fd000c6f44039808c2cad11a64cca9d9c",
+      "bytes": 73166,
+      "modifiedAtMs": 1794013517136.2703
+    },
+    {
+      "path": "work/b18-browser/wallet-other-account-1440.png",
+      "sha256": "a9c864e53d2d9772af8ba7f840fabbf161b15fba847961195b184e4edfa13a88",
+      "bytes": 84462,
+      "modifiedAtMs": 1794013521122.304
+    },
+    {
+      "path": "work/b18-browser/wallet-other-account-360.png",
+      "sha256": "b103ef7d9c09b7456ec0a539c060a897213a5bd8d71616e0ba83fb4290110926",
+      "bytes": 48027,
+      "modifiedAtMs": 1794013512964.7136
+    },
+    {
+      "path": "work/b18-browser/wallet-other-account-390.png",
+      "sha256": "c24a441aea1b150ac94dbae009c52f32ec16a778eabcec964232bf8cb67e7f81",
+      "bytes": 46948,
+      "modifiedAtMs": 1794013515636.135
+    },
+    {
+      "path": "work/b18-browser/wallet-other-account-768.png",
+      "sha256": "228e5553f3f5e33d165056222836e7bcdb5ee7a8d1041d31421fe5298d966035",
+      "bytes": 72740,
+      "modifiedAtMs": 1794013518266.5037
+    },
+    {
+      "path": "work/b18-browser/wallet-receipt-1440.png",
+      "sha256": "5d623c4b8361158f4fee3152666107c310d75cf826c9bfa8663e9c1691da9f0a",
+      "bytes": 98138,
+      "modifiedAtMs": 1794013520700.9548
+    },
+    {
+      "path": "work/b18-browser/wallet-receipt-360.png",
+      "sha256": "c2900d282a63f0532819fe7e14d01f6ee46e5a249cc3a6ccde12fbb075c0ad3a",
+      "bytes": 48160,
+      "modifiedAtMs": 1794013512582.6763
+    },
+    {
+      "path": "work/b18-browser/wallet-receipt-390.png",
+      "sha256": "b735b970eeae0fa3ecae2ee0d551a19941ae43e4e51401bf4ac21ba7bb9720d8",
+      "bytes": 48622,
+      "modifiedAtMs": 1794013515258.8708
+    },
+    {
+      "path": "work/b18-browser/wallet-receipt-768.png",
+      "sha256": "c64580e7ce263bc59d83eb4dd0f93ff49691fb1ad1689fac6c7d353d4071f9cd",
+      "bytes": 80949,
+      "modifiedAtMs": 1794013517881.683
+    }
+  ]
+}
