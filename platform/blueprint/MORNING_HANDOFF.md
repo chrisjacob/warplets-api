@@ -1,3 +1,9 @@
+# Current integration status
+
+Combined CI42314862967 is still running at product/test checkpoint ee02bbd36cbf257e0cb81a2e4485e5cc93710a66; watch session45924, log work/ci-42314862967.log. Do not cancel it with another marker. Local full reference session27197 finished:1218 total,1214 passed,4 historical-fixture setup failures,1945877.5355ms. All four are now fixed by shared deterministic historical JS/SQL fixture clocks.21 affected Node tests and2 actual Worker/D1 tests pass. No production clock or guard changed; CAST/ROUND diagnostics did not demonstrate a conversion bug. Evidence B17-clock-fixtures.json. This fixture-only fix is newer than the active CI commit.
+
+Next: follow CI to completion and resolve any failures. B17 and B19 remain locally complete but not yet verified. After integration passes, start B18; B20-full still waits for all prerequisites. No active implementation agents. Guide PDF/HTML is drafted and visually checked; update its final status before delivery. User cap is50% account usage; latest5%. Preserve work/ scratch.
+
 Guide draft: outputs/10X_MEME_User_Guide.pdf and .html under currentchat directory;16pages/9actualfixture screenshots, allpages visuallychecked. Generator work/user-guide/build.py in currentchat directory. Agentuser_guide can update finalstatus afterB18/B20. Independentbounded B19 review foundnoactionableissue; no runtime rerunclaimed.
 
 # Active integration runs

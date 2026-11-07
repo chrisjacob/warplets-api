@@ -1,0 +1,37 @@
+{
+  "milestone": "Deterministic historical source fixture clocks",
+  "baseCommit": "870ab5e",
+  "fullReference": {
+    "commit": "ee02bbd36cbf257e0cb81a2e4485e5cc93710a66",
+    "total": 1218,
+    "passed": 1214,
+    "failed": 4,
+    "durationMs": 1945877.5355,
+    "log": "work/b17-b19-full-reference.log",
+    "failures": "Four legacy-current-asset-audit setup failures; no other failed tests"
+  },
+  "repair": "Historical JS and SQL setup clocks now match; actual future/expiry guards and dedicated execution-clock tests unchanged",
+  "checks": [
+    {
+      "command": "node --test platform/collect/legacy-current-asset-audit.test.mjs platform/collect/legacy-mint-source.test.mjs platform/collect/source-operator-audit.test.mjs",
+      "passed": 21,
+      "failed": 0,
+      "durationMs": 23818.0245,
+      "evidence": "work/b17-clock-fixture-node-evidence.json"
+    },
+    {
+      "command": "node --test platform/edge/test/legacy-current-asset.test.mjs platform/edge/test/legacy-mint-source.test.mjs",
+      "passed": 2,
+      "failed": 0,
+      "durationMs": 55856.6832,
+      "log": "work/b17-clock-fixture-edge.log"
+    }
+  ],
+  "clockDiagnostic": "CAST and ROUND matched in75767live samples and explicit date conversions; both sometimes lagged Date.now by1ms. No demonstrated conversion defect; no production clock change.",
+  "sourceHashes": {
+    "platform/collect/legacy-mint-source.fixtures.mjs": "4b409ea266f1bf4f31d9e9ebac6fa509ecce1731efc6d36089847a80e9c881b5",
+    "platform/collect/legacy-current-asset-audit.fixtures.mjs": "60c2af2c506fd997051c1b7db4728317c277bd90823fa75f3a7ffc6aa2333864"
+  },
+  "ci": "42314862967 remains active at ee02bbd; this fixture-only repair is not in that frozen CI commit",
+  "financialExecution": false
+}

@@ -5,7 +5,7 @@
   "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
   "currentTask": "B17",
-  "lastUpdatedAt": "2026-11-06T23:53:58.746925+00:00",
+  "lastUpdatedAt": "2026-11-07T00:29:53.138661+00:00",
   "migrationAllocation": {
     "next": 70,
     "reserved": [
@@ -587,9 +587,10 @@
         "platform/validation/runs/2026-11-06-overnight/B17-18.json",
         "platform/validation/runs/2026-11-06-overnight/B17-19.json",
         "platform/validation/runs/2026-11-06-overnight/B17-acceptance.json",
-        "platform/validation/runs/2026-11-06-overnight/B17-ci-repair.json"
+        "platform/validation/runs/2026-11-06-overnight/B17-ci-repair.json",
+        "platform/validation/runs/2026-11-06-overnight/B17-clock-fixtures.json"
       ],
-      "nextAction": "Follow combinedCI42314862967 at ee02bbd36cbf257e0cb81a2e4485e5cc93710a66 and localfullreference session27197/logwork/b17-b19-full-reference.log. MarkB17/B19verifiedonlyaftergreen, thenB18. CIwatch logwork/ci-42314862967.log. Usercap50%, last4%.",
+      "nextAction": "Follow CI42314862967 at ee02bbd to final. Local full suite completed1214/1218 passing; all4 failures were clock-sensitive historical fixture setup, now fixed and covered by21Node+2D1 tests. Do not claim a full local pass. Product code is unchanged by fixture fix. If CI green, verify B17/B19 with exact evidence and begin B18. User50% cap; latest5%.",
       "blocker": null
     },
     "B18": {

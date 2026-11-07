@@ -7,11 +7,13 @@ import {createCollectionSourceIntake} from './source-intake.mjs';
 import {createNodeAtomicDriver} from '../storage/node/atomic-driver.mjs';
 import {createLegacyMintSource} from './legacy-mint-source.mjs';
 export async function mintSourceFixture(t,options={}){
- const f=await legacyMintAuditFixture(t,options),driver=createNodeAtomicDriver(f.db),crypto=f.ports.crypto;
+ const f=await legacyMintAuditFixture(t,options),nowMs=f.input().asOfMs,clock={nowMs:()=>nowMs},crypto=f.ports.crypto;
+ // Historical fixture setup shares one JS/SQL clock; execution-clock expiry is covered by source-operator-audit.test.mjs.
+ const driver={...createNodeAtomicDriver(f.db),leaseNowSql:String(nowMs)};
  const row=f.db.prepare('SELECT * FROM collect_inventories WHERE id=?').get(f.inventoryId),state=JSON.parse(row.state,(k,v)=>v&&typeof v==='object'&&Object.hasOwn(v,'$lamports')?BigInt(v.$lamports):v),bundle=await createCollectionStateCodec({crypto}).encodeReferenceInventory(state);
  const principal={kind:'operator',id:'synthetic-mint-source'};f.db.prepare('INSERT INTO app_operator_scopes VALUES(?,?,0,1)').run(principal.id,'collection-import');
- const intake=createCollectionSourceIntake({repository:createCollectionSourceRepository(driver,{crypto,ids:{next:randomUUID},clock:{nowMs:()=>Date.now()}}),crypto,clock:{nowMs:()=>Date.now()}});
- for(const record of [bundle.root,...bundle.listManifests,...bundle.pages])assert.ok(['committed','replayed'].includes((await intake.stageRecord(principal,{record,requestKey:record.id})).kind));
+ const intake=createCollectionSourceIntake({repository:createCollectionSourceRepository(driver,{crypto,ids:{next:randomUUID},clock}),crypto,clock});
+ for(const record of [bundle.root,...bundle.listManifests,...bundle.pages]){const result=await intake.stageRecord(principal,{record,requestKey:record.id});assert.ok(['committed','replayed'].includes(result.kind),JSON.stringify(result));}
  for(const list of bundle.listManifests)assert.equal((await intake.sealList(principal,{id:list.id,requestKey:list.id})).kind,'committed');assert.equal((await intake.sealSource(principal,{id:bundle.root.id,requestKey:bundle.root.id})).kind,'committed');
  const source=()=>({inventoryId:f.inventoryId,sourceRevision:String(f.db.prepare('SELECT revision FROM collect_inventories WHERE id=?').get(f.inventoryId).revision),generation:f.db.prepare('SELECT generation FROM app_recovery_state').get().generation,watermark:f.db.prepare('SELECT revision FROM app_recovery_watermark').get().revision});
  return {...f,driver,crypto,bundle,source,request:(ordinal=0)=>({rootId:bundle.root.id,ordinal,pageIndex:0,entryIndex:ordinal,source:source()}),service:createLegacyMintSource({driver,crypto})};
