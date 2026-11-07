@@ -1,0 +1,28 @@
+{
+  "runId": 42314862967,
+  "url": "https://github.com/chrisjacob/warplets-api/actions/runs/42314862967",
+  "head": "ee02bbd36cbf257e0cb81a2e4485e5cc93710a66",
+  "status": "completed",
+  "conclusion": "success",
+  "tests": {
+    "reference": 1218,
+    "viewer": 30,
+    "beacon": 3,
+    "workersD1R2": 169,
+    "total": 1420,
+    "failures": 0
+  },
+  "additionalChecks": [
+    "viewer build",
+    "Worker types",
+    "generated contracts",
+    "Earn recovery drill"
+  ],
+  "scope": "B17 and B19 local implementation acceptance; no release authorization",
+  "newerFixtureOnlyCommit": {
+    "head": "9e8c6040d1b0a666d49787c93483c38a3ca766e7",
+    "checks": "21 Node and 2 actual Worker/D1 tests pass; not the CI head",
+    "evidence": "B17-clock-fixtures.json"
+  },
+  "financialExecution": false
+}

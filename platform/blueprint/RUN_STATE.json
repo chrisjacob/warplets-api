@@ -4,8 +4,8 @@
   "phase": "executing",
   "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
-  "currentTask": "B17",
-  "lastUpdatedAt": "2026-11-07T00:29:53.138661+00:00",
+  "currentTask": "B18",
+  "lastUpdatedAt": "2026-11-07T00:57:19.991397+00:00",
   "migrationAllocation": {
     "next": 70,
     "reserved": [
@@ -561,10 +561,10 @@
       "blocker": null
     },
     "B17": {
-      "status": "in_progress",
+      "status": "verified",
       "owner": "coordinator",
       "baseCommit": "a1d1d78",
-      "implementationCommit": "1e4497f",
+      "implementationCommit": "ee02bbd36cbf257e0cb81a2e4485e5cc93710a66",
       "pushed": true,
       "evidence": [
         "platform/validation/runs/2026-11-06-overnight/B17-01.json",
@@ -588,26 +588,27 @@
         "platform/validation/runs/2026-11-06-overnight/B17-19.json",
         "platform/validation/runs/2026-11-06-overnight/B17-acceptance.json",
         "platform/validation/runs/2026-11-06-overnight/B17-ci-repair.json",
-        "platform/validation/runs/2026-11-06-overnight/B17-clock-fixtures.json"
+        "platform/validation/runs/2026-11-06-overnight/B17-clock-fixtures.json",
+        "platform/validation/runs/2026-11-06-overnight/B17-B19-ci.json"
       ],
-      "nextAction": "Follow CI42314862967 at ee02bbd to final. Local full suite completed1214/1218 passing; all4 failures were clock-sensitive historical fixture setup, now fixed and covered by21Node+2D1 tests. Do not claim a full local pass. Product code is unchanged by fixture fix. If CI green, verify B17/B19 with exact evidence and begin B18. User50% cap; latest5%.",
-      "blocker": null
-    },
-    "B18": {
-      "status": "not_started",
-      "owner": null,
-      "baseCommit": null,
-      "implementationCommit": null,
-      "pushed": false,
-      "evidence": [],
       "nextAction": null,
       "blocker": null
     },
-    "B19": {
+    "B18": {
       "status": "in_progress",
       "owner": "coordinator",
+      "baseCommit": "9e8c6040d1b0a666d49787c93483c38a3ca766e7",
+      "implementationCommit": null,
+      "pushed": false,
+      "evidence": [],
+      "nextAction": "Implement pure compatibility evidence/unsigned packet harness and browser lifecycle acceptance; preserve all physical wallet/marketplace cases as manual-required. User usage cap50%, latest9%.",
+      "blocker": null
+    },
+    "B19": {
+      "status": "verified",
+      "owner": "coordinator",
       "baseCommit": "f873021",
-      "implementationCommit": "319360f",
+      "implementationCommit": "ee02bbd36cbf257e0cb81a2e4485e5cc93710a66",
       "pushed": true,
       "evidence": [
         "platform/validation/runs/2026-11-06-overnight/B19-01.json",
@@ -618,9 +619,10 @@
         "platform/validation/runs/2026-11-06-overnight/B19-06.json",
         "platform/validation/runs/2026-11-06-overnight/B19-07.json",
         "platform/validation/runs/2026-11-06-overnight/B19-08.json",
-        "platform/validation/runs/2026-11-06-overnight/B19-acceptance.json"
+        "platform/validation/runs/2026-11-06-overnight/B19-acceptance.json",
+        "platform/validation/runs/2026-11-06-overnight/B17-B19-ci.json"
       ],
-      "nextAction": "Localacceptancecomplete33tests, combinedB17/B19 CI beingtriggered withB17repairs. Markverifiedonlyafterintegrationgreen; thenB20full waitsB18.",
+      "nextAction": null,
       "blocker": null
     },
     "B20": {
