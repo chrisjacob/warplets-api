@@ -1,0 +1,29 @@
+{
+  "runId": 42322879462,
+  "url": "https://github.com/chrisjacob/warplets-api/actions/runs/42322879462",
+  "head": "6e3666dc4ac00e2d642d0cfd2f4412337ae02c22",
+  "status": "completed",
+  "conclusion": "success",
+  "tests": {
+    "reference": 1227,
+    "viewer": 30,
+    "beacon": 3,
+    "workersD1R2": 169,
+    "total": 1429,
+    "failures": 0
+  },
+  "additionalChecks": [
+    "viewer build",
+    "Worker types",
+    "generated contracts",
+    "Earn recovery drill"
+  ],
+  "environment": {
+    "runner": "Ubuntu24.04",
+    "node": "22.22.3",
+    "dependencies": "pinned package lockfiles, lifecycle scripts disabled"
+  },
+  "scope": "B20 full local integration, including B18 and historical fixture clock repairs",
+  "financialExecution": false,
+  "releaseAuthorized": false
+}

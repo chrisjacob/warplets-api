@@ -1,38 +1,52 @@
-# Current implementation handoff
+# Completed local implementation — review handoff
 
-Branch: `work/10x-prd-foundation`. Latest tested local integration checkpoint: `6e3666dc4ac00e2d642d0cfd2f4412337ae02c22`. Preserve untracked `work/` scratch. Earlier checkpoint history remains in Git and the task evidence directory; this document describes current state only.
+All B00–B20 tasks are verified, including B20-core and B20-full: **411/411 estimated story points**. The dependency validator returns an empty ready queue. All authorized B work is complete; R-stage work remains separately gated.
 
-## Progress and next executable step
+Branch: `work/10x-prd-foundation`. Final tested implementation: `6e3666dc4ac00e2d642d0cfd2f4412337ae02c22`. Later commits update documentation/evidence only. Preserve untracked `work/` logs, fixtures and screenshots.
 
-B00–B17 and B19 are verified. Combined CI [42314862967](https://github.com/chrisjacob/warplets-api/actions/runs/42314862967) passed at `ee02bbd36cbf257e0cb81a2e4485e5cc93710a66`: 1,218 reference + 30 viewer + 3 beacon + 169 Worker/D1/R2 = 1,420 tests, zero failures. Builds, types, generated contracts and recovery drill passed. Exact evidence: B17-B19-ci.json.
+## Verification
 
-B18 focused acceptance passed at `7deb2628c0934b469d113d089dc311240ab834cf`: eight pure compatibility tests, 30 site tests, build and complete browser QA including 48 new wallet boundary groups at four widths. Fourteen machine-readable evidence rows preserve physical/marketplace gaps. B18 has no production UI changes. B20-full local acceptance is complete; final combined [CI42322879462](https://github.com/chrisjacob/warplets-api/actions/runs/42322879462) at6e3666d includes B18, fixture-clock repairs and new load checks. Watch session65802; log `work/ci-42322879462.log`. Follow to final; do not cancel with another marker. Do not repeat core merely because B20 remains in progress.
+[Final CI42322879462](https://github.com/chrisjacob/warplets-api/actions/runs/42322879462) succeeded on the exact implementation commit: 1,227 reference + 30 frontend + 3 beacon + 169 actual local Worker/D1/R2 tests = **1,429 passed, zero failed**. Builds, types, generated contracts and Earn recovery drill passed. Exact results are in `platform/validation/runs/2026-11-06-overnight/B20-ci.json`; full acceptance is `B20-full.json`. Historical fixture-clock repairs are included in this final run.
 
-Current estimates: 398/411 points implemented, 13 remaining; 390 strictly verified. User stop cap is 50% account usage; latest observed 12%. Ten-campaign attempted-load, integrated journey review and all58 traceability are complete. Next follow final CI, record exact results, then finalize the guide and mark full profile complete. No R-stage work.
+Additional browser acceptance includes 48 new wallet boundary groups at 360/390/768/1440 pixels, keyboard focus/cancellation, long addresses, reduced motion, client/server expiry, offline return, session identity, private cache clearing and original receipt recovery. Fairness disclosure checks were rerun where source changes warranted them; unchanged cost and refresh checks retain their exact evidence pins. See B18-browser.json and B20-journeys.json.
 
-## Recent validation
+The load harness made 3,000 actual Node/SQLite loopback requests across three scenarios: one campaign admitted100/refused900; ten campaigns admitted100/refused900 globally; ten campaigns with60 staffed minutes admitted20/refused980. Admission used at most30 SQL statements and10 returned rows per request. Aggregate exports were28,451/80,747/19,547 bytes. Incomplete-source settlement stayed held. These are local measurements, not D1 billed rows, geographic p95 or moderator throughput. See B20-load-results.json.
 
-The local full reference run at ee02bbd completed 1,218 tests: 1,214 passed and four historical fixture setup failures. This is not a full local pass. Those four failures are repaired in 9e8c604 by sharing the original historical clock across JavaScript and SQL fixture setup. All 21 affected Node tests and two actual Worker/D1 tests pass. No production clock, lease guard or expiry behavior changed. CAST/ROUND diagnostics did not demonstrate a conversion bug. The fixture-only repair is newer than prior CI42314862967 and included in final CI42322879462.
+Full private Vault recovery retained185 objects in1,149 steps with129,652-byte peak checkpoint under the unchanged131,072-byte bound. All118 business tables remain recoverable. Original clocks, unminted reserves, ownership history and cumulative spent claims are retained. Schema069; next070 remains unreserved. No migration was added during B18/B20.
 
-B19 acceptance: 32 focused tests plus actual full private Vault restoration passed. The compact archive index references 15 required tables; full restoration retained 185 objects in 1,149 steps with a 129,652-byte peak checkpoint under the unchanged 131,072-byte bound. Claim history, partial claims through transfer, expired Season history and unminted obligations survive restoration. Public commitments omit private allocation/ownership data. Program Merkle-vector gaps and production custody remain unresolved.
+## Start manual review
 
-Bounded independent B17 and B19 reviews found no additional actionable defects; these reviews are not substitute test runs. Evidence is under `platform/validation/runs/2026-11-06-overnight/`, particularly B17-ci-repair.json, B17-clock-fixtures.json and B19-acceptance.json. Schema is 069, 118 business tables; next migration 070 is unreserved.
-
-## Local preview and review artifacts
-
-From the repository root, use installed dependencies:
+Use the existing compiled React assets and installed dependencies. From the repository's `platform` directory:
 
 ```powershell
-pnpm --dir platform/site build
+node scripts/demo.mjs
+```
+
+Open `http://127.0.0.1:4173/markets`. The disposable demo has synthetic records and resets when stopped. Use `--port=4174` if needed. `--wallet=YOUR_SOLANA_PUBLIC_KEY` adds fixture data for a disposable address but does not authenticate it or inspect real holdings. See the guide for message-only sign-in and role boundaries.
+
+For actual local workerd/D1/R2 Earn acceptance from the repository root:
+
+```powershell
 node platform/scripts/rehearse-hosted-slice.mjs
 ```
 
-The runner prints a disposable loopback Earn URL backed by actual local workerd/D1/R2. See `platform/scripts/HOSTED_REHEARSAL.md` for fixture-clock limits and browser verification. Broader role walkthroughs use the recorded local demo described in the guide; do not mistake the narrower hosted Earn rehearsal for every implemented route.
+Open the printed loopback URL. This narrower hosted rehearsal is not the full Node demo. Its fixture clock expires for new sign-in after five minutes; restart as documented in `platform/scripts/HOSTED_REHEARSAL.md`. No persistent review server was left running.
 
-Current chat outputs contain `10x-progress-and-manual-review.md` and draft `10X_MEME_User_Guide.pdf` / `.html`. The guide has 16 pages and nine actual fixture screenshots covering visitor, member, operator, founder and recovery workflows; all pages were visually checked. Update its completion status after B18/B20 before final delivery. Generator: current chat `work/user-guide/build.py`; agent user_guide can update it.
+Current chat deliverables: `outputs/10X_MEME_User_Guide.pdf`, self-contained `.html`, and `outputs/10x-progress-and-manual-review.md`. The guide contains16 pages and9 actual local-fixture screenshots, with visitor, member, operator, founder and recovery-admin workflows. Final changed pages are rendered and visually checked. Generator and intermediate renders are in current-chat `work/user-guide/`.
 
-## Boundaries and remaining release work
+Review public navigation first, then member submissions and recovery, then the separately scoped operator/founder flows. Preserve original operation IDs and pins; unavailable actions and held evidence are expected safeguards. Record any issue with role, route, fixture, expected/actual result and screenshot.
 
-Financial execution, transaction signing and broadcast remain disabled. No deployment, remote Cloudflare resource writes/provisioning, spending, wallet funding, subscriptions, external messages, main/dev merge or force push. Sydney launch hours and later mint prices remain open.
+## Remaining work after manual review
 
-Release still requires separately authorized custody/burn/update-authority decisions, complete allocation backing from the first funded ATT, reserve assignment and payment/order fairness, matching claim-program proofs, farm principal protection and fractional precision, provider/cost review, physical wallets/marketplace execution, staffed operation and deployment approvals. Local fixture success does not clear these gates. See the six release gates and financial decision dossiers.
+| Gate | Required next evidence / decision |
+| --- | --- |
+| R01 — Permanent NFT claims | Independently review custody, fair reserve assignment, claim proof permanence, external-burn protection and update authority together. Resolve metadata/progression rights and claim-amount rarity leakage without delaying vested rights. |
+| R02 — Stake and Earn | Resolve retained farm administrator principal-access failure, fractional precision, net fees and idle recovery. Ratify UTC/day-eleven Earn mapping and exact program claim/root formats. |
+| R03 — Execution/funding | Review complete typed instruction/provider/signing adapters, exact accounts/programs/network, original-attempt reconciliation and fresh all-in cost/funding packet. Obtain concrete bounded approval before execution. |
+| R04 — Paid NFT/marketplace | Select and verify payment/order/entropy/refund and image-provider policies. Perform separately authorized physical wallet, transfer, list/buy/cancel, escrow/current-owner claim, royalty and refresh tests. Checklist remains unperformed. |
+| R05 — Staffed pilot | Back every allocation, including all unminted reserves, before first funded ATT. Approve exact staffed Sydney window, costs, monitoring, recovery, hosted security and deployment scope. |
+| R06 — Growth | Expand only after reconciled pilot outcomes and explicit approval. Later mint prices, tranche/public-stage decisions and optional integrations remain open. |
+
+Financial execution, transaction signing and broadcast remain disabled. No deployment, remote Cloudflare resource mutation/provisioning, spending, wallet funding, subscriptions, external messages, main/dev merge or force push occurred. No R work was begun. Sydney launch hours and later mint prices remain unselected.
+
+User requested completion below50% account usage; latest observed14%. Work stopped because the authorized B queue is complete, not because of an external blocker or usage exhaustion.

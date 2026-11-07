@@ -2,8 +2,9 @@
   "task": "B20-full",
   "reviewedCases": 58,
   "allHaveStatusEvidenceAndReleaseReferences": true,
-  "traceabilitySHA256": "96b7b4dc551a41cbb2ed1873907f080e080878f3ca16eee746dc78031dbb0af1",
+  "traceabilitySHA256": "d5117ea573b64343650195738b244045b57b4d1c0fd7466ac835d9e9dc142815",
   "verification": "node platform/blueprint/validate-plan.mjs --next --self-check",
   "scope": "Local implementation evidence; production acceptance and all six R gates remain separate",
-  "financialExecution": false
+  "financialExecution": false,
+  "finalIntegrationCommit": "6e3666dc4ac00e2d642d0cfd2f4412337ae02c22"
 }
