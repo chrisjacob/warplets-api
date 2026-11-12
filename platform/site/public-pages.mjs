@@ -105,7 +105,7 @@ export async function initialPage(route,url,readPublic){
     +'<meta property="og:type" content="website"><meta property="og:title" content="'+html(title+' · 10X.MEME')+'">'
     +'<meta property="og:description" content="'+html(description)+'"><meta property="og:url" content="'+html(canonical)+'">'
     +'<meta property="og:image" content="'+html(url.origin+'/social-card.png')+'"><meta name="twitter:card" content="summary_large_image">';
-  const fallback='<div class="frame main"><nav aria-label="Public sections">'+links([['Tokens','/tokens'],['Airdrops','/airdrops'],['NFTs','/nfts'],['Attention','/attention'],['Leaderboards','/leaderboards']])
+  const fallback='<div class="frame main"><nav aria-label="Public sections">'+links([['Tokens','/tokens'],['NFTs','/nfts'],['Airdrops','/airdrops'],['Attention','/attention'],['Leaderboards','/leaderboards']])
     +'</nav><main class="page-hero"><h1>'+html(title)+'</h1><p>'+html(description)+'</p>'+content+'</main></div>';
   return {title:title+' · 10X.MEME',metadata,content:fallback,status};
 }

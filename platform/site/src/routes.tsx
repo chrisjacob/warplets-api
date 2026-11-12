@@ -4,7 +4,7 @@ import { useIsFetching } from '@tanstack/react-query';
 import { SessionProvider, useSession } from './session';
 import { compact } from './common';
 
-const destinations=[['tokens','Tokens'],['airdrops','Airdrops'],['nfts','NFTs'],['attention','Attention'],['leaderboards','Leaderboards']] as const;
+const destinations=[['tokens','Tokens'],['nfts','NFTs'],['airdrops','Airdrops'],['attention','Attention'],['leaderboards','Leaderboards']] as const;
 const searchKeys=['market','cursor','asset','farm','date','submissions','awards','owned','operations','inventories','receipt'] as const;
 export type Search=Partial<Record<typeof searchKeys[number],string>>;
 function validateSearch(input:Record<string,unknown>):Search{

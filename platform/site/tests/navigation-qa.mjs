@@ -16,10 +16,10 @@ try{
   await context.addCookies([{name:'tenx_local_session',value:token,url:origin,httpOnly:true,sameSite:'Strict'}]);
   const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
   const visit=async url=>{await page.waitForLoadState('networkidle');const response=await page.goto(url);await page.locator('#view[aria-busy=false]').waitFor();return response;};
-  for(const [path,title] of [['tokens','Tokens'],['airdrops','Airdrops'],['nfts','NFTs'],['attention','Attention'],['leaderboards','Leaderboards']]){
+  for(const [path,title] of [['tokens','Tokens'],['nfts','NFTs'],['airdrops','Airdrops'],['attention','Attention'],['leaderboards','Leaderboards']]){
    const response=await visit(origin+'/'+path);assert.equal(response.status(),200);
    await page.getByRole('heading',{name:title,level:1,exact:true}).waitFor();await page.locator('#view[aria-busy=false]').waitFor();
-   assert.deepEqual(await page.locator('nav[aria-label="Main navigation"] a').allTextContents(),['Tokens','Airdrops','NFTs','Attention','Leaderboards']);
+   assert.deepEqual(await page.locator('nav[aria-label="Main navigation"] a').allTextContents(),['Tokens','NFTs','Airdrops','Attention','Leaderboards']);
    assert.equal(await page.locator('nav [aria-current=page]').getAttribute('href'),'/'+path);
    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,path+' overflow at '+width);
    if(path==='attention'){
