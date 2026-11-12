@@ -62,7 +62,7 @@ function SwapForm({marketId,symbol,ogSymbol,available,services}:{marketId:string
         <option value="buy-att">Buy {symbol}</option><option value="sell-att">Sell {symbol}</option></select>
       <label>Amount in {inputSymbol}<input value={amount} inputMode="decimal" required onChange={e=>{setAmount(e.target.value);dirty();}}/></label>
       {technical?<label>Slippage tolerance in basis points<input type="number" min="0" max="500" required value={slippage}
-        onChange={e=>{setSlippage(e.target.value);dirty();}}/></label>:<label>Slippage tolerance<select value={slippage} onChange={e=>{setSlippage(e.target.value);dirty();}}>{[0,10,50,100,200,500].map(bps=><option key={bps} value={bps}>{bps/100}%</option>)}</select></label>}
+        onChange={e=>{setSlippage(e.target.value);dirty();}}/></label>:<label>Slippage tolerance<select aria-label="Slippage tolerance" value={slippage} onChange={e=>{setSlippage(e.target.value);dirty();}}>{!['0','10','50','100','200','500'].includes(slippage)&&<option value={slippage}>{slippage?Number(slippage)/100+'% (custom)':'Choose a tolerance'}</option>}{[0,10,50,100,200,500].map(bps=><option key={bps} value={bps}>{bps/100}%</option>)}</select></label>}
       <button disabled={quote.isPending}>Preview swap quote</button></fieldset>
       {(inputError||quote.error)&&<Signal>{inputError||friendlyError(quote.error)}</Signal>}
     </form>

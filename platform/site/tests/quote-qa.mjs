@@ -26,6 +26,15 @@ export async function checkQuoteView({browser,db,origin,artifactStore}){
     await page.getByRole('button',{name:'Preview swap quote'}).click();
     await page.getByText('This token supports 6 decimal places.').waitFor();
     assert.equal(calls.length,2);
+    await page.getByLabel('Slippage tolerance in basis points',{exact:true}).fill('17');
+    await page.getByRole('button',{name:'Switch to simple view',exact:true}).click();
+    assert.equal(await page.getByLabel('Slippage tolerance',{exact:true}).inputValue(),'17');
+    assert.equal(await page.getByRole('option',{name:'0.17% (custom)',exact:true}).count(),1);
+    await page.getByLabel('Slippage tolerance',{exact:true}).selectOption('50');
+    await page.getByLabel('Amount in QUOTEOG',{exact:true}).fill('1');
+    await page.getByRole('button',{name:'Preview swap quote'}).click();
+    await page.getByRole('heading',{name:'Local exact-input quote'}).waitFor();
+    assert.equal(calls[2].slippageBps,50);
     console.log('Both quote directions, token precision, fee-inclusive FDV, slippage and mobile presentation passed.');
   }finally{await page.close();}
 }

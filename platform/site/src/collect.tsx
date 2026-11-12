@@ -208,7 +208,7 @@ function MaterialPicker({target,wallet,review}:{target:Asset;wallet:string;revie
       setError('');review({kind:'progress',asset:target,materialId:id});
     }}>{technical?<label>Same-Level material NFT ID<input name="material" list={'materials-'+target.id} required maxLength={128}/></label>:<label>Pair with another Level {target.level} NFT<select name="material" required defaultValue=""><option value="" disabled>{choices.length?'Choose an NFT':'No matching NFT available'}</option>{choices.map(a=><option key={a.id} value={a.id}>{a.id} · Level {a.level}</option>)}</select></label>}
     <datalist id={'materials-'+target.id}>{choices.map(a=><option value={a.id} key={a.id}/>)}</datalist>
-    <Diagnostics><p>{choices.length} matching materials in {result.items.length} checked assets. {!result.complete?'Selection is limited to the first 100 owned assets.':'All owned assets checked.'}</p></Diagnostics>
+    <p hidden={result.complete}>Showing matches from your first 100 NFTs. Other matching NFTs may be outside this list.</p><Diagnostics><p>{choices.length} matching materials in {result.items.length} checked assets. {!result.complete?'Selection is limited to the first 100 owned assets.':'All owned assets checked.'}</p></Diagnostics>
     <button disabled={!choices.length}>Preview upgrade</button>{error&&<Signal>{error}</Signal>}</form>;
   }}</Loaded>;
 }
