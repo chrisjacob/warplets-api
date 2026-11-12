@@ -1,0 +1,60 @@
+{
+  "scope": "local-synthetic",
+  "financialExecution": false,
+  "ci": {
+    "url": "https://github.com/chrisjacob/warplets-api/actions/runs/43213951964",
+    "commit": "3e9d06b74c30d186b6491ef249f4968cf67dd639",
+    "conclusion": "success",
+    "reference": 1228,
+    "frontend": 30,
+    "beacon": 3,
+    "workerD1R2": 169,
+    "totalPassed": 1430,
+    "failed": 0
+  },
+  "followup": {
+    "commit": "27b482e",
+    "changes": [
+      "custom slippage preservation and accessible percentage selector",
+      "bounded material selection disclosure",
+      "newline normalization"
+    ],
+    "validation": [
+      "TypeScript",
+      "Vite build",
+      "targeted quote browser acceptance",
+      "final retail acceptance in Edge and WebKit"
+    ]
+  },
+  "consumerBrowsers": [
+    "Chromium 156.0.8078.4",
+    "Edge 157.0.4341.46",
+    "WebKit 27.2"
+  ],
+  "viewports": [
+    [
+      320,
+      568
+    ],
+    [
+      390,
+      844
+    ],
+    [
+      844,
+      390
+    ],
+    [
+      1280,
+      900
+    ]
+  ],
+  "liveTunnelVerified": true,
+  "persistentDemoReseeded": false,
+  "remaining": [
+    "real retail user testing",
+    "approved artwork and display metadata",
+    "physical mobile wallet and assistive technology review",
+    "separately approved release gates"
+  ]
+}

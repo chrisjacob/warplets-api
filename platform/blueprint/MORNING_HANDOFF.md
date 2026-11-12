@@ -10,7 +10,7 @@ User-reviewed synthetic Vault, Stake, Earn, Collect and Genesis voting workflows
 
 ## Consumer UX follow-up — 12 November
 
-The default app now uses a simpler retail view, illustrated collectible cards, token icons, task diagrams, reward progress and eligible NFT selection. Technical view remains available in the footer. See [the audit and review guide](../validation/UX_REVIEW_2026-11-12.md). The local app was refreshed without reseeding or changing synthetic holdings/staffing. A deterministic Node inbox clock regression is covered. The next step is user review of the new experience; release gates remain unapproved.
+The default app now uses a simpler retail view, illustrated collectible cards, token icons, task diagrams, reward progress and eligible NFT selection. Technical view remains available in the footer. See [the audit and review guide](../validation/UX_REVIEW_2026-11-12.md). The local app was refreshed without reseeding or changing synthetic holdings/staffing. A deterministic Node inbox clock regression is covered. CI43213951964 passed on `3e9d06b` with 1,430 tests and zero failures; follow-up `27b482e` passed targeted local browser checks. Exact pins are in the audit guide. The next step is user review of the new experience; release gates remain unapproved.
 
 ## Verification
 
