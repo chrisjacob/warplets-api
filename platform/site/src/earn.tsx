@@ -87,6 +87,7 @@ export function Leaderboards({epochId}:{epochId?:string}={}){
   usePageMeta('Leaderboards','Content rankings and finalized daily reward results.',epochId?'/earn/'+boardDate:'/leaderboards'+(selected?'?date='+boardDate:''));
   const board=useRuntimeQuery('/api/v1/earn/epochs/{epoch}/leaderboard',{queryKey:['leaderboard',boardDate],queryFn:({signal})=>sdk.board(boardDate,signal)});
   return <><Hero title="Leaderboards">See who’s creating attention. Explore content rankings and daily reward results.</Hero>
+    <Journey steps={[['Choose a day','Explore the content leaderboard for a UTC date.'],['See the results','Compare reviewed scores, multipliers and final rankings.'],['Join the next board','Submit content through Attention. Eligibility and ranking determine rewards.']]}/>
     <Panel title="Content"><p>Rankings use reviewed content scores and eligibility multipliers. They do not measure verified views or reach. Eligible top-ranked contributions can earn rewards.</p><Link className="action-link" to="/attention">Submit content →</Link></Panel>
     <Panel title="Daily leaderboard"><form className="inline-form" onSubmit={e=>{e.preventDefault();void navigate({to:'/leaderboards',search:{date:editing}});}}>
       <label htmlFor="board-date">Board date (UTC)</label><input id="board-date" type="date" required value={editing} onChange={e=>setEditing(e.target.value)}/>

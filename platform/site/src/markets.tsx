@@ -1,4 +1,4 @@
-import {Diagnostics,TokenArt} from './experience';
+import {Diagnostics,TokenArt,Journey} from './experience';
 import { useRuntimeQuery } from './capabilities';
 import { useState } from 'react';
 import { Link } from '@tanstack/react-router';
@@ -68,6 +68,7 @@ export function Markets(){
   usePageMeta('Tokens','Explore curated Solana attention tokens and their original-token pairs.',market?'/markets/'+encodeURIComponent(market):'/tokens',true);
   return <>
     <Hero title="Tokens">Discover attention tokens. Find a community, explore its token, and see what you can earn.</Hero>
+    <Journey steps={[['Discover a project','Explore Attention Tokens and the projects behind them.'],['Get to know its token','Review the token pair, fees and campaign details.'],['Take part','Stake the corresponding Attention Token to join its content campaign.']]}/>
     <Diagnostics><div className="market-grid"><Loaded query={schedule}>{points=><FeeChart points={points}/>}</Loaded>
       <Loaded query={policy}>{p=><Allocation policy={p}/>}</Loaded></div></Diagnostics>
     {market && <MarketDetail id={market}/>}
