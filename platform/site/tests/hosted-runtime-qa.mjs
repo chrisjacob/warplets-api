@@ -60,7 +60,7 @@ export async function checkHostedRuntime({browser,runtime,fixture}){
    await page.locator('#wallet-button').click();await page.locator('#wallet-dialog').waitFor();
    await page.keyboard.press('Escape');await page.locator('#wallet-dialog').waitFor({state:'hidden'});
    assert.equal(await page.evaluate(()=>document.activeElement.id),'wallet-button');
-   await page.locator('#wallet-button').click();await page.getByRole('button',{name:'Connect Synthetic Rehearsal'}).click();
+   await page.locator('#wallet-button').click();await page.getByRole('button',{name:'Connect Synthetic Rehearsal'}).click();await page.getByRole('button',{name:/^Use account /}).click();
    const signButton=page.getByRole('button',{name:'Sign in with this message'});await signButton.waitFor();
    if(width===360){
     await page.evaluate(()=>{window.rejectHostedSignature=true;});await signButton.click();

@@ -18,7 +18,7 @@ export async function checkCollectionEdges({browser}){
   });
   await page.addInitScript(wallet=>{window.solana={publicKey:wallet,connect:async()=>({publicKey:wallet}),signMessage:async message=>({signature:new Uint8Array(await window.signCollectionEdge(new TextDecoder().decode(message)))})};},f.accounts.original.wallet);
   try{
-   await page.goto(f.origin+'/collect');await page.locator('#wallet-button').click();await page.getByRole('button',{name:'Connect Solana wallet',exact:true}).click();
+   await page.goto(f.origin+'/collect');await page.locator('#wallet-button').click();await page.getByRole('button',{name:'Connect Solana wallet',exact:true}).click();await page.getByRole('button',{name:/^Use account /}).click();
    await page.getByRole('button',{name:'Sign in with this message',exact:true}).click();await page.locator('#wallet-dialog').waitFor({state:'hidden'});
    const stage=page.locator('.stage').filter({has:page.getByRole('heading',{name:'synthetic-free',exact:true})});
    await stage.getByText('unknown',{exact:true}).waitFor();await stage.getByText('opening-snapshot-pending',{exact:true}).waitFor();assert.equal(await stage.getByRole('button',{name:'Review reservation'}).count(),0);

@@ -59,7 +59,7 @@ export async function checkMemberPages({ browser, db, origin }) {
   try {
     await page.goto(origin+'/collect');
     await page.locator('#wallet-button').click();
-    await page.getByRole('button',{name:'Connect Solana wallet'}).click();
+    await page.getByRole('button',{name:'Connect Solana wallet'}).click();await page.getByRole('button',{name:/^Use account /}).click();
     await page.getByRole('button',{name:'Sign in with this message'}).click();
     await page.locator('#wallet-dialog').waitFor({state:'hidden'});
     await page.getByLabel('As soon as possible',{exact:true}).check();

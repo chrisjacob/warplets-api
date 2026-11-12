@@ -52,13 +52,13 @@ export async function checkStandardWallet({browser,origin,db}){
   try{
     await page.goto(origin+'/markets');
     await page.locator('#wallet-button').click();
-    await page.getByRole('button',{name:'Connect QA Standard'}).click();
+    await page.getByRole('button',{name:'Connect QA Standard'}).click();await page.getByRole('button',{name:/^Use account /}).click();
     await page.getByRole('button',{name:'Sign in with this message'}).waitFor();
     await page.evaluate(()=>window.selectStandardAccount(true));
     await page.getByRole('button',{name:'Sign in with this message'}).waitFor({state:'hidden'});
     assert.equal(signatures,0,'account change must cancel the pending challenge');
     await page.evaluate(()=>window.selectStandardAccount());
-    await page.getByRole('button',{name:'Connect QA Standard'}).click();
+    await page.getByRole('button',{name:'Connect QA Standard'}).click();await page.getByRole('button',{name:/^Use account /}).click();
     await page.evaluate(()=>{window.rejectStandardMessage=true;});
     await page.getByRole('button',{name:'Sign in with this message'}).click();
     await page.getByText('Fixture user rejected signing.').waitFor();
@@ -74,7 +74,7 @@ export async function checkStandardWallet({browser,origin,db}){
     await page.getByRole('button',{name:'Sign in with this message'}).waitFor({state:'hidden'});
     assert.equal(db.prepare('SELECT COUNT(*) AS n FROM sessions WHERE wallet=?').get(address).n,0);
     await page.evaluate(()=>window.selectStandardAccount());
-    await page.getByRole('button',{name:'Connect QA Standard'}).click();
+    await page.getByRole('button',{name:'Connect QA Standard'}).click();await page.getByRole('button',{name:/^Use account /}).click();
     await page.getByRole('button',{name:'Sign in with this message'}).click();
     await page.locator('#wallet-dialog').waitFor({state:'hidden'});
     assert.equal(signatures,3);
@@ -99,7 +99,7 @@ export async function checkStandardWallet({browser,origin,db}){
     await page.locator('#wallet-dialog').waitFor({state:'hidden'});
     assert.equal(db.prepare('SELECT COUNT(*) AS n FROM sessions WHERE wallet=?').get(address).n,0);
     await page.locator('#wallet-button').click();
-    await page.getByRole('button',{name:'Connect QA Standard'}).click();
+    await page.getByRole('button',{name:'Connect QA Standard'}).click();await page.getByRole('button',{name:/^Use account /}).click();
     await page.getByRole('button',{name:'Sign in with this message'}).waitFor();
     await page.getByRole('button',{name:'Sign in with this message'}).click();
     await page.locator('#wallet-dialog').waitFor({state:'hidden'});
@@ -112,7 +112,7 @@ export async function checkStandardWallet({browser,origin,db}){
     await page.evaluate(()=>window.dispatchEvent(new Event('focus')));
     await page.getByText('Verified Solana wallet: '+address,{exact:true}).waitFor({state:'hidden'});
     await page.getByText('rehearsal-only',{exact:true}).waitFor({state:'hidden'});
-    await page.getByRole('button',{name:'Connect QA Standard'}).click();
+    await page.getByRole('button',{name:'Connect QA Standard'}).click();await page.getByRole('button',{name:/^Use account /}).click();
     await page.getByRole('button',{name:'Sign in with this message'}).waitFor();
     await page.evaluate(()=>window.unregisterStandardWallet());
     await page.getByRole('button',{name:'Sign in with this message'}).waitFor({state:'hidden'});
@@ -144,11 +144,13 @@ export async function checkWalletBoundaries({browser}){
    const wallet={name:'B18 Standard',version:'1.0.0',icon:'data:image/svg+xml,<svg/>',chains:['solana:localnet'],accounts:[supported[0]],features:{'standard:connect':{version:'1.0.0',connect:async()=>({accounts:wallet.accounts})},'standard:events':{version:'1.0.0',on:(_e,cb)=>{listeners.add(cb);return()=>listeners.delete(cb);}},'solana:signMessage':{version:'1.0.0',signMessage:async({account,message})=>[{signature:new Uint8Array(await window.b18Sign({message:new TextDecoder().decode(message),address:account.address})),signedMessage:message}]}}};
    const unsupported={...wallet,name:'B18 No Message',features:{'standard:connect':wallet.features['standard:connect']}};
    window.b18Select=(index,noMessage=false)=>{wallet.accounts=[noMessage?{...supported[index],features:[]}:supported[index]];for(const cb of listeners)cb({accounts:wallet.accounts});};
+   wallet.features['standard:disconnect']={version:'1.0.0',disconnect:async()=>{window.b18Disconnects=(window.b18Disconnects??0)+1;}};
+   window.b18ShareBoth=()=>{wallet.accounts=supported;for(const cb of listeners)cb({accounts:wallet.accounts});};
    window.b18Register=()=>{window.b18Unregister=registry.register(wallet);};
    window.addEventListener('wallet-standard:app-ready',e=>{registry=e.detail;registry.register(unsupported);});
    window.b18RealNow=Date.now;
   },keys.map(k=>({address:k.address,publicKey:[...k.bytes]})));
-  const review=async()=>{await page.getByRole('button',{name:'Connect B18 Standard',exact:true}).click();await page.getByRole('button',{name:'Sign in with this message',exact:true}).waitFor();};
+  const review=async()=>{await page.getByRole('button',{name:'Connect B18 Standard',exact:true}).click();await page.getByRole('button',{name:/^Use account /}).click();await page.getByRole('button',{name:'Sign in with this message',exact:true}).waitFor();};
   const signin=async()=>{await review();await page.getByRole('button',{name:'Sign in with this message',exact:true}).click();await page.locator('#wallet-dialog').waitFor({state:'hidden'});await page.locator('#wallet-button').click();};
   const receipt=async()=>{await page.getByText('Find a transaction receipt',{exact:true}).click();await page.getByLabel('Transaction ID',{exact:true}).fill(intent.id);await page.getByRole('button',{name:'Find receipt',exact:true}).click();};
   const screenshot=async name=>{if(process.env.SCREENSHOT_DIR){await mkdir(process.env.SCREENSHOT_DIR,{recursive:true});await page.screenshot({path:join(process.env.SCREENSHOT_DIR,'wallet-'+name+'-'+width+'.png')});}};
@@ -171,7 +173,19 @@ export async function checkWalletBoundaries({browser}){
    await page.context().setOffline(true);await page.evaluate(()=>window.dispatchEvent(new Event('pageshow')));db.prepare('DELETE FROM sessions WHERE wallet=?').run(a);await page.context().setOffline(false);const profileReturned=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/v1/me'&&r.status()===401);await page.evaluate(()=>{window.dispatchEvent(new Event('online'));window.dispatchEvent(new Event('pageshow'));});await profileReturned;await page.getByText('Verified Solana wallet: '+a,{exact:true}).waitFor({state:'hidden'});await page.getByText('b18-original-receipt',{exact:true}).waitFor({state:'hidden'});
    await signin();await page.getByText('Verified Solana wallet: '+b,{exact:true}).waitFor();assert.equal(await page.getByLabel('Transaction ID').count(),1);assert.equal(await page.getByLabel('Transaction ID').inputValue(),'');await receipt();await page.getByText('b18-original-receipt',{exact:true}).waitFor({state:'hidden'});await page.getByRole('button',{name:'Retry',exact:true}).waitFor();assert.equal(db.prepare('SELECT COUNT(*) n FROM tx_intents WHERE id=?').get(intent.id).n,1);await screenshot('other-account');
    await page.getByRole('button',{name:'Sign out',exact:true}).click();await page.locator('#wallet-dialog').waitFor({state:'hidden'});await page.evaluate(()=>window.b18Select(0));await page.locator('#wallet-button').click();await signin();await receipt();await page.getByText('b18-original-receipt',{exact:true}).waitFor();await page.getByText(intent.id,{exact:true}).waitFor();assert.equal(db.prepare('SELECT COUNT(*) n FROM tx_intents WHERE id=?').get(intent.id).n,1);assert.equal(db.prepare('SELECT COUNT(*) n FROM tx_attempts WHERE intent_id=?').get(intent.id).n,0);
-   assert.deepEqual(errors,[]);results.push({width,height:900,reducedMotion:'reduce',longAddressLength:44,passedCases:12,messageSignatures:signatures,verificationCalls:verifyCalls,financialExecution:false});console.log(width+'px B18 Wallet Standard: 12 boundary cases passed (unsupported feature/account, registration, keyboard/cancel, client/server expiry, account/session identity, offline return, private-cache clearing, cross-owner rejection, original receipt recovery, long-address/reduced-motion layout).');
+   await page.getByRole('button',{name:'Switch account',exact:true}).click();
+   await page.evaluate(()=>window.b18ShareBoth());
+   const challengesBefore=db.prepare('SELECT COUNT(*) n FROM auth_challenges').get().n;
+   await page.getByRole('button',{name:'Connect B18 Standard',exact:true}).click();
+   assert.equal(await page.getByRole('button',{name:/^Use account /}).count(),2);
+   await page.getByRole('button',{name:'Reconnect wallet permissions',exact:true}).click();
+   await page.getByRole('button',{name:'Use account '+b,exact:true}).waitFor();
+   assert.equal(await page.evaluate(()=>window.b18Disconnects),1);
+   assert.equal(db.prepare('SELECT COUNT(*) n FROM auth_challenges').get().n,challengesBefore,'No challenge before explicit account selection');
+   await page.getByRole('button',{name:'Use account '+b,exact:true}).click();
+   await page.getByRole('button',{name:'Sign in with this message',exact:true}).click();await page.locator('#wallet-dialog').waitFor({state:'hidden'});
+   await page.locator('#wallet-button').click();await page.getByText('Verified Solana wallet: '+b,{exact:true}).waitFor();
+   assert.deepEqual(errors,[]);results.push({width,height:900,reducedMotion:'reduce',longAddressLength:44,passedCases:14,messageSignatures:signatures,verificationCalls:verifyCalls,financialExecution:false});console.log(width+'px B18 Wallet Standard: 14 boundary cases passed (unsupported feature/account, registration, keyboard/cancel, client/server expiry, account/session identity, offline return, private-cache clearing, cross-owner rejection, original receipt recovery, long-address/reduced-motion layout).');
   }finally{await page.close();server.closeAllConnections();await new Promise(resolve=>server.close(resolve));db.close();}
  }
  if(process.env.SCREENSHOT_DIR)await writeFile(join(process.env.SCREENSHOT_DIR,'wallet-evidence.json'),JSON.stringify({format:'10x.local.wallet-browser-evidence.v1',browserVersion:browser.version(),node:process.version,platform:process.platform,architecture:process.arch,adapter:'Synthetic Wallet Standard 1.0.0',evidenceType:'local-browser',physicalWallet:'manual-required',transactionSigning:false,broadcasting:false,results},null,2));

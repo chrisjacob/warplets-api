@@ -24,7 +24,7 @@ export async function checkProgressionLifecycle({browser,widths=[360,390,768,144
    }
    return route.continue();
   });
-  async function signIn(account=f.accounts.original){await page.evaluate(wallet=>{window.fixtureProgressionWallet=wallet;},account.wallet);await page.locator('#wallet-button').click();await page.getByRole('button',{name:'Connect Solana wallet',exact:true}).click();await page.getByRole('button',{name:'Sign in with this message',exact:true}).click();await page.locator('#wallet-dialog').waitFor({state:'hidden'});}
+  async function signIn(account=f.accounts.original){await page.evaluate(wallet=>{window.fixtureProgressionWallet=wallet;},account.wallet);await page.locator('#wallet-button').click();await page.getByRole('button',{name:'Connect Solana wallet',exact:true}).click();await page.getByRole('button',{name:/^Use account /}).click();await page.getByRole('button',{name:'Sign in with this message',exact:true}).click();await page.locator('#wallet-dialog').waitFor({state:'hidden'});}
   async function signOut(){await page.locator('#wallet-button').click();await page.getByRole('button',{name:'Sign out',exact:true}).click();await page.locator('#wallet-dialog').waitFor({state:'hidden'});}
   async function pair(target='synthetic-season-000',material='synthetic-season-001'){const form=page.locator('form[data-upgrade="'+target+'"]');await form.getByLabel('Same-Level material NFT ID').fill(material);await form.getByLabel('Same-Level material NFT ID').press('Enter');await page.getByRole('heading',{name:'Review Level upgrade',exact:true}).waitFor();}
   const dialog=page.locator('#collection-dialog'),count=()=>f.db.prepare("SELECT COUNT(*) n FROM collect_operations WHERE kind='upgrade'").get().n;

@@ -37,7 +37,7 @@ export async function checkMemberEvidence({browser}){
    await page.goto(origin+'/earn');
    for(const label of ['minimum','capped','bounded']){
     await page.evaluate(label=>window.chooseMemberAccount(label),label);
-    await page.locator('#wallet-button').click();await page.getByRole('button',{name:'Connect Synthetic Member',exact:true}).click();
+    await page.locator('#wallet-button').click();await page.getByRole('button',{name:'Connect Synthetic Member',exact:true}).click();await page.getByRole('button',{name:/^Use account /}).click();
     await page.getByRole('button',{name:'Sign in with this message',exact:true}).click();await page.locator('#wallet-dialog').waitFor({state:'hidden'});
     await page.getByRole('navigation').getByRole('link',{name:'Earn',exact:true}).click();await page.getByRole('heading',{name:'Your Earn evidence',exact:true}).waitFor();await page.locator('#view[aria-busy=false]').waitFor();
     if(label==='bounded'){

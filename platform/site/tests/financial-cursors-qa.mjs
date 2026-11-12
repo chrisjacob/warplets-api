@@ -36,7 +36,7 @@ export async function checkFinancialCursors({browser}){
     observeAsset(db,{eventId:'long-bind-'+n,assetId:ids[n],kind:'bind',owner:accounts.minimum.wallet,at:new Date(nowMs-1000).toISOString(),slot:{kind:'genesis',tranche:1,level:1,ordinal:300+n}},nowMs);
    }
    page.on('pageerror',e=>errors.push(e.message));await page.route('**/*',route=>new URL(route.request().url()).origin===origin?route.continue():route.abort());await installWallet(page,fixture);
-   await page.goto(origin+'/vault');await page.locator('#wallet-button').click();await page.getByRole('button',{name:'Connect Synthetic Financial',exact:true}).click();
+   await page.goto(origin+'/vault');await page.locator('#wallet-button').click();await page.getByRole('button',{name:'Connect Synthetic Financial',exact:true}).click();await page.getByRole('button',{name:/^Use account /}).click();
    await page.getByRole('button',{name:'Sign in with this message',exact:true}).click();await page.locator('#wallet-dialog').waitFor({state:'hidden'});
    await page.getByText(/Complete local ledger snapshot across 26 owned NFTs/).waitFor();
    const initialResponse=await page.request.get(origin+'/api/v1/vault');assert.equal(initialResponse.headers()['cache-control'],'no-store');const initial=await initialResponse.json();
