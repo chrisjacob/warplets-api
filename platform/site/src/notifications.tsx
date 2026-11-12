@@ -21,19 +21,33 @@ function safeTarget(raw:string){
 }
 function InboxSettings({pref,topics,wallet}:{pref:z.infer<typeof preference>;topics:Topic[];wallet:string}){
   const cache=useQueryClient(),[selected,setSelected]=useState<Topic[]>(pref.topics);
+  const preferenceKey=['private',wallet,'solana','notifications','preferences'];
+  const [refreshing,setRefreshing]=useState(false),[refreshError,setRefreshError]=useState('');
+  async function refreshPreferences(){
+    setRefreshing(true);setRefreshError('');
+    try{await cache.cancelQueries({queryKey:preferenceKey});
+      const current=preference.parse((await client.getMyNoticePreferences()).data);
+      cache.setQueryData(preferenceKey,current);setSelected(current.topics);change.reset();
+    }catch(error){setRefreshError(friendlyError(error));}finally{setRefreshing(false);}
+  }
   const change=useMutation({mutationFn:async(enabled:boolean)=>{
     const body={channel:pref.channel,terms:pref.terms,enabled,topics:enabled?selected:[],expectedRevision:pref.revision};
     const key=intentKey(wallet,'local-notice-consent',body);
-    await client.setMyNoticePreferences({idempotencyKey:key.key,body});
+    await cache.cancelQueries({queryKey:preferenceKey});
+    const response=await client.setMyNoticePreferences({idempotencyKey:key.key,body});
+    const current=preference.parse(response.data?.preference);
+    await cache.cancelQueries({queryKey:preferenceKey});
+    cache.setQueryData(preferenceKey,current);
     key.done();
-  },onSuccess:()=>cache.invalidateQueries({queryKey:['private',wallet,'solana','notifications']})});
+  },onSuccess:()=>cache.invalidateQueries({queryKey:['private',wallet,'solana','notifications','inbox']})});
   return <form className="member-form" onSubmit={e=>{e.preventDefault();change.mutate(true);}}>
-    <fieldset disabled={change.isPending}><legend>Topics</legend>
+    <fieldset disabled={change.isPending || refreshing}><legend>Topics</legend>
       {topics.map(t=><label className="check" key={t}><input type="checkbox" checked={selected.includes(t)}
         onChange={e=>setSelected(old=>e.target.checked?[...old,t]:old.filter(x=>x!==t))}/>{labels[t]}</label>)}</fieldset>
-    <button disabled={change.isPending || !selected.length}>{pref.enabled?'Save topics':'Enable local inbox'}</button>
-    {pref.enabled && <button type="button" disabled={change.isPending} onClick={()=>change.mutate(false)}>Turn off and clear inbox</button>}
-    <output aria-live="polite">{change.error?friendlyError(change.error):''}</output>
+    <button disabled={change.isPending || refreshing || !!change.error || !selected.length}>{pref.enabled?'Save topics':'Enable local inbox'}</button>
+    {pref.enabled && <button type="button" disabled={change.isPending || refreshing || !!change.error} onClick={()=>change.mutate(false)}>Turn off and clear inbox</button>}
+    <output aria-live="polite">{refreshError || (change.error?friendlyError(change.error):'')}</output>
+    {change.error && <><p>Refresh the saved preferences, then review your topics before trying again. No change will be retried automatically.</p><button type="button" disabled={refreshing} onClick={()=>void refreshPreferences()}>Refresh saved preferences</button></>}
   </form>;
 }
 export function Notifications({wallet}:{wallet:string}){

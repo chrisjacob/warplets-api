@@ -2,7 +2,11 @@
 
 All B00–B20 tasks are verified, including B20-core and B20-full: **411/411 estimated story points**. The dependency validator returns an empty ready queue. All authorized B work is complete; R-stage work remains separately gated.
 
-Branch: `work/10x-prd-foundation`. Final tested implementation: `6e3666dc4ac00e2d642d0cfd2f4412337ae02c22`. Later commits update documentation/evidence only. Preserve untracked `work/` logs, fixtures and screenshots.
+Branch: `work/10x-prd-foundation`. Final tested implementation: `6e3666dc4ac00e2d642d0cfd2f4412337ae02c22`. Subsequent manual-review product fixes are described below; the historical CI result applies only to its recorded commit. Preserve untracked `work/` logs, fixtures and screenshots.
+
+## 12 November manual-review follow-up
+
+User-reviewed synthetic Vault, Stake, Earn, Collect and Genesis voting workflows passed. Separate-copy ballot closure and fresh public Earn recovery passed without modifying the live demo. Wallet account selection/switching was fixed in `d8cfd79`; mobile touch targets/dialog spacing in `451b6c1`. The subsequent inbox fix and cross-browser evidence are documented in [the compatibility review](../validation/COMPATIBILITY_REVIEW_2026-11-12.md). The [founder release checklist](../validation/LOCAL_TO_RELEASE_REVIEW.md) separates local acceptance from hosted and financial approvals. Current financial execution remains disabled; no R gate is approved. Physical wallet/device/screen-reader checks and exact-candidate CI remain review prerequisites.
 
 ## Verification
 

@@ -1,0 +1,90 @@
+{
+  "format": "10x.local.manual-review-evidence.v1",
+  "recordedAt": "2026-11-12T11:21:26.049Z",
+  "financialExecution": false,
+  "physicalWalletVerified": false,
+  "physicalMobileVerified": false,
+  "screenReaderVerified": false,
+  "originalIntermittentRootCauseProven": false,
+  "frontendTests": 30,
+  "focusedTests": 19,
+  "browsers": {
+    "chrome": "156.0.8078.81",
+    "edge": "157.0.4341.46",
+    "webkit": "27.2",
+    "chromium": "156.0.8078.4"
+  },
+  "inboxWidths": [
+    390,
+    1280
+  ],
+  "walletWidths": [
+    360,
+    390,
+    768,
+    1440
+  ],
+  "result": "passed-local",
+  "records": [
+    {
+      "path": "platform/site/src/notifications.tsx",
+      "bytes": 5863,
+      "sha256": "eb293d2e2fee96df3548f14e4db236b6deab46f8bef6b91ce816741ae14684c5"
+    },
+    {
+      "path": "platform/site/tests/inbox-conflict-qa.mjs",
+      "bytes": 6137,
+      "sha256": "ed6eed898d28b53fd2a9d592303dcf2f1b98d430054fc36d606d85cf494c1b5d"
+    },
+    {
+      "path": "work/inbox-conflict-check.log",
+      "bytes": 3867,
+      "sha256": "d0aecc3d42a0bc1d36a391e91bbb790514cae1ba14cf21df03682c961c7f1d5a"
+    },
+    {
+      "path": "work/inbox-chrome.log",
+      "bytes": 3870,
+      "sha256": "a56153ff0c23f2d616652909acab526f00403db285befc527a5fa8a94e34ab77"
+    },
+    {
+      "path": "work/inbox-edge.log",
+      "bytes": 3870,
+      "sha256": "3234a74cfdeac4a3e5ef31e52497edea7f343aca30ae0d3bb6dee1e6406df018"
+    },
+    {
+      "path": "work/inbox-webkit.log",
+      "bytes": 3848,
+      "sha256": "292e5ce1458d6f83e3884784060b58445dbebe8d47725e1794735fccc0447c8c"
+    },
+    {
+      "path": "work/wallet-edge.log",
+      "bytes": 1391,
+      "sha256": "360fc1aa2294ab27f793b573cc39fcaada8e24c3435daf81a75475e5450f822b"
+    },
+    {
+      "path": "work/wallet-webkit.log",
+      "bytes": 1380,
+      "sha256": "e63d808e5d964839de5015f8c98e5cb269499ac85327f2f85ce2a04b87564c4e"
+    },
+    {
+      "path": "work/inbox-runtime-regression.log",
+      "bytes": 5541,
+      "sha256": "da4c2d5bf255eb1cd28607ef2656cbf982ecce53fd99b860263eeb12e965a04b"
+    },
+    {
+      "path": "work/inbox-site-tests.log",
+      "bytes": 8579,
+      "sha256": "cd019436e1198d3504f2a33b455762ac820e4f5a08973d58cd691e3b74031cc0"
+    },
+    {
+      "path": "work/compatibility-consent-tests.log",
+      "bytes": 5833,
+      "sha256": "37ad3a0f8db872d30e9c0120f8261fd5ce3fbee29cd8f6cdf1ec1cbd20321b47"
+    },
+    {
+      "path": "work/inbox-final-browser.log",
+      "bytes": 5066,
+      "sha256": "7a97bd27ea2a4a850ba82271216552bf23e4daf6150bd989c153477fd8e35f14"
+    }
+  ]
+}
