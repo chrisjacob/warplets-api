@@ -32,7 +32,8 @@ test('real owner API distinguishes sealed minimum/reset, capped provenance, rota
  assert.equal(unknown.latestFinalComponents,null);assert.equal(unknown.admission.items[0].stakeMicroUsd,null);assert.equal(unknown.currentCutoff.status,'pending');
  const vite=await createServer({root:fileURLToPath(new URL('..',import.meta.url)),server:{middlewareMode:true,hmr:{server:httpServer()}},appType:'custom',logLevel:'error'});t.after(()=>vite.close());
  const {EarnMemberDetails}=await vite.ssrLoadModule('/src/earn-details.tsx');
- const render=status=>renderToStaticMarkup(createElement(EarnMemberDetails,{status}));
+ const {ExperienceProvider}=await vite.ssrLoadModule('/src/experience.tsx');
+ const render=status=>renderToStaticMarkup(createElement(ExperienceProvider,{initialTechnical:true},createElement(EarnMemberDetails,{status})));
  assert.match(render(min),/0.1×/);assert.doesNotMatch(render(min),/synthetic-private-completion|Synthetic retired action/);
  assert.match(render(max),/10×/);assert.match(render(max),/synthetic-capped-components/);
  assert.match(render(unknown),/No zero-valued multiplier preview is inferred/);assert.doesNotMatch(render(unknown),/synthetic-capped-components/);

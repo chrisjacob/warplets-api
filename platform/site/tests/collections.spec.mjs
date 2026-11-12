@@ -32,12 +32,14 @@ test('public initial HTML names allocations truthfully and cannot expose conceal
 test('Earn renders server multiplier/provenance and keeps missing final evidence distinct from zero',async t=>{
  const vite=await createServer({root:fileURLToPath(new URL('..',import.meta.url)),server:{middlewareMode:true,hmr:{server:httpServer()}},appType:'custom',logLevel:'error'});t.after(()=>vite.close());
  const {EarnMemberDetails}=await vite.ssrLoadModule('/src/earn-details.tsx');
+ const {ExperienceProvider}=await vite.ssrLoadModule('/src/experience.tsx');
+ const renderTechnical=props=>renderToStaticMarkup(createElement(ExperienceProvider,{initialTechnical:true},createElement(EarnMemberDetails,props)));
  const status={mode:'local-fixture',asOf:'2026-11-01T00:00:00.000Z',epoch:21000,admission:{status:'complete',items:[{tokenId:'ATT',status:'pending',reason:'stake-evidence-pending',stakeMicroUsd:null,stakeObservedAt:null,sourceRef:null}]},
   actions:{status:'complete',items:[{actionId:'learn',label:'Learn fixture',verifier:'proof',status:'pending',verifiedAt:null,sourceRef:null}]},currentCutoff:{status:'pending',reason:'board-not-sealed',cutoffAt:'2026-11-01T23:59:59.999Z'},
   latestFinalComponents:null,multiplierBounds:{minimumTenths:1,maximumTenths:100}};
- const pending=renderToStaticMarkup(createElement(EarnMemberDetails,{status}));
+ const pending=renderTechnical({status});
  assert.match(pending,/0.1×/);assert.match(pending,/10×/);assert.match(pending,/No verified completion/);assert.match(pending,/No zero-valued multiplier preview/);
  const final={epoch:20999,cutoffAt:status.asOf,actionTenths:2,streakDays:3,highestEligibleLevel:4,purchaseTokenDays:5,multiplierTenths:22,sourceRef:'sealed-fixture-source',snapshotDigest:'sealed-digest'};
- const ready=renderToStaticMarkup(createElement(EarnMemberDetails,{status:{...status,latestFinalComponents:final}}));
+ const ready=renderTechnical({status:{...status,latestFinalComponents:final}});
  assert.match(ready,/2.2×/);assert.match(ready,/sealed-fixture-source/);assert.match(ready,/sealed-digest/);
 });

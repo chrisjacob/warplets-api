@@ -27,6 +27,9 @@ const {chromium}=createRequire(import.meta.url)(process.env.PLAYWRIGHT_MODULE);
 let browser;
 try {
   browser=await chromium.launch({executablePath:process.env.BROWSER_EXE,headless:true});
+  const newPage=browser.newPage.bind(browser),newContext=browser.newContext.bind(browser);
+  browser.newPage=async options=>{const page=await newPage(options);await page.addInitScript(()=>sessionStorage.setItem('10x:technical','true'));return page;};
+  browser.newContext=async options=>{const context=await newContext(options);await context.addInitScript(()=>sessionStorage.setItem('10x:technical','true'));return context;};
   const onlyQuotes=process.argv.includes('--only-quotes');
   for(const width of onlyQuotes?[]:[360,390,768,1440]){
     const page=await browser.newPage({viewport:{width,height:900}});

@@ -1,3 +1,4 @@
+import {NftArt,TokenArt} from './experience';
 import {InventoryEvidence,AssetEvidence} from './collection-details';
 import {PublishedStage,BallotCard} from './collect';
 import {rootRoute} from './routes';
@@ -16,10 +17,10 @@ export function CanonicalMarket(){
   const market=useRuntimeQuery('/api/v1/markets/{id}',{queryKey:['market',marketId],queryFn:({signal})=>sdk.market(marketId,signal)});
   const title=market.data?market.data.symbol+' / '+market.data.ogSymbol:'ATT market';
   usePageMeta(title,'Campaign timing, fee and the paired original token.','/markets/'+encodeURIComponent(marketId),true);
-  return <><Hero title={title}>Campaign timing, launch fee and verified market identifiers.</Hero>
-    <Loaded query={market}>{m=><Panel title="Market details"><Facts items={[['Source','Local fixture'],['Campaign status',m.status],
+  return <><Hero title={title}>Explore this token and preview its trading terms.</Hero>
+    <Loaded query={market}>{m=><Panel title="Market details"><TokenArt name={m.symbol}/><Facts items={[['Source','Local fixture'],['Campaign status',m.status],
       ['Activated',utc(m.activatedAt)],['Current fee',percent(m.feeBps)],['ATT mint',m.attMint],['OG mint',m.ogMint],['Pool',m.poolAddress]]}/>
-      <p><Link to="/stake" search={{farm:m.id}}>Inspect farm ↗</Link></p></Panel>}</Loaded>
+      <p><Link to="/stake" search={{farm:m.id}}>View staking →</Link></p></Panel>}</Loaded>
     {market.data&&<QuotePanel marketId={marketId} symbol={market.data.symbol} ogSymbol={market.data.ogSymbol} services={quoteServices}/>}
     <ShareLink path={'/markets/'+encodeURIComponent(marketId)} title={title}/><Link to="/markets">All markets →</Link></>;
 }
@@ -65,7 +66,7 @@ export function CanonicalAsset(){
   usePageMeta('NFT · '+assetId,'Publicly revealed NFT metadata and ownership.','/nfts/'+encodeURIComponent(assetId),true);
   const asset=useRuntimeQuery('/api/v1/collect/assets/{id}',{queryKey:['public-asset',assetId],queryFn:({signal})=>sdk.asset(assetId,signal)});
   return <><Hero title={assetId}>Collection metadata and current ownership.</Hero><Loaded query={asset}>{a=>
-    <Panel title={a.revealStatus==='revealed'?'Revealed metadata':'Awaiting reveal'}>
+    <Panel title={a.revealStatus==='revealed'?'Collectible details':'Awaiting reveal'}><NftArt name={a.id} level={a.level} concealed={a.revealStatus!=='revealed'}/>
       <Facts items={[['Collection',a.inventoryId],['Owner',a.owner],['Status',a.revealStatus],
         ...(a.revealStatus==='revealed'?[['Level',a.level],['Model',a.traits?.model],['Backdrop',a.traits?.backdrop],['Symbol',a.traits?.symbol]] as [string,React.ReactNode][]:[])]}/>
       <AssetEvidence asset={a}/>{a.revealStatus==='revealed'&&<p><Link to="/vault" search={{asset:a.id}}>View Vault allocations ↗</Link></p>}

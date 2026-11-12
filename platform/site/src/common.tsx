@@ -1,3 +1,4 @@
+import {useExperience} from './experience';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { PlatformApiError } from './sdk';
 
@@ -38,7 +39,9 @@ export function friendlyError(err:unknown){
 export function Hero({title,children}:{title:string;children:ReactNode}){
   return <header className="page-hero"><h1>{title}</h1><p>{children}</p></header>;
 }
-export function Panel({title,children,className=''}:{title?:ReactNode;children:ReactNode;className?:string}){
+export function Panel({title,children,className='',technicalOnly=false}:{title?:ReactNode;children:ReactNode;className?:string;technicalOnly?:boolean}){
+  const {technical}=useExperience();
+  if(technicalOnly&&!technical)return null;
   return <section className={'panel '+className}>{title && <h2>{title}</h2>}{children}</section>;
 }
 export function Empty({title,children}:{title:string;children?:ReactNode}){
@@ -53,11 +56,14 @@ export function Loaded<T>({query,children,restart}:{query:{data:T|undefined;isEr
   return <>{children(query.data)}</>;
 }
 export function Metrics({items}:{items:Array<[string,string,string]>}){
+  if(!useExperience().technical)return null;
   return <section className="metrics" aria-label="Program metrics">{items.map(([label,value,note])=>
     <div key={label}><span>{label}</span><strong>{value}</strong><small>{note}</small></div>)}</section>;
 }
 export function Facts({items}:{items:Array<[string,ReactNode]>}){
-  return <dl className="facts">{items.map(([label,value])=><div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>;
+  const {technical}=useExperience();
+  const visible=technical?items:items.filter(([label])=>!/(digest|micro-USD|source|evidence|observed|verified action|purchase token-days|tenths)/i.test(label)&&!['ATT mint','OG mint','Original token mint','Pool','ID','Requested','Projection as of','Published','Accepted opening-cut digest'].includes(label));
+  return <dl className="facts">{visible.map(([label,value])=><div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>;
 }
 export function MobileRecords({entries}:{entries:{id:string;summary:ReactNode;facts:Array<[string,ReactNode]>}[]}){
   return <div className="mobile-records">{entries.map(entry=><details key={entry.id}><summary>{entry.summary}</summary>

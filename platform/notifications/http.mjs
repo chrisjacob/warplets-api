@@ -28,7 +28,9 @@ export const notificationPaths={
 export async function handleNotifications(db,request,peer,now) {
   const u=new URL(request.url),which=u.pathname.slice(base.length);
   if(!u.pathname.startsWith(base+'/')||!['/capabilities','/subscriptions','/inbox'].includes(which))return null;
-  const ports={crypto:createNodeCrypto(),ids:{next:randomUUID},clock:{nowMs:()=>now}},driver=createNodeAtomicDriver(db);
+  // Consent timestamps and the guarded write use the same SQLite clock.
+  // Floating-point epoch conversion can lag Date.now() by 1 ms.
+  const ports={crypto:createNodeCrypto(),ids:{next:randomUUID},clock:{nowMs:()=>db.prepare("SELECT CAST(unixepoch('subsec')*1000 AS INTEGER) AS nowMs").get().nowMs}},driver=createNodeAtomicDriver(db);
   const service=createNotificationConsentService({...ports,repository:createNotificationConsentRepository(driver,ports)}),reads=createNotificationDeliveryRepository(driver,ports);
   return handleNotificationConsent(request,{service,readInbox:reads.readInbox,authenticate:async req=>{const session=currentSession(db,req,now);return session?{kind:'wallet',wallet:session.wallet}:null;},consumeQuota:async(bucket,limit)=>consumeQuota(db,bucket,now,limit)});
 }

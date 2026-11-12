@@ -1,6 +1,9 @@
+import {useExperience} from './experience';
 import type { Inventory, Stage, Asset } from './models';
 import { Facts, utc } from './common';
 export function StageEvidence({stage:s}:{stage:Stage}){
+  const {technical}=useExperience();
+  if(!technical)return <p className="status-pill">{s.status==='awaiting-snapshot'?'Eligibility is unknown while opening checks finish':s.status!=='open'?'This stage is '+s.status:s.reservationStatus?.reason==='wallet-limit'?'You’ve used your mint for this stage':s.eligible===true?'Your wallet is eligible':s.eligible===false?'This wallet is not eligible':'Connect to check eligibility'}</p>;
   const eligibility=s.eligibility?.status??(s.status==='awaiting-snapshot'||s.eligible===null?'unknown':s.eligible?'eligible':'ineligible');
   const reasons={'eligible':'Eligible for a local reservation','not-signed-in':'Sign in to check the wallet limit','opening-hold':'Opening is held for the published dependency','stage-scheduled':'The stage has not opened','stage-closed':'The stage has closed','sold-out':'No stage or shared inventory remains','snapshot-pending':'Complete opening-cut evidence is pending','not-on-list':'Wallet is absent from the fixed eligibility list','wallet-limit':'The per-stage wallet limit has been used','operator-only':'Founder allocations require the separate operator command','admission-unavailable':'Reservations are not yet available for this collection'};
   return <><Facts items={[
@@ -14,6 +17,7 @@ export function StageEvidence({stage:s}:{stage:Stage}){
   ]}/>}<p>Fixed-list eligibility and current reservation availability are separate. All reservations remain local previews.</p>{s.type==='free'&&<p>Eligibility uses revealed Genesis Level 1 ownership at the published opening time. Later evidence does not move this cut.</p>}</>;
 }
 export function InventoryEvidence({inventory:i}:{inventory:Inventory}){
+  if(!useExperience().technical)return <p>{i.counts.unsold.toLocaleString()} available · {i.counts.pending} awaiting reveal</p>;
   return <><Facts items={[
     ['Priced-stage allocations',i.counts.paid],['Free-stage allocations',i.counts.free],['Founder-stage allocations',i.counts.founder],
     ['Awaiting fulfillment',i.counts.pending],['Slots available',i.counts.unsold],['Unminted reserve',i.counts.unmintedReserve],
@@ -27,6 +31,7 @@ export function InventoryEvidence({inventory:i}:{inventory:Inventory}){
     <p>Late mints inherit the same expiry from the original Season start. Expiry or a later Level change does not erase past allocations or restart their vesting.</p></details>}</>;
 }
 export function AssetEvidence({asset:a}:{asset:Asset}){
+  if(!useExperience().technical)return a.revealStatus==='revealed'&&(a.rerolls||a.nextRerollAt)?<p>{a.rerolls??0} visual rerolls{a.nextRerollAt?' · Next reroll: '+utc(a.nextRerollAt):''}</p>:null;
   return <><Facts items={[
     ['Owner evidence observed',a.ownerObservedAt?utc(a.ownerObservedAt):'Unavailable'],['Evidence',a.evidenceStatus??'Unavailable'],
     ...(a.revealStatus==='revealed'?[

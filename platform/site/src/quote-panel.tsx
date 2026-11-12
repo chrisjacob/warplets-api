@@ -1,3 +1,4 @@
+import {useExperience} from './experience';
 import { Capability, useRuntimeQuery } from './capabilities';
 import { useEffect,useState } from 'react';
 import { useMutation,} from '@tanstack/react-query';
@@ -32,6 +33,7 @@ export const quoteServices:QuoteServices={
   },
 };
 function SwapForm({marketId,symbol,ogSymbol,available,services}:{marketId:string;symbol:string;ogSymbol:string;available:Availability;services:QuoteServices}){
+  const {technical}=useExperience();
   const [direction,setDirection]=useState<'buy-att'|'sell-att'>('buy-att'),[amount,setAmount]=useState(''),[slippage,setSlippage]=useState('50');
   const [now,setNow]=useState(Date.now()),[inputError,setInputError]=useState('');
   const quote=useMutation({mutationFn:services.quote});
@@ -59,8 +61,8 @@ function SwapForm({marketId,symbol,ogSymbol,available,services}:{marketId:string
         onChange={e=>{setDirection(e.target.value as typeof direction);dirty();}}>
         <option value="buy-att">Buy {symbol}</option><option value="sell-att">Sell {symbol}</option></select>
       <label>Amount in {inputSymbol}<input value={amount} inputMode="decimal" required onChange={e=>{setAmount(e.target.value);dirty();}}/></label>
-      <label>Slippage tolerance in basis points<input type="number" min="0" max="500" required value={slippage}
-        onChange={e=>{setSlippage(e.target.value);dirty();}}/></label>
+      {technical?<label>Slippage tolerance in basis points<input type="number" min="0" max="500" required value={slippage}
+        onChange={e=>{setSlippage(e.target.value);dirty();}}/></label>:<label>Slippage tolerance<select value={slippage} onChange={e=>{setSlippage(e.target.value);dirty();}}>{[0,10,50,100,200,500].map(bps=><option key={bps} value={bps}>{bps/100}%</option>)}</select></label>}
       <button disabled={quote.isPending}>Preview swap quote</button></fieldset>
       {(inputError||quote.error)&&<Signal>{inputError||friendlyError(quote.error)}</Signal>}
     </form>

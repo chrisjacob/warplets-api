@@ -8,6 +8,10 @@ Branch: `work/10x-prd-foundation`. Final tested implementation: `6e3666dc4ac00e2
 
 User-reviewed synthetic Vault, Stake, Earn, Collect and Genesis voting workflows passed. Separate-copy ballot closure and fresh public Earn recovery passed without modifying the live demo. Wallet account selection/switching was fixed in `d8cfd79`; mobile touch targets/dialog spacing in `451b6c1`. The subsequent inbox fix and cross-browser evidence are documented in [the compatibility review](../validation/COMPATIBILITY_REVIEW_2026-11-12.md). The [founder release checklist](../validation/LOCAL_TO_RELEASE_REVIEW.md) separates local acceptance from hosted and financial approvals. Current financial execution remains disabled; no R gate is approved. Physical wallet/device/screen-reader checks and exact-candidate CI remain review prerequisites.
 
+## Consumer UX follow-up — 12 November
+
+The default app now uses a simpler retail view, illustrated collectible cards, token icons, task diagrams, reward progress and eligible NFT selection. Technical view remains available in the footer. See [the audit and review guide](../validation/UX_REVIEW_2026-11-12.md). The local app was refreshed without reseeding or changing synthetic holdings/staffing. A deterministic Node inbox clock regression is covered. The next step is user review of the new experience; release gates remain unapproved.
+
 ## Verification
 
 [Final CI42322879462](https://github.com/chrisjacob/warplets-api/actions/runs/42322879462) succeeded on the exact implementation commit: 1,227 reference + 30 frontend + 3 beacon + 169 actual local Worker/D1/R2 tests = **1,429 passed, zero failed**. Builds, types, generated contracts and Earn recovery drill passed. Exact results are in `platform/validation/runs/2026-11-06-overnight/B20-ci.json`; full acceptance is `B20-full.json`. Historical fixture-clock repairs are included in this final run.

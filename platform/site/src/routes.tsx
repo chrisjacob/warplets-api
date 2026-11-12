@@ -1,3 +1,4 @@
+import {ExperienceProvider,TechnicalToggle} from './experience';
 import { createRootRoute, createRoute, createRouter, lazyRouteComponent, Link, Outlet, useRouterState, type RouteComponent } from '@tanstack/react-router';
 import { useIsFetching } from '@tanstack/react-query';
 import { SessionProvider, useSession } from './session';
@@ -28,12 +29,12 @@ function Shell(){
         aria-current={name===current?'page':undefined}>{name[0].toUpperCase()+name.slice(1)}</Link>)}</nav>
       <button className="wallet-button" id="wallet-button" onClick={open}><span aria-hidden="true">◎</span> <span id="wallet-name">{wallet?compact(wallet):'Connect wallet'}</span></button>
     </div></header>
-    <main id="main" tabIndex={-1} className="frame main"><div className="environment"><i aria-hidden="true"/> Local preview <span/> Solana</div>
+    <main id="main" tabIndex={-1} className="frame main"><div className="environment"><i aria-hidden="true"/> Demo · No real funds <span/> Solana</div>
       <div id="view" aria-busy={fetching>0}><Outlet/></div></main>
-    <footer><div className="frame footer-row"><Link to="/markets" className="brand">10X.MEME</Link><span>Solana preview</span><a href="/api/v1/openapi.json">API reference ↗</a></div></footer>
+    <footer><div className="frame footer-row"><Link to="/markets" className="brand">10X.MEME</Link><span>Solana preview</span><TechnicalToggle/></div></footer>
   </>;
 }
-export const rootRoute=createRootRoute({validateSearch,component:()=> <SessionProvider><Shell/></SessionProvider>});
+export const rootRoute=createRootRoute({validateSearch,component:()=> <ExperienceProvider><SessionProvider><Shell/></SessionProvider></ExperienceProvider>});
 const route=<const P extends string,>(path:P,component:RouteComponent)=>createRoute({getParentRoute:()=>rootRoute,path,component});
 const Markets=lazyRouteComponent(()=>import('./markets'),'Markets');
 const routes=[route('/',Markets),route('/markets',Markets),
