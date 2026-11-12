@@ -169,3 +169,6 @@ footer { border-top:1px solid var(--color-line); color:var(--color-muted); font-
 .position-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr)); gap:1rem; }
 .position-card { border:1px solid var(--color-line); border-radius:14px; padding:1rem; }.position-card small { color:var(--color-muted); }
 .member-form button:not(.icon),.stage button { background:#254b36; color:white; }.member-form button:disabled { opacity:.5; }
+
+.token-list-item { display:flex; align-items:center; flex-wrap:wrap; column-gap:1rem; border-top:1px solid var(--color-line); }.rows .token-list-item>a { border:0; }.token-list-item>a:first-child { flex:1 1 220px; }.stake-link,.action-link { display:inline-flex; align-items:center; min-height:44px; font-weight:650; }
+@media(max-width:1000px) { .mast { flex-wrap:wrap; }.mast nav { order:3; flex-basis:100%; flex-wrap:wrap; justify-content:flex-start; padding-bottom:.5rem; } }

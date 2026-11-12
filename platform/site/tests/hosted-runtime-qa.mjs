@@ -51,7 +51,7 @@ export async function checkHostedRuntime({browser,runtime,fixture}){
   });
   await installWallet(page,account,origin,()=>{signatures++;});
   try{
-   await page.goto(origin+'/earn');await page.getByRole('heading',{name:'Earn',exact:true}).waitFor();
+   await page.goto(origin+'/earn');await page.getByRole('heading',{name:'Attention',exact:true}).waitFor();
    if(width===360){await page.locator('#view[aria-busy=true]').waitFor();releaseCapacity();}
    await page.locator('#view[aria-busy=false]').waitFor();
    const capability=await page.evaluate(async()=>{const response=await fetch('/api/v1/capabilities');const value=await response.json();return value.data??value;});
@@ -82,8 +82,8 @@ export async function checkHostedRuntime({browser,runtime,fixture}){
    const admitted=await db.prepare('SELECT id,wallet FROM earn_submissions WHERE id=?').bind(admissionId).first();assert.equal(admitted.wallet,account.wallet);
    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'Earn overflow '+width);
    if(process.env.SCREENSHOT_DIR){await mkdir(process.env.SCREENSHOT_DIR,{recursive:true});await page.screenshot({path:join(process.env.SCREENSHOT_DIR,'hosted-earn-'+width+'.png')});}
-   await page.getByRole('navigation').getByRole('link',{name:'Collect',exact:true}).click();
-   await page.getByRole('heading',{name:'Collect',exact:true}).waitFor();await page.locator('#view[aria-busy=false]').waitFor();
+   await page.getByRole('navigation').getByRole('link',{name:'NFTs',exact:true}).click();
+   await page.getByRole('heading',{name:'NFTs',exact:true}).waitFor();await page.locator('#view[aria-busy=false]').waitFor();
    await page.getByText('This feature is unavailable in the connected runtime.',{exact:true}).first().waitFor();
    assert.equal(await page.getByText('No published stages',{exact:true}).count(),0);
    assert.ok(!calls.some(path=>path.startsWith('/api/v1/collect/')),calls.join(','));

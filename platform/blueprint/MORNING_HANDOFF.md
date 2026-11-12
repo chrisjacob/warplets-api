@@ -12,6 +12,10 @@ User-reviewed synthetic Vault, Stake, Earn, Collect and Genesis voting workflows
 
 The default app now uses a simpler retail view, illustrated collectible cards, token icons, task diagrams, reward progress and eligible NFT selection. Technical view remains available in the footer. See [the audit and review guide](../validation/UX_REVIEW_2026-11-12.md). The local app was refreshed without reseeding or changing synthetic holdings/staffing. A deterministic Node inbox clock regression is covered. CI43213951964 passed on `3e9d06b` with 1,430 tests and zero failures; follow-up `27b482e` passed targeted local browser checks. Exact pins are in the audit guide. The next step is user review of the new experience; release gates remain unapproved.
 
+## Navigation follow-up — 13 November
+
+Top-level navigation is now Tokens, Airdrops, NFTs, Attention and Leaderboards. Staking is contextual on tokens and Attention, with My stakes in the wallet menu. Old URLs remain usable. See [the navigation review](../validation/NAVIGATION_REVIEW_2026-11-13.md) for screenshots, local validation and manual checks. Live demo data and evidence were preserved.
+
 ## Verification
 
 [Final CI42322879462](https://github.com/chrisjacob/warplets-api/actions/runs/42322879462) succeeded on the exact implementation commit: 1,227 reference + 30 frontend + 3 beacon + 169 actual local Worker/D1/R2 tests = **1,429 passed, zero failed**. Builds, types, generated contracts and Earn recovery drill passed. Exact results are in `platform/validation/runs/2026-11-06-overnight/B20-ci.json`; full acceptance is `B20-full.json`. Historical fixture-clock repairs are included in this final run.

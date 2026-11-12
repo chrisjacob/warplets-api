@@ -1,0 +1,47 @@
+{
+  "scope": "local synthetic fixtures",
+  "browsers": [
+    "Chromium",
+    "WebKit"
+  ],
+  "frontendTestsPassed": 30,
+  "fullBrowserRegression": "passed",
+  "retailKeyboardAndLayout": "passed",
+  "typecheck": "passed",
+  "build": "passed",
+  "cases": [
+    {
+      "width": 320,
+      "navigation": true,
+      "contextualStaking": true,
+      "walletMenu": true,
+      "legacyLinks": true,
+      "boardDateReload": true
+    },
+    {
+      "width": 390,
+      "navigation": true,
+      "contextualStaking": true,
+      "walletMenu": true,
+      "legacyLinks": true,
+      "boardDateReload": true
+    },
+    {
+      "width": 844,
+      "navigation": true,
+      "contextualStaking": true,
+      "walletMenu": true,
+      "legacyLinks": true,
+      "boardDateReload": true
+    },
+    {
+      "width": 1280,
+      "navigation": true,
+      "contextualStaking": true,
+      "walletMenu": true,
+      "legacyLinks": true,
+      "boardDateReload": true
+    }
+  ],
+  "financialExecution": false
+}

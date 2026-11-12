@@ -5,7 +5,7 @@ const numeric=n=>Number.isFinite(n)?new Intl.NumberFormat('en-US').format(n):'Un
 const knownDates=s=>/^\d{4}-\d{2}-\d{2}$/.test(s) && Date.parse(s)>=0 && new Date(s).toISOString().startsWith(s);
 
 const routes={
-  '/':{title:'Markets',description:'Curated Solana attention tokens and the original tokens they pair with.',canonical:'/markets',type:'markets'},
+  '/':{title:'Tokens',description:'Curated Solana attention tokens and the original tokens they pair with.',canonical:'/tokens',type:'markets'},
   '/markets':{title:'Markets',description:'Curated Solana attention tokens and the original tokens they pair with.',type:'markets'},
   '/vault':{title:'Vault',description:'NFT allocations, vesting and historical ATT claims.',private:true},
   '/stake':{title:'Stake',description:'Continuous same-token campaign rewards and recorded staking positions.',private:true},
@@ -13,6 +13,8 @@ const routes={
   '/collect':{title:'Collect',description:'Explore permanent Genesis and monthly Season collections.',private:true},
   '/collections/genesis':{title:'Genesis',description:'Collection terms, release stages and permanent Genesis membership.',type:'genesis'},
 };
+for(const [path,legacy,title] of [['/tokens','/markets','Tokens'],['/airdrops','/vault','Airdrops'],['/nfts','/collect','NFTs'],['/attention','/earn','Attention']])routes[path]={...routes[legacy],title,canonical:path};
+routes['/leaderboards']={title:'Leaderboards',description:'Content rankings and finalized daily reward results.',private:true};
 const dynamic=[
   ['market',new RegExp('^/markets/'+idPattern+'$'),'ATT market'],
   ['season',new RegExp('^/seasons/'+idPattern+'$'),'Season collection'],
@@ -103,7 +105,7 @@ export async function initialPage(route,url,readPublic){
     +'<meta property="og:type" content="website"><meta property="og:title" content="'+html(title+' · 10X.MEME')+'">'
     +'<meta property="og:description" content="'+html(description)+'"><meta property="og:url" content="'+html(canonical)+'">'
     +'<meta property="og:image" content="'+html(url.origin+'/social-card.png')+'"><meta name="twitter:card" content="summary_large_image">';
-  const fallback='<div class="frame main"><nav aria-label="Public sections">'+links([['Markets','/markets'],['Genesis','/collections/genesis'],['Earn','/earn']])
+  const fallback='<div class="frame main"><nav aria-label="Public sections">'+links([['Tokens','/tokens'],['Airdrops','/airdrops'],['NFTs','/nfts'],['Attention','/attention'],['Leaderboards','/leaderboards']])
     +'</nav><main class="page-hero"><h1>'+html(title)+'</h1><p>'+html(description)+'</p>'+content+'</main></div>';
   return {title:title+' · 10X.MEME',metadata,content:fallback,status};
 }

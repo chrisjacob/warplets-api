@@ -228,28 +228,28 @@ function MemberAssets({wallet,review}:{wallet:string;review:(review:Review)=>voi
           {asset.operationPending?<p>{technical?'Awaiting committed draw evidence.':'Your request is processing. Check its status below.'}</p>:asset.expiresAt&&<>
             <Capability method="POST" path="/api/v1/collect/inventories/{id}/progression"><Capability method="POST" path="/api/v1/collect/inventories/{id}/progression/quote"><button onClick={()=>review({kind:'progress',asset})}>Preview visual reroll</button>
             {asset.level!<10&&<MaterialPicker target={asset} wallet={wallet} review={review}/>}</Capability></Capability></>}
-          <AssetEvidence asset={asset}/><Link to="/vault" search={{asset:asset.id}}>{technical?'Vault allocations ↗':'View rewards ↗'}</Link></>}
+          <AssetEvidence asset={asset}/><Link to="/airdrops" search={{asset:asset.id}}>{technical?'Vault allocations ↗':'View airdrops ↗'}</Link></>}
       </article>)}</div>
-      {page.nextCursor!==null&&<Link to="/collect" search={{owned:String(page.nextCursor)}}>Next assets →</Link>}
+      {page.nextCursor!==null&&<Link to="/nfts" search={{owned:String(page.nextCursor)}}>Next assets →</Link>}
     </>}</Loaded></Panel>
     <Panel title="Operation history">{search.receipt && <Loaded query={receipt}>{r=><article className="receipt"><h3>Operation receipt</h3>
       <Facts items={[['ID',r.id],['State',r.status],['Requested',r.createdAt?utc(r.createdAt):'Time withheld'],['Action',r.kind],['Collection',r.inventoryId],
         ['Recorded price',sol(r.priceLamports??r.feeLamports)],['Result NFT',r.assetId??'Pending']]}/><CollectionOperationHold operation={r}/><button type="button" onClick={()=>void receipt.refetch()} disabled={receipt.isFetching}>Refresh operation receipt</button><Diagnostics><CollectionOperationFairness key={wallet+':'+r.id} operation={r} wallet={wallet}/></Diagnostics></article>}</Loaded>}
-      <Loaded query={operations}>{page=><>{page.items.length?<ul className="rows">{page.items.map(op=><li key={op.id}><Link to="/collect" search={{receipt:op.id}}>
+      <Loaded query={operations}>{page=><>{page.items.length?<ul className="rows">{page.items.map(op=><li key={op.id}><Link to="/nfts" search={{receipt:op.id}}>
         <strong>{op.kind} · {op.inventoryId}</strong><span>{op.reconciliation?'Held after observed transfer':op.status} ↗</span></Link></li>)}</ul>:<p>No operations for this wallet.</p>}
-        {page.nextCursor!==null&&<Link to="/collect" search={{operations:String(page.nextCursor)}}>Next operations →</Link>}</>}</Loaded></Panel>
+        {page.nextCursor!==null&&<Link to="/nfts" search={{operations:String(page.nextCursor)}}>Next operations →</Link>}</>}</Loaded></Panel>
   </>;
 }
 export function Collect(){
-  usePageMeta('Collect','Explore permanent Genesis membership and monthly Season collections.','/collect');
+  usePageMeta('NFTs','Explore permanent Genesis membership and monthly Season collections.','/nfts');
   const {wallet}=useSession(),search=rootRoute.useSearch();
   const [review,setReview]=useState<Review|null>(null);
   useEffect(()=>setReview(null),[wallet]);
   const inventories=useRuntimeQuery('/api/v1/collect/inventories',{queryKey:principalKey(wallet,'inventories',search.inventories),queryFn:({signal})=>sdk.inventories(search.inventories,signal)});
   const ballots=useRuntimeQuery('/api/v1/genesis/ballots',{queryKey:['ballots'],queryFn:({signal})=>sdk.ballots(signal)});
   return <>
-    <Hero title="Collect">Find your next collectible. Make it yours, level it up, and follow its rewards.</Hero>
-    <Journey steps={[['Find your collectible','Genesis lasts. Seasons have a benefit period.'],['Make it yours','Preview a mint or update a Season NFT.'],['Follow your rewards','See your NFT’s allocations in Vault.']]}/>
+    <Hero title="NFTs">Find your next collectible. Make it yours, level it up, and follow its rewards.</Hero>
+    <Journey steps={[['Find your collectible','Genesis lasts. Seasons have a benefit period.'],['Make it yours','Preview a mint or update a Season NFT.'],['Follow your rewards','See your NFT’s allocations in Airdrops.']]}/>
     {wallet&&<><PendingMint key={'mint-pending:'+wallet} wallet={wallet} review={setReview}/><PendingProgression key={'pending:'+wallet} wallet={wallet} review={setReview}/><MemberAssets key={wallet} wallet={wallet} review={setReview}/></>}
     <CollectionTerms/>
     <Panel title="Published stages"><Loaded query={inventories}>{page=><>
@@ -257,7 +257,7 @@ export function Collect(){
       {page.items.map(inv=><article key={inv.id} className="record"><h3>{inv.kind==='season'?<Link to="/seasons/$seasonId" params={{seasonId:inv.id}}>{inv.id}</Link>:inv.id}</h3>
         <InventoryEvidence inventory={inv}/>
         {inv.stages.map(s=><PublishedStage key={s.id} inventory={inv} stage={s} review={setReview}/>)}</article>)}
-      {page.nextCursor!==null&&<Link to="/collect" search={{inventories:String(page.nextCursor)}}>Next collections →</Link>}
+      {page.nextCursor!==null&&<Link to="/nfts" search={{inventories:String(page.nextCursor)}}>Next collections →</Link>}
     </>}</Loaded></Panel>
 
     <Panel title="Genesis ballots"><Loaded query={ballots}>{page=>page.items.length?page.items.map(b=>

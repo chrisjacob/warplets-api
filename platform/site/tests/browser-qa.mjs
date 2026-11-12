@@ -36,14 +36,14 @@ try {
     const errors=[];
     page.on('pageerror',e=>errors.push(e.message));
     await page.route('**/*',route=>new URL(route.request().url()).origin===origin?route.continue():route.abort());
-    for(const section of ['Markets','Vault','Stake','Earn','Collect']){
+    for(const section of ['Tokens','Airdrops','NFTs','Attention','Leaderboards']){
       await page.goto(origin+'/'+section.toLowerCase());
       await page.getByRole('heading',{name:section,level:1}).waitFor();
       await page.locator('#view[aria-busy=false]').waitFor();
       assert.equal(await page.locator('nav [aria-current=page]').getAttribute('href'),'/'+section.toLowerCase());
       assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'Overflow: '+width+' '+section);
       assert.equal(await page.getByText('This response did not match the expected data format.').count(),0,'API shape: '+section);
-      if(section==='Markets'){
+      if(section==='Tokens'){
         await page.locator('#curve-seconds').focus();await page.keyboard.press('End');
         assert.equal(await page.locator('#curve-value').textContent(),'1%');
         await page.keyboard.press('Home');assert.equal(await page.locator('#curve-value').textContent(),'90%');
@@ -58,10 +58,10 @@ try {
       console.log(width+'px '+section+' passed');
     }
     // Client-side routing and browser Back must both restore the correct page.
-    await page.getByRole('navigation').getByRole('link',{name:'Markets'}).click();
-    await page.getByRole('heading',{level:1,name:'Markets'}).waitFor();
+    await page.getByRole('navigation').getByRole('link',{name:'Tokens'}).click();
+    await page.getByRole('heading',{level:1,name:'Tokens'}).waitFor();
     await page.goBack();
-    await page.getByRole('heading',{level:1,name:'Collect'}).waitFor();
+    await page.getByRole('heading',{level:1,name:'Leaderboards'}).waitFor();
     assert.deepEqual(errors,[]);await page.close();
   }
   if(!onlyQuotes){
@@ -72,7 +72,7 @@ try {
     ['/collections/genesis','Genesis','10,000'],
     ['/seasons/browser-season','Season · browser-season','Season start'],
     ['/nfts/browser-s1','browser-s1','Revealed metadata'],
-    ['/earn/2026-11-01','Earn','Awaiting final scores'],
+    ['/earn/2026-11-01','Leaderboards','Awaiting final scores'],
   ]){
     const resp=await details.goto(origin+path);
     assert.equal(resp.status(),200,path);

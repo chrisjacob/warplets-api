@@ -20,9 +20,9 @@ export function CanonicalMarket(){
   return <><Hero title={title}>Explore this token and preview its trading terms.</Hero>
     <Loaded query={market}>{m=><Panel title="Market details"><TokenArt name={m.symbol}/><Facts items={[['Source','Local fixture'],['Campaign status',m.status],
       ['Activated',utc(m.activatedAt)],['Current fee',percent(m.feeBps)],['ATT mint',m.attMint],['OG mint',m.ogMint],['Pool',m.poolAddress]]}/>
-      <p><Link to="/stake" search={{farm:m.id}}>View staking →</Link></p></Panel>}</Loaded>
+      <p><Link to="/stake" search={{farm:m.id}}>Stake this token →</Link></p></Panel>}</Loaded>
     {market.data&&<QuotePanel marketId={marketId} symbol={market.data.symbol} ogSymbol={market.data.ogSymbol} services={quoteServices}/>}
-    <ShareLink path={'/markets/'+encodeURIComponent(marketId)} title={title}/><Link to="/markets">All markets →</Link></>;
+    <ShareLink path={'/markets/'+encodeURIComponent(marketId)} title={title}/><Link to="/tokens">All tokens →</Link></>;
 }
 
 export function CanonicalGenesis(){
@@ -36,12 +36,12 @@ export function CanonicalGenesis(){
       ['Tranche size',pretty(p.genesis.trancheSize)],['First whitelist stage',p.genesis.firstWhitelistPriceSol+' SOL'],
       ['Stage notice',p.genesis.noticeHours+' hours'],['Mint limit',p.genesis.mintsPerEligibleWalletPerStage+' per eligible wallet per stage']]}/>}</Loaded></Panel>
     <Panel title="Tranche voting"><p>Genesis holders and whitelisted wallets vote on the next tranche’s timing.
-      The founder publishes the decision and rationale.</p><Link to="/collect">View published stages and ballots ↗</Link></Panel>
+      The founder publishes the decision and rationale.</p><Link to="/nfts">View published stages and ballots ↗</Link></Panel>
     <Panel title="Published tranches"><Loaded query={inventories}>{page=><>
       {page.items.filter(i=>i.kind==='genesis').map(i=><article className="record" key={i.id}><h3>{i.id} · tranche {i.tranche}</h3><InventoryEvidence inventory={i}/>{i.stages.map(stage=><PublishedStage key={stage.id} inventory={i} stage={stage}/>)}</article>)}
       {!page.items.some(i=>i.kind==='genesis')&&<p>No Genesis tranches on this page.</p>}
       {page.nextCursor!==null&&<Link to="/collections/genesis" search={{inventories:String(page.nextCursor)}}>Next collections →</Link>}
-    </>}</Loaded><Link to="/collect">Open collection studio ↗</Link></Panel>
+    </>}</Loaded><Link to="/nfts">Open collection studio ↗</Link></Panel>
     <Panel title="Published ballots"><Loaded query={ballots}>{page=>page.items.length?page.items.map(ballot=><BallotCard key={ballot.id} ballot={ballot} wallet={wallet}/>):<Empty title="No published ballots"/>}</Loaded></Panel>
     <ShareLink path="/collections/genesis" title="Genesis"/></>;
 }
@@ -57,7 +57,7 @@ export function CanonicalSeason(){
         ['Total slots',pretty(inv.capacity)],['Slots available',pretty(inv.counts.unsold)],['Awaiting fulfillment',inv.counts.pending],
         ['Collection',inv.id]]}/><InventoryEvidence inventory={inv}/></Panel>
       <Panel title="Published stages">{inv.stages.length?inv.stages.map(s=><PublishedStage key={s.id} stage={s} inventory={inv}/>):<Empty title="No published stages"/>}
-        <Link to="/collect">Open collection studio ↗</Link></Panel>
+        <Link to="/nfts">Open collection studio ↗</Link></Panel>
     </>:<Empty title="Season not found"/>}</Loaded><ShareLink path={'/seasons/'+encodeURIComponent(seasonId)} title={'Season · '+seasonId}/></>;
 }
 
@@ -69,11 +69,11 @@ export function CanonicalAsset(){
     <Panel title={a.revealStatus==='revealed'?'Collectible details':'Awaiting reveal'}><NftArt name={a.id} level={a.level} concealed={a.revealStatus!=='revealed'}/>
       <Facts items={[['Collection',a.inventoryId],['Owner',a.owner],['Status',a.revealStatus],
         ...(a.revealStatus==='revealed'?[['Level',a.level],['Model',a.traits?.model],['Backdrop',a.traits?.backdrop],['Symbol',a.traits?.symbol]] as [string,React.ReactNode][]:[])]}/>
-      <AssetEvidence asset={a}/>{a.revealStatus==='revealed'&&<p><Link to="/vault" search={{asset:a.id}}>View Vault allocations ↗</Link></p>}
+      <AssetEvidence asset={a}/>{a.revealStatus==='revealed'&&<p><Link to="/airdrops" search={{asset:a.id}}>View airdrops ↗</Link></p>}
     </Panel>}</Loaded><ShareLink path={'/nfts/'+encodeURIComponent(assetId)} title={'NFT · '+assetId}/></>;
 }
 export function CanonicalBoard(){
   const {epochId}=useParams({from:'/earn/$epochId'});
-  if(!z.iso.date().safeParse(epochId).success)return <><Hero title="Board not found">Use a UTC calendar date to find a board.</Hero><Link to="/earn">Daily leaderboard →</Link></>;
+  if(!z.iso.date().safeParse(epochId).success)return <><Hero title="Board not found">Use a UTC calendar date to find a board.</Hero><Link to="/attention">Daily leaderboard →</Link></>;
   return <Earn epochId={epochId}/>;
 }

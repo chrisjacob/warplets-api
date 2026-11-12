@@ -39,7 +39,7 @@ export async function checkMemberEvidence({browser}){
     await page.evaluate(label=>window.chooseMemberAccount(label),label);
     await page.locator('#wallet-button').click();await page.getByRole('button',{name:'Connect Synthetic Member',exact:true}).click();await page.getByRole('button',{name:/^Use account /}).click();
     await page.getByRole('button',{name:'Sign in with this message',exact:true}).click();await page.locator('#wallet-dialog').waitFor({state:'hidden'});
-    await page.getByRole('navigation').getByRole('link',{name:'Earn',exact:true}).click();await page.getByRole('heading',{name:'Your Earn evidence',exact:true}).waitFor();await page.locator('#view[aria-busy=false]').waitFor();
+    await page.getByRole('navigation').getByRole('link',{name:'Attention',exact:true}).click();await page.getByRole('heading',{name:'Your Earn evidence',exact:true}).waitFor();await page.locator('#view[aria-busy=false]').waitFor();
     if(label==='bounded'){
      await page.getByText('Finalized ownership, purchase and streak evidence is unavailable. No zero-valued multiplier preview is inferred.',{exact:true}).waitFor();
      assert.equal(await fact(page,'Overall multiplier').count(),0);assert.equal(await page.getByText('synthetic-capped-components',{exact:true}).count(),0);
@@ -56,7 +56,7 @@ export async function checkMemberEvidence({browser}){
     assert.match(await page.locator('#view').textContent(),/board-not-sealed/);
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'Earn overflow '+label+' '+width);
     await screenshot(page,'member-earn-'+label+'-'+width);
-    await page.getByRole('navigation').getByRole('link',{name:'Vault',exact:true}).click();await page.getByRole('heading',{name:'Combined local Vault allocations',exact:true}).waitFor();
+    await page.getByRole('navigation').getByRole('link',{name:'Airdrops',exact:true}).click();await page.getByRole('heading',{name:'Combined local Vault allocations',exact:true}).waitFor();
     const vault=await (await page.request.get(origin+'/api/v1/vault')).json();
     if(label==='minimum'){
      assert.equal(vault.summary.assetCount,26);await page.getByText(/Complete local ledger snapshot across 26 owned NFTs/).waitFor();
@@ -81,7 +81,7 @@ export async function checkMemberEvidence({browser}){
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'Vault overflow '+label+' '+width);
     await screenshot(page,'member-vault-'+label+'-'+width);
     await page.locator('#wallet-button').click();await page.getByRole('button',{name:'Sign out',exact:true}).click();await page.locator('#wallet-dialog').waitFor({state:'hidden'});
-    await page.getByRole('navigation').getByRole('link',{name:'Earn',exact:true}).click();await page.locator('#view[aria-busy=false]').waitFor();
+    await page.getByRole('navigation').getByRole('link',{name:'Attention',exact:true}).click();await page.locator('#view[aria-busy=false]').waitFor();
     assert.equal(await page.getByText(/synthetic-(minimum-reset|capped)-components/).count(),0);assert.equal(await page.getByRole('heading',{name:'Your Earn evidence',exact:true}).count(),0);
    }
    assert.deepEqual(errors,[]);console.log(width+'px real-API Earn minimum/cap/reset/rotation/provenance and Vault complete/concealed/bounded snapshots passed.');

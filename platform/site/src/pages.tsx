@@ -10,7 +10,7 @@ import { useSession } from './session';
 function VaultRows({id,cursor}:{id:string;cursor?:string}){
   const cache=useQueryClient();
   const detail=useRuntimeQuery('/api/v1/nfts/{id}/vault',{queryKey:['nft-vault',id,cursor],queryFn:({signal})=>sdk.nftVault(id,cursor,signal)});
-  return <Panel title={'Allocations for '+id}><Loaded query={detail} restart={<Link to="/vault" search={{asset:id}} onClick={()=>cache.removeQueries({queryKey:['nft-vault',id,undefined],exact:true})}>Restart allocations</Link>}>{page=><>
+  return <Panel title={'Allocations for '+id}><Loaded query={detail} restart={<Link to="/airdrops" search={{asset:id}} onClick={()=>cache.removeQueries({queryKey:['nft-vault',id,undefined],exact:true})}>Restart allocations</Link>}>{page=><>
     {page.items.length?<><MobileRecords entries={page.items.map(i=>({id:i.marketId,summary:i.marketId+' · '+i.claimable+' base units available',
       facts:[['Allocation',i.allocated],['Vested',i.vested],['Claimed',i.claimed],['Available',i.claimable],['Manifest digest',i.manifestDigest],['Original activation',i.activatedAt?utc(i.activatedAt):'Unavailable'],['Cliff ends',i.cliffEndsAt?utc(i.cliffEndsAt):'Unavailable'],['Fully vested',i.fullyVestedAt?utc(i.fullyVestedAt):'Unavailable']]}))}/>
     <div className="scroller wide-table"><table><caption>Token base units · {utc(page.asOf)}</caption>
@@ -21,35 +21,35 @@ function VaultRows({id,cursor}:{id:string;cursor?:string}){
     {page.items.length>0&&<Diagnostics><details><summary>Original allocation vesting clocks</summary><Facts items={page.items.map(i=>[i.marketId,
       'Activated '+(i.activatedAt?utc(i.activatedAt):'unavailable')+' · cliff ends '+(i.cliffEndsAt?utc(i.cliffEndsAt):'unavailable')+' · fully vested '+(i.fullyVestedAt?utc(i.fullyVestedAt):'unavailable')])}/></details></Diagnostics>}
     <Diagnostics><p>Owner evidence observed: {page.ownerObservedAt?utc(page.ownerObservedAt):'Unavailable'}.</p><p>Amounts are token base units, not fiat values. Fiat pricing is unavailable. This paginated view does not establish a complete combined balance.</p></Diagnostics>
-    {page.nextCursor && <Link to="/vault" search={{asset:id,cursor:String(page.nextCursor)}}>Next allocations →</Link>}
+    {page.nextCursor && <Link to="/airdrops" search={{asset:id,cursor:String(page.nextCursor)}}>Next allocations →</Link>}
   </>}</Loaded></Panel>;
 }
 export function Vault(){
   const {technical}=useExperience();
   const cache=useQueryClient();
-  usePageMeta('Vault','NFT allocations, vesting and historical ATT claims.','/vault');
+  usePageMeta('Airdrops','NFT allocations, vesting and historical ATT claims.','/airdrops');
   const {asset,cursor}=rootRoute.useSearch();
   const {wallet,open}=useSession();
   const policy=useQuery({queryKey:['policy'],queryFn:({signal})=>sdk.policy(signal)});
   const holdings=useRuntimeQuery('/api/v1/vault',{queryKey:['private',wallet,'solana','vault',asset?'':cursor],enabled:!!wallet,
     queryFn:({signal})=>sdk.myVault(asset?undefined:cursor,signal)});
   return <>
-    <Hero title="Vault">Your collectibles. Your share of token rewards.</Hero>
+    <Hero title="Airdrops">Your collectibles. Your share of token rewards.</Hero>
     <Journey steps={[['Hold a collectible','Genesis and active Season NFTs can receive allocations.'],['Let rewards unlock','A 24-hour wait, then 24 hours of gradual unlocking.'],['Track what’s yours','See rewards for each token below.']]}/>
     <Loaded query={policy}>{p=><Metrics items={[
       ['Genesis allocation',percent(p.launch.allocationBps.genesisVault),'of each launch'],
       ['Season allocation',percent(p.launch.allocationBps.seasonVault),'while Season weight is active'],
       ['Vesting period',pretty(p.vault.vestHours)+'h','after a '+p.vault.cliffHours+'h cliff'],
     ]}/>}</Loaded>
-    <Panel title="Your NFTs">{wallet?<Loaded query={holdings} restart={<Link to="/vault" search={{}} onClick={()=>cache.removeQueries({queryKey:['private',wallet,'solana','vault',undefined],exact:true})}>Restart holdings</Link>}>{page=><>
+    <Panel title="Your NFTs">{wallet?<Loaded query={holdings} restart={<Link to="/airdrops" search={{}} onClick={()=>cache.removeQueries({queryKey:['private',wallet,'solana','vault',undefined],exact:true})}>Restart holdings</Link>}>{page=><>
       <Diagnostics><p className="muted">Local holdings for {compact(wallet)} · projection as of {utc(page.asOf)}. This is a local fixture ledger, not verified chain coverage.</p></Diagnostics>
-      {page.items.length?<ul className="rows">{page.items.map(nft=><li key={nft.id}><Link to="/vault" search={{asset:nft.id}}>
-        <TokenArt name={nft.id}/><strong>{nft.id}</strong><span>View rewards →</span></Link></li>)}</ul>:<Empty title="No NFT holdings">This wallet has no assets in the local Vault ledger.</Empty>}
+      {page.items.length?<ul className="rows">{page.items.map(nft=><li key={nft.id}><Link to="/airdrops" search={{asset:nft.id}}>
+        <TokenArt name={nft.id}/><strong>{nft.id}</strong><span>View airdrops →</span></Link></li>)}</ul>:<Empty title="No NFT holdings">This wallet has no assets in the local Vault ledger.</Empty>}
       <h3>{technical?'Combined local Vault allocations':'Your token rewards'}</h3>
       {page.summary?.status==='complete'?<><Diagnostics><p>Complete local ledger snapshot across {page.summary.assetCount} owned NFTs as of {utc(page.summary.asOf)}. Token base units are separate for each campaign; fiat prices are unavailable.</p></Diagnostics>
         {technical?<Facts items={page.summary.items.map(i=>[i.marketId,i.allocated+' allocated · '+i.vested+' vested · '+i.claimed+' claimed · '+i.claimable+' available base units'])}/>:<div className="position-grid">{page.summary.items.map(i=><article className="position-card" key={i.marketId}><TokenArt name={i.marketId}/><h3>{i.marketId}</h3><strong>{BigInt(i.claimable).toLocaleString()} available</strong><ProgressBar value={i.vested} total={i.allocated} label={'Unlocked rewards for '+i.marketId}/><small>Raw token units · {BigInt(i.claimed).toLocaleString()} already collected</small></article>)}</div>}
       </>:<p>Combined amounts unavailable: {page.summary?.reason??'complete snapshot not supplied'}. No visible-page subtotal is presented.</p>}
-      {!asset&&page.nextCursor && <Link to="/vault" search={{cursor:String(page.nextCursor)}}>Next holdings →</Link>}
+      {!asset&&page.nextCursor && <Link to="/airdrops" search={{cursor:String(page.nextCursor)}}>Next holdings →</Link>}
     </>}</Loaded>:<><p>Connect a wallet to see its Genesis and Season assets.</p><button onClick={open}>Connect wallet</button></>}</Panel>
     <p className="muted">Selling an NFT transfers its remaining rewards. Season expiry does not erase past allocations.</p>
     {asset && <VaultRows id={asset} cursor={cursor}/>}
@@ -59,13 +59,13 @@ export function Vault(){
       <li><strong>After {p.vault.cliffHours+p.vault.vestHours} hours</strong><p>The entire allocation is vested.</p></li>
     </ol>}</Loaded></Panel>
       <Panel title="Permanent claims"><p>The original vesting clock follows the allocation. Selling an NFT transfers its remaining Vault entitlement. Season expiry and Level changes preserve historical allocations; they do not restart vesting or restore already claimed amounts.</p>
-        <Link to="/collect">Explore collections ↗</Link></Panel></div></Diagnostics>
+        <Link to="/nfts">Explore collections ↗</Link></Panel></div></Diagnostics>
   </>;
 }
 export function Stake(){
   const {technical}=useExperience();
   const cache=useQueryClient();
-  usePageMeta('Stake','Continuous same-token campaign rewards and recorded staking positions.','/stake');
+  usePageMeta('My stakes','Continuous same-token campaign rewards and recorded staking positions.','/stake');
   const {farm,cursor}=rootRoute.useSearch(),{wallet,open}=useSession();
   const policy=useQuery({queryKey:['policy'],queryFn:({signal})=>sdk.policy(signal)});
   const catalog=useRuntimeQuery('/api/v1/markets',{queryKey:['markets',undefined],queryFn:({signal})=>sdk.markets(undefined,signal)});
@@ -73,7 +73,7 @@ export function Stake(){
   const positions=useRuntimeQuery('/api/v1/stake/positions',{queryKey:['private',wallet,'solana','stake',cursor],enabled:!!wallet,
     queryFn:({signal})=>sdk.positions(cursor,signal)});
   return <>
-    <Hero title="Stake">Stake an ATT during its campaign to earn rewards in that same token.</Hero>
+    <Hero title="My stakes">Stake an ATT during its campaign to earn rewards in that same token.</Hero>
     <Loaded query={policy}>{p=><Metrics items={[
       ['Farm funding',percent(p.launch.allocationBps.stake),'of original ATT supply'],
       ['Campaign length',pretty(p.launch.campaignDays)+' days','from actual activation'],

@@ -4,7 +4,7 @@ import { useIsFetching } from '@tanstack/react-query';
 import { SessionProvider, useSession } from './session';
 import { compact } from './common';
 
-const destinations=['markets','vault','stake','earn','collect'] as const;
+const destinations=[['tokens','Tokens'],['airdrops','Airdrops'],['nfts','NFTs'],['attention','Attention'],['leaderboards','Leaderboards']] as const;
 const searchKeys=['market','cursor','asset','farm','date','submissions','awards','owned','operations','inventories','receipt'] as const;
 export type Search=Partial<Record<typeof searchKeys[number],string>>;
 function validateSearch(input:Record<string,unknown>):Search{
@@ -19,25 +19,29 @@ function Shell(){
   const {wallet,open}=useSession();
   const fetching=useIsFetching();
   const path=useRouterState({select:s=>s.location.pathname});
-  const section=path.split('/')[1];
-  const current=!section?'markets':['collections','seasons','nfts'].includes(section)?'collect':section;
+  const section=path.split('/')[1],search=rootRoute.useSearch();
+  const current=!section?'tokens':({markets:'tokens',vault:'airdrops',collect:'nfts',collections:'nfts',seasons:'nfts',earn:path.split('/').length>2||!!search.date?'leaderboards':'attention',stake:'tokens'} as Record<string,string>)[section]??section;
   return <>
     <a className="skip" href="#main">Skip to content</a>
     <header className="site-header"><div className="frame mast">
-      <Link to="/markets" aria-label="10X.MEME markets" className="brand"><i>10X</i>.MEME</Link>
-      <nav aria-label="Main navigation">{destinations.map(name=><Link key={name} to={'/'+name as '/markets'}
-        aria-current={name===current?'page':undefined}>{name[0].toUpperCase()+name.slice(1)}</Link>)}</nav>
+      <Link to="/tokens" aria-label="10X.MEME tokens" className="brand"><i>10X</i>.MEME</Link>
+      <nav aria-label="Main navigation">{destinations.map(([name,label])=><Link key={name} to={'/'+name as '/tokens'}
+        aria-current={name===current?'page':undefined}>{label}</Link>)}</nav>
       <button className="wallet-button" id="wallet-button" onClick={open}><span aria-hidden="true">◎</span> <span id="wallet-name">{wallet?compact(wallet):'Connect wallet'}</span></button>
     </div></header>
     <main id="main" tabIndex={-1} className="frame main"><div className="environment"><i aria-hidden="true"/> Demo · No real funds <span/> Solana</div>
       <div id="view" aria-busy={fetching>0}><Outlet/></div></main>
-    <footer><div className="frame footer-row"><Link to="/markets" className="brand">10X.MEME</Link><span>Solana preview</span><TechnicalToggle/></div></footer>
+    <footer><div className="frame footer-row"><Link to="/tokens" className="brand">10X.MEME</Link><span>Solana preview</span><TechnicalToggle/></div></footer>
   </>;
 }
 export const rootRoute=createRootRoute({validateSearch,component:()=> <ExperienceProvider><SessionProvider><Shell/></SessionProvider></ExperienceProvider>});
 const route=<const P extends string,>(path:P,component:RouteComponent)=>createRoute({getParentRoute:()=>rootRoute,path,component});
 const Markets=lazyRouteComponent(()=>import('./markets'),'Markets');
-const routes=[route('/',Markets),route('/markets',Markets),
+const routes=[route('/',Markets),route('/markets',Markets),route('/tokens',Markets),
+  route('/airdrops',lazyRouteComponent(()=>import('./pages'),'Vault')),
+  route('/nfts',lazyRouteComponent(()=>import('./collect'),'Collect')),
+  route('/attention',lazyRouteComponent(()=>import('./earn'),'Attention')),
+  route('/leaderboards',lazyRouteComponent(()=>import('./earn'),'Leaderboards')),
   route('/vault',lazyRouteComponent(()=>import('./pages'),'Vault')),
   route('/stake',lazyRouteComponent(()=>import('./pages'),'Stake')),
   route('/earn',lazyRouteComponent(()=>import('./earn'),'Earn')),

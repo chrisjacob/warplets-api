@@ -1,3 +1,4 @@
+import {Link} from '@tanstack/react-router';
 import {RefreshProposal} from './refresh';
 import {clearRefreshReview} from './refresh-review.mjs';
 import { Capability, useRuntimeQuery } from './capabilities';
@@ -106,7 +107,7 @@ export function SessionProvider({children}:{children:ReactNode}){
   return <SessionContext.Provider value={{wallet,open}}>
     {children}
     {visible && <Modal title={wallet?'Wallet account':'Connect a wallet'} id="wallet-dialog" onClose={close}>
-      {wallet?<><p className="wrap-anywhere">Verified Solana wallet: {wallet}</p><button onClick={()=>void logout()} disabled={busy}>Sign out</button><button onClick={()=>void logout(true)} disabled={busy}>Switch account</button>
+      {wallet?<><p className="wrap-anywhere">Verified Solana wallet: {wallet}</p><p><Link to="/stake" onClick={close}>My stakes →</Link></p><button onClick={()=>void logout()} disabled={busy}>Sign out</button><button onClick={()=>void logout(true)} disabled={busy}>Switch account</button>
         {accountChanged&&<Signal>The browser wallet {selectedAccount?'now selects '+compact(selectedAccount):'is disconnected'}. This session remains authenticated as {compact(wallet)} until you sign out.</Signal>}
         <Capability path="/api/v1/notifications/capabilities"><Notifications key={'notices:'+wallet} wallet={wallet}/></Capability>
         <Capability path="/api/v1/nfts/refreshes/{id}"><RefreshProposal key={'refresh:'+wallet} wallet={wallet}/></Capability>

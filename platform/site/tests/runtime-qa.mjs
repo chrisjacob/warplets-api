@@ -24,7 +24,7 @@ export async function checkRuntimeProfiles({browser,origin}){
     });
     try{
       await page.goto(origin+'/collect');
-      await page.getByRole('heading',{name:'Collect',exact:true}).waitFor();
+      await page.getByRole('heading',{name:'NFTs',exact:true}).waitFor();
       await page.locator('#view[aria-busy=false]').waitFor();
       await page.getByText('This feature is unavailable in the connected runtime.',{exact:true}).first().waitFor();
       assert.equal(await page.getByText('No published stages',{exact:true}).count(),0);

@@ -57,7 +57,7 @@ export function MarketDetail({id}:{id:string}){
     <div className="entry-head"><h3>{m.symbol} / {m.ogSymbol}</h3><span>Local fixture</span></div>
     <Facts items={[['Status',m.status],['Activated',utc(m.activatedAt)],['Current fee',percent(m.feeBps)],
       ['ATT mint',m.attMint],['Original token mint',m.ogMint],['Pool',m.poolAddress]]}/>
-    <Link to="/stake" search={{farm:m.id}}>View staking →</Link>
+    <Link to="/stake" search={{farm:m.id}}>Stake this token →</Link>
   </>}</Loaded></Panel>{market.data&&<QuotePanel marketId={id} symbol={market.data.symbol} ogSymbol={market.data.ogSymbol} services={quoteServices}/>}</>;
 }
 export function Markets(){
@@ -65,17 +65,17 @@ export function Markets(){
   const policy=useQuery({queryKey:['policy'],queryFn:({signal})=>sdk.policy(signal),staleTime:120_000});
   const schedule=useRuntimeQuery('/api/v1/launch/fee-schedule',{queryKey:['fee-schedule'],queryFn:({signal})=>sdk.curve(signal),staleTime:120_000});
   const markets=useRuntimeQuery('/api/v1/markets',{queryKey:['markets',cursor],queryFn:({signal})=>sdk.markets(cursor,signal)});
-  usePageMeta('Markets','Explore curated Solana attention tokens and their original-token pairs.',market?'/markets/'+encodeURIComponent(market):'/markets',true);
+  usePageMeta('Tokens','Explore curated Solana attention tokens and their original-token pairs.',market?'/markets/'+encodeURIComponent(market):'/tokens',true);
   return <>
-    <Hero title="Markets">Discover attention tokens. Find a community, explore its token, and see what you can earn.</Hero>
+    <Hero title="Tokens">Discover attention tokens. Find a community, explore its token, and see what you can earn.</Hero>
     <Diagnostics><div className="market-grid"><Loaded query={schedule}>{points=><FeeChart points={points}/>}</Loaded>
       <Loaded query={policy}>{p=><Allocation policy={p}/>}</Loaded></div></Diagnostics>
     {market && <MarketDetail id={market}/>}
     <Panel title="Explore tokens"><Loaded query={markets}>{page=><>
-      {page.items.length?<ul className="rows">{page.items.map(m=><li key={m.id}><Link to="/markets/$marketId" params={{marketId:m.id}}>
+      {page.items.length?<ul className="rows">{page.items.map(m=><li className="token-list-item" key={m.id}><Link to="/markets/$marketId" params={{marketId:m.id}}>
         <TokenArt name={m.symbol}/><strong>{m.symbol} <small>/ {m.ogSymbol}</small></strong><span>{m.status} · Explore →</span>
-      </Link></li>)}</ul>:<Empty title="No markets yet">Curated ATT/OG pairs appear here once a campaign opens.</Empty>}
-      {page.nextCursor && <Link to="/markets" search={{cursor:page.nextCursor}}>Next campaigns →</Link>}
+      </Link><Link className="stake-link" to="/stake" search={{farm:m.id}}>Stake {m.symbol} →</Link></li>)}</ul>:<Empty title="No tokens yet">Curated ATT/OG pairs appear here once a campaign opens.</Empty>}
+      {page.nextCursor && <Link to="/tokens" search={{cursor:page.nextCursor}}>Next campaigns →</Link>}
     </>}</Loaded></Panel>
   </>;
 }
