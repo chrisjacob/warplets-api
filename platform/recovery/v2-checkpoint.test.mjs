@@ -3,11 +3,11 @@ import assert from 'node:assert/strict';
 import {canonicalJson} from '../security/canonical.mjs';
 import {createNodeCrypto} from '../security/node-crypto.mjs';
 import {readInstalledRecoverySchema} from './node-schema.mjs';
-import {readRecoveryV2SourceMetadata} from './v2-schema.mjs';
+import {readRecoveryV2SourceMetadata,recoveryV2SchemaFence} from './v2-schema.mjs';
 import {openDatabase} from '../storage/database.mjs';
 import {createNodeAtomicDriver} from '../storage/node/atomic-driver.mjs';
 import {createRecoveryV2Codec} from './v2-codec.mjs';
-import {parseRecoveryV2Checkpoint,packRecoveryV2Tables,packRecoveryV2CheckpointDelta} from './v2-checkpoint.mjs';
+import {packRecoveryV2Descriptor,parseRecoveryV2Checkpoint,packRecoveryV2Tables,packRecoveryV2CheckpointDelta} from './v2-checkpoint.mjs';
 const table=name=>({name,columns:['id','body'],primaryKey:['id'],hasRowid:false,rowCount:0,pages:{identity:null,count:0},tableDigest:'a'.repeat(64)});
 test('private tuple encoding preserves every descriptor value and old object checkpoints',()=>{
  const tables=[table('alpha'),table('beta')],legacy={revision:3,phase:'tables',tables},raw=canonicalJson(legacy),packed={...legacy,...packRecoveryV2CheckpointDelta({tables})};
@@ -24,4 +24,16 @@ test('installed descriptor projection saves more than eight KiB without changing
  const db=openDatabase();t.after(()=>db.close());const crypto=createNodeCrypto(),schema=await readInstalledRecoverySchema(crypto),source=await readRecoveryV2SourceMetadata(createNodeAtomicDriver(db),{schema,crypto}),codec=createRecoveryV2Codec({crypto}),tables=[];
  for(const name of source.tableNames){const fields=db.prepare('SELECT name,pk FROM pragma_table_info(?) ORDER BY cid').all(name),definition=db.prepare("SELECT sql FROM sqlite_schema WHERE type='table' AND name=?").get(name).sql;tables.push(await codec.tableDescriptor({name,columns:fields.map(v=>v.name),primaryKey:fields.filter(v=>v.pk>0).sort((a,b)=>a.pk-b.pk).map(v=>v.name),hasRowid:! /\bWITHOUT\s+ROWID\b/i.test(definition),rowCount:0,pages:{identity:null,count:0}}));}
  const legacy=canonicalJson({tables}),packed=canonicalJson(packRecoveryV2CheckpointDelta({tables})),saved=Buffer.byteLength(legacy)-Buffer.byteLength(packed);assert.deepEqual(parseRecoveryV2Checkpoint(packed),{tables});assert.ok(saved>8192);t.diagnostic(JSON.stringify({tables:tables.length,legacyBytes:Buffer.byteLength(legacy),packedBytes:Buffer.byteLength(packed),savedBytes:saved,projectionOnly:true}));
+});
+
+
+test('private schema packing retains byte-exact SQL fences and refuses malformed or ambiguous encodings',async t=>{
+ const db=openDatabase();t.after(()=>db.close());const crypto=createNodeCrypto(),schema=await readInstalledRecoverySchema(crypto),descriptor=await readRecoveryV2SourceMetadata(createNodeAtomicDriver(db),{schema,crypto}),packed=packRecoveryV2Descriptor(descriptor);
+ assert.deepEqual(parseRecoveryV2Checkpoint(canonicalJson({descriptor:packed})).descriptor,descriptor);
+ const statement=db.prepare('SELECT '+recoveryV2SchemaFence('ctx.descriptor')+' valid FROM (SELECT ? descriptor) ctx'),check=d=>statement.get(canonicalJson(d)).valid;
+ assert.equal(check(descriptor),1);assert.equal(check(packed),1);
+ const changed=structuredClone(packed);changed.schemaInventoryPackedV1[0][3]+=' ';assert.equal(check(changed),0,'SQL text must remain exact');
+ assert.equal(check({...packed,schemaInventory:descriptor.schemaInventory}),0,'dual encodings cannot weaken schema fencing');
+ for(const bad of [{...packed,schemaInventory:[]},{...packed,schemaInventoryPackedV2:[]},{...packed,schemaInventoryPackedV1:null},{...packed,schemaInventoryPackedV1:[['table','x',2,'()']]},{...packed,schemaInventoryPackedV1:[['trigger','x',1,'()']]}])assert.throws(()=>parseRecoveryV2Checkpoint(canonicalJson({descriptor:bad})),/checkpoint/);
+ const saved=Buffer.byteLength(canonicalJson(descriptor))-Buffer.byteLength(canonicalJson(packed));assert.ok(saved>6000);t.diagnostic(JSON.stringify({schemaBytesSaved:saved,exactSqlFence:true,checkpointLimitUnchanged:131072}));
 });

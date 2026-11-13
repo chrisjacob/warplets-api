@@ -1,3 +1,4 @@
+import {reviewQueuePaths} from '../ai-review/queue-openapi.mjs';
 import {performancePaths,qaReviewPaths} from '../performance/openapi.mjs';
 import {refreshOwnerPaths} from '../nfts/refresh-owner-openapi.mjs';
 import { randomUUID } from 'node:crypto';
@@ -27,7 +28,7 @@ const resources = {
 export function openapi({performance=false,qaReview=false}={}) {
   const paths = Object.fromEntries(Object.entries(resources).map(([path, {id,summary}]) =>
     [path, {get: {operationId:id, summary, responses:{200:{description:summary, content:{'application/json':{schema:{type:'object'}}}}}}}]));
-  const routes={...paths,...authPaths,...marketPaths,...launchPlanPaths,...ballotPaths,...earnPaths,...vaultPaths,...stakePaths,...txPaths,...collectPaths,...refreshOwnerPaths,...operationsPaths,...notificationPaths,...quotePaths,...(performance?performancePaths:{}),...(qaReview?qaReviewPaths:{})};
+  const routes={...paths,...authPaths,...marketPaths,...launchPlanPaths,...ballotPaths,...earnPaths,...reviewQueuePaths,...vaultPaths,...stakePaths,...txPaths,...collectPaths,...refreshOwnerPaths,...operationsPaths,...notificationPaths,...quotePaths,...(performance?performancePaths:{}),...(qaReview?qaReviewPaths:{})};
   return {openapi:'3.1.0', info:{title:'10X.MEME validation API',version:policy.version},servers:[{url:apiBase}],
     paths:describeResponses(routes),components:{schemas:shapes}};
 }

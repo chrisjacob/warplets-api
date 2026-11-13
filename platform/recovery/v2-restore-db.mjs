@@ -1,4 +1,4 @@
-import {packRecoveryV2CheckpointDelta,parseRecoveryV2Checkpoint} from './v2-checkpoint.mjs';
+import {packRecoveryV2Descriptor,packRecoveryV2CheckpointDelta,parseRecoveryV2Checkpoint} from './v2-checkpoint.mjs';
 import {sql,measureBatch} from '../storage/atomic-driver.mjs';
 import {canonicalJson,utf8} from '../security/canonical.mjs';
 import {BUSINESS_TABLES,AUTH_TABLES,quote} from './schema.mjs';
@@ -27,7 +27,7 @@ export function createRecoveryV2RestoreDatabase({driver,clock,ids}){
   if(old.state?.mode!=='live'||old.state.status!=='live'||old.state.write_nonce!==null)return {kind:'conflict',code:'separate-recovery-database-required'};
   need(canonicalJson(descriptor.schema)===canonicalJson(root.schema),'V2 restore schema identity mismatch.');
   const {schema:duplicateSchema,...storedDescriptor}=descriptor;
-  const generation=ids.next(),now=clock.nowMs(),checkpoint={format:'10x.local.recovery.restore.v2',revision:0,phase:'metadata',root,descriptor:storedDescriptor,generation,tables:null,tablesPackedV1:[],tableCursor:null};need(utf8(canonicalJson(checkpoint)).length<=checkpointLimit,'V2 restore checkpoint bound.');
+  const generation=ids.next(),now=clock.nowMs(),checkpoint={format:'10x.local.recovery.restore.v2',revision:0,phase:'metadata',root,descriptor:packRecoveryV2Descriptor(storedDescriptor),generation,tables:null,tablesPackedV1:[],tableCursor:null};need(utf8(canonicalJson(checkpoint)).length<=checkpointLimit,'V2 restore checkpoint bound.');
   const gate=`EXISTS(SELECT 1 FROM app_recovery_state WHERE id=1 AND generation=? AND mode='live' AND status='live' AND active_restore_id IS NULL AND write_nonce IS NULL) AND ${empty}`;
   const statements=[sql(`INSERT INTO app_recovery_runs(id,mode,inventory_digest,source_commit,schema_fingerprint,state,created_ms,updated_ms,checkpoint_json,report_json) SELECT ?,'private',?,?,?,'restoring',?,?,?,NULL WHERE ${gate}`,pinnedDigest,pinnedDigest,root.sourceCommit,root.schema.fingerprint,now,now,canonicalJson(checkpoint),old.state.generation),
    sql(`UPDATE app_recovery_state SET mode='private',status='restoring',generation=?,active_restore_id=?,inventory_digest=?,source_commit=?,schema_fingerprint=?,write_nonce=NULL WHERE id=1 AND EXISTS(SELECT 1 FROM app_recovery_runs WHERE id=?) AND ${gate}`,generation,pinnedDigest,pinnedDigest,root.sourceCommit,root.schema.fingerprint,pinnedDigest,old.state.generation),

@@ -1,0 +1,57 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {createHash} from 'node:crypto';
+import {openDatabase} from '../storage/database.mjs';
+import {createApp} from '../server/application.mjs';
+import {seedSyntheticReviewQueueFixture} from './queue-fixture.mjs';
+import {createNodeReviewQueueService} from './queue-service.mjs';
+import {syntheticProvider} from './fixture.mjs';
+import {recoveryFixture,memoryArtifacts} from '../recovery/fixtures.mjs';
+import {createNodeAtomicDriver} from '../storage/node/atomic-driver.mjs';
+import {createPrivateRecovery,createPublicRecovery} from '../recovery/restore.mjs';
+
+test('HTTP feedback is owner-private, bounded, origin checked and appeals replay without duplicate work',async t=>{
+ const db=openDatabase();t.after(()=>db.close());const f=await seedSyntheticReviewQueueFixture(db),now=f.nowMs;
+ const app=createApp(db,{clock:()=>now}),service=createNodeReviewQueueService(db,{clock:{nowMs:()=>now}}),origin='https://local.invalid';
+ for(const [secret,wallet] of [['owner',f.principal.wallet],['stranger','another-wallet']])db.prepare('INSERT INTO sessions VALUES(?,?,?,?)').run(createHash('sha256').update(secret).digest('hex'),wallet,origin,now+60000);
+ const url='/api/v1/earn/submissions/'+f.submissionId;
+ const request=(path,{secret='owner',body,headers={},method=body?'POST':'GET'}={})=>app(new Request(origin+path,{method,headers:{cookie:'tenx_local_session='+secret,origin,'content-type':'application/json',...headers},...(body?{body:JSON.stringify(body)}:{})}));
+ assert.equal((await request(url+'/review',{secret:'missing'})).status,401);
+ for(const path of [url+'/review','/api/v1/earn/submissions/missing/review'])assert.equal((await request(path,{secret:'stranger'})).status,404);
+ const waiting=await request(url+'/review');assert.equal(waiting.headers.get('cache-control'),'no-store');assert.equal((await waiting.json()).status,'awaiting-capture');
+ service.capture(f.operator,f);const run=await service.runOne(f.operator,{jobId:f.jobId});assert.equal(run.outcome,'completed');
+ const feedback=await (await request(url+'/review')).json();assert.equal(feedback.feedback.reportId,run.reportId);assert.equal(feedback.paidCallsEnabled,false);assert.ok(!JSON.stringify(feedback).includes(f.job.content));
+ const body={reportId:run.reportId,reason:'Please reconsider this synthetic example.'};
+ assert.equal((await request(url+'/appeals',{body,headers:{origin:'https://elsewhere.invalid'}})).status,403);
+ assert.equal((await request(url+'/appeals',{body:{...body,score:10},headers:{'idempotency-key':'bad-field'}})).status,400);
+ assert.equal((await request(url+'/appeals',{body:{...body,reason:'x'.repeat(17000)},headers:{'idempotency-key':'too-large'}})).status,413);
+ const first=await request(url+'/appeals',{body,headers:{'idempotency-key':'appeal-retry',accept:'application/vnd.10x.v1+json'}});assert.equal(first.status,201);assert.equal((await first.json()).data.appeal.latest.status,'awaiting-independent-review');
+ assert.equal((await request(url+'/appeals',{body,headers:{'idempotency-key':'appeal-retry'}})).status,200);
+ assert.equal((await request(url+'/appeals',{body:{...body,reason:'Changed'},headers:{'idempotency-key':'appeal-retry'}})).status,409);
+ assert.equal(db.prepare('SELECT COUNT(*) n FROM ai_review_appeals').get().n,1);assert.equal(db.prepare('SELECT COUNT(*) n FROM earn_reviews').get().n,0);
+ assert.equal((await request(url+'/review',{method:'POST'})).status,405);
+});
+
+test('private restore retains reports and appeals, fences dispatched work, and public recovery excludes review data',async t=>{
+ const f=await recoveryFixture();t.after(()=>f.db.close());const seeded=await seedSyntheticReviewQueueFixture(f.db,{wallet:'synthetic-private-review'});
+ const service=createNodeReviewQueueService(f.db);service.capture(seeded.operator,seeded);const first=await service.runOne(seeded.operator,{jobId:seeded.jobId});assert.equal(first.outcome,'completed');
+ const appealed=service.appeal(seeded.principal,{submissionId:seeded.submissionId,reportId:first.reportId,reason:'PRIVATE-APPEAL-MARKER reconsider supporting context',requestKey:'private-appeal'}),appealJob='appeal:'+appealed.review.appeal.latest.appealId;
+ service.capture(seeded.operator,{...seeded,jobId:appealJob});
+ let release;const gate=new Promise(resolve=>{release=resolve;}),running=service.runOne(seeded.operator,{jobId:appealJob,leaseMs:30000,timeoutMs:29000,provider:{...syntheticProvider,async evaluate(...args){await gate;return syntheticProvider.evaluate(...args);}}});
+ assert.equal(f.db.prepare('SELECT state FROM ai_review_jobs WHERE id=?').get(appealJob).state,'running');
+ const captured=await f.exporter.capturePrivate();assert.equal(captured.kind,'captured');
+ const restoredDb=openDatabase();t.after(()=>restoredDb.close());const artifacts=memoryArtifacts(),restore=createPrivateRecovery({...f,driver:createNodeAtomicDriver(restoredDb),artifacts,sourceArtifacts:f.store});
+ const result=await restore.restore({inventory:captured.inventory,pinnedDigest:captured.digest});assert.equal(result.kind,'restored',JSON.stringify(result));
+ const restored=createNodeReviewQueueService(restoredDb),view=restored.walletStatus(seeded.principal,seeded.submissionId);
+ assert.equal(view.status,'unknown');assert.equal(view.feedback.reportId,first.reportId);assert.equal(view.appeal.latest.appealId,appealed.review.appeal.latest.appealId);
+ assert.equal(restoredDb.prepare('SELECT outcome FROM ai_review_attempts WHERE job_id=?').get(appealJob).outcome,'recovered-unknown');
+ assert.equal((await restored.runOne(seeded.operator,{jobId:appealJob})).outcome,'idle');
+ assert.equal(restoredDb.prepare('SELECT lease_token FROM ai_review_jobs WHERE id=?').get(appealJob).lease_token,null);
+ release();assert.equal((await running).outcome,'completed');assert.equal(restored.walletStatus(seeded.principal,seeded.submissionId).status,'unknown','old source result cannot publish in recovered database');
+ const publicSnapshot=await f.exporter.capturePublic();assert.equal(publicSnapshot.kind,'captured');assert.deepEqual(publicSnapshot.inventory.tables,[]);
+ for(const object of publicSnapshot.inventory.objects)assert.doesNotMatch(new TextDecoder().decode(f.objects.get(object.key)),/PRIVATE-APPEAL-MARKER|SYNTHETIC AI review|capturedJob|ai_review_/);
+ const publicDb=openDatabase();t.after(()=>publicDb.close());const publicRestore=createPublicRecovery({...f,driver:createNodeAtomicDriver(publicDb),artifacts:memoryArtifacts(),sourceArtifacts:f.store});
+ assert.equal((await publicRestore.restore({inventory:publicSnapshot.inventory,pinnedDigest:publicSnapshot.digest})).kind,'restored');
+ assert.equal(publicDb.prepare('SELECT COUNT(*) n FROM ai_review_reports').get().n,0);
+ assert.throws(()=>publicDb.prepare("INSERT INTO ai_review_jobs(id,submission_id,kind,state,created_ms,updated_ms) VALUES('x','x','initial','awaiting-capture',1,1)").run(),/mutation-disabled/);
+});

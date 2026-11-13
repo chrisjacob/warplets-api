@@ -131,6 +131,16 @@ export const operations = [
     "method": "GET"
   },
   {
+    "id": "getEarnReviewFeedback",
+    "path": "/earn/submissions/{submissionId}/review",
+    "method": "GET"
+  },
+  {
+    "id": "submitEarnReviewAppeal",
+    "path": "/earn/submissions/{submissionId}/appeals",
+    "method": "POST"
+  },
+  {
     "id": "getMyVault",
     "path": "/vault",
     "method": "GET"

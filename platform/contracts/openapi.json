@@ -4023,6 +4023,1759 @@
         }
       }
     },
+    "/earn/submissions/{submissionId}/review": {
+      "get": {
+        "operationId": "getEarnReviewFeedback",
+        "summary": "Read your submission’s private review status and feedback.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "submissionId",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 128
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Private feedback; suggestions do not change final scores",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "submissionId": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "enum": [
+                        "awaiting-capture",
+                        "ready",
+                        "running",
+                        "completed",
+                        "failed",
+                        "unknown",
+                        "held"
+                      ]
+                    },
+                    "feedback": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "reportId": {
+                              "type": "string"
+                            },
+                            "submissionId": {
+                              "type": "string"
+                            },
+                            "label": {
+                              "type": "string"
+                            },
+                            "simulation": {
+                              "type": "boolean"
+                            },
+                            "suggestedScore": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 10
+                            },
+                            "scoreMaximum": {
+                              "const": 10
+                            },
+                            "status": {
+                              "enum": [
+                                "needs-investigation",
+                                "ready-for-operator-review"
+                              ]
+                            },
+                            "rubricVersion": {
+                              "type": "string"
+                            },
+                            "summary": {
+                              "type": "string"
+                            },
+                            "criteria": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string"
+                                  },
+                                  "label": {
+                                    "type": "string"
+                                  },
+                                  "score": {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 5
+                                  },
+                                  "maximum": {
+                                    "const": 5
+                                  },
+                                  "rationale": {
+                                    "type": "string"
+                                  },
+                                  "improvement": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "label",
+                                  "score",
+                                  "maximum",
+                                  "rationale",
+                                  "improvement"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "uncertainty": {
+                              "enum": [
+                                "low",
+                                "medium",
+                                "high"
+                              ]
+                            },
+                            "reviewNeeded": {
+                              "type": "boolean"
+                            },
+                            "flags": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "appealAvailable": {
+                              "type": "boolean"
+                            },
+                            "previousReportId": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "financialExecution": {
+                              "const": false
+                            }
+                          },
+                          "required": [
+                            "reportId",
+                            "submissionId",
+                            "label",
+                            "simulation",
+                            "suggestedScore",
+                            "scoreMaximum",
+                            "status",
+                            "rubricVersion",
+                            "summary",
+                            "criteria",
+                            "uncertainty",
+                            "reviewNeeded",
+                            "flags",
+                            "appealAvailable",
+                            "previousReportId",
+                            "financialExecution"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "finalReview": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "score": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 10
+                            },
+                            "reviewedAtMs": {
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "score",
+                            "reviewedAtMs"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "appeal": {
+                      "type": "object",
+                      "properties": {
+                        "eligible": {
+                          "type": "boolean"
+                        },
+                        "reason": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "latest": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "appealId": {
+                                  "type": "string"
+                                },
+                                "status": {
+                                  "enum": [
+                                    "awaiting-independent-review",
+                                    "reviewed"
+                                  ]
+                                },
+                                "reportId": {
+                                  "type": "string"
+                                },
+                                "createdAt": {
+                                  "type": "string",
+                                  "format": "date-time"
+                                }
+                              },
+                              "required": [
+                                "appealId",
+                                "status",
+                                "reportId",
+                                "createdAt"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "eligible",
+                        "reason",
+                        "latest"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "paidCallsEnabled": {
+                      "const": false
+                    }
+                  },
+                  "required": [
+                    "submissionId",
+                    "status",
+                    "feedback",
+                    "finalReview",
+                    "appeal",
+                    "paidCallsEnabled"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "application/vnd.10x.v1+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "submissionId": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "enum": [
+                            "awaiting-capture",
+                            "ready",
+                            "running",
+                            "completed",
+                            "failed",
+                            "unknown",
+                            "held"
+                          ]
+                        },
+                        "feedback": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "reportId": {
+                                  "type": "string"
+                                },
+                                "submissionId": {
+                                  "type": "string"
+                                },
+                                "label": {
+                                  "type": "string"
+                                },
+                                "simulation": {
+                                  "type": "boolean"
+                                },
+                                "suggestedScore": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 10
+                                },
+                                "scoreMaximum": {
+                                  "const": 10
+                                },
+                                "status": {
+                                  "enum": [
+                                    "needs-investigation",
+                                    "ready-for-operator-review"
+                                  ]
+                                },
+                                "rubricVersion": {
+                                  "type": "string"
+                                },
+                                "summary": {
+                                  "type": "string"
+                                },
+                                "criteria": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "id": {
+                                        "type": "string"
+                                      },
+                                      "label": {
+                                        "type": "string"
+                                      },
+                                      "score": {
+                                        "type": "integer",
+                                        "minimum": 0,
+                                        "maximum": 5
+                                      },
+                                      "maximum": {
+                                        "const": 5
+                                      },
+                                      "rationale": {
+                                        "type": "string"
+                                      },
+                                      "improvement": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "id",
+                                      "label",
+                                      "score",
+                                      "maximum",
+                                      "rationale",
+                                      "improvement"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                },
+                                "uncertainty": {
+                                  "enum": [
+                                    "low",
+                                    "medium",
+                                    "high"
+                                  ]
+                                },
+                                "reviewNeeded": {
+                                  "type": "boolean"
+                                },
+                                "flags": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                },
+                                "appealAvailable": {
+                                  "type": "boolean"
+                                },
+                                "previousReportId": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "financialExecution": {
+                                  "const": false
+                                }
+                              },
+                              "required": [
+                                "reportId",
+                                "submissionId",
+                                "label",
+                                "simulation",
+                                "suggestedScore",
+                                "scoreMaximum",
+                                "status",
+                                "rubricVersion",
+                                "summary",
+                                "criteria",
+                                "uncertainty",
+                                "reviewNeeded",
+                                "flags",
+                                "appealAvailable",
+                                "previousReportId",
+                                "financialExecution"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "finalReview": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "score": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 10
+                                },
+                                "reviewedAtMs": {
+                                  "type": "integer"
+                                }
+                              },
+                              "required": [
+                                "score",
+                                "reviewedAtMs"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "appeal": {
+                          "type": "object",
+                          "properties": {
+                            "eligible": {
+                              "type": "boolean"
+                            },
+                            "reason": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "latest": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "appealId": {
+                                      "type": "string"
+                                    },
+                                    "status": {
+                                      "enum": [
+                                        "awaiting-independent-review",
+                                        "reviewed"
+                                      ]
+                                    },
+                                    "reportId": {
+                                      "type": "string"
+                                    },
+                                    "createdAt": {
+                                      "type": "string",
+                                      "format": "date-time"
+                                    }
+                                  },
+                                  "required": [
+                                    "appealId",
+                                    "status",
+                                    "reportId",
+                                    "createdAt"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            }
+                          },
+                          "required": [
+                            "eligible",
+                            "reason",
+                            "latest"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "paidCallsEnabled": {
+                          "const": false
+                        }
+                      },
+                      "required": [
+                        "submissionId",
+                        "status",
+                        "feedback",
+                        "finalReview",
+                        "appeal",
+                        "paidCallsEnabled"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/Meta"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Wallet session required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              },
+              "application/vnd.10x.v1+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown submission",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              },
+              "application/vnd.10x.v1+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Read limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              },
+              "application/vnd.10x.v1+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/earn/submissions/{submissionId}/appeals": {
+      "post": {
+        "operationId": "submitEarnReviewAppeal",
+        "summary": "Request one independent review of the current suggestion before final moderation.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "submissionId",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 128
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 128
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reportId": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  },
+                  "reason": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2000
+                  }
+                },
+                "required": [
+                  "reportId",
+                  "reason"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Idempotent replay",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "submissionId": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "enum": [
+                        "awaiting-capture",
+                        "ready",
+                        "running",
+                        "completed",
+                        "failed",
+                        "unknown",
+                        "held"
+                      ]
+                    },
+                    "feedback": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "reportId": {
+                              "type": "string"
+                            },
+                            "submissionId": {
+                              "type": "string"
+                            },
+                            "label": {
+                              "type": "string"
+                            },
+                            "simulation": {
+                              "type": "boolean"
+                            },
+                            "suggestedScore": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 10
+                            },
+                            "scoreMaximum": {
+                              "const": 10
+                            },
+                            "status": {
+                              "enum": [
+                                "needs-investigation",
+                                "ready-for-operator-review"
+                              ]
+                            },
+                            "rubricVersion": {
+                              "type": "string"
+                            },
+                            "summary": {
+                              "type": "string"
+                            },
+                            "criteria": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string"
+                                  },
+                                  "label": {
+                                    "type": "string"
+                                  },
+                                  "score": {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 5
+                                  },
+                                  "maximum": {
+                                    "const": 5
+                                  },
+                                  "rationale": {
+                                    "type": "string"
+                                  },
+                                  "improvement": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "label",
+                                  "score",
+                                  "maximum",
+                                  "rationale",
+                                  "improvement"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "uncertainty": {
+                              "enum": [
+                                "low",
+                                "medium",
+                                "high"
+                              ]
+                            },
+                            "reviewNeeded": {
+                              "type": "boolean"
+                            },
+                            "flags": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "appealAvailable": {
+                              "type": "boolean"
+                            },
+                            "previousReportId": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "financialExecution": {
+                              "const": false
+                            }
+                          },
+                          "required": [
+                            "reportId",
+                            "submissionId",
+                            "label",
+                            "simulation",
+                            "suggestedScore",
+                            "scoreMaximum",
+                            "status",
+                            "rubricVersion",
+                            "summary",
+                            "criteria",
+                            "uncertainty",
+                            "reviewNeeded",
+                            "flags",
+                            "appealAvailable",
+                            "previousReportId",
+                            "financialExecution"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "finalReview": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "score": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 10
+                            },
+                            "reviewedAtMs": {
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "score",
+                            "reviewedAtMs"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "appeal": {
+                      "type": "object",
+                      "properties": {
+                        "eligible": {
+                          "type": "boolean"
+                        },
+                        "reason": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "latest": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "appealId": {
+                                  "type": "string"
+                                },
+                                "status": {
+                                  "enum": [
+                                    "awaiting-independent-review",
+                                    "reviewed"
+                                  ]
+                                },
+                                "reportId": {
+                                  "type": "string"
+                                },
+                                "createdAt": {
+                                  "type": "string",
+                                  "format": "date-time"
+                                }
+                              },
+                              "required": [
+                                "appealId",
+                                "status",
+                                "reportId",
+                                "createdAt"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "eligible",
+                        "reason",
+                        "latest"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "paidCallsEnabled": {
+                      "const": false
+                    }
+                  },
+                  "required": [
+                    "submissionId",
+                    "status",
+                    "feedback",
+                    "finalReview",
+                    "appeal",
+                    "paidCallsEnabled"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "application/vnd.10x.v1+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "submissionId": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "enum": [
+                            "awaiting-capture",
+                            "ready",
+                            "running",
+                            "completed",
+                            "failed",
+                            "unknown",
+                            "held"
+                          ]
+                        },
+                        "feedback": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "reportId": {
+                                  "type": "string"
+                                },
+                                "submissionId": {
+                                  "type": "string"
+                                },
+                                "label": {
+                                  "type": "string"
+                                },
+                                "simulation": {
+                                  "type": "boolean"
+                                },
+                                "suggestedScore": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 10
+                                },
+                                "scoreMaximum": {
+                                  "const": 10
+                                },
+                                "status": {
+                                  "enum": [
+                                    "needs-investigation",
+                                    "ready-for-operator-review"
+                                  ]
+                                },
+                                "rubricVersion": {
+                                  "type": "string"
+                                },
+                                "summary": {
+                                  "type": "string"
+                                },
+                                "criteria": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "id": {
+                                        "type": "string"
+                                      },
+                                      "label": {
+                                        "type": "string"
+                                      },
+                                      "score": {
+                                        "type": "integer",
+                                        "minimum": 0,
+                                        "maximum": 5
+                                      },
+                                      "maximum": {
+                                        "const": 5
+                                      },
+                                      "rationale": {
+                                        "type": "string"
+                                      },
+                                      "improvement": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "id",
+                                      "label",
+                                      "score",
+                                      "maximum",
+                                      "rationale",
+                                      "improvement"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                },
+                                "uncertainty": {
+                                  "enum": [
+                                    "low",
+                                    "medium",
+                                    "high"
+                                  ]
+                                },
+                                "reviewNeeded": {
+                                  "type": "boolean"
+                                },
+                                "flags": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                },
+                                "appealAvailable": {
+                                  "type": "boolean"
+                                },
+                                "previousReportId": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "financialExecution": {
+                                  "const": false
+                                }
+                              },
+                              "required": [
+                                "reportId",
+                                "submissionId",
+                                "label",
+                                "simulation",
+                                "suggestedScore",
+                                "scoreMaximum",
+                                "status",
+                                "rubricVersion",
+                                "summary",
+                                "criteria",
+                                "uncertainty",
+                                "reviewNeeded",
+                                "flags",
+                                "appealAvailable",
+                                "previousReportId",
+                                "financialExecution"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "finalReview": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "score": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 10
+                                },
+                                "reviewedAtMs": {
+                                  "type": "integer"
+                                }
+                              },
+                              "required": [
+                                "score",
+                                "reviewedAtMs"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "appeal": {
+                          "type": "object",
+                          "properties": {
+                            "eligible": {
+                              "type": "boolean"
+                            },
+                            "reason": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "latest": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "appealId": {
+                                      "type": "string"
+                                    },
+                                    "status": {
+                                      "enum": [
+                                        "awaiting-independent-review",
+                                        "reviewed"
+                                      ]
+                                    },
+                                    "reportId": {
+                                      "type": "string"
+                                    },
+                                    "createdAt": {
+                                      "type": "string",
+                                      "format": "date-time"
+                                    }
+                                  },
+                                  "required": [
+                                    "appealId",
+                                    "status",
+                                    "reportId",
+                                    "createdAt"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            }
+                          },
+                          "required": [
+                            "eligible",
+                            "reason",
+                            "latest"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "paidCallsEnabled": {
+                          "const": false
+                        }
+                      },
+                      "required": [
+                        "submissionId",
+                        "status",
+                        "feedback",
+                        "finalReview",
+                        "appeal",
+                        "paidCallsEnabled"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/Meta"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Appeal recorded durably",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "submissionId": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "enum": [
+                        "awaiting-capture",
+                        "ready",
+                        "running",
+                        "completed",
+                        "failed",
+                        "unknown",
+                        "held"
+                      ]
+                    },
+                    "feedback": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "reportId": {
+                              "type": "string"
+                            },
+                            "submissionId": {
+                              "type": "string"
+                            },
+                            "label": {
+                              "type": "string"
+                            },
+                            "simulation": {
+                              "type": "boolean"
+                            },
+                            "suggestedScore": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 10
+                            },
+                            "scoreMaximum": {
+                              "const": 10
+                            },
+                            "status": {
+                              "enum": [
+                                "needs-investigation",
+                                "ready-for-operator-review"
+                              ]
+                            },
+                            "rubricVersion": {
+                              "type": "string"
+                            },
+                            "summary": {
+                              "type": "string"
+                            },
+                            "criteria": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string"
+                                  },
+                                  "label": {
+                                    "type": "string"
+                                  },
+                                  "score": {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 5
+                                  },
+                                  "maximum": {
+                                    "const": 5
+                                  },
+                                  "rationale": {
+                                    "type": "string"
+                                  },
+                                  "improvement": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "label",
+                                  "score",
+                                  "maximum",
+                                  "rationale",
+                                  "improvement"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "uncertainty": {
+                              "enum": [
+                                "low",
+                                "medium",
+                                "high"
+                              ]
+                            },
+                            "reviewNeeded": {
+                              "type": "boolean"
+                            },
+                            "flags": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "appealAvailable": {
+                              "type": "boolean"
+                            },
+                            "previousReportId": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "financialExecution": {
+                              "const": false
+                            }
+                          },
+                          "required": [
+                            "reportId",
+                            "submissionId",
+                            "label",
+                            "simulation",
+                            "suggestedScore",
+                            "scoreMaximum",
+                            "status",
+                            "rubricVersion",
+                            "summary",
+                            "criteria",
+                            "uncertainty",
+                            "reviewNeeded",
+                            "flags",
+                            "appealAvailable",
+                            "previousReportId",
+                            "financialExecution"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "finalReview": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "score": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 10
+                            },
+                            "reviewedAtMs": {
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "score",
+                            "reviewedAtMs"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "appeal": {
+                      "type": "object",
+                      "properties": {
+                        "eligible": {
+                          "type": "boolean"
+                        },
+                        "reason": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "latest": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "appealId": {
+                                  "type": "string"
+                                },
+                                "status": {
+                                  "enum": [
+                                    "awaiting-independent-review",
+                                    "reviewed"
+                                  ]
+                                },
+                                "reportId": {
+                                  "type": "string"
+                                },
+                                "createdAt": {
+                                  "type": "string",
+                                  "format": "date-time"
+                                }
+                              },
+                              "required": [
+                                "appealId",
+                                "status",
+                                "reportId",
+                                "createdAt"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "eligible",
+                        "reason",
+                        "latest"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "paidCallsEnabled": {
+                      "const": false
+                    }
+                  },
+                  "required": [
+                    "submissionId",
+                    "status",
+                    "feedback",
+                    "finalReview",
+                    "appeal",
+                    "paidCallsEnabled"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "application/vnd.10x.v1+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "submissionId": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "enum": [
+                            "awaiting-capture",
+                            "ready",
+                            "running",
+                            "completed",
+                            "failed",
+                            "unknown",
+                            "held"
+                          ]
+                        },
+                        "feedback": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "reportId": {
+                                  "type": "string"
+                                },
+                                "submissionId": {
+                                  "type": "string"
+                                },
+                                "label": {
+                                  "type": "string"
+                                },
+                                "simulation": {
+                                  "type": "boolean"
+                                },
+                                "suggestedScore": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 10
+                                },
+                                "scoreMaximum": {
+                                  "const": 10
+                                },
+                                "status": {
+                                  "enum": [
+                                    "needs-investigation",
+                                    "ready-for-operator-review"
+                                  ]
+                                },
+                                "rubricVersion": {
+                                  "type": "string"
+                                },
+                                "summary": {
+                                  "type": "string"
+                                },
+                                "criteria": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "id": {
+                                        "type": "string"
+                                      },
+                                      "label": {
+                                        "type": "string"
+                                      },
+                                      "score": {
+                                        "type": "integer",
+                                        "minimum": 0,
+                                        "maximum": 5
+                                      },
+                                      "maximum": {
+                                        "const": 5
+                                      },
+                                      "rationale": {
+                                        "type": "string"
+                                      },
+                                      "improvement": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "id",
+                                      "label",
+                                      "score",
+                                      "maximum",
+                                      "rationale",
+                                      "improvement"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                },
+                                "uncertainty": {
+                                  "enum": [
+                                    "low",
+                                    "medium",
+                                    "high"
+                                  ]
+                                },
+                                "reviewNeeded": {
+                                  "type": "boolean"
+                                },
+                                "flags": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                },
+                                "appealAvailable": {
+                                  "type": "boolean"
+                                },
+                                "previousReportId": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "financialExecution": {
+                                  "const": false
+                                }
+                              },
+                              "required": [
+                                "reportId",
+                                "submissionId",
+                                "label",
+                                "simulation",
+                                "suggestedScore",
+                                "scoreMaximum",
+                                "status",
+                                "rubricVersion",
+                                "summary",
+                                "criteria",
+                                "uncertainty",
+                                "reviewNeeded",
+                                "flags",
+                                "appealAvailable",
+                                "previousReportId",
+                                "financialExecution"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "finalReview": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "score": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 10
+                                },
+                                "reviewedAtMs": {
+                                  "type": "integer"
+                                }
+                              },
+                              "required": [
+                                "score",
+                                "reviewedAtMs"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "appeal": {
+                          "type": "object",
+                          "properties": {
+                            "eligible": {
+                              "type": "boolean"
+                            },
+                            "reason": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "latest": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "appealId": {
+                                      "type": "string"
+                                    },
+                                    "status": {
+                                      "enum": [
+                                        "awaiting-independent-review",
+                                        "reviewed"
+                                      ]
+                                    },
+                                    "reportId": {
+                                      "type": "string"
+                                    },
+                                    "createdAt": {
+                                      "type": "string",
+                                      "format": "date-time"
+                                    }
+                                  },
+                                  "required": [
+                                    "appealId",
+                                    "status",
+                                    "reportId",
+                                    "createdAt"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            }
+                          },
+                          "required": [
+                            "eligible",
+                            "reason",
+                            "latest"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "paidCallsEnabled": {
+                          "const": false
+                        }
+                      },
+                      "required": [
+                        "submissionId",
+                        "status",
+                        "feedback",
+                        "finalReview",
+                        "appeal",
+                        "paidCallsEnabled"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/Meta"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid appeal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              },
+              "application/vnd.10x.v1+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Wallet session required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              },
+              "application/vnd.10x.v1+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Origin refused",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              },
+              "application/vnd.10x.v1+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown submission",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              },
+              "application/vnd.10x.v1+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Report changed, appeal already exists or final review completed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              },
+              "application/vnd.10x.v1+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Appeal limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              },
+              "application/vnd.10x.v1+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/vault": {
       "get": {
         "operationId": "getMyVault",

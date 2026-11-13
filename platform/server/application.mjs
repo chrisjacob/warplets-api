@@ -1,3 +1,5 @@
+import {createNodeReviewQueueService} from '../ai-review/queue-service.mjs';
+import {handleReviewQueue} from '../ai-review/queue-http.mjs';
 import {handlePerformance} from '../performance/leaderboards-http.mjs';
 import {createNodeRefreshOwner} from '../nfts/node-refresh-owner.mjs';
 import {createMutationEventObserver} from '../observability/mutation-events.mjs';
@@ -20,6 +22,7 @@ import { handleInteractiveQuotes } from '../quotes/interactive-http.mjs';
 import { createNodeQuoteService,createNodeFinancialReadService,createNodeGovernanceService } from '../application/node-context.mjs';
 import { consumeQuota,currentSession } from './auth.mjs';
 export function createApp(db,{clock=Date.now,artifactStore,operationalEventSink,performanceService,qaReviewPreview}={}) {
+  const reviewQueue=createNodeReviewQueueService(db,{clock:{nowMs:clock}});
   const refreshOwner=createNodeRefreshOwner(db,{clock,artifacts:artifactStore});
   const quotes=createNodeQuoteService(db,{clock:{nowMs:clock},store:artifactStore});
   const financial=createNodeFinancialReadService(db,{clock:{nowMs:clock}});
@@ -40,6 +43,7 @@ export function createApp(db,{clock=Date.now,artifactStore,operationalEventSink,
     const response=await handleAuth(db,request,peer,now)??handleOperations(db,request,now)??await handleInteractiveQuotes(request,{service:quotes,peer,consumeQuota:async(bucket,limit)=>consumeQuota(db,bucket,now,limit)})??handleMarkets(db,request,now)??
       await handleFinancialReads(request,{service:financial,authenticate:async(req)=>{const session=currentSession(db,req,clock());return session?{kind:'wallet',wallet:session.wallet}:null;}})??await handleTransactions(db,request,now)??await handleNotifications(db,request,peer,now)??
       await handleInteractiveGovernance(request,{service:governance,peer,authenticate:async(req)=>{const session=currentSession(db,req,clock());return session?{kind:'wallet',wallet:session.wallet}:null;},consumeQuota:async(bucket,limit)=>consumeQuota(db,bucket,now,limit)})??
+      await handleReviewQueue(request,{service:reviewQueue,authenticate:async req=>{const session=currentSession(db,req,clock());return session?{kind:'wallet',wallet:session.wallet}:null;},consumeQuota:async(bucket,limit)=>consumeQuota(db,bucket,now,limit)})??
       await handleEarn(db,request,peer,now)??
       await refreshOwner(request)??await handleCollect(db,request,peer,now,{clock})??
       await handleLaunchPlans(request,{nowSeconds:Math.floor(now/1000)})??

@@ -2,7 +2,40 @@
 
 This module makes AI-assisted review concrete without silently giving a model authority to finalize rewards. It supplies a versioned rubric, an injectable provider interface, validated evidence-linked feedback, immutable local artifacts and an appeal/review lineage. It does not claim that AI is unbiased.
 
-**Default runtime:** local/offline. The default evaluator is deterministic **simulation**, not an AI model. A concrete OpenAI Responses adapter is also available, but only an explicit `openai --allow-paid-provider` invocation can read `OPENAI_API_KEY` and make a paid request. No paid request was made during implementation or tests. Content URLs are never fetched; no database/reward state is changed and no final review is automatically executed.
+**Default runtime:** local/offline. The default evaluator is deterministic **simulation**, not an AI model. The app's durable queue hard-disables model providers. A separate, unconnected artifact CLI has a concrete OpenAI Responses adapter requiring an explicit `openai --allow-paid-provider` invocation. No paid request was made during implementation or tests. Content URLs are never fetched and no final review is automatically executed. The queue persists review obligations, captures, suggestions and appeals; it never changes final scores or rewards.
+
+## Durable app queue (local Node only)
+
+Migration `070-ai-review-queue.sql` atomically creates an initial review obligation with every accepted Earn submission. Existing unreviewed submissions are backfilled; already moderated history is not reopened. The local Node app offers authenticated owner-only feedback and report-bound appeal routes; the Worker capability remains absent. A queue entry does **not** mean an AI model has judged the content.
+
+The flow is `awaiting-capture` → `ready` → `running` → `completed` for explicitly synthetic captured fixtures. A trusted local operator supplies the exact submission ID, token, source URL, capture timestamp, content/transcript and project context. The queue never fetches the URL. Real sources can be captured for inspection but enter `held` with provider-disabled evidence. They cannot be evaluated by the deterministic fixture provider. This queue has no flag that enables paid calls.
+
+The creator sees only substantive feedback, the suggested score, uncertainty and appeal status. Raw source captures, provider receipts and prompts stay private. Final moderator scores are displayed separately. An appeal must target the latest completed suggestion, belong to the authenticated creator and use a stable idempotency key; repeating the same request replays its receipt. The previous suggestion remains visible while a new appeal job awaits source capture. New appeals close after final moderation or board closure; an already accepted appeal receipt remains replayable. Re-review adds another immutable report linked to the prior report and appeal, without editing the original or any reward.
+
+`queue-service.mjs` requires an active `app_operator_scopes` grant for scope `ai-review` at capture, acquisition, dispatch and acceptance. It does not trust caller-supplied scopes. Lease tokens, revisions and SQLite execution-time checks fence stale workers. Dispatch intent commits before evaluation. A timeout, late result, revoked operator or interrupted dispatched attempt becomes `unknown`; no automatic retry or zero score is produced. An expired attempt that never dispatched may become ready again. Invalid capture evidence fails before dispatch. Final states and evidence are immutable. Restoring a private snapshot invalidates outstanding leases; it does not authorize a provider replay.
+
+### Local operator commands
+
+Use an existing local database file and a separately provisioned local reviewer grant. The CLI never creates a reviewer grant. For example, trusted setup code can bind the reviewer ID to this SQL statement in the disposable local database:
+
+```sql
+INSERT INTO app_operator_scopes(operator,scope,revision,enabled)
+VALUES (?,'ai-review',0,1);
+```
+
+An initial job ID is `submission:` followed by the accepted submission ID. An appeal job is `appeal:` followed by the appeal ID. Supply a UTF-8 JSON capture file (maximum 128 KiB) using the exact seven fields shown by `exampleJob`, with the **actual accepted** IDs/URL and a capture timestamp between submission and now. Treat captures and the SQLite file as private.
+
+```powershell
+node platform/ai-review/queue-cli.mjs capture --database work/review-demo.sqlite --operator-id local-reviewer --job-id submission:SUBMISSION_ID --input work/captured-job.json --evidence-ref local:verified-source-001
+node platform/ai-review/queue-cli.mjs run --database work/review-demo.sqlite --operator-id local-reviewer --job-id submission:SUBMISSION_ID
+node platform/ai-review/queue-cli.mjs status --database work/review-demo.sqlite --wallet PUBLIC_WALLET --submission-id SUBMISSION_ID
+```
+
+`run` processes at most one job per invocation, with a bounded timeout and no retries. Without `--job-id`, it selects the oldest ready job. Run it again to process the next ready job; completed, failed or unknown work is never redispatched. `status` is a trusted local inspection tool, not wallet authentication; browser routes derive the owner from the authenticated session. The command prints only receipt IDs/outcomes or creator-safe status, and rejects model/API-key/paid-provider options.
+
+For automated disposable-database QA, `seedSyntheticReviewQueueFixture(db,{wallet,nowMs,operatorId})` creates labelled synthetic campaign/stake/staffing evidence and a reviewer grant, admits a submission through the real atomic Earn repository, then returns `{submissionId,jobId,job,evidenceRef,operator,principal,nowMs}`. Call `service.capture(f.operator,f)` and `await service.runOne(f.operator,{jobId:f.jobId})` to exercise the actual queue. This helper is explicit test setup, never a production admission bypass or automatic app startup action.
+
+**Still required for real day-one AI scoring:** approved model/cost/privacy settings; trusted source capture and rights/retention rules; calibrated evaluation and adversarial tests; provider-budget controls and unknown-outcome reconciliation; production durable dispatch/runtime integration; and an independent appeal/escalation policy. Simulation is neither real AI nor proof of unbiased judgment. The existing authorized final-review command remains the only route to a final score.
 
 ## Quick local review
 
@@ -151,7 +184,7 @@ Appeals retain the original report ID and do not overwrite it. Subsequent review
 2. Establish trusted capture of the submitted post, media/transcripts and project reference context. A URL alone is not scorable evidence; paywalls, deleted posts and incomplete media need visible holds.
 3. Calibrate this provisional rubric against a labelled, multilingual representative set. Measure reviewer/model agreement, repeated-run variability, false flags, identity leakage and adversarial instructions. Compare models blind before selecting one; AI is not inherently neutral.
 4. Decide when humans review scores and flags, which complaints need an independent reviewer, and the appeal window. Do not claim scalable autonomous scoring while the final-review scope still requires a human decision.
-5. Add a durable worker queue with idempotency, bounded retries, rate/cost limits, provider timeout recovery and audit retention before processing live volume. The local artifact CLI is useful for previews and evaluation, not a production job scheduler.
+5. Extend the implemented Node-local durable queue to approved Worker processing, live-provider rate/cost budgets, retained audit evidence and explicit unknown-outcome reconciliation before processing live volume. Local admission obligations, claim fencing, private feedback and idempotent appeals are implemented; paid dispatch and automatic retries remain disabled. The separate artifact CLI is an evaluation tool, not the production scheduler.
 6. Agree how late appeals interact with immutable final scores and published settlement. No economic or adjudication policy is silently changed by this module.
 
 ## Validation

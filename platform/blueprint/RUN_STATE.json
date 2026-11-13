@@ -5,9 +5,9 @@
   "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
   "currentTask": null,
-  "lastUpdatedAt": "2026-11-13T21:27:47.081861+00:00",
+  "lastUpdatedAt": "2026-11-13T22:46:22.855806+00:00",
   "migrationAllocation": {
-    "next": 70,
+    "next": 71,
     "reserved": [
       {
         "version": 31,
@@ -203,6 +203,11 @@
         "version": 69,
         "task": "B17",
         "purpose": "immutable private refresh revision and checkpoint receipt lineage"
+      },
+      {
+        "version": 70,
+        "task": "day-one-ai-review",
+        "purpose": "private durable scoring obligations, captured evidence, reports, appeals and fenced attempts"
       }
     ],
     "historicalGap": 19
@@ -763,5 +768,26 @@
     "ciConclusion": "success",
     "productionReadinessSummary": "platform/validation/PRODUCT_AND_PRODUCTION_READINESS_2026-11-14.md",
     "ciTestsPassed": 1476
+  },
+  "aiReviewFollowup": {
+    "status": "local-tests-passed",
+    "budget": "stop at 10% remaining account usage",
+    "paidCallsEnabled": false,
+    "deployment": false,
+    "nextStep": "Finish D1 continued recovery, commit UI guide, push final CI checkpoint and update preserved local app.",
+    "tests": {
+      "ai": 38,
+      "serviceFinal": 14,
+      "d1Queue": 2,
+      "nodeAndWorkerRuntime": 2,
+      "privatePublicRecovery": 9,
+      "checkpoint": 4,
+      "continuedNodeRestore": {
+        "steps": 1147,
+        "peakCheckpointBytes": 125333,
+        "limitBytes": 131072
+      }
+    },
+    "runtimeScope": "Node feedback/appeals and synthetic processing; D1 atomic obligations; Worker HTTP capability absent"
   }
 }

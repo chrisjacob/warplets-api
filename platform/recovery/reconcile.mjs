@@ -7,6 +7,10 @@ import {publicationPin} from './export.mjs';
 
 export function fenceRow(table,row,{generation,createdMs}){
  row=[...row];const offset=table.hasRowid?1:0,get=name=>row[table.columns.indexOf(name)+offset],set=(name,value)=>{row[table.columns.indexOf(name)+offset]=value;};
+ if(table.name==='ai_review_jobs'&&get('state')==='running'){
+  set('state',get('dispatched_ms')===null?'ready':'unknown');set('lease_token',null);set('lease_until_ms',null);set('reason','recovery-fenced');set('revision',get('revision')+1);set('updated_ms',Math.max(get('updated_ms'),createdMs));
+ }
+ if(table.name==='ai_review_attempts'&&get('ended_ms')===null){set('ended_ms',Math.max(get('started_ms'),createdMs));set('outcome',get('dispatched_ms')===null?'recovered-unstarted':'recovered-unknown');}
  if(table.name==='app_jobs'&&get('state')==='running'){
   set('state','held');set('lease_token',null);set('lease_until_ms',null);set('ready_ms',null);set('reason','recovery-reconciliation');set('dependency','recovery:'+generation);set('revision',get('revision')+1);set('finished_ms',createdMs);
  }
