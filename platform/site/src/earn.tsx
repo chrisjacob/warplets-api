@@ -1,4 +1,5 @@
 import {ReviewPreview} from './review-preview';
+import {SubmissionReview} from './earn-review';
 import {CategoryCompetition} from './performance';
 import {Diagnostics,Journey,TokenArt,ProgressBar,useExperience} from './experience';
 import {EarnMemberDetails} from './earn-details';
@@ -43,9 +44,10 @@ function Contribution({wallet}:{wallet:string}){
     }}</Loaded></Capability></Panel>
     <Panel technicalOnly title="Your Earn evidence">{history.data?.memberStatus?<EarnMemberDetails status={history.data.memberStatus}/>:<p>Current wallet evidence is unavailable in this runtime.</p>}</Panel>
     <div className="two-up"><Panel title="Your submissions"><Loaded query={history}>{page=><>
-      {page.items.length?<ul className="records submission-records">{page.items.slice(0,technical?page.items.length:shownSubmissions).map(i=><li key={i.id}><strong>{i.tokenId}</strong><span>{i.status}{i.score==null?'':' · score '+i.score}</span>
+      {page.items.length?<ul className="records submission-records">{page.items.slice(0,technical?page.items.length:shownSubmissions).map(i=><li key={i.id}><strong>{i.tokenId}</strong><span>{technical?i.status:i.status==='final'?'Daily result final':'Awaiting daily results'}{i.score==null?'':' · final score '+i.score+' / 10'}</span>
         <small>{i.url}</small>{i.reason && <p>{i.reason}</p>}
-        <p>{i.status!=='final'?'In review. We’ll check your eligibility when the day closes.':i.eligible===true?'Eligible at cutoff. Eligibility does not guarantee a Top 100 award.':i.eligible===false?'Not eligible at cutoff.':'Cutoff eligibility unavailable.'}</p>
+        <p>{i.status!=='final'?'Your contribution is saved. We’ll check your eligibility when the day closes.':i.eligible===true?'Eligible at cutoff. Eligibility does not guarantee a Top 100 award.':i.eligible===false?'Not eligible at cutoff.':'Cutoff eligibility unavailable.'}</p>
+        <SubmissionReview wallet={wallet} submissionId={i.id}/>
         <Diagnostics><Facts items={[["Entry stake (micro-USD)",i.entryStakeMicroUsd??'Unavailable'],['Cutoff stake (micro-USD)',i.closingStakeMicroUsd??'Pending or unavailable']]}/></Diagnostics>
         <Diagnostics>{i.components?<details><summary>Finalized server-derived components</summary><Facts items={[
           ['Verified action component (tenths)',i.components.actionTenths],['Rolling streak days',i.components.streakDays],

@@ -1,0 +1,48 @@
+{
+  "engine": "webkit",
+  "version": "27.2",
+  "results": [
+    {
+      "width": 320,
+      "realSubmissionEnqueued": true,
+      "lazyRead": true,
+      "sourceCaptureAndSimulation": true,
+      "separateReviewLineage": true,
+      "duplicateClickGuard": true,
+      "finalScoreSeparate": true,
+      "noAutomaticFinalScore": true,
+      "sessionExpiryClearsFeedback": true,
+      "capabilityFailClosed": true,
+      "keyboardReturn": true,
+      "noOverflow": true
+    },
+    {
+      "width": 390,
+      "realSubmissionEnqueued": true,
+      "lazyRead": true,
+      "sourceCaptureAndSimulation": true,
+      "separateReviewLineage": true,
+      "duplicateClickGuard": true,
+      "finalScoreSeparate": true,
+      "noAutomaticFinalScore": true,
+      "sessionExpiryClearsFeedback": true,
+      "capabilityFailClosed": true,
+      "keyboardReturn": true,
+      "noOverflow": true
+    },
+    {
+      "width": 1280,
+      "realSubmissionEnqueued": true,
+      "lazyRead": true,
+      "sourceCaptureAndSimulation": true,
+      "separateReviewLineage": true,
+      "duplicateClickGuard": true,
+      "finalScoreSeparate": true,
+      "noAutomaticFinalScore": true,
+      "sessionExpiryClearsFeedback": true,
+      "capabilityFailClosed": true,
+      "keyboardReturn": true,
+      "noOverflow": true
+    }
+  ]
+}

@@ -5,7 +5,7 @@
   "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
   "currentTask": null,
-  "lastUpdatedAt": "2026-11-13T22:46:22.855806+00:00",
+  "lastUpdatedAt": "2026-11-13T22:47:14.061255+00:00",
   "migrationAllocation": {
     "next": 71,
     "reserved": [
@@ -774,7 +774,7 @@
     "budget": "stop at 10% remaining account usage",
     "paidCallsEnabled": false,
     "deployment": false,
-    "nextStep": "Finish D1 continued recovery, commit UI guide, push final CI checkpoint and update preserved local app.",
+    "nextStep": "Follow final candidate CI and local D1 continued restore; refresh existing QA runtime without reseeding; record exact results.",
     "tests": {
       "ai": 38,
       "serviceFinal": 14,
@@ -786,8 +786,25 @@
         "steps": 1147,
         "peakCheckpointBytes": 125333,
         "limitBytes": 131072
-      }
+      },
+      "frontend": 37,
+      "browsers": [
+        "Chromium156",
+        "WebKit27.2"
+      ],
+      "widths": [
+        320,
+        390,
+        1280
+      ],
+      "types": "passed",
+      "build": "passed",
+      "contracts": "passed",
+      "blueprint": "passed",
+      "recoveryDrill": "passed"
     },
-    "runtimeScope": "Node feedback/appeals and synthetic processing; D1 atomic obligations; Worker HTTP capability absent"
+    "runtimeScope": "Node feedback/appeals and synthetic processing; D1 atomic obligations; Worker HTTP capability absent",
+    "backendCommit": "593811c",
+    "accountUsagePercent": 53
   }
 }
