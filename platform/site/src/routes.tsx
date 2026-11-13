@@ -1,4 +1,5 @@
 import {ExperienceProvider,TechnicalToggle} from './experience';
+import {useEffect,useRef} from 'react';
 import { createRootRoute, createRoute, createRouter, lazyRouteComponent, Link, Outlet, useRouterState, type RouteComponent } from '@tanstack/react-router';
 import { useIsFetching } from '@tanstack/react-query';
 import { SessionProvider, useSession } from './session';
@@ -19,6 +20,13 @@ function Shell(){
   const {wallet,open}=useSession();
   const fetching=useIsFetching();
   const path=useRouterState({select:s=>s.location.pathname});
+  const isLoading=useRouterState({select:s=>s.isLoading}),previousPath=useRef(path);
+  useEffect(()=>{
+    if(isLoading||previousPath.current===path)return;
+    previousPath.current=path;
+    const frame=requestAnimationFrame(()=>document.getElementById('page-title')?.focus({preventScroll:true}));
+    return ()=>cancelAnimationFrame(frame);
+  },[path,isLoading]);
   const section=path.split('/')[1];
   const current=!section?'':({markets:'tokens',vault:'airdrops',collect:'nfts',collections:'nfts',seasons:'nfts',attention:'earn',leaderboards:'earn'} as Record<string,string>)[section]??section;
   return <>

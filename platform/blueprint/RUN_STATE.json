@@ -741,15 +741,21 @@
   },
   "auditFollowup": {
     "id": "performance-security-ux-2026-11-14",
-    "status": "in-progress",
+    "status": "local-verified-ci-pending",
     "baselineCommit": "47e4651",
     "preview": "https://app-local.10x.meme",
-    "qaProcessAtCheckpoint": 36072,
+    "qaProcessAtCheckpoint": 12568,
     "completed": [
       "Public asset compression, bounded cache and conditional requests; 3 focused tests and 35 frontend tests passed.",
-      "Throttled browser comparison: home cold resource bytes527929 to181513; repeat527929 to18965."
+      "Throttled browser comparison: home cold resource bytes527929 to181513; repeat527929 to18965.",
+      "9f0a5e0 asset delivery milestone pushed.",
+      "30ad827 Node/Worker logout and HTTPS-cookie milestone pushed;8 Node tests,1 actualworkerd test,Worker types passed.",
+      "Final focused Chromium/WebKit320/390/1280 usability and actual-server identity tests passed;37frontend/15performance/8auth tests,actualworkerd,types/build/contracts/recovery passed."
     ],
-    "nextAction": "Finish Node/Worker authentication and keyboard usability fixes, run final browser regression, commit/push milestones and follow test-only CI.",
-    "releaseWorkAuthorized": false
+    "nextAction": "Push final audit candidate, follow test-only CI through completion, record final measurements and results; stop and save if account usage reaches the user50%cap.",
+    "releaseWorkAuthorized": false,
+    "originalDemoProcessAtCheckpoint": 12504,
+    "usagePercentAtCheckpoint": 41,
+    "report": "platform/validation/APP_AUDIT_2026-11-14.md"
   }
 }

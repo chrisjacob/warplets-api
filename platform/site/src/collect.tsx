@@ -12,7 +12,7 @@ import { client, sdk, PlatformApiError, type ProgressionRequest } from './sdk';
 import {progressionJournal,matchesProgressionReceipt,type ProgressionAttempt,type ProgressionJournalEntry} from './progression-intent';
 import {mintJournal,mintReviewAvailable,matchesMintReceipt,type MintAttempt,type MintJournalEntry} from './mint-intent';
 import type { Asset, Ballot, Inventory, ProgressQuote, Receipt, Stage } from './models';
-import { Empty, Facts, friendlyError, Hero, Loaded, Modal, Panel, pretty, Signal, sol, usePageMeta, utc } from './common';
+import {RevealMore, Empty, Facts, friendlyError, Hero, Loaded, Modal, Panel, pretty, Signal, sol, usePageMeta, utc } from './common';
 import { useSession } from './session';
 
 const choiceLabel=(value:string)=>value==='ASAP'?'As soon as possible':value+' days';
@@ -235,7 +235,7 @@ function MemberAssets({wallet,review}:{wallet:string;review:(review:Review)=>voi
             {asset.level!<10&&<MaterialPicker target={asset} wallet={wallet} review={review}/>}</Capability></Capability></>}
           <AssetEvidence asset={asset}/><Link to="/airdrops" search={{asset:asset.id}}>{technical?'Vault allocations ↗':'View airdrops ↗'}</Link></>}
       </article>)}</div>
-      {!technical&&visibleAssets<page.items.length&&<button onClick={()=>setVisibleAssets(n=>n+6)}>Show more NFTs on this page ({Math.min(visibleAssets,page.items.length)} of {page.items.length})</button>}
+      {!technical&&visibleAssets<page.items.length&&<RevealMore items=".nft-card" shown={visibleAssets} onReveal={()=>setVisibleAssets(n=>n+6)}>Show more NFTs on this page ({Math.min(visibleAssets,page.items.length)} of {page.items.length})</RevealMore>}
       {page.nextCursor!==null&&<Link to="/nfts" search={{owned:String(page.nextCursor)}}>Next assets →</Link>}
     </>}</Loaded></Panel>
     <Panel title="Operation history">{search.receipt && <Loaded query={receipt}>{r=><article className="receipt"><h3>Operation receipt</h3>
@@ -243,7 +243,7 @@ function MemberAssets({wallet,review}:{wallet:string;review:(review:Review)=>voi
         ['Recorded price',sol(r.priceLamports??r.feeLamports)],['Result NFT',r.assetId??'Pending']]}/><CollectionOperationHold operation={r}/><button type="button" onClick={()=>void receipt.refetch()} disabled={receipt.isFetching}>Refresh operation receipt</button><Diagnostics><CollectionOperationFairness key={wallet+':'+r.id} operation={r} wallet={wallet}/></Diagnostics></article>}</Loaded>}
       <Loaded query={operations}>{page=><>{page.items.length?<ul className="rows operation-history">{page.items.slice(0,technical?page.items.length:visibleOperations).map(op=><li key={op.id}><Link to="/nfts" search={{receipt:op.id}}>
         <strong>{op.kind} · {op.inventoryId}</strong><span>{op.reconciliation?'Held after observed transfer':op.status} ↗</span></Link></li>)}</ul>:<p>No operations for this wallet.</p>}
-        {!technical&&visibleOperations<page.items.length&&<button onClick={()=>setVisibleOperations(n=>n+6)}>Show more operations ({visibleOperations} of {page.items.length})</button>}
+        {!technical&&visibleOperations<page.items.length&&<RevealMore items=".operation-history > li" shown={visibleOperations} onReveal={()=>setVisibleOperations(n=>n+6)}>Show more operations ({visibleOperations} of {page.items.length})</RevealMore>}
         {page.nextCursor!==null&&<Link to="/nfts" search={{operations:String(page.nextCursor)}}>Next operations →</Link>}</>}</Loaded></Panel>
   </>;
 }
@@ -266,7 +266,7 @@ export function Collect(){
       {page.items.slice(0,technical?page.items.length:visibleInventories).map(inv=><article key={inv.id} className="record published-inventory"><h3>{inv.kind==='season'?<Link to="/seasons/$seasonId" params={{seasonId:inv.id}}>{inv.id}</Link>:inv.id}</h3>
         <InventoryEvidence inventory={inv}/>
         {inv.stages.map(s=><PublishedStage key={s.id} inventory={inv} stage={s} review={setReview}/>)}</article>)}
-      {!technical&&visibleInventories<page.items.length&&<button onClick={()=>setVisibleInventories(n=>n+2)}>Show more collections ({visibleInventories} of {page.items.length})</button>}
+      {!technical&&visibleInventories<page.items.length&&<RevealMore items=".published-inventory" shown={visibleInventories} onReveal={()=>setVisibleInventories(n=>n+2)}>Show more collections ({visibleInventories} of {page.items.length})</RevealMore>}
       {page.nextCursor!==null&&<Link to="/nfts" search={{inventories:String(page.nextCursor)}}>Next collections →</Link>}
     </>}</Loaded></Panel>
 

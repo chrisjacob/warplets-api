@@ -5,6 +5,8 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {pathToFileURL} from 'node:url';
 import {brotliDecompressSync,gunzipSync} from 'node:zlib';
+import fsPromises from 'node:fs/promises';
+import {syncBuiltinESMExports} from 'node:module';
 import {serveSite} from '../serve.mjs';
 const fixture=async t=>{
  const dir=await mkdtemp(join(tmpdir(),'tenx-static-'));t.after(()=>rm(dir,{recursive:true,force:true}));
@@ -40,4 +42,35 @@ test('HTML and unknown paths never enter the public compressed asset cache',asyn
  assert.equal(page.headers.get('content-encoding'),null);assert.equal(page.headers.get('etag'),null);assert.equal(page.headers.get('cache-control'),'no-cache');
  assert.equal(await request({},'GET','/site-assets/private.sqlite'),null);
  assert.equal((await request({},'POST')).status,405);
+});
+
+test('concurrent cold requests share one asset build and a failed build can be retried',async t=>{
+ for(const failFirst of [false,true]){
+  const {dir,request,source}=await fixture(t),target=pathToFileURL(join(dir,'site-assets','index-testhash.js')).href;
+  const originalRead=fsPromises.readFile,originalStat=fsPromises.stat;let reads=0,stats=0,release,allStarted;
+  const gate=new Promise(resolve=>{release=resolve;}),started=new Promise(resolve=>{allStarted=resolve;});
+  fsPromises.stat=async(...args)=>{const info=await originalStat(...args);if(args[0]?.href===target&&++stats===8)allStarted();return info;};
+  fsPromises.readFile=async(...args)=>{if(args[0]?.href===target){const attempt=++reads;await gate;if(failFirst&&attempt===1)throw Error('Synthetic read failure');}return originalRead(...args);};
+  syncBuiltinESMExports();
+  try{
+   const requests=Array.from({length:8},()=>request({'accept-encoding':'br'}));
+   const settled=Promise.allSettled(requests);await started;assert.equal(reads,1);release();
+   const results=await settled;
+   if(failFirst){assert(results.every(result=>result.status==='rejected'));const retried=await request();assert.equal(await retried.text(),source);assert.equal(reads,2);}
+   else{assert(results.every(result=>result.status==='fulfilled'));const responses=results.map(result=>result.value);assert.equal(new Set(responses.map(response=>response.headers.get('etag'))).size,1);for(const response of responses)assert.equal(brotliDecompressSync(Buffer.from(await response.arrayBuffer())).toString(),source);await request();assert.equal(reads,1);}
+  }finally{release();fsPromises.readFile=originalRead;fsPromises.stat=originalStat;syncBuiltinESMExports();}
+ }
+});
+
+test('a rebuilt file is not stuck behind an older in-flight version',async t=>{
+ const {dir,request,source}=await fixture(t),file=join(dir,'site-assets','index-testhash.js'),target=pathToFileURL(file).href;
+ const originalRead=fsPromises.readFile;let reads=0,release,entered;
+ const gate=new Promise(resolve=>{release=resolve;}),reading=new Promise(resolve=>{entered=resolve;});
+ fsPromises.readFile=async(...args)=>{const bytes=await originalRead(...args);if(args[0]?.href===target&&++reads===1){entered();await gate;}return bytes;};syncBuiltinESMExports();
+ try{
+  const earlier=request();await reading;await writeFile(file,'newer rebuilt public asset');
+  const newer=await request(),newTag=newer.headers.get('etag');assert.equal(await newer.text(),'newer rebuilt public asset');
+  release();assert.equal(await (await earlier).text(),source);
+  const after=await request();assert.equal(await after.text(),'newer rebuilt public asset');assert.equal(after.headers.get('etag'),newTag);
+ }finally{release();fsPromises.readFile=originalRead;syncBuiltinESMExports();}
 });

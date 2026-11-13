@@ -1,0 +1,48 @@
+{
+  "engine": "chromium",
+  "version": "156.0.8078.4",
+  "results": [
+    {
+      "width": 320,
+      "routeFocus": true,
+      "revealFocusIncludingFinal": true,
+      "modalInertAndReturn": true,
+      "readableUtcAwards": true,
+      "borderContrast": 3.6927383265601605,
+      "profilePagingFocus": true,
+      "firstLastAndDuplicatePagingGuards": true,
+      "noOverflow": true
+    },
+    {
+      "width": 390,
+      "routeFocus": true,
+      "revealFocusIncludingFinal": true,
+      "modalInertAndReturn": true,
+      "readableUtcAwards": true,
+      "borderContrast": 3.6927383265601605,
+      "profilePagingFocus": true,
+      "firstLastAndDuplicatePagingGuards": true,
+      "noOverflow": true
+    },
+    {
+      "width": 1280,
+      "routeFocus": true,
+      "revealFocusIncludingFinal": true,
+      "modalInertAndReturn": true,
+      "readableUtcAwards": true,
+      "borderContrast": 3.6927383265601605,
+      "profilePagingFocus": true,
+      "firstLastAndDuplicatePagingGuards": true,
+      "noOverflow": true
+    }
+  ],
+  "identity": {
+    "delayedSessionAnonymousRank": true,
+    "publicReadRemainsAnonymousRegardlessCookies": true,
+    "publicCookieOmitted": true,
+    "authenticatedRank": true,
+    "wrongWalletRankHidden": true,
+    "logoutBeforeCacheExpiry": true,
+    "guestTokensNotMarkedOwned": true
+  }
+}

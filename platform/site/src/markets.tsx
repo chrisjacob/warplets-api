@@ -6,7 +6,7 @@ import { Link } from '@tanstack/react-router';
 import { useQuery } from '@tanstack/react-query';
 import type { FeePoint } from '../../contracts/client.mjs';
 import { sdk } from './sdk';
-import { Empty, Facts, Hero, Loaded, Panel, percent, usePageMeta, utc } from './common';
+import {RevealMore, Empty, Facts, Hero, Loaded, Panel, percent, usePageMeta, utc } from './common';
 import { rootRoute } from './routes';
 import type { Policy } from './models';
 import { QuotePanel,quoteServices } from './quote-panel';
@@ -75,11 +75,11 @@ export function Markets(){
     <Diagnostics><div className="market-grid"><Loaded query={schedule}>{points=><FeeChart points={points}/>}</Loaded>
       <Loaded query={policy}>{p=><Allocation policy={p}/>}</Loaded></div></Diagnostics>
     {market && <MarketDetail id={market}/>}
-    <Panel title="Explore tokens"><Loaded query={markets}>{page=><>
+    <Panel title="Explore tokens" className={!markets.data&&!markets.isError&&(markets.availability.pending||markets.availability.allowed)?'catalog-loading':''}><Loaded query={markets}>{page=><>
       {page.items.length?<ul className="rows">{page.items.slice(0,technical?page.items.length:visible).map(m=><li className="token-list-item" key={m.id}><Link to="/markets/$marketId" params={{marketId:m.id}}>
         <TokenArt name={m.symbol}/><strong>{m.symbol} <small>/ {m.ogSymbol}</small></strong><span>{m.status} · Explore →</span>
       </Link><Link className="stake-link" to="/stake" search={{farm:m.id}}>Stake {m.symbol} →</Link></li>)}</ul>:<Empty title="No tokens yet">Curated ATT/OG pairs appear here once a campaign opens.</Empty>}
-      {!technical&&visible<page.items.length&&<button onClick={()=>setVisible(n=>n+10)}>Show more tokens on this page ({visible} of {page.items.length})</button>}
+      {!technical&&visible<page.items.length&&<RevealMore items=".token-list-item" shown={visible} onReveal={()=>setVisible(n=>n+10)}>Show more tokens on this page ({visible} of {page.items.length})</RevealMore>}
       {page.nextCursor && <Link to="/tokens" search={{cursor:page.nextCursor}}>Next campaigns →</Link>}
     </>}</Loaded></Panel>
     <CategoryCompetition category="tokens"/>

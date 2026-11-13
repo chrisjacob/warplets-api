@@ -5,6 +5,10 @@ import { PlatformApiError } from './sdk';
 export const compact=(address:string)=>address.length>16?address.slice(0,6)+'…'+address.slice(-6):address;
 export const percent=(bps:number|null)=>bps===null?'Unavailable':new Intl.NumberFormat('en-US').format(bps/100)+'%';
 export const utc=(iso:string)=>new Date(iso).toISOString().slice(0,16).replace('T',' ')+' UTC';
+export function dayDate(day:number){
+  const date=new Date(day*86_400_000);
+  return Number.isSafeInteger(day)&&Number.isFinite(date.getTime())?new Intl.DateTimeFormat('en',{dateStyle:'medium',timeZone:'UTC'}).format(date):'Date unavailable';
+}
 export function sol(value:string|null){
   if(value===null)return 'Unavailable';
   const amount=BigInt(value);
@@ -37,7 +41,7 @@ export function friendlyError(err:unknown){
   return err instanceof Error?err.message:'This request could not be completed.';
 }
 export function Hero({title,children}:{title:string;children:ReactNode}){
-  return <header className="page-hero"><h1>{title}</h1><p>{children}</p></header>;
+  return <header className="page-hero"><h1 id="page-title" tabIndex={-1}>{title}</h1><p>{children}</p></header>;
 }
 export function Panel({title,children,className='',technicalOnly=false}:{title?:ReactNode;children:ReactNode;className?:string;technicalOnly?:boolean}){
   const {technical}=useExperience();
@@ -81,6 +85,21 @@ export function ShareLink({path,title}:{path:string;title:string}){
   };
   return <div className="share"><button onClick={()=>void share()}>Share link</button><output aria-live="polite">{message}</output>
     {fallback&&<label>Public link<input readOnly value={url} onFocus={e=>e.target.select()}/></label>}</div>;
+}
+/** Keep keyboard readers at the first newly revealed item, including the final
+ * batch where the reveal button disappears. No data or page limits change. */
+export function RevealMore({children,items,shown,onReveal}:{children:ReactNode;items:string;shown:number;onReveal:()=>void}){
+  return <button type="button" onClick={event=>{
+    const region=event.currentTarget.closest('section');
+    onReveal();
+    requestAnimationFrame(()=>{
+      const entry=[...region?.querySelectorAll<HTMLElement>(items)??[]].filter(node=>node.getClientRects().length>0)[shown];
+      if(!entry?.isConnected)return;
+      const target=entry.querySelector<HTMLElement>('a[href],button:not(:disabled),input:not(:disabled),select:not(:disabled),summary')??entry.querySelector<HTMLElement>('h3,h4,strong')??entry;
+      if(!target.matches('a[href],button,input,select,summary')){target.tabIndex=-1;target.setAttribute('data-reveal-focus','');}
+      target.focus();
+    });
+  }}>{children}</button>;
 }
 export function Modal({title,children,onClose,id}:{title:string;children:ReactNode;onClose:()=>void;id?:string}){
   const ref=useRef<HTMLDialogElement>(null);

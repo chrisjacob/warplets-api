@@ -3,13 +3,20 @@ import {createHash} from 'node:crypto';
 import {brotliCompress,gzip,constants} from 'node:zlib';
 import {promisify} from 'node:util';
 const brotli=promisify(brotliCompress),zip=promisify(gzip);
-const cache=new Map(),maxBytes=8*1024*1024,maxEntries=64;let cachedBytes=0;
+const cache=new Map(),pending=new Map(),maxBytes=8*1024*1024,maxEntries=64;let cachedBytes=0;
 // Only public, versioned build assets enter this cache. HTML and API bodies do not.
+// These bounds apply to retained representations, not all transient request memory.
 async function load(url){
  const key=url.href,info=await stat(url),version=info.size+':'+info.mtimeMs+':'+info.ctimeMs;
  const previous=cache.get(key);
  if(previous?.version===version){cache.delete(key);cache.set(key,previous);return previous;}
  if(previous){cache.delete(key);cachedBytes-=previous.size;}
+ const pendingKey=key+'\0'+version;
+ if(pending.has(pendingKey))return pending.get(pendingKey);
+ const loading=buildEntry(url,key,version);pending.set(pendingKey,loading);
+ try{return await loading;}finally{if(pending.get(pendingKey)===loading)pending.delete(pendingKey);}
+}
+async function buildEntry(url,key,version){
  const identity=await readFile(url),bodies={identity};
  if(identity.length>=1024){
   const [br,gz]=await Promise.all([brotli(identity,{params:{[constants.BROTLI_PARAM_QUALITY]:4}}),zip(identity)]);

@@ -9,7 +9,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
 import { rootRoute } from './routes';
 import { client, sdk } from './sdk';
-import { compact, Facts, Empty, friendlyError, Hero, intentKey, Loaded, Metrics, Panel, usePageMeta } from './common';
+import {RevealMore,dayDate, compact, Facts, Empty, friendlyError, Hero, intentKey, Loaded, Metrics, Panel, usePageMeta } from './common';
 import { useSession } from './session';
 
 function Contribution({wallet}:{wallet:string}){
@@ -51,13 +51,13 @@ function Contribution({wallet}:{wallet:string}){
           ['Verified action component (tenths)',i.components.actionTenths],['Rolling streak days',i.components.streakDays],
           ['Highest eligible NFT Level',i.components.highestEligibleLevel],['Purchase token-days',i.components.purchaseTokenDays],['Source',i.components.sourceRef],
         ]}/><p>The final overall multiplier is shown on the settled leaderboard for ranked wallets. Components are not recomputed in this browser.</p></details>:<p>Component evidence is pending or unavailable.</p>}</Diagnostics></li>)}</ul>:<p>No submissions from this wallet.</p>}
-      {!technical&&shownSubmissions<page.items.length&&<button onClick={()=>setShownSubmissions(n=>n+5)}>Show more submissions ({shownSubmissions} of {page.items.length})</button>}
+      {!technical&&shownSubmissions<page.items.length&&<RevealMore items=".submission-records > li" shown={shownSubmissions} onReveal={()=>setShownSubmissions(n=>n+5)}>Show more submissions ({shownSubmissions} of {page.items.length})</RevealMore>}
       {page.nextCursor!==null && <Link to="/earn" search={{submissions:String(page.nextCursor)}}>Next submissions →</Link>}
     </>}</Loaded></Panel>
       <Panel title="Your vested awards"><Loaded query={claims}>{page=><>
-        {page.items.length?<ul className="records award-records">{page.items.slice(0,technical?page.items.length:shownAwards).map(i=><li key={i.tokenId+':'+i.day}><TokenArt name={i.tokenId}/><strong>{i.tokenId} · day {i.day}</strong>
+        {page.items.length?<ul className="records award-records">{page.items.slice(0,technical?page.items.length:shownAwards).map(i=><li key={i.tokenId+':'+i.day}><TokenArt name={i.tokenId}/><strong>{i.tokenId} · {technical?'day '+i.day:dayDate(i.day)+' UTC'}</strong>
           <Diagnostics><small>{i.vestedUnits} of {i.awardUnits} raw token units unlocked</small></Diagnostics><ProgressBar value={i.vestedUnits} total={i.awardUnits} label="Reward vesting"/></li>)}</ul>:<p>No settled awards for this wallet.</p>}
-        {!technical&&shownAwards<page.items.length&&<button onClick={()=>setShownAwards(n=>n+5)}>Show more awards ({shownAwards} of {page.items.length})</button>}
+        {!technical&&shownAwards<page.items.length&&<RevealMore items=".award-records > li" shown={shownAwards} onReveal={()=>setShownAwards(n=>n+5)}>Show more awards ({shownAwards} of {page.items.length})</RevealMore>}
         {page.nextCursor!==null&&<Link to="/earn" search={{awards:String(page.nextCursor)}}>Next awards →</Link>}
       </>}</Loaded></Panel></div>
   </>;
@@ -108,7 +108,7 @@ export function Leaderboards({epochId}:{epochId?:string}={}){
         return <><div className="scroller"><table><caption>Final leaderboard · {boardDate} UTC</caption>
           <thead><tr>{['Rank','Wallet','Score','Multiplier','Points'].map(s=><th key={s}>{s}</th>)}</tr></thead>
           <tbody>{b.items.slice(0,technical?b.items.length:shown).map(i=><tr key={i.wallet}><td>{i.rank}</td><td><abbr title={i.wallet}>{compact(i.wallet)}</abbr></td><td>{i.contentScore}</td>
-            <td>{i.multiplierTenths/10}×</td><td>{i.pointsTenths/10}</td></tr>)}</tbody></table></div>{!technical&&shown<b.items.length&&<button onClick={()=>setShown(n=>n+10)}>Show more scores ({shown} of {b.items.length})</button>}</>;
+            <td>{i.multiplierTenths/10}×</td><td>{i.pointsTenths/10}</td></tr>)}</tbody></table></div>{!technical&&shown<b.items.length&&<RevealMore items="tbody > tr" shown={shown} onReveal={()=>setShown(n=>n+10)}>Show more scores ({shown} of {b.items.length})</RevealMore>}</>;
       }}</Loaded></Panel>
   </>;
 }

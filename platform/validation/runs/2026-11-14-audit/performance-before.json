@@ -1,0 +1,2516 @@
+{
+  "at": "2026-11-13T19:41:14.812Z",
+  "origin": "http://127.0.0.1:4181",
+  "browser": "156.0.8078.4",
+  "scope": "read-only synthetic local lab; not field INP or hosted capacity",
+  "conditions": {
+    "latencyMs": 80,
+    "downloadBytesPerSecond": 200000,
+    "cpuSlowdown": 4
+  },
+  "results": [
+    {
+      "width": 390,
+      "route": "/",
+      "cache": "cold",
+      "lcp": 3692,
+      "shifts": [],
+      "longTasks": [
+        {
+          "at": 2720.0999999046326,
+          "duration": 194
+        },
+        {
+          "at": 2919.6999999284744,
+          "duration": 59
+        },
+        {
+          "at": 3204.6999999284744,
+          "duration": 100
+        },
+        {
+          "at": 3830.7999999523163,
+          "duration": 74
+        }
+      ],
+      "events": [],
+      "cls": 0,
+      "paint": [
+        {
+          "name": "first-paint",
+          "at": 648
+        },
+        {
+          "name": "first-contentful-paint",
+          "at": 648
+        }
+      ],
+      "resources": [
+        {
+          "path": "/site-assets/index-BhRSwTsJ.js",
+          "bytes": 459370,
+          "encoded": 459070,
+          "decoded": 459070,
+          "duration": 2541.2000000476837
+        },
+        {
+          "path": "/site-assets/index-7ZsY64vD.css",
+          "bytes": 24701,
+          "encoded": 24401,
+          "decoded": 24401,
+          "duration": 358.60000002384186
+        },
+        {
+          "path": "/site-assets/home-BuK3_I2c.js",
+          "bytes": 3818,
+          "encoded": 3518,
+          "decoded": 3518,
+          "duration": 135.5
+        },
+        {
+          "path": "/site-assets/performance-CY_Dp-B2.js",
+          "bytes": 21075,
+          "encoded": 20775,
+          "decoded": 20775,
+          "duration": 228.30000007152557
+        },
+        {
+          "path": "/favicon.svg",
+          "bytes": 520,
+          "encoded": 220,
+          "decoded": 220,
+          "duration": 101.80000007152557
+        },
+        {
+          "path": "/api/v1/capabilities",
+          "bytes": 5480,
+          "encoded": 5180,
+          "decoded": 5180,
+          "duration": 129.60000002384186
+        },
+        {
+          "path": "/api/v1/performance/boards/tokens",
+          "bytes": 1125,
+          "encoded": 825,
+          "decoded": 825,
+          "duration": 111.30000007152557
+        },
+        {
+          "path": "/api/v1/performance/boards/nfts",
+          "bytes": 2390,
+          "encoded": 2090,
+          "decoded": 2090,
+          "duration": 138.60000002384186
+        },
+        {
+          "path": "/api/v1/performance/boards/airdrops",
+          "bytes": 2423,
+          "encoded": 2123,
+          "decoded": 2123,
+          "duration": 151
+        },
+        {
+          "path": "/api/v1/performance/boards/stake",
+          "bytes": 2432,
+          "encoded": 2132,
+          "decoded": 2132,
+          "duration": 147.5
+        },
+        {
+          "path": "/api/v1/performance/boards/earn",
+          "bytes": 2408,
+          "encoded": 2108,
+          "decoded": 2108,
+          "duration": 159.40000009536743
+        },
+        {
+          "path": "/api/v1/performance/activity",
+          "bytes": 1741,
+          "encoded": 1441,
+          "decoded": 1441,
+          "duration": 155.69999992847443
+        },
+        {
+          "path": "/api/v1/me",
+          "bytes": 446,
+          "encoded": 146,
+          "decoded": 146,
+          "duration": 195.89999997615814
+        }
+      ],
+      "domNodes": 401,
+      "overflow": false,
+      "requests": [
+        {
+          "path": "/",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/site-assets/index-7ZsY64vD.css",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/site-assets/index-BhRSwTsJ.js",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/favicon.svg",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/site-assets/home-BuK3_I2c.js",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/site-assets/performance-CY_Dp-B2.js",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/capabilities",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/performance/boards/tokens",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/performance/boards/nfts",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/performance/boards/airdrops",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/performance/boards/stake",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/performance/boards/earn",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/performance/activity",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/me",
+          "status": 401,
+          "encoding": "identity",
+          "cache": "no-store"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "route": "/",
+      "cache": "warm",
+      "lcp": 3044,
+      "shifts": [],
+      "longTasks": [],
+      "events": [],
+      "cls": 0,
+      "paint": [
+        {
+          "name": "first-paint",
+          "at": 512
+        },
+        {
+          "name": "first-contentful-paint",
+          "at": 512
+        }
+      ],
+      "resources": [
+        {
+          "path": "/site-assets/index-BhRSwTsJ.js",
+          "bytes": 459370,
+          "encoded": 459070,
+          "decoded": 459070,
+          "duration": 2524.6999999284744
+        },
+        {
+          "path": "/site-assets/index-7ZsY64vD.css",
+          "bytes": 24701,
+          "encoded": 24401,
+          "decoded": 24401,
+          "duration": 333.10000002384186
+        },
+        {
+          "path": "/site-assets/home-BuK3_I2c.js",
+          "bytes": 3818,
+          "encoded": 3518,
+          "decoded": 3518,
+          "duration": 134.20000004768372
+        },
+        {
+          "path": "/site-assets/performance-CY_Dp-B2.js",
+          "bytes": 21075,
+          "encoded": 20775,
+          "decoded": 20775,
+          "duration": 223.5
+        },
+        {
+          "path": "/favicon.svg",
+          "bytes": 520,
+          "encoded": 220,
+          "decoded": 220,
+          "duration": 109.60000002384186
+        },
+        {
+          "path": "/api/v1/capabilities",
+          "bytes": 5480,
+          "encoded": 5180,
+          "decoded": 5180,
+          "duration": 114.20000004768372
+        },
+        {
+          "path": "/api/v1/performance/boards/tokens",
+          "bytes": 1125,
+          "encoded": 825,
+          "decoded": 825,
+          "duration": 104.5
+        },
+        {
+          "path": "/api/v1/performance/boards/nfts",
+          "bytes": 2390,
+          "encoded": 2090,
+          "decoded": 2090,
+          "duration": 130
+        },
+        {
+          "path": "/api/v1/performance/boards/airdrops",
+          "bytes": 2423,
+          "encoded": 2123,
+          "decoded": 2123,
+          "duration": 140.5
+        },
+        {
+          "path": "/api/v1/performance/boards/stake",
+          "bytes": 2432,
+          "encoded": 2132,
+          "decoded": 2132,
+          "duration": 137.5
+        },
+        {
+          "path": "/api/v1/performance/boards/earn",
+          "bytes": 2408,
+          "encoded": 2108,
+          "decoded": 2108,
+          "duration": 148.60000002384186
+        },
+        {
+          "path": "/api/v1/performance/activity",
+          "bytes": 1741,
+          "encoded": 1441,
+          "decoded": 1441,
+          "duration": 145.10000002384186
+        },
+        {
+          "path": "/api/v1/me",
+          "bytes": 446,
+          "encoded": 146,
+          "decoded": 146,
+          "duration": 187.39999997615814
+        }
+      ],
+      "domNodes": 401,
+      "overflow": false,
+      "requests": [
+        {
+          "path": "/",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/site-assets/index-7ZsY64vD.css",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/site-assets/index-BhRSwTsJ.js",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/favicon.svg",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/site-assets/home-BuK3_I2c.js",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/site-assets/performance-CY_Dp-B2.js",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/capabilities",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/performance/boards/tokens",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/performance/boards/nfts",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/performance/boards/airdrops",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/performance/boards/stake",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/performance/boards/earn",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/performance/activity",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/me",
+          "status": 401,
+          "encoding": "identity",
+          "cache": "no-store"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "route": "/tokens",
+      "cache": "cold",
+      "lcp": 620,
+      "shifts": [
+        {
+          "at": 3863.8000000715256,
+          "value": 0.0764957264957265,
+          "sources": [
+            ""
+          ]
+        }
+      ],
+      "longTasks": [
+        {
+          "at": 2683.7000000476837,
+          "duration": 172
+        },
+        {
+          "at": 2860.8000000715256,
+          "duration": 59
+        },
+        {
+          "at": 3201.5,
+          "duration": 100
+        },
+        {
+          "at": 3894.8000000715256,
+          "duration": 67
+        }
+      ],
+      "events": [
+        {
+          "at": 4545.400000095367,
+          "duration": 72,
+          "interactionId": 4571
+        },
+        {
+          "at": 4545.5,
+          "duration": 72,
+          "interactionId": 4571
+        },
+        {
+          "at": 4545.5,
+          "duration": 72,
+          "interactionId": 4571
+        },
+        {
+          "at": 4839.900000095367,
+          "duration": 40,
+          "interactionId": 4578
+        },
+        {
+          "at": 4840.100000023842,
+          "duration": 40,
+          "interactionId": 4578
+        },
+        {
+          "at": 4840.100000023842,
+          "duration": 40,
+          "interactionId": 4578
+        }
+      ],
+      "cls": 0.0764957264957265,
+      "paint": [
+        {
+          "name": "first-paint",
+          "at": 620
+        },
+        {
+          "name": "first-contentful-paint",
+          "at": 620
+        }
+      ],
+      "resources": [
+        {
+          "path": "/site-assets/index-BhRSwTsJ.js",
+          "bytes": 459370,
+          "encoded": 459070,
+          "decoded": 459070,
+          "duration": 2533.7999999523163
+        },
+        {
+          "path": "/site-assets/index-7ZsY64vD.css",
+          "bytes": 24701,
+          "encoded": 24401,
+          "decoded": 24401,
+          "duration": 365.2000000476837
+        },
+        {
+          "path": "/site-assets/markets-CPREPjQ4.js",
+          "bytes": 5952,
+          "encoded": 5652,
+          "decoded": 5652,
+          "duration": 209.60000002384186
+        },
+        {
+          "path": "/site-assets/performance-CY_Dp-B2.js",
+          "bytes": 21075,
+          "encoded": 20775,
+          "decoded": 20775,
+          "duration": 285
+        },
+        {
+          "path": "/site-assets/quote-panel-Vfx7JMQg.js",
+          "bytes": 5443,
+          "encoded": 5143,
+          "decoded": 5143,
+          "duration": 188.79999995231628
+        },
+        {
+          "path": "/favicon.svg",
+          "bytes": 520,
+          "encoded": 220,
+          "decoded": 220,
+          "duration": 113.5
+        },
+        {
+          "path": "/api/v1/capabilities",
+          "bytes": 5480,
+          "encoded": 5180,
+          "decoded": 5180,
+          "duration": 134.5
+        },
+        {
+          "path": "/api/v1/policy",
+          "bytes": 1641,
+          "encoded": 1341,
+          "decoded": 1341,
+          "duration": 113
+        },
+        {
+          "path": "/api/v1/performance/boards/tokens",
+          "bytes": 20163,
+          "encoded": 19863,
+          "decoded": 19863,
+          "duration": 300
+        },
+        {
+          "path": "/api/v1/launch/fee-schedule",
+          "bytes": 3765,
+          "encoded": 3465,
+          "decoded": 3465,
+          "duration": 161.39999997615814
+        },
+        {
+          "path": "/api/v1/markets",
+          "bytes": 9900,
+          "encoded": 9600,
+          "decoded": 9600,
+          "duration": 224.29999995231628
+        },
+        {
+          "path": "/api/v1/me",
+          "bytes": 446,
+          "encoded": 146,
+          "decoded": 146,
+          "duration": 111.69999992847443
+        }
+      ],
+      "domNodes": 314,
+      "overflow": false,
+      "requests": [
+        {
+          "path": "/tokens",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/site-assets/index-7ZsY64vD.css",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/site-assets/index-BhRSwTsJ.js",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/favicon.svg",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/site-assets/quote-panel-Vfx7JMQg.js",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/site-assets/markets-CPREPjQ4.js",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/site-assets/performance-CY_Dp-B2.js",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/capabilities",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/policy",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/performance/boards/tokens",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/markets",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/launch/fee-schedule",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/me",
+          "status": 401,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/performance/boards/tokens",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "route": "/tokens",
+      "cache": "warm",
+      "lcp": 544,
+      "shifts": [
+        {
+          "at": 3513.899999976158,
+          "value": 0.0764957264957265,
+          "sources": [
+            ""
+          ]
+        }
+      ],
+      "longTasks": [
+        {
+          "at": 3047.5,
+          "duration": 58
+        }
+      ],
+      "events": [
+        {
+          "at": 4240.899999976158,
+          "duration": 48,
+          "interactionId": 441
+        },
+        {
+          "at": 4241.100000023842,
+          "duration": 48,
+          "interactionId": 441
+        },
+        {
+          "at": 4241.100000023842,
+          "duration": 48,
+          "interactionId": 441
+        }
+      ],
+      "cls": 0.0764957264957265,
+      "paint": [
+        {
+          "name": "first-paint",
+          "at": 544
+        },
+        {
+          "name": "first-contentful-paint",
+          "at": 544
+        }
+      ],
+      "resources": [
+        {
+          "path": "/site-assets/index-BhRSwTsJ.js",
+          "bytes": 459370,
+          "encoded": 459070,
+          "decoded": 459070,
+          "duration": 2552.5999999046326
+        },
+        {
+          "path": "/site-assets/index-7ZsY64vD.css",
+          "bytes": 24701,
+          "encoded": 24401,
+          "decoded": 24401,
+          "duration": 362
+        },
+        {
+          "path": "/site-assets/markets-CPREPjQ4.js",
+          "bytes": 5952,
+          "encoded": 5652,
+          "decoded": 5652,
+          "duration": 196.60000002384186
+        },
+        {
+          "path": "/site-assets/performance-CY_Dp-B2.js",
+          "bytes": 21075,
+          "encoded": 20775,
+          "decoded": 20775,
+          "duration": 273.7999999523163
+        },
+        {
+          "path": "/site-assets/quote-panel-Vfx7JMQg.js",
+          "bytes": 5443,
+          "encoded": 5143,
+          "decoded": 5143,
+          "duration": 191.30000007152557
+        },
+        {
+          "path": "/favicon.svg",
+          "bytes": 520,
+          "encoded": 220,
+          "decoded": 220,
+          "duration": 102.79999995231628
+        },
+        {
+          "path": "/api/v1/capabilities",
+          "bytes": 5480,
+          "encoded": 5180,
+          "decoded": 5180,
+          "duration": 139.19999992847443
+        },
+        {
+          "path": "/api/v1/policy",
+          "bytes": 1641,
+          "encoded": 1341,
+          "decoded": 1341,
+          "duration": 117.29999995231628
+        },
+        {
+          "path": "/api/v1/performance/boards/tokens",
+          "bytes": 20163,
+          "encoded": 19863,
+          "decoded": 19863,
+          "duration": 277.10000002384186
+        },
+        {
+          "path": "/api/v1/launch/fee-schedule",
+          "bytes": 3765,
+          "encoded": 3465,
+          "decoded": 3465,
+          "duration": 162
+        },
+        {
+          "path": "/api/v1/markets",
+          "bytes": 9900,
+          "encoded": 9600,
+          "decoded": 9600,
+          "duration": 222.39999997615814
+        },
+        {
+          "path": "/api/v1/me",
+          "bytes": 446,
+          "encoded": 146,
+          "decoded": 146,
+          "duration": 109.39999997615814
+        }
+      ],
+      "domNodes": 314,
+      "overflow": false,
+      "requests": [
+        {
+          "path": "/tokens",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/site-assets/index-7ZsY64vD.css",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/site-assets/index-BhRSwTsJ.js",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/favicon.svg",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/site-assets/markets-CPREPjQ4.js",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/site-assets/quote-panel-Vfx7JMQg.js",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/site-assets/performance-CY_Dp-B2.js",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/capabilities",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/policy",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/performance/boards/tokens",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/launch/fee-schedule",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/markets",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/me",
+          "status": 401,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/performance/boards/tokens",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "route": "/participants/4nQTuFuY38vevToXAuMwT3nm4SFVfuRRWMEXRm68JeX9",
+      "cache": "cold",
+      "lcp": 4136,
+      "shifts": [
+        {
+          "at": 4772.5,
+          "value": 0.006479813627730295,
+          "sources": [
+            ""
+          ]
+        }
+      ],
+      "longTasks": [
+        {
+          "at": 2726.6999999284744,
+          "duration": 676
+        },
+        {
+          "at": 3427,
+          "duration": 217
+        },
+        {
+          "at": 3842.5999999046326,
+          "duration": 140
+        },
+        {
+          "at": 4322.099999904633,
+          "duration": 90
+        }
+      ],
+      "events": [
+        {
+          "at": 4897.799999952316,
+          "duration": 56,
+          "interactionId": 3970
+        },
+        {
+          "at": 4897.899999976158,
+          "duration": 56,
+          "interactionId": 3970
+        },
+        {
+          "at": 4897.899999976158,
+          "duration": 56,
+          "interactionId": 3970
+        },
+        {
+          "at": 4976.799999952316,
+          "duration": 40,
+          "interactionId": 3977
+        },
+        {
+          "at": 4976.899999976158,
+          "duration": 40,
+          "interactionId": 3977
+        },
+        {
+          "at": 4976.899999976158,
+          "duration": 40,
+          "interactionId": 3977
+        }
+      ],
+      "cls": 0.006479813627730295,
+      "paint": [
+        {
+          "name": "first-paint",
+          "at": 672
+        },
+        {
+          "name": "first-contentful-paint",
+          "at": 672
+        }
+      ],
+      "resources": [
+        {
+          "path": "/site-assets/index-BhRSwTsJ.js",
+          "bytes": 459370,
+          "encoded": 459070,
+          "decoded": 459070,
+          "duration": 2557.2999999523163
+        },
+        {
+          "path": "/site-assets/index-7ZsY64vD.css",
+          "bytes": 24701,
+          "encoded": 24401,
+          "decoded": 24401,
+          "duration": 362.6999999284744
+        },
+        {
+          "path": "/site-assets/performance-CY_Dp-B2.js",
+          "bytes": 21075,
+          "encoded": 20775,
+          "decoded": 20775,
+          "duration": 200.39999997615814
+        },
+        {
+          "path": "/favicon.svg",
+          "bytes": 520,
+          "encoded": 220,
+          "decoded": 220,
+          "duration": 98.29999995231628
+        },
+        {
+          "path": "/api/v1/capabilities",
+          "bytes": 5480,
+          "encoded": 5180,
+          "decoded": 5180,
+          "duration": 120.20000004768372
+        },
+        {
+          "path": "/api/v1/performance/profiles/4nQTuFuY38vevToXAuMwT3nm4SFVfuRRWMEXRm68JeX9",
+          "bytes": 5874,
+          "encoded": 5574,
+          "decoded": 5574,
+          "duration": 136.29999995231628
+        },
+        {
+          "path": "/api/v1/me",
+          "bytes": 446,
+          "encoded": 146,
+          "decoded": 146,
+          "duration": 100.10000002384186
+        }
+      ],
+      "domNodes": 485,
+      "overflow": false,
+      "requests": [
+        {
+          "path": "/participants/4nQTuFuY38vevToXAuMwT3nm4SFVfuRRWMEXRm68JeX9",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/site-assets/index-7ZsY64vD.css",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/site-assets/index-BhRSwTsJ.js",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/site-assets/performance-CY_Dp-B2.js",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/favicon.svg",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/capabilities",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/performance/profiles/4nQTuFuY38vevToXAuMwT3nm4SFVfuRRWMEXRm68JeX9",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/me",
+          "status": 401,
+          "encoding": "identity",
+          "cache": "no-store"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "route": "/participants/4nQTuFuY38vevToXAuMwT3nm4SFVfuRRWMEXRm68JeX9",
+      "cache": "warm",
+      "lcp": 3012,
+      "shifts": [
+        {
+          "at": 3283.2000000476837,
+          "value": 0.006479813627730295,
+          "sources": [
+            ""
+          ]
+        }
+      ],
+      "longTasks": [],
+      "events": [
+        {
+          "at": 3871.100000023842,
+          "duration": 40,
+          "interactionId": 4592
+        },
+        {
+          "at": 3871.2000000476837,
+          "duration": 40,
+          "interactionId": 4592
+        },
+        {
+          "at": 3871.2000000476837,
+          "duration": 40,
+          "interactionId": 4592
+        },
+        {
+          "at": 3935.600000023842,
+          "duration": 40,
+          "interactionId": 4599
+        },
+        {
+          "at": 3935.7000000476837,
+          "duration": 40,
+          "interactionId": 4599
+        },
+        {
+          "at": 3935.7000000476837,
+          "duration": 40,
+          "interactionId": 4599
+        }
+      ],
+      "cls": 0.006479813627730295,
+      "paint": [
+        {
+          "name": "first-paint",
+          "at": 532
+        },
+        {
+          "name": "first-contentful-paint",
+          "at": 532
+        }
+      ],
+      "resources": [
+        {
+          "path": "/site-assets/index-BhRSwTsJ.js",
+          "bytes": 459370,
+          "encoded": 459070,
+          "decoded": 459070,
+          "duration": 2526.3000000715256
+        },
+        {
+          "path": "/site-assets/index-7ZsY64vD.css",
+          "bytes": 24701,
+          "encoded": 24401,
+          "decoded": 24401,
+          "duration": 348.40000009536743
+        },
+        {
+          "path": "/site-assets/performance-CY_Dp-B2.js",
+          "bytes": 21075,
+          "encoded": 20775,
+          "decoded": 20775,
+          "duration": 218.30000007152557
+        },
+        {
+          "path": "/favicon.svg",
+          "bytes": 520,
+          "encoded": 220,
+          "decoded": 220,
+          "duration": 102.39999997615814
+        },
+        {
+          "path": "/api/v1/capabilities",
+          "bytes": 5480,
+          "encoded": 5180,
+          "decoded": 5180,
+          "duration": 114.70000004768372
+        },
+        {
+          "path": "/api/v1/performance/profiles/4nQTuFuY38vevToXAuMwT3nm4SFVfuRRWMEXRm68JeX9",
+          "bytes": 5874,
+          "encoded": 5574,
+          "decoded": 5574,
+          "duration": 129.70000004768372
+        },
+        {
+          "path": "/api/v1/me",
+          "bytes": 446,
+          "encoded": 146,
+          "decoded": 146,
+          "duration": 97.59999990463257
+        }
+      ],
+      "domNodes": 485,
+      "overflow": false,
+      "requests": [
+        {
+          "path": "/api/v1/performance/profiles/4nQTuFuY38vevToXAuMwT3nm4SFVfuRRWMEXRm68JeX9",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/participants/4nQTuFuY38vevToXAuMwT3nm4SFVfuRRWMEXRm68JeX9",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/site-assets/index-7ZsY64vD.css",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/site-assets/index-BhRSwTsJ.js",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/favicon.svg",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/site-assets/performance-CY_Dp-B2.js",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/capabilities",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/performance/profiles/4nQTuFuY38vevToXAuMwT3nm4SFVfuRRWMEXRm68JeX9",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/me",
+          "status": 401,
+          "encoding": "identity",
+          "cache": "no-store"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "route": "/",
+      "cache": "cold",
+      "lcp": 4020,
+      "shifts": [],
+      "longTasks": [
+        {
+          "at": 2709.399999976158,
+          "duration": 278
+        },
+        {
+          "at": 2994.100000023842,
+          "duration": 95
+        },
+        {
+          "at": 3328.5,
+          "duration": 166
+        },
+        {
+          "at": 3942,
+          "duration": 73
+        },
+        {
+          "at": 4089.5,
+          "duration": 74
+        }
+      ],
+      "events": [],
+      "cls": 0,
+      "paint": [
+        {
+          "name": "first-paint",
+          "at": 604
+        },
+        {
+          "name": "first-contentful-paint",
+          "at": 604
+        }
+      ],
+      "resources": [
+        {
+          "path": "/site-assets/index-BhRSwTsJ.js",
+          "bytes": 459370,
+          "encoded": 459070,
+          "decoded": 459070,
+          "duration": 2546.600000023842
+        },
+        {
+          "path": "/site-assets/index-7ZsY64vD.css",
+          "bytes": 24701,
+          "encoded": 24401,
+          "decoded": 24401,
+          "duration": 351.2999999523163
+        },
+        {
+          "path": "/site-assets/home-BuK3_I2c.js",
+          "bytes": 3818,
+          "encoded": 3518,
+          "decoded": 3518,
+          "duration": 140.20000004768372
+        },
+        {
+          "path": "/site-assets/performance-CY_Dp-B2.js",
+          "bytes": 21075,
+          "encoded": 20775,
+          "decoded": 20775,
+          "duration": 244.10000002384186
+        },
+        {
+          "path": "/favicon.svg",
+          "bytes": 520,
+          "encoded": 220,
+          "decoded": 220,
+          "duration": 102.59999990463257
+        },
+        {
+          "path": "/api/v1/capabilities",
+          "bytes": 5480,
+          "encoded": 5180,
+          "decoded": 5180,
+          "duration": 116.70000004768372
+        },
+        {
+          "path": "/api/v1/performance/boards/tokens",
+          "bytes": 1125,
+          "encoded": 825,
+          "decoded": 825,
+          "duration": 102.60000002384186
+        },
+        {
+          "path": "/api/v1/performance/boards/nfts",
+          "bytes": 2390,
+          "encoded": 2090,
+          "decoded": 2090,
+          "duration": 142.39999997615814
+        },
+        {
+          "path": "/api/v1/performance/boards/airdrops",
+          "bytes": 2423,
+          "encoded": 2123,
+          "decoded": 2123,
+          "duration": 150.70000004768372
+        },
+        {
+          "path": "/api/v1/performance/boards/stake",
+          "bytes": 2432,
+          "encoded": 2132,
+          "decoded": 2132,
+          "duration": 142.60000002384186
+        },
+        {
+          "path": "/api/v1/performance/boards/earn",
+          "bytes": 2408,
+          "encoded": 2108,
+          "decoded": 2108,
+          "duration": 153.40000009536743
+        },
+        {
+          "path": "/api/v1/performance/activity",
+          "bytes": 1741,
+          "encoded": 1441,
+          "decoded": 1441,
+          "duration": 144.59999990463257
+        },
+        {
+          "path": "/api/v1/me",
+          "bytes": 446,
+          "encoded": 146,
+          "decoded": 146,
+          "duration": 165.89999997615814
+        }
+      ],
+      "domNodes": 401,
+      "overflow": false,
+      "requests": [
+        {
+          "path": "/",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/site-assets/index-7ZsY64vD.css",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/site-assets/index-BhRSwTsJ.js",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/favicon.svg",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/site-assets/home-BuK3_I2c.js",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/site-assets/performance-CY_Dp-B2.js",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/capabilities",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/performance/boards/tokens",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/performance/boards/nfts",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/performance/boards/airdrops",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/performance/boards/stake",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/performance/boards/earn",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/performance/activity",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/me",
+          "status": 401,
+          "encoding": "identity",
+          "cache": "no-store"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "route": "/",
+      "cache": "warm",
+      "lcp": 3220,
+      "shifts": [],
+      "longTasks": [
+        {
+          "at": 2737.3000000715256,
+          "duration": 56
+        },
+        {
+          "at": 3051.100000023842,
+          "duration": 81
+        }
+      ],
+      "events": [],
+      "cls": 0,
+      "paint": [
+        {
+          "name": "first-paint",
+          "at": 540
+        },
+        {
+          "name": "first-contentful-paint",
+          "at": 540
+        }
+      ],
+      "resources": [
+        {
+          "path": "/site-assets/index-BhRSwTsJ.js",
+          "bytes": 459370,
+          "encoded": 459070,
+          "decoded": 459070,
+          "duration": 2559.8000000715256
+        },
+        {
+          "path": "/site-assets/index-7ZsY64vD.css",
+          "bytes": 24701,
+          "encoded": 24401,
+          "decoded": 24401,
+          "duration": 352.39999997615814
+        },
+        {
+          "path": "/site-assets/home-BuK3_I2c.js",
+          "bytes": 3818,
+          "encoded": 3518,
+          "decoded": 3518,
+          "duration": 141.19999992847443
+        },
+        {
+          "path": "/site-assets/performance-CY_Dp-B2.js",
+          "bytes": 21075,
+          "encoded": 20775,
+          "decoded": 20775,
+          "duration": 234.30000007152557
+        },
+        {
+          "path": "/favicon.svg",
+          "bytes": 520,
+          "encoded": 220,
+          "decoded": 220,
+          "duration": 115
+        },
+        {
+          "path": "/api/v1/capabilities",
+          "bytes": 5480,
+          "encoded": 5180,
+          "decoded": 5180,
+          "duration": 122.70000004768372
+        },
+        {
+          "path": "/api/v1/performance/boards/tokens",
+          "bytes": 1125,
+          "encoded": 825,
+          "decoded": 825,
+          "duration": 103.69999992847443
+        },
+        {
+          "path": "/api/v1/performance/boards/nfts",
+          "bytes": 2390,
+          "encoded": 2090,
+          "decoded": 2090,
+          "duration": 127.10000002384186
+        },
+        {
+          "path": "/api/v1/performance/boards/airdrops",
+          "bytes": 2423,
+          "encoded": 2123,
+          "decoded": 2123,
+          "duration": 138.20000004768372
+        },
+        {
+          "path": "/api/v1/performance/boards/stake",
+          "bytes": 2432,
+          "encoded": 2132,
+          "decoded": 2132,
+          "duration": 146.20000004768372
+        },
+        {
+          "path": "/api/v1/performance/boards/earn",
+          "bytes": 2408,
+          "encoded": 2108,
+          "decoded": 2108,
+          "duration": 141.30000007152557
+        },
+        {
+          "path": "/api/v1/performance/activity",
+          "bytes": 1741,
+          "encoded": 1441,
+          "decoded": 1441,
+          "duration": 153
+        },
+        {
+          "path": "/api/v1/me",
+          "bytes": 446,
+          "encoded": 146,
+          "decoded": 146,
+          "duration": 177.69999992847443
+        }
+      ],
+      "domNodes": 401,
+      "overflow": false,
+      "requests": [
+        {
+          "path": "/",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/site-assets/index-7ZsY64vD.css",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/site-assets/index-BhRSwTsJ.js",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/favicon.svg",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/site-assets/home-BuK3_I2c.js",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/site-assets/performance-CY_Dp-B2.js",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/capabilities",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/performance/boards/tokens",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/performance/boards/nfts",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/performance/boards/airdrops",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/performance/boards/stake",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/performance/boards/earn",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/performance/activity",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/me",
+          "status": 401,
+          "encoding": "identity",
+          "cache": "no-store"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "route": "/tokens",
+      "cache": "cold",
+      "lcp": 3772,
+      "shifts": [
+        {
+          "at": 4094.3000000715256,
+          "value": 0.10918143971761068,
+          "sources": [
+            ""
+          ]
+        }
+      ],
+      "longTasks": [
+        {
+          "at": 2714.600000023842,
+          "duration": 246
+        },
+        {
+          "at": 2965.8000000715256,
+          "duration": 74
+        },
+        {
+          "at": 3306.2000000476837,
+          "duration": 206
+        },
+        {
+          "at": 4127.400000095367,
+          "duration": 76
+        }
+      ],
+      "events": [
+        {
+          "at": 5006.900000095367,
+          "duration": 176,
+          "interactionId": 7868
+        },
+        {
+          "at": 5007,
+          "duration": 176,
+          "interactionId": 7868
+        },
+        {
+          "at": 5007,
+          "duration": 176,
+          "interactionId": 7868
+        },
+        {
+          "at": 5577.800000071526,
+          "duration": 208,
+          "interactionId": 7875
+        },
+        {
+          "at": 5578,
+          "duration": 208,
+          "interactionId": 7875
+        },
+        {
+          "at": 5578,
+          "duration": 208,
+          "interactionId": 7875
+        }
+      ],
+      "cls": 0.10918143971761068,
+      "paint": [
+        {
+          "name": "first-paint",
+          "at": 624
+        },
+        {
+          "name": "first-contentful-paint",
+          "at": 624
+        }
+      ],
+      "resources": [
+        {
+          "path": "/site-assets/index-BhRSwTsJ.js",
+          "bytes": 459370,
+          "encoded": 459070,
+          "decoded": 459070,
+          "duration": 2555
+        },
+        {
+          "path": "/site-assets/index-7ZsY64vD.css",
+          "bytes": 24701,
+          "encoded": 24401,
+          "decoded": 24401,
+          "duration": 353.2000000476837
+        },
+        {
+          "path": "/site-assets/markets-CPREPjQ4.js",
+          "bytes": 5952,
+          "encoded": 5652,
+          "decoded": 5652,
+          "duration": 178.39999997615814
+        },
+        {
+          "path": "/site-assets/performance-CY_Dp-B2.js",
+          "bytes": 21075,
+          "encoded": 20775,
+          "decoded": 20775,
+          "duration": 271.10000002384186
+        },
+        {
+          "path": "/site-assets/quote-panel-Vfx7JMQg.js",
+          "bytes": 5443,
+          "encoded": 5143,
+          "decoded": 5143,
+          "duration": 188.5
+        },
+        {
+          "path": "/favicon.svg",
+          "bytes": 520,
+          "encoded": 220,
+          "decoded": 220,
+          "duration": 107.20000004768372
+        },
+        {
+          "path": "/api/v1/capabilities",
+          "bytes": 5480,
+          "encoded": 5180,
+          "decoded": 5180,
+          "duration": 130
+        },
+        {
+          "path": "/api/v1/policy",
+          "bytes": 1641,
+          "encoded": 1341,
+          "decoded": 1341,
+          "duration": 121.39999997615814
+        },
+        {
+          "path": "/api/v1/performance/boards/tokens",
+          "bytes": 20163,
+          "encoded": 19863,
+          "decoded": 19863,
+          "duration": 271.8000000715256
+        },
+        {
+          "path": "/api/v1/launch/fee-schedule",
+          "bytes": 3765,
+          "encoded": 3465,
+          "decoded": 3465,
+          "duration": 151.10000002384186
+        },
+        {
+          "path": "/api/v1/markets",
+          "bytes": 9900,
+          "encoded": 9600,
+          "decoded": 9600,
+          "duration": 228.80000007152557
+        },
+        {
+          "path": "/api/v1/me",
+          "bytes": 446,
+          "encoded": 146,
+          "decoded": 146,
+          "duration": 117.30000007152557
+        }
+      ],
+      "domNodes": 314,
+      "overflow": false,
+      "requests": [
+        {
+          "path": "/tokens",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/site-assets/index-7ZsY64vD.css",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/site-assets/index-BhRSwTsJ.js",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/favicon.svg",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/site-assets/markets-CPREPjQ4.js",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/site-assets/quote-panel-Vfx7JMQg.js",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/site-assets/performance-CY_Dp-B2.js",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/capabilities",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/policy",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/performance/boards/tokens",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/launch/fee-schedule",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/markets",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/me",
+          "status": 401,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/performance/boards/tokens",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "route": "/tokens",
+      "cache": "warm",
+      "lcp": 3196,
+      "shifts": [
+        {
+          "at": 3556.1999999284744,
+          "value": 0.10918143971761068,
+          "sources": [
+            ""
+          ]
+        }
+      ],
+      "longTasks": [],
+      "events": [
+        {
+          "at": 4220.899999976158,
+          "duration": 40,
+          "interactionId": 2145
+        },
+        {
+          "at": 4221.100000023842,
+          "duration": 40,
+          "interactionId": 2145
+        },
+        {
+          "at": 4221.100000023842,
+          "duration": 40,
+          "interactionId": 2145
+        },
+        {
+          "at": 4502.699999928474,
+          "duration": 40,
+          "interactionId": 2152
+        },
+        {
+          "at": 4502.699999928474,
+          "duration": 40,
+          "interactionId": 2152
+        },
+        {
+          "at": 4502.699999928474,
+          "duration": 40,
+          "interactionId": 2152
+        }
+      ],
+      "cls": 0.10918143971761068,
+      "paint": [
+        {
+          "name": "first-paint",
+          "at": 580
+        },
+        {
+          "name": "first-contentful-paint",
+          "at": 580
+        }
+      ],
+      "resources": [
+        {
+          "path": "/site-assets/index-BhRSwTsJ.js",
+          "bytes": 459370,
+          "encoded": 459070,
+          "decoded": 459070,
+          "duration": 2560.5
+        },
+        {
+          "path": "/site-assets/index-7ZsY64vD.css",
+          "bytes": 24701,
+          "encoded": 24401,
+          "decoded": 24401,
+          "duration": 350.39999997615814
+        },
+        {
+          "path": "/site-assets/markets-CPREPjQ4.js",
+          "bytes": 5952,
+          "encoded": 5652,
+          "decoded": 5652,
+          "duration": 203.10000002384186
+        },
+        {
+          "path": "/site-assets/performance-CY_Dp-B2.js",
+          "bytes": 21075,
+          "encoded": 20775,
+          "decoded": 20775,
+          "duration": 279.2999999523163
+        },
+        {
+          "path": "/site-assets/quote-panel-Vfx7JMQg.js",
+          "bytes": 5443,
+          "encoded": 5143,
+          "decoded": 5143,
+          "duration": 183.39999997615814
+        },
+        {
+          "path": "/favicon.svg",
+          "bytes": 520,
+          "encoded": 220,
+          "decoded": 220,
+          "duration": 112.79999995231628
+        },
+        {
+          "path": "/api/v1/capabilities",
+          "bytes": 5480,
+          "encoded": 5180,
+          "decoded": 5180,
+          "duration": 133.39999997615814
+        },
+        {
+          "path": "/api/v1/policy",
+          "bytes": 1641,
+          "encoded": 1341,
+          "decoded": 1341,
+          "duration": 126.60000002384186
+        },
+        {
+          "path": "/api/v1/performance/boards/tokens",
+          "bytes": 20163,
+          "encoded": 19863,
+          "decoded": 19863,
+          "duration": 277.3000000715256
+        },
+        {
+          "path": "/api/v1/launch/fee-schedule",
+          "bytes": 3765,
+          "encoded": 3465,
+          "decoded": 3465,
+          "duration": 162.10000002384186
+        },
+        {
+          "path": "/api/v1/markets",
+          "bytes": 9900,
+          "encoded": 9600,
+          "decoded": 9600,
+          "duration": 222
+        },
+        {
+          "path": "/api/v1/me",
+          "bytes": 446,
+          "encoded": 146,
+          "decoded": 146,
+          "duration": 100.29999995231628
+        }
+      ],
+      "domNodes": 314,
+      "overflow": false,
+      "requests": [
+        {
+          "path": "/tokens",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/site-assets/index-7ZsY64vD.css",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/site-assets/index-BhRSwTsJ.js",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/favicon.svg",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/site-assets/quote-panel-Vfx7JMQg.js",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/site-assets/markets-CPREPjQ4.js",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/site-assets/performance-CY_Dp-B2.js",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/capabilities",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/policy",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/performance/boards/tokens",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/launch/fee-schedule",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/markets",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/me",
+          "status": 401,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/performance/boards/tokens",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "route": "/participants/4nQTuFuY38vevToXAuMwT3nm4SFVfuRRWMEXRm68JeX9",
+      "cache": "cold",
+      "lcp": 608,
+      "shifts": [
+        {
+          "at": 3907.399999976158,
+          "value": 0.10055555555555555,
+          "sources": [
+            "",
+            ""
+          ]
+        }
+      ],
+      "longTasks": [
+        {
+          "at": 2690.600000023842,
+          "duration": 238
+        },
+        {
+          "at": 2934,
+          "duration": 53
+        },
+        {
+          "at": 3208.8000000715256,
+          "duration": 79
+        },
+        {
+          "at": 3597.399999976158,
+          "duration": 98
+        }
+      ],
+      "events": [
+        {
+          "at": 4253.5,
+          "duration": 64,
+          "interactionId": 347
+        },
+        {
+          "at": 4253.600000023842,
+          "duration": 64,
+          "interactionId": 347
+        },
+        {
+          "at": 4253.600000023842,
+          "duration": 64,
+          "interactionId": 347
+        },
+        {
+          "at": 4346.100000023842,
+          "duration": 40,
+          "interactionId": 354
+        },
+        {
+          "at": 4346.200000047684,
+          "duration": 40,
+          "interactionId": 354
+        },
+        {
+          "at": 4346.200000047684,
+          "duration": 40,
+          "interactionId": 354
+        }
+      ],
+      "cls": 0.10055555555555555,
+      "paint": [
+        {
+          "name": "first-paint",
+          "at": 608
+        },
+        {
+          "name": "first-contentful-paint",
+          "at": 608
+        }
+      ],
+      "resources": [
+        {
+          "path": "/site-assets/index-BhRSwTsJ.js",
+          "bytes": 459370,
+          "encoded": 459070,
+          "decoded": 459070,
+          "duration": 2524
+        },
+        {
+          "path": "/site-assets/index-7ZsY64vD.css",
+          "bytes": 24701,
+          "encoded": 24401,
+          "decoded": 24401,
+          "duration": 351
+        },
+        {
+          "path": "/site-assets/performance-CY_Dp-B2.js",
+          "bytes": 21075,
+          "encoded": 20775,
+          "decoded": 20775,
+          "duration": 219.29999995231628
+        },
+        {
+          "path": "/favicon.svg",
+          "bytes": 520,
+          "encoded": 220,
+          "decoded": 220,
+          "duration": 98.80000007152557
+        },
+        {
+          "path": "/api/v1/capabilities",
+          "bytes": 5480,
+          "encoded": 5180,
+          "decoded": 5180,
+          "duration": 115.70000004768372
+        },
+        {
+          "path": "/api/v1/performance/profiles/4nQTuFuY38vevToXAuMwT3nm4SFVfuRRWMEXRm68JeX9",
+          "bytes": 5874,
+          "encoded": 5574,
+          "decoded": 5574,
+          "duration": 136.19999992847443
+        },
+        {
+          "path": "/api/v1/me",
+          "bytes": 446,
+          "encoded": 146,
+          "decoded": 146,
+          "duration": 99.79999995231628
+        }
+      ],
+      "domNodes": 485,
+      "overflow": false,
+      "requests": [
+        {
+          "path": "/participants/4nQTuFuY38vevToXAuMwT3nm4SFVfuRRWMEXRm68JeX9",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/site-assets/index-7ZsY64vD.css",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/site-assets/index-BhRSwTsJ.js",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/favicon.svg",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/site-assets/performance-CY_Dp-B2.js",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/capabilities",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/performance/profiles/4nQTuFuY38vevToXAuMwT3nm4SFVfuRRWMEXRm68JeX9",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/me",
+          "status": 401,
+          "encoding": "identity",
+          "cache": "no-store"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "route": "/participants/4nQTuFuY38vevToXAuMwT3nm4SFVfuRRWMEXRm68JeX9",
+      "cache": "warm",
+      "lcp": 504,
+      "shifts": [
+        {
+          "at": 3306.100000023842,
+          "value": 0.10055555555555555,
+          "sources": [
+            "",
+            ""
+          ]
+        }
+      ],
+      "longTasks": [],
+      "events": [
+        {
+          "at": 3909,
+          "duration": 40,
+          "interactionId": 8496
+        },
+        {
+          "at": 3909.100000023842,
+          "duration": 40,
+          "interactionId": 8496
+        },
+        {
+          "at": 3909.100000023842,
+          "duration": 40,
+          "interactionId": 8496
+        },
+        {
+          "at": 3973.2999999523163,
+          "duration": 40,
+          "interactionId": 8503
+        },
+        {
+          "at": 3973.2999999523163,
+          "duration": 40,
+          "interactionId": 8503
+        },
+        {
+          "at": 3973.2999999523163,
+          "duration": 40,
+          "interactionId": 8503
+        }
+      ],
+      "cls": 0.10055555555555555,
+      "paint": [
+        {
+          "name": "first-paint",
+          "at": 504
+        },
+        {
+          "name": "first-contentful-paint",
+          "at": 504
+        }
+      ],
+      "resources": [
+        {
+          "path": "/site-assets/index-BhRSwTsJ.js",
+          "bytes": 459370,
+          "encoded": 459070,
+          "decoded": 459070,
+          "duration": 2560.7000000476837
+        },
+        {
+          "path": "/site-assets/index-7ZsY64vD.css",
+          "bytes": 24701,
+          "encoded": 24401,
+          "decoded": 24401,
+          "duration": 338.5
+        },
+        {
+          "path": "/site-assets/performance-CY_Dp-B2.js",
+          "bytes": 21075,
+          "encoded": 20775,
+          "decoded": 20775,
+          "duration": 209.29999995231628
+        },
+        {
+          "path": "/favicon.svg",
+          "bytes": 520,
+          "encoded": 220,
+          "decoded": 220,
+          "duration": 106.79999995231628
+        },
+        {
+          "path": "/api/v1/capabilities",
+          "bytes": 5480,
+          "encoded": 5180,
+          "decoded": 5180,
+          "duration": 127.10000002384186
+        },
+        {
+          "path": "/api/v1/performance/profiles/4nQTuFuY38vevToXAuMwT3nm4SFVfuRRWMEXRm68JeX9",
+          "bytes": 5874,
+          "encoded": 5574,
+          "decoded": 5574,
+          "duration": 114.30000007152557
+        },
+        {
+          "path": "/api/v1/me",
+          "bytes": 446,
+          "encoded": 146,
+          "decoded": 146,
+          "duration": 110.5
+        }
+      ],
+      "domNodes": 485,
+      "overflow": false,
+      "requests": [
+        {
+          "path": "/api/v1/performance/profiles/4nQTuFuY38vevToXAuMwT3nm4SFVfuRRWMEXRm68JeX9",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/participants/4nQTuFuY38vevToXAuMwT3nm4SFVfuRRWMEXRm68JeX9",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/site-assets/index-7ZsY64vD.css",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/site-assets/index-BhRSwTsJ.js",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/favicon.svg",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/site-assets/performance-CY_Dp-B2.js",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/capabilities",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/performance/profiles/4nQTuFuY38vevToXAuMwT3nm4SFVfuRRWMEXRm68JeX9",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/me",
+          "status": 401,
+          "encoding": "identity",
+          "cache": "no-store"
+        }
+      ]
+    }
+  ]
+}

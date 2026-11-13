@@ -1,5 +1,9 @@
 # Completed local implementation — review handoff
 
+## Current audit — 14 November
+
+Performance, session security and keyboard/usability fixes are locally verified; combined test-only CI is pending. See [APP_AUDIT_2026-11-14.md](../validation/APP_AUDIT_2026-11-14.md) and `RUN_STATE.auditFollowup`. Asset milestone `9f0a5e0` and auth milestone `30ad827` are pushed. Final candidate adds public-read isolation, keyboard focus/pagination, readable dates, form contrast and stable loading layouts. All 37 frontend, 15 performance and 8 auth tests passed; actual workerd auth, types/build/contracts/recovery and Chromium/WebKit acceptance passed. Existing QA and original demo databases are preserved. No release gate changed. Next step: follow exact-candidate CI, record its result and finish the audit handoff.
+
 All B00–B20 tasks are verified, including B20-core and B20-full: **411/411 estimated story points**. The dependency validator returns an empty ready queue. All authorized B work is complete; R-stage work remains separately gated.
 
 Branch: `work/10x-prd-foundation`. Final tested implementation: `6e3666dc4ac00e2d642d0cfd2f4412337ae02c22`. Subsequent manual-review product fixes are described below; the historical CI result applies only to its recorded commit. Preserve untracked `work/` logs, fixtures and screenshots.
