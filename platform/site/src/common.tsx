@@ -122,3 +122,13 @@ export function intentKey(wallet:string,action:string,body:unknown){
   sessionStorage.setItem(name,key);
   return {key,done:()=>sessionStorage.removeItem(name)};
 }
+/** Persist retry identity without retaining private appeal text in storage keys. */
+export async function privateIntentKey(wallet:string,action:string,body:unknown){
+  const identity=JSON.stringify([wallet,action,body]);
+  const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(identity));
+  const name='10x.private-intent:'+Array.from(new Uint8Array(digest),byte=>byte.toString(16).padStart(2,'0')).join('');
+  const legacy='10x.preview.intent:'+identity;
+  const key=sessionStorage.getItem(name)??sessionStorage.getItem(legacy)??crypto.randomUUID();
+  sessionStorage.setItem(name,key);sessionStorage.removeItem(legacy);
+  return {key,done:()=>sessionStorage.removeItem(name)};
+}

@@ -1,6 +1,6 @@
 # Earn review and appeals — local user guide
 
-14 November 2026 · Node local demo · paid AI calls disabled
+14 November 2026 · local demo · Node and Worker feedback/appeals · paid AI calls disabled
 
 ## What is ready
 
@@ -48,7 +48,7 @@ The separate **How content is reviewed → Preview scoring feedback** panel is s
 3. Choose **Send appeal** once. While it is being saved, the control is disabled. On acknowledgement, the form is replaced by **Appeal received — awaiting another review**.
 4. Refresh later. A completed reconsideration displays **Your appeal has been reviewed** and the latest suggestion from a separate review attempt. The original report remains saved; the new report records its relationship to the original and the appeal.
 
-The appeal targets the exact report shown when you submit it. A second pending appeal is not created by repeated clicks. If a request fails or its outcome is uncertain, retain the same reason when retrying or choose **Refresh review** to inspect the saved state. An unacknowledged request retains its idempotency key for that wallet, submission and reason.
+The appeal targets the exact report shown when you submit it. A second pending appeal is not created by repeated clicks. If a request fails or its outcome is uncertain, retain the same reason when retrying or choose **Refresh review** to inspect the saved state. An unacknowledged request retains its idempotency key for that wallet, submission and reason. Browser retry storage contains an opaque identifier; it does not store the appeal reason in its key or value.
 
 An appeal is available for the latest completed suggestion, once per report, before final moderation and before the reward day closes. It cannot reopen a final score or a closed daily board. A later completed reconsideration may itself be eligible for appeal while those conditions remain true. Reconsideration does not promise a higher score or more rewards.
 
@@ -62,7 +62,7 @@ Feedback and appeals are wallet-owned reads and writes. An expired session close
 
 ## Operator: capture and process a local review
 
-The browser does not grant operator permissions. Use an existing local database and an already authorized operator with the **ai-review** scope. This scope covers source capture and the local queue; it does not grant the separate **earn-review** final-moderation authority. Commands below are templates: replace each uppercase value with the corresponding existing local value.
+Source capture and synthetic processing remain Node-local operator tasks; the Worker exposes owner feedback and appeals only. The browser does not grant operator permissions. Use an existing local Node database and an already authorized operator with the **ai-review** scope. This scope covers source capture and the local queue; it does not grant the separate **earn-review** final-moderation authority. Commands below are templates: replace each uppercase value with the corresponding existing local value.
 
 Inspect a saved submission from a trusted local terminal:
 
@@ -93,12 +93,14 @@ Final moderation must precede the usual cutoff/settlement process. Neither captu
 
 ## Runtime boundaries and next work
 
-This connected review experience is advertised only by the **Node local runtime**. Unsupported runtimes hide the per-submission feedback button and make no review request. This implementation does not add hosted Worker/D1 review processing or a production release.
+The **Node local runtime and local Worker/D1 runtime** advertise creator feedback and appeals. Both preserve wallet ownership, report validation and atomic appeal obligations. Unsupported runtimes hide the per-submission feedback button and make no review request. Source capture, provider execution and synthetic evaluation are not public Worker routes. This implementation does not enable hosted processing or constitute a production release.
 
 Before real day-one AI scoring: approve the model/provider, costs, data handling, trusted source/media capture, rubric calibration, moderation staffing, independent reconsideration policy and production queue rollout. Add controlled provider processing and operational monitoring, and test representative real-language content and adversarial cases. AI is not inherently unbiased. The existing standalone provider adapter does not mean this app queue has paid processing enabled.
 
 ## Validation evidence
 
-The focused browser harness is [earn-review-qa.mjs](../site/tests/earn-review-qa.mjs). It exercises normal HTTP admission, actual SQLite queue services, synthetic capture/evaluation, one saved appeal, linked reconsideration and a separate final review at 320, 390 and 1280 pixels. It also checks lazy reads, repeated-click prevention, keyboard focus return, no horizontal overflow, private-view removal on session expiry and zero review requests when capability support is absent. Browser artifacts use isolated test databases; the manual demo is not reseeded.
+The focused browser harness is [earn-review-qa.mjs](../site/tests/earn-review-qa.mjs). It exercises normal HTTP admission, actual SQLite queue services, synthetic capture/evaluation, one saved appeal, linked reconsideration and a separate final review at 320, 390 and 1280 pixels. It also checks lazy reads, repeated-click prevention, no appeal reason in browser retry storage during a pending/failed request, unchanged request keys across a retry, keyboard focus return, no horizontal overflow, private-view removal on session expiry and zero review requests when capability support is absent. Browser artifacts use isolated test databases; the manual demo is not reseeded.
+
+The actual local Worker/D1 acceptance suite is [ai-review-feedback.test.mjs](../edge/test/ai-review-feedback.test.mjs). It checks genuine wallet authentication and admission, own-wallet feedback, same-origin appeals, immutable report lineage, concurrent requests, safe corrupt-evidence refusal, final/closed-board guards, interrupted acknowledgements, writes arriving during WebCrypto verification, recovery holds and atomic child creation/rollback. All five focused Worker tests passed; the [saved TAP result](evidence/ai-review-2026-11-14/worker-feedback-tests.tap) records the run. Its evidence injection and fault controls exist only in a private test entry point.
 
 Installed Chromium and WebKit are compatibility checks, not a substitute for testing physical iOS Safari or every wallet browser. No real model was invoked and no financial execution occurred.

@@ -1,5 +1,5 @@
 import {boundedJson,BodyInputError} from '../server/body.mjs';
-import {ReviewQueueError as QueueError} from './queue-service.mjs';
+import {ReviewQueueError as QueueError} from './queue-error.mjs';
 const json=(value,status=200,headers={})=>Response.json(value,{status,headers:{'cache-control':'no-store','x-content-type-options':'nosniff',...headers}});
 const failure=(status,code,message,headers={})=>json({error:{code,message}},status,headers);
 export async function handleReviewQueue(request,{service,authenticate,consumeQuota}){

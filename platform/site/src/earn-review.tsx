@@ -3,7 +3,7 @@ import {useMutation,useQueryClient} from '@tanstack/react-query';
 import {z} from 'zod';
 import {useCapability,useRuntimeQuery} from './capabilities';
 import {client} from './sdk';
-import {friendlyError,intentKey,Loaded,Modal,utc} from './common';
+import {friendlyError,privateIntentKey,Loaded,Modal,utc} from './common';
 
 const reviewPath='/api/v1/earn/submissions/{submissionId}/review';
 const appealPath='/api/v1/earn/submissions/{submissionId}/appeals';
@@ -52,7 +52,7 @@ function ReviewDialog({wallet,submissionId,onClose}:{wallet:string;submissionId:
  }});
  const appealSupport=useCapability('POST',appealPath);
  const appeal=useMutation({mutationFn:async(body:{reportId:string;reason:string})=>{
-  const pending=intentKey(wallet,'earn-review-appeal:'+submissionId,body);
+  const pending=await privateIntentKey(wallet,'earn-review-appeal:'+submissionId,body);
   const response=await client.submitEarnReviewAppeal({path:{submissionId},body,idempotencyKey:pending.key});
   const result=earnReviewModel.parse(response.data);
   if(result.submissionId!==submissionId)throw Error('The appeal response did not match this submission.');

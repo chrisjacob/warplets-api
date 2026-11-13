@@ -33,7 +33,7 @@ test('workerd/D1 atomically creates one durable review obligation through concur
  await tracked(db.prepare('INSERT INTO ai_review_reports VALUES(?,?,?,?,?)').bind('d'.repeat(64),job.id,source.id,'{"synthetic":true}',start));
  const appealJob='appeal:'+'e'.repeat(64);
  await tracked(db.prepare("INSERT INTO ai_review_jobs(id,submission_id,kind,previous_report_id,appeal_id,state,created_ms,updated_ms) VALUES(?,?,'appeal',?,?,'awaiting-capture',?,?)").bind(appealJob,source.id,'d'.repeat(64),'e'.repeat(64),start,start));
- await tracked(db.prepare('INSERT INTO ai_review_appeals VALUES(?,?,?,?,?,?,?,?,?)').bind('e'.repeat(64),source.id,'d'.repeat(64),appealJob,'w1','synthetic-appeal','f'.repeat(64),'{"synthetic":true}',start));
+ await tracked(db.prepare('INSERT INTO ai_review_appeals VALUES(?,?,?,?,?,?,?,?,?)').bind('e'.repeat(64),source.id,'d'.repeat(64),appealJob,'w1','synthetic-appeal','f'.repeat(64),JSON.stringify({appealId:'e'.repeat(64),payload:{kind:'10x.ai-review-appeal.v1',reportId:'d'.repeat(64),submissionId:source.id}}),start));
  const beforeOversize=await watermark();
  await assert.rejects(db.prepare('INSERT INTO ai_review_captures VALUES(?,?,?,?,?,?)').bind(appealJob,JSON.stringify({synthetic:'\u754c'.repeat(50000)}),'a'.repeat(64),'synthetic:oversize','synthetic-reviewer',start).run(),/CHECK/);
  assert.equal(await watermark(),beforeOversize,'Rejected UTF8 evidence cannot advance the snapshot watermark');
@@ -42,12 +42,12 @@ test('workerd/D1 atomically creates one durable review obligation through concur
  for(const table of privateTables)await assert.rejects(db.prepare('INSERT INTO '+table+' SELECT * FROM '+table+' LIMIT 1').run(),/mutation-disabled/);
 });
 
-test('actual application Worker does not advertise or expose local-only creator AI feedback or appeals',async t=>{
+test('actual application Worker advertises owner feedback and appeals while keeping financial execution disabled',async t=>{
  const {mf}=await localRuntime(t,new URL('../src/worker.ts',import.meta.url));
  const capabilities=await (await mf.dispatchFetch('http://localhost/api/v1/capabilities')).json();
- assert.equal(capabilities.features.some(f=>f.id==='earn-review-feedback'),false);assert.equal(capabilities.production.financialExecution,false);
+ assert.equal(capabilities.features.some(f=>f.id==='earn-review-feedback'),true);assert.equal(capabilities.production.financialExecution,false);
  const spec=await (await mf.dispatchFetch('http://localhost/api/v1/openapi.json')).json();
- assert.equal(Object.hasOwn(spec.paths,'/earn/submissions/{submissionId}/review'),false);assert.equal(Object.hasOwn(spec.paths,'/earn/submissions/{submissionId}/appeals'),false);
- assert.equal((await mf.dispatchFetch('http://localhost/api/v1/earn/submissions/synthetic/review')).status,404);
- assert.equal((await mf.dispatchFetch('http://localhost/api/v1/earn/submissions/synthetic/appeals',{method:'POST',headers:{origin:'http://localhost','content-type':'application/json'},body:'{}'})).status,404);
+ assert.equal(Object.hasOwn(spec.paths,'/earn/submissions/{submissionId}/review'),true);assert.equal(Object.hasOwn(spec.paths,'/earn/submissions/{submissionId}/appeals'),true);
+ assert.equal((await mf.dispatchFetch('http://localhost/api/v1/earn/submissions/synthetic/review')).status,401);
+ assert.equal((await mf.dispatchFetch('http://localhost/api/v1/earn/submissions/synthetic/appeals',{method:'POST',headers:{origin:'http://localhost','content-type':'application/json'},body:'{}'})).status,401);
 });

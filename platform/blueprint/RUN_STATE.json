@@ -5,9 +5,9 @@
   "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
   "currentTask": null,
-  "lastUpdatedAt": "2026-11-13T22:47:14.061255+00:00",
+  "lastUpdatedAt": "2026-11-13T23:03:07.480486+00:00",
   "migrationAllocation": {
-    "next": 71,
+    "next": 72,
     "reserved": [
       {
         "version": 31,
@@ -208,6 +208,11 @@
         "version": 70,
         "task": "day-one-ai-review",
         "purpose": "private durable scoring obligations, captured evidence, reports, appeals and fenced attempts"
+      },
+      {
+        "version": 71,
+        "task": "day-one-ai-review",
+        "purpose": "single-statement D1 appeal and child-job obligation with exact binding guards"
       }
     ],
     "historicalGap": 19
@@ -770,13 +775,13 @@
     "ciTestsPassed": 1476
   },
   "aiReviewFollowup": {
-    "status": "local-tests-passed",
+    "status": "worker-parity-locally-verified",
     "budget": "stop at 10% remaining account usage",
     "paidCallsEnabled": false,
     "deployment": false,
-    "nextStep": "Follow final candidate CI and local D1 continued restore; refresh existing QA runtime without reseeding; record exact results.",
+    "nextStep": "Push final combined checkpoint; preserve/refresh QA runtime to migration071; follow full test-only CI to completion; record exact results.",
     "tests": {
-      "ai": 38,
+      "ai": 51,
       "serviceFinal": 14,
       "d1Queue": 2,
       "nodeAndWorkerRuntime": 2,
@@ -801,10 +806,20 @@
       "build": "passed",
       "contracts": "passed",
       "blueprint": "passed",
-      "recoveryDrill": "passed"
+      "recoveryDrill": "passed",
+      "workerFeedbackAcceptance": 5,
+      "d1QueueFinal": 2,
+      "actualD1ContinuedRecovery": 2,
+      "privateBrowserRetry": "Chromium and WebKit: no appeal reason in storage; exact key retained across 503/retry",
+      "workerTypes": "passed"
     },
-    "runtimeScope": "Node feedback/appeals and synthetic processing; D1 atomic obligations; Worker HTTP capability absent",
+    "runtimeScope": "Node and Worker owner feedback/appeals; trusted capture and synthetic processing Node-local; paid/model processing disabled",
     "backendCommit": "593811c",
-    "accountUsagePercent": 53
+    "accountUsagePercent": 60,
+    "nodeCandidate": "0a551b1227bd22c013890adf7579246d657bbbf9",
+    "nodeCiRun": "https://github.com/chrisjacob/warplets-api/actions/runs/43522116139",
+    "localQaPid": 33380,
+    "localQaDatabase": "work/qa-three-month-final-2026-11-13/core.sqlite",
+    "preMigrationBackup": "work/qa-three-month-final-2026-11-13/core-before-review-2026-11-14.sqlite"
   }
 }

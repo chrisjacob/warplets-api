@@ -3,10 +3,10 @@ import {transaction} from '../storage/database.mjs';
 import {canonicalJson} from '../security/canonical.mjs';
 import {normalizeJob,evaluateSubmission,verifyReport,creatorFeedback,createAppeal,verifyAppeal} from './review.mjs';
 import {syntheticProvider} from './fixture.mjs';
+import {checkReportBinding} from './review-core.mjs';
 
-export class ReviewQueueError extends Error {
- constructor(status,code,message){super(message);this.status=status;this.code=code;}
-}
+import {ReviewQueueError} from './queue-error.mjs';
+export {ReviewQueueError} from './queue-error.mjs';
 const fail=(status,code,message)=>{throw new ReviewQueueError(status,code,message);};
 const hash=value=>createHash('sha256').update(canonicalJson(value)).digest('hex');
 const validId=value=>typeof value==='string'&&/^[A-Za-z0-9._:-]{1,256}$/.test(value);
@@ -31,10 +31,16 @@ export function createNodeReviewQueueService(db,{clock={nowMs:()=>Date.now()},le
   SELECT 1 FROM ai_review_reports r JOIN ai_review_jobs child ON child.previous_report_id=r.report_id WHERE r.job_id=j.id)
   ORDER BY j.created_ms DESC,j.id DESC LIMIT 1`).get(id);
  const readReport=id=>{const row=id&&db.prepare('SELECT report_json FROM ai_review_reports WHERE report_id=?').get(id);return row?verifyReport(JSON.parse(row.report_json)):null;};
- const ownReport=job=>{const row=db.prepare('SELECT report_id FROM ai_review_reports WHERE job_id=?').get(job.id);return readReport(row?.report_id??job.previous_report_id);};
+ const ownReport=(job,submission)=>{
+  try{
+   const own=db.prepare('SELECT report_id FROM ai_review_reports WHERE job_id=?').get(job.id),report=readReport(own?.report_id??job.previous_report_id);
+   if(report){const record=db.prepare('SELECT * FROM ai_review_reports WHERE report_id=?').get(report.reportId),sourceJob=db.prepare('SELECT * FROM ai_review_jobs WHERE id=?').get(record.job_id);checkReportBinding(report,{submission,record,job:sourceJob});}
+   return report;
+  }catch{fail(503,'review_evidence_unavailable','Verified review evidence is temporarily unavailable.');}
+ };
  const eligible=(submissionId,job,report)=>finalReview(submissionId)?'final-review-recorded':boardClosed(submissionId)?'board-closed':!report?'review-not-available':job?.state!=='completed'?'review-in-progress':db.prepare('SELECT 1 FROM ai_review_appeals WHERE report_id=?').get(report.reportId)?'appeal-already-submitted':null;
  const view=(principal,submissionId)=>{
-  owned(principal,submissionId);const job=latestJob(submissionId),report=job?ownReport(job):null,final=finalReview(submissionId);
+  const submission=owned(principal,submissionId),job=latestJob(submissionId),report=job?ownReport(job,submission):null,final=finalReview(submissionId);
   const appeal=job?.appeal_id?db.prepare('SELECT * FROM ai_review_appeals WHERE appeal_id=?').get(job.appeal_id):null;
   const reason=eligible(submissionId,job,report);
   return {submissionId,status:job?.state??(final?'completed':'held'),feedback:report?{...creatorFeedback(report),appealAvailable:reason===null}:null,
@@ -80,9 +86,9 @@ export function createNodeReviewQueueService(db,{clock={nowMs:()=>Date.now()},le
    if(!validId(requestKey)||requestKey.length>128||typeof reportId!=='string'||!/^[a-f0-9]{64}$/.test(reportId)||typeof reason!=='string'||!reason.trim()||reason!==reason.trim()||reason.length>2000)fail(400,'invalid_appeal','Supply the current report, a reason and an idempotency key.');
    const digest=hash({submissionId,reportId,reason});
    return transaction(db,()=>{
-    owned(principal,submissionId);const prior=db.prepare('SELECT * FROM ai_review_appeals WHERE wallet=? AND request_key=?').get(principal.wallet,requestKey);
+    const submission=owned(principal,submissionId);const prior=db.prepare('SELECT * FROM ai_review_appeals WHERE wallet=? AND request_key=?').get(principal.wallet,requestKey);
     if(prior){if(prior.request_digest!==digest)fail(409,'idempotency_conflict','This request key was already used for another appeal.');return {outcome:'replayed',review:view(principal,submissionId)};}
-    const job=latestJob(submissionId),report=job?ownReport(job):null,blocked=eligible(submissionId,job,report);
+    const job=latestJob(submissionId),report=job?ownReport(job,submission):null,blocked=eligible(submissionId,job,report);
     if(blocked)fail(409,blocked,'An appeal is not available for this review.');
     if(report.reportId!==reportId)fail(409,'review_changed','Appeal the latest review report.');
     const time=now(),appeal=createAppeal({report,reason,createdAt:new Date(time).toISOString()}),jobId='appeal:'+appeal.appealId;

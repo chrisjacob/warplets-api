@@ -25,7 +25,7 @@ try{
   const server=createLocalServer(async(request,peer)=>{
    const path=new URL(request.url).pathname;
    if(path.endsWith('/review'))reads.push(path);
-   if(path.endsWith('/appeals')){appeals.push({key:request.headers.get('idempotency-key'),body:await request.clone().json()});if(appealGate)await appealGate;}
+   if(path.endsWith('/appeals')){appeals.push({key:request.headers.get('idempotency-key'),body:await request.clone().json()});if(appealGate)await appealGate;if(appeals.length===1)return Response.json({error:{code:'synthetic_review_unavailable',message:'Synthetic transport retry — appeal not yet saved.'}},{status:503});}
    const response=await app(request,peer);
    if(capabilityOff&&path==='/api/v1/capabilities'){const value=await response.json(),data=value.data??value;data.features=data.features.filter(feature=>feature.id!=='earn-review-feedback');const headers=new Headers(response.headers);headers.delete('content-length');return Response.json(value,{status:response.status,headers});}
    return response;
@@ -53,9 +53,9 @@ try{
    await dialog.locator('summary').click();assert.equal(await dialog.locator('.review-criteria > li').count(),4);assert.match(await dialog.innerText(),/Paid AI calls are disabled/);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
    await dialog.locator('summary').click();await dialog.evaluate(node=>node.scrollTop=0);await page.screenshot({path:directory+'/feedback-'+width+'.png'});
    const send=dialog.getByRole('button',{name:'Send appeal',exact:true});assert.equal(await send.isDisabled(),true);
-   await dialog.getByLabel('What should the reviewer reconsider?',{exact:true}).fill('Please reconsider the supplied project explanation and its example.');
+   const privateReason='SYNTHETIC PRIVATE APPEAL: reconsider the supplied project explanation and example.';await dialog.getByLabel('What should the reviewer reconsider?',{exact:true}).fill(privateReason);
    let releaseAppeal;appealGate=new Promise(r=>releaseAppeal=r);await send.focus();await page.keyboard.press('Enter');await dialog.getByRole('button',{name:'Sending appeal…',exact:true}).waitFor();await page.keyboard.press('Enter');
-   releaseAppeal();await dialog.getByText('Your appeal is saved.',{exact:true}).waitFor();assert.equal(appeals.length,1);assert.equal(appeals[0].body.reportId,initialFeedback.reportId);assert.ok(appeals[0].key);
+   assert.ok(!(await page.evaluate(()=>JSON.stringify(Object.entries(sessionStorage)))).includes(privateReason),'Pending intent storage must not contain private appeal text');releaseAppeal();await dialog.getByText('Synthetic transport retry — appeal not yet saved.',{exact:true}).waitFor();assert.equal(appeals.length,1);assert.equal(db.prepare('SELECT COUNT(*) AS n FROM ai_review_appeals').get().n,0);assert.ok(!(await page.evaluate(()=>JSON.stringify(Object.entries(sessionStorage)))).includes(privateReason),'Failed intent storage must not contain private appeal text');await send.click();await dialog.getByText('Your appeal is saved.',{exact:true}).waitFor();assert.equal(appeals.length,2);assert.equal(appeals[0].key,appeals[1].key,'Retry must retain its original key');assert.equal(appeals[1].body.reportId,initialFeedback.reportId);assert.ok(appeals[1].key);
    await dialog.getByText(/Appeal received — awaiting another review/).waitFor();assert.equal(await dialog.getByRole('button',{name:'Send appeal',exact:true}).count(),0);assert.equal(db.prepare('SELECT COUNT(*) AS n FROM ai_review_appeals').get().n,1);assert.equal(db.prepare('SELECT COUNT(*) AS n FROM earn_reviews').get().n,0);
    await page.keyboard.press('Escape');await dialog.waitFor({state:'hidden'});assert.equal(await open.evaluate(node=>node===document.activeElement),true);
    await page.reload();await page.locator('.submission-review-action button').click();await dialog.getByText(/Appeal received — awaiting another review/).waitFor();
@@ -72,7 +72,7 @@ try{
    await dialog.getByRole('button',{name:'Refresh review',exact:true}).click();await dialog.waitFor({state:'hidden'});assert.equal(await page.locator('.submission-review').count(),0);await page.locator('#view').getByRole('button',{name:'Connect wallet',exact:true}).waitFor();
    db.prepare('INSERT INTO sessions VALUES(?,?,?,?)').run(createHash('sha256').update(token).digest('hex'),f.wallet,origin,now+1800000);await context.addCookies([{name:'tenx_local_session',value:token,url:origin,httpOnly:true,sameSite:'Strict'}]);
    capabilityOff=true;const before=reads.length;await page.reload();await page.locator('.submission-records > li').waitFor();assert.equal(await page.getByRole('button',{name:'Review & feedback',exact:true}).count(),0);assert.equal(reads.length,before,'Unsupported runtimes must not call review endpoints.');
-   assert.deepEqual(errors,[]);results.push({width,realSubmissionEnqueued:true,lazyRead:true,sourceCaptureAndSimulation:true,separateReviewLineage:true,duplicateClickGuard:true,finalScoreSeparate:true,noAutomaticFinalScore:true,sessionExpiryClearsFeedback:true,capabilityFailClosed:true,keyboardReturn:true,noOverflow:true});
+   assert.deepEqual(errors,[]);results.push({width,realSubmissionEnqueued:true,lazyRead:true,sourceCaptureAndSimulation:true,separateReviewLineage:true,duplicateClickGuard:true,privateIdempotencyStorage:true,retryKeepsKey:true,finalScoreSeparate:true,noAutomaticFinalScore:true,sessionExpiryClearsFeedback:true,capabilityFailClosed:true,keyboardReturn:true,noOverflow:true});
   }catch(error){await page.screenshot({path:directory+'/failure-'+width+'.png'});throw error;}
   finally{await context.close();server.closeAllConnections();await new Promise(r=>server.close(r));db.close();}
  }

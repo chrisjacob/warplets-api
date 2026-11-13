@@ -190,3 +190,10 @@ Appeals retain the original report ID and do not overwrite it. Subsequent review
 ## Validation
 
 Run `node --test platform/ai-review/*.test.mjs`. Tests use only local mock transport for the real-provider adapter (zero paid calls). They cover opt-in gating, strict request configuration, refusal/incomplete/error handling, output byte bounds, secret redaction, concurrent receipt isolation, imported provenance labels, deterministic fixture output, rubric arithmetic, evidence validation, extra/forged model output, prompt-injection holds, provider failure and timeout, explicit simulation acceptance, appeal lineage, bounded CLI inputs and overwrite protection. Batch tests cover sequential calls, partial failures with continuation, no retries, duplicate and incomplete input rejection before calls, exclusive outputs, storage-failure recovery markers, bounded UTF-8 input and paid-mode preflight. No real-model quality or bias claims follow from these tests.
+
+
+## Worker owner-route parity
+
+Node and the local Worker expose the same owner feedback and appeal contract. `portable-review.mjs` uses WebCrypto with the shared structural/evidence validator; its five report hashes match the synchronous Node codec byte for byte. Source, submission and job lineage are checked before feedback projection. The Worker never imports a Node provider or enables model calls.
+
+Migration 071 creates the appeal child job within the appeal insert. The D1 adapter rechecks ownership, latest-report state, final moderation, board closure and recovery state in that statement, then reconciles uncertain acknowledgements by the immutable owner/request-key receipt. Public capture and processing endpoints do not exist. Trusted capture and synthetic processing remain available through the Node-local CLI only.

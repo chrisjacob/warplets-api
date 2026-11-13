@@ -2,6 +2,7 @@
 const route=(method,path)=>({method,path:'/api/v1'+path});
 const feature=(id,routes)=>({id,status:'local-validation',routes:routes.map(([method,path])=>route(method,path))});
 const shared=[
+ ['earn-review-feedback',[['GET','/earn/submissions/{submissionId}/review'],['POST','/earn/submissions/{submissionId}/appeals']]],
  ['discovery',[['GET','/capabilities'],['GET','/policy'],['GET','/collections'],['GET','/health'],['GET','/openapi.json']]],
  ['genesis-refresh-fixture-review',[['GET','/nfts/refreshes/{id}'],['POST','/nfts/refreshes/{id}/prepare'],['POST','/nfts/refreshes/{id}/execute'],['POST','/nfts/refreshes/{id}/receipt']]],
  ['transaction-receipt-preview',[['GET','/transactions/{id}']]],
@@ -22,7 +23,6 @@ const shared=[
  ['local-inbox',[['GET','/notifications/capabilities'],['GET','/notifications/subscriptions'],['POST','/notifications/subscriptions'],['GET','/notifications/inbox']]],
 ];
 const nodeOnly=[
- ['earn-review-feedback',[['GET','/earn/submissions/{submissionId}/review'],['POST','/earn/submissions/{submissionId}/appeals']]],
  ['launch-plan-preview',[['GET','/launch-plans'],['POST','/launch-plans/preview']]],
  ['earn-archive',[['GET','/earn/epochs/{epoch}/manifest'],['GET','/earn/claims/proof']]],
  ['local-operation-status',[['GET','/operations/status']]],

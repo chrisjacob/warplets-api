@@ -1,0 +1,54 @@
+TAP version 13
+# (node:12824) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# {"format":"10x.local.operational-event.v1","scope":"local-fixture","runtime":"workerd","kind":"command","outcome":"accepted","reason":"none","atMs":1794610782674,"financialExecution":false,"operation":"earn-admission","durationMs":83}
+# {"format":"10x.local.operational-event.v1","scope":"local-fixture","runtime":"workerd","kind":"command","outcome":"accepted","reason":"none","atMs":1794610783930,"financialExecution":false,"operation":"earn-admission","durationMs":18}
+# Subtest: actual Worker creator feedback is advertised, wallet-owned, bounded and private; appeals preserve immutable report lineage
+ok 1 - actual Worker creator feedback is advertised, wallet-owned, bounded and private; appeals preserve immutable report lineage
+  ---
+  duration_ms: 30093.7219
+  type: 'test'
+  ...
+# {"format":"10x.local.operational-event.v1","scope":"local-fixture","runtime":"workerd","kind":"command","outcome":"accepted","reason":"none","atMs":1794610811290,"financialExecution":false,"operation":"earn-admission","durationMs":51}
+# {"format":"10x.local.operational-event.v1","scope":"local-fixture","runtime":"workerd","kind":"command","outcome":"accepted","reason":"none","atMs":1794610811793,"financialExecution":false,"operation":"earn-admission","durationMs":15}
+# {"format":"10x.local.operational-event.v1","scope":"local-fixture","runtime":"workerd","kind":"command","outcome":"accepted","reason":"none","atMs":1794610812274,"financialExecution":false,"operation":"earn-admission","durationMs":16}
+# Subtest: actual Worker concurrent appeal requests create one obligation and final/closed guards keep scores and rewards unchanged
+ok 2 - actual Worker concurrent appeal requests create one obligation and final/closed guards keep scores and rewards unchanged
+  ---
+  duration_ms: 28417.931
+  type: 'test'
+  ...
+# {"format":"10x.local.operational-event.v1","scope":"local-fixture","runtime":"workerd","kind":"command","outcome":"accepted","reason":"none","atMs":1794610839985,"financialExecution":false,"operation":"earn-admission","durationMs":49}
+# {"format":"10x.local.operational-event.v1","scope":"local-fixture","runtime":"workerd","kind":"command","outcome":"accepted","reason":"none","atMs":1794610840425,"financialExecution":false,"operation":"earn-admission","durationMs":16}
+# {"format":"10x.local.operational-event.v1","scope":"local-fixture","runtime":"workerd","kind":"command","outcome":"accepted","reason":"none","atMs":1794610840956,"financialExecution":false,"operation":"earn-admission","durationMs":16}
+# {"format":"10x.local.operational-event.v1","scope":"local-fixture","runtime":"workerd","kind":"command","outcome":"accepted","reason":"none","atMs":1794610841501,"financialExecution":false,"operation":"earn-admission","durationMs":15}
+# Subtest: actual D1 awaited-hash races and lost acknowledgements cannot insert stale appeals or duplicate children
+ok 3 - actual D1 awaited-hash races and lost acknowledgements cannot insert stale appeals or duplicate children
+  ---
+  duration_ms: 29073.1323
+  type: 'test'
+  ...
+# {"format":"10x.local.operational-event.v1","scope":"local-fixture","runtime":"workerd","kind":"command","outcome":"accepted","reason":"none","atMs":1794610868399,"financialExecution":false,"operation":"earn-admission","durationMs":48}
+# Subtest: D1 recovery hold written during WebCrypto verification rejects appeal with no orphaned job
+ok 4 - D1 recovery hold written during WebCrypto verification rejects appeal with no orphaned job
+  ---
+  duration_ms: 26869.0351
+  type: 'test'
+  ...
+# {"format":"10x.local.operational-event.v1","scope":"local-fixture","runtime":"workerd","kind":"command","outcome":"accepted","reason":"none","atMs":1794610895304,"financialExecution":false,"operation":"earn-admission","durationMs":50}
+# {"format":"10x.local.operational-event.v1","scope":"local-fixture","runtime":"workerd","kind":"command","outcome":"accepted","reason":"none","atMs":1794610895930,"financialExecution":false,"operation":"earn-admission","durationMs":16}
+# Subtest: D1 appeal trigger satisfies immediate child foreign key and rolls back mismatched child or source atomically
+ok 5 - D1 appeal trigger satisfies immediate child foreign key and rolls back mismatched child or source atomically
+  ---
+  duration_ms: 27955.2162
+  type: 'test'
+  ...
+1..5
+# tests 5
+# suites 0
+# pass 5
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 143830.8012

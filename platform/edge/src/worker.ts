@@ -14,6 +14,7 @@ import baseContract from '../../contracts/openapi.json';
 import {governance} from './governance';
 import { edgeAuth } from './wallet';
 import {earn} from './earn';
+import {reviews} from './reviews';
 import {notifications} from './notifications';
 import {transactions} from './transactions';
 import {quotes} from './quotes';
@@ -23,7 +24,7 @@ import {r2ArtifactStore} from '../../artifacts/r2';
 const app = new Hono<{ Bindings: Env; Variables: { requestId: string } }>();
 const supportedPaths = new Set(['/nfts/refreshes/{id}','/nfts/refreshes/{id}/prepare','/nfts/refreshes/{id}/execute','/nfts/refreshes/{id}/receipt','/transactions/{id}','/notifications/capabilities','/notifications/subscriptions','/notifications/inbox','/health','/policy','/capabilities','/collections','/launch/fee-schedule','/markets','/markets/{id}',
   '/genesis/ballots','/genesis/ballots/{id}','/genesis/ballots/{id}/votes','/vault','/nfts/{id}/vault','/farms/{id}','/stake/positions','/earn/epochs/{epoch}/leaderboard','/earn/claims',
-  '/earn/capacity','/earn/submissions','/earn/me','/earn/actions','/earn/actions/{actionId}/completions','/me','/me/wallets','/auth/challenges','/auth/verify','/auth/logout','/quotes','/markets/{id}/quote-status','/collect/inventories/{id}/stages/{stage}/reservations','/collect/inventories/{id}/progression','/collect/inventories/{id}/progression/quote','/collect/inventories','/collect/inventories/{id}','/collect/assets/{id}','/collect/me/assets','/collect/me/operations','/collect/me/operations/{id}','/collect/me/operations/{id}/fairness']);
+  '/earn/submissions/{submissionId}/review','/earn/submissions/{submissionId}/appeals','/earn/capacity','/earn/submissions','/earn/me','/earn/actions','/earn/actions/{actionId}/completions','/me','/me/wallets','/auth/challenges','/auth/verify','/auth/logout','/quotes','/markets/{id}/quote-status','/collect/inventories/{id}/stages/{stage}/reservations','/collect/inventories/{id}/progression','/collect/inventories/{id}/progression/quote','/collect/inventories','/collect/inventories/{id}','/collect/assets/{id}','/collect/me/assets','/collect/me/operations','/collect/me/operations/{id}','/collect/me/operations/{id}/fairness']);
 const allRoutes = baseContract.paths as Record<string, object>;
 const paths = {...Object.fromEntries(Object.entries(allRoutes).filter(([path])=>supportedPaths.has(path))),
   '/manifests/{digest}':{parameters:[{in:'path',name:'digest',required:true,schema:{type:'string',pattern:'^[0-9a-f]{64}$'}}],
@@ -100,6 +101,7 @@ app.get(base+'/manifests/:digest',async c=>{
  return new Response(new Uint8Array(stored.bytes).buffer,{headers:{'content-type':'application/json','etag':'"'+key+'"','cache-control':'public,max-age=86400,immutable','x-content-type-options':'nosniff'}});
 });
 app.route(base,edgeAuth);
+app.route(base,reviews);
 app.route(base,earn);
 app.route(base,notifications);
 app.route(base,transactions);
