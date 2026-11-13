@@ -1,3 +1,4 @@
+import {handlePerformance} from '../performance/leaderboards-http.mjs';
 import {createNodeRefreshOwner} from '../nfts/node-refresh-owner.mjs';
 import {createMutationEventObserver} from '../observability/mutation-events.mjs';
 import {createNodeCrypto} from '../security/node-crypto.mjs';
@@ -18,7 +19,7 @@ import { handleNotifications } from '../notifications/http.mjs';
 import { handleInteractiveQuotes } from '../quotes/interactive-http.mjs';
 import { createNodeQuoteService,createNodeFinancialReadService,createNodeGovernanceService } from '../application/node-context.mjs';
 import { consumeQuota,currentSession } from './auth.mjs';
-export function createApp(db,{clock=Date.now,artifactStore,operationalEventSink}={}) {
+export function createApp(db,{clock=Date.now,artifactStore,operationalEventSink,performanceService}={}) {
   const refreshOwner=createNodeRefreshOwner(db,{clock,artifacts:artifactStore});
   const quotes=createNodeQuoteService(db,{clock:{nowMs:clock},store:artifactStore});
   const financial=createNodeFinancialReadService(db,{clock:{nowMs:clock}});
@@ -33,6 +34,8 @@ export function createApp(db,{clock=Date.now,artifactStore,operationalEventSink}
       db.prepare('DELETE FROM auth_challenges WHERE nonce IN (SELECT nonce FROM auth_challenges WHERE expires_at<=? ORDER BY expires_at LIMIT 100)').run(now);
       nextCleanup=now+60000;
     }
+    const performance=await handlePerformance(request,{service:performanceService,authenticate:async req=>{const session=currentSession(db,req,now);return session?{wallet:session.wallet}:null;}});
+    if(performance)return performance;
     const response=await handleAuth(db,request,peer,now)??handleOperations(db,request,now)??await handleInteractiveQuotes(request,{service:quotes,peer,consumeQuota:async(bucket,limit)=>consumeQuota(db,bucket,now,limit)})??handleMarkets(db,request,now)??
       await handleFinancialReads(request,{service:financial,authenticate:async(req)=>{const session=currentSession(db,req,clock());return session?{kind:'wallet',wallet:session.wallet}:null;}})??await handleTransactions(db,request,now)??await handleNotifications(db,request,peer,now)??
       await handleInteractiveGovernance(request,{service:governance,peer,authenticate:async(req)=>{const session=currentSession(db,req,clock());return session?{kind:'wallet',wallet:session.wallet}:null;},consumeQuota:async(bucket,limit)=>consumeQuota(db,bucket,now,limit)})??
