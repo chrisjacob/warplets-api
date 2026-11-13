@@ -5,7 +5,7 @@
   "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
   "currentTask": null,
-  "lastUpdatedAt": "2026-11-13T23:03:07.480486+00:00",
+  "lastUpdatedAt": "2026-11-13T23:05:46.808367+00:00",
   "migrationAllocation": {
     "next": 72,
     "reserved": [
@@ -775,11 +775,11 @@
     "ciTestsPassed": 1476
   },
   "aiReviewFollowup": {
-    "status": "worker-parity-locally-verified",
+    "status": "combined-ci-in-progress",
     "budget": "stop at 10% remaining account usage",
     "paidCallsEnabled": false,
     "deployment": false,
-    "nextStep": "Push final combined checkpoint; preserve/refresh QA runtime to migration071; follow full test-only CI to completion; record exact results.",
+    "nextStep": "Follow combined CI43524248760/job132226043812 for product67279c0 to completion, fix failures without weakened checks, record exact final test counts and account usage. No further deployment/model calls authorized.",
     "tests": {
       "ai": 51,
       "serviceFinal": 14,
@@ -818,8 +818,34 @@
     "accountUsagePercent": 60,
     "nodeCandidate": "0a551b1227bd22c013890adf7579246d657bbbf9",
     "nodeCiRun": "https://github.com/chrisjacob/warplets-api/actions/runs/43522116139",
-    "localQaPid": 33380,
+    "localQaPid": 28440,
     "localQaDatabase": "work/qa-three-month-final-2026-11-13/core.sqlite",
-    "preMigrationBackup": "work/qa-three-month-final-2026-11-13/core-before-review-2026-11-14.sqlite"
+    "preMigrationBackup": "work/qa-three-month-final-2026-11-13/core-before-review-2026-11-14.sqlite",
+    "lastTestedLocalProductCommit": "67279c035a38b987fa770b640e6942e2e1815ec8",
+    "ci": {
+      "runId": 43524248760,
+      "jobId": 132226043812,
+      "url": "https://github.com/chrisjacob/warplets-api/actions/runs/43524248760",
+      "status": "in-progress"
+    },
+    "priorNodeCi": "43522116139 superseded/cancelled by final parity checkpoint",
+    "localQaSchema": "071-ai-review-appeal-obligation.sql",
+    "parityBackup": "work/qa-three-month-final-2026-11-13/core-before-review-parity-2026-11-14.sqlite",
+    "preservedCounts": {
+      "submissions": 90,
+      "finalReviews": 90,
+      "awards": 89,
+      "assets": 183,
+      "collectionOperations": 184,
+      "genesisVotes": 0,
+      "reviewJobs": 0,
+      "appeals": 0
+    },
+    "localVerification": {
+      "health": 200,
+      "unauthenticatedPrivateFeedback": 401,
+      "integrity": "ok",
+      "performanceSnapshotUnchanged": true
+    }
   }
 }
