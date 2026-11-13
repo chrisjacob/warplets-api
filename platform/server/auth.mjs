@@ -17,8 +17,8 @@ export function currentSession(db,request,now) {
   return db.prepare('SELECT wallet,expires_at FROM sessions WHERE token_hash=? AND origin=? AND expires_at>?')
     .get(hash(cookie.slice(cookieName.length+1)),new URL(request.url).origin,now)??null;
 }
-function setCookie(raw,maxAge) {
-  return cookieName+'='+raw+'; HttpOnly; SameSite=Strict; Path=/; Max-Age='+maxAge;
+function setCookie(raw,maxAge,secure) {
+  return cookieName+'='+raw+'; HttpOnly; SameSite=Strict; Path=/; Max-Age='+maxAge+(secure?'; Secure':'');
 }
 export function consumeQuota(db,key,now,max) {
   const reset=now+60000;
@@ -30,7 +30,7 @@ export function consumeQuota(db,key,now,max) {
   return failure(429,'rate_limited','Please retry later.',{'retry-after':String(Math.ceil((result.resets_at-now)/1000))});
 }
 export async function handleAuth(db,request,peer,now) {
-  const {pathname,origin}=new URL(request.url);
+  const {pathname,origin,protocol}=new URL(request.url);
   if(!pathname.startsWith(prefix+'/')) return null;
   const me=pathname===prefix+'/me'||pathname===prefix+'/me/wallets';
   const endpoint=pathname.slice(prefix.length);
@@ -43,13 +43,15 @@ export async function handleAuth(db,request,peer,now) {
     return json(endpoint==='/me'?{wallet:session.wallet,chain:'solana'}:{items:[{address:session.wallet,chain:'solana'}]});
   }
   if(request.headers.get('origin')!==origin) return failure(403,'invalid_origin','Use the configured local origin.');
-  const quota=consumeQuota(db,'auth:'+peer,now,15);
-  if(quota) return quota;
   if(endpoint==='/auth/logout') {
     const raw=(request.headers.get('cookie')||'').split(';').map(s=>s.trim()).find(s=>s.startsWith(cookieName+'='));
     if(raw) db.prepare('DELETE FROM sessions WHERE token_hash=? AND origin=?').run(hash(raw.slice(cookieName.length+1)),origin);
-    return json({revoked:true},200,{'set-cookie':setCookie('',0)});
+    return json({revoked:true},200,{'set-cookie':setCookie('',0,protocol==='https:')});
   }
+  // Always allow same-origin revocation, even when anonymous sign-in attempts
+  // exhausted a shared proxy peer's quota. Issuance remains rate-limited.
+  const quota=consumeQuota(db,'auth:'+peer,now,15);
+  if(quota) return quota;
   if(request.headers.get('content-type')?.split(';')[0]!=='application/json') return failure(415,'unsupported_media_type','Use application/json.');
   let body;
   try {body=await request.json();}catch {return invalid('Invalid JSON.');}
@@ -76,5 +78,5 @@ export async function handleAuth(db,request,peer,now) {
     db.prepare('INSERT INTO sessions VALUES(?,?,?,?)').run(hash(sessionToken),row.wallet,origin,now+ttl*1000);
     return true;
   });
-  return issued?json({wallet:row.wallet},200,{'set-cookie':setCookie(sessionToken,ttl)}):failure(401,'invalid_challenge','Challenge unavailable.');
+  return issued?json({wallet:row.wallet},200,{'set-cookie':setCookie(sessionToken,ttl,protocol==='https:')}):failure(401,'invalid_challenge','Challenge unavailable.');
 }

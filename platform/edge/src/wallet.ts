@@ -24,6 +24,8 @@ export async function boundedInput(req:Request) {
 edgeAuth.use('/auth/*',async(c,next)=>{
  if(c.req.method!=='POST')return c.json({error:{code:'method_not_allowed',message:'Use POST.'}},405);
  if(c.req.header('origin')!==new URL(c.req.url).origin)return c.json({error:{code:'invalid_origin',message:'Use this local origin.'}},403);
+ // A saturated issuance bucket must not block same-origin session revocation.
+ if(new URL(c.req.url).pathname==='/api/v1/auth/logout'){await next();return;}
  const now=Date.now();
  // A single loopback bucket bounds pilot challenge and verification writes across isolates.
  const rate=await c.env.DB.prepare(`INSERT INTO request_limits VALUES('edge-local-auth',?,1)
@@ -66,7 +68,7 @@ edgeAuth.post('/auth/verify',async c=>{
   c.env.DB.prepare('INSERT INTO sessions SELECT ?,c.wallet,c.origin,? FROM auth_challenges c JOIN edge_proof_consumptions p ON p.nonce=c.nonce AND p.session_hash=? WHERE c.nonce=?').bind(digest,issued+86400000,digest,nonce),
   c.env.DB.prepare('UPDATE auth_challenges SET consumed_at=? WHERE nonce=? AND EXISTS(SELECT 1 FROM edge_proof_consumptions WHERE nonce=? AND session_hash=?)').bind(issued,nonce,nonce,digest)]);
  if(claim.meta.changes!==1||sessionInsert.meta.changes!==1)return c.json({error:{code:'invalid_challenge',message:'Challenge unavailable.'}},401);
- setCookie(c,cookie,session,{httpOnly:true,sameSite:'Strict',path:'/',maxAge:86400});
+ setCookie(c,cookie,session,{httpOnly:true,sameSite:'Strict',secure:new URL(c.req.url).protocol==='https:',path:'/',maxAge:86400});
  return c.json({wallet:challenge.wallet});
 });
 export async function sessionOwner(req:Request,db:D1Database,raw:string|undefined){
@@ -84,6 +86,6 @@ edgeAuth.get('/me/wallets',async c=>{
 edgeAuth.post('/auth/logout',async c=>{
  const raw=getCookie(c,cookie);
  if(raw)await c.env.DB.prepare('DELETE FROM sessions WHERE token_hash=? AND origin=?').bind(await hash(raw),new URL(c.req.url).origin).run();
- setCookie(c,cookie,'',{httpOnly:true,sameSite:'Strict',path:'/',maxAge:0});
+ setCookie(c,cookie,'',{httpOnly:true,sameSite:'Strict',secure:new URL(c.req.url).protocol==='https:',path:'/',maxAge:0});
  return c.json({revoked:true});
 });
