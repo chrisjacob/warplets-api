@@ -1,0 +1,2448 @@
+{
+  "at": "2026-11-13T20:09:32.787Z",
+  "origin": "http://127.0.0.1:4181",
+  "browser": "156.0.8078.4",
+  "scope": "read-only synthetic local lab; not field INP or hosted capacity",
+  "conditions": {
+    "latencyMs": 80,
+    "downloadBytesPerSecond": 200000,
+    "cpuSlowdown": 4
+  },
+  "results": [
+    {
+      "width": 390,
+      "route": "/",
+      "cache": "cold",
+      "lcp": 1868,
+      "shifts": [],
+      "longTasks": [
+        {
+          "at": 1040.7000000476837,
+          "duration": 186
+        },
+        {
+          "at": 1231.2000000476837,
+          "duration": 60
+        },
+        {
+          "at": 1439.5,
+          "duration": 103
+        },
+        {
+          "at": 1995.8000000715256,
+          "duration": 64
+        }
+      ],
+      "events": [],
+      "cls": 0,
+      "paint": [
+        {
+          "name": "first-paint",
+          "at": 404
+        },
+        {
+          "name": "first-contentful-paint",
+          "at": 404
+        }
+      ],
+      "resources": [
+        {
+          "path": "/site-assets/index-DGtkE_nb.js",
+          "bytes": 146543,
+          "encoded": 146243,
+          "decoded": 460124,
+          "duration": 895.7999999523163
+        },
+        {
+          "path": "/site-assets/index-OHpSDBAD.css",
+          "bytes": 7099,
+          "encoded": 6799,
+          "decoded": 24520,
+          "duration": 166.89999997615814
+        },
+        {
+          "path": "/site-assets/home-B_250Y_D.js",
+          "bytes": 1784,
+          "encoded": 1484,
+          "decoded": 3518,
+          "duration": 123.20000004768372
+        },
+        {
+          "path": "/site-assets/performance-Do1EPOKi.js",
+          "bytes": 7708,
+          "encoded": 7408,
+          "decoded": 21144,
+          "duration": 152.39999997615814
+        },
+        {
+          "path": "/favicon.svg",
+          "bytes": 520,
+          "encoded": 220,
+          "decoded": 220,
+          "duration": 84.19999992847443
+        },
+        {
+          "path": "/api/v1/capabilities",
+          "bytes": 5480,
+          "encoded": 5180,
+          "decoded": 5180,
+          "duration": 115.09999990463257
+        },
+        {
+          "path": "/api/v1/performance/boards/tokens",
+          "bytes": 1125,
+          "encoded": 825,
+          "decoded": 825,
+          "duration": 105.79999995231628
+        },
+        {
+          "path": "/api/v1/performance/boards/nfts",
+          "bytes": 2390,
+          "encoded": 2090,
+          "decoded": 2090,
+          "duration": 146.60000002384186
+        },
+        {
+          "path": "/api/v1/performance/boards/airdrops",
+          "bytes": 2423,
+          "encoded": 2123,
+          "decoded": 2123,
+          "duration": 142.5
+        },
+        {
+          "path": "/api/v1/performance/boards/stake",
+          "bytes": 2432,
+          "encoded": 2132,
+          "decoded": 2132,
+          "duration": 153.59999990463257
+        },
+        {
+          "path": "/api/v1/performance/boards/earn",
+          "bytes": 2408,
+          "encoded": 2108,
+          "decoded": 2108,
+          "duration": 150.30000007152557
+        },
+        {
+          "path": "/api/v1/performance/activity",
+          "bytes": 1741,
+          "encoded": 1441,
+          "decoded": 1441,
+          "duration": 162.20000004768372
+        },
+        {
+          "path": "/api/v1/me",
+          "bytes": 446,
+          "encoded": 146,
+          "decoded": 146,
+          "duration": 123.89999997615814
+        }
+      ],
+      "domNodes": 398,
+      "overflow": false,
+      "requests": [
+        {
+          "path": "/",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/site-assets/index-OHpSDBAD.css",
+          "status": 200,
+          "encoding": "br",
+          "cache": "public, max-age=31536000, immutable"
+        },
+        {
+          "path": "/site-assets/index-DGtkE_nb.js",
+          "status": 200,
+          "encoding": "br",
+          "cache": "public, max-age=31536000, immutable"
+        },
+        {
+          "path": "/favicon.svg",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/site-assets/home-B_250Y_D.js",
+          "status": 200,
+          "encoding": "br",
+          "cache": "public, max-age=31536000, immutable"
+        },
+        {
+          "path": "/site-assets/performance-Do1EPOKi.js",
+          "status": 200,
+          "encoding": "br",
+          "cache": "public, max-age=31536000, immutable"
+        },
+        {
+          "path": "/api/v1/capabilities",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/performance/boards/tokens",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/performance/boards/nfts",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/performance/boards/airdrops",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/performance/boards/stake",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/performance/boards/earn",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/performance/activity",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/me",
+          "status": 401,
+          "encoding": "identity",
+          "cache": "no-store"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "route": "/",
+      "cache": "warm",
+      "lcp": 352,
+      "shifts": [],
+      "longTasks": [],
+      "events": [],
+      "cls": 0,
+      "paint": [
+        {
+          "name": "first-paint",
+          "at": 184
+        },
+        {
+          "name": "first-contentful-paint",
+          "at": 184
+        }
+      ],
+      "resources": [
+        {
+          "path": "/site-assets/index-DGtkE_nb.js",
+          "bytes": 0,
+          "encoded": 146243,
+          "decoded": 460124,
+          "duration": 0
+        },
+        {
+          "path": "/site-assets/index-OHpSDBAD.css",
+          "bytes": 0,
+          "encoded": 6799,
+          "decoded": 24520,
+          "duration": 0
+        },
+        {
+          "path": "/site-assets/home-B_250Y_D.js",
+          "bytes": 0,
+          "encoded": 1484,
+          "decoded": 3518,
+          "duration": 0
+        },
+        {
+          "path": "/site-assets/performance-Do1EPOKi.js",
+          "bytes": 0,
+          "encoded": 7408,
+          "decoded": 21144,
+          "duration": 0
+        },
+        {
+          "path": "/favicon.svg",
+          "bytes": 520,
+          "encoded": 220,
+          "decoded": 220,
+          "duration": 109
+        },
+        {
+          "path": "/api/v1/capabilities",
+          "bytes": 5480,
+          "encoded": 5180,
+          "decoded": 5180,
+          "duration": 114.20000004768372
+        },
+        {
+          "path": "/api/v1/performance/boards/tokens",
+          "bytes": 1125,
+          "encoded": 825,
+          "decoded": 825,
+          "duration": 109.59999990463257
+        },
+        {
+          "path": "/api/v1/performance/boards/nfts",
+          "bytes": 2390,
+          "encoded": 2090,
+          "decoded": 2090,
+          "duration": 150.5
+        },
+        {
+          "path": "/api/v1/performance/boards/airdrops",
+          "bytes": 2423,
+          "encoded": 2123,
+          "decoded": 2123,
+          "duration": 161.69999992847443
+        },
+        {
+          "path": "/api/v1/performance/boards/stake",
+          "bytes": 2432,
+          "encoded": 2132,
+          "decoded": 2132,
+          "duration": 158.39999997615814
+        },
+        {
+          "path": "/api/v1/performance/boards/earn",
+          "bytes": 2408,
+          "encoded": 2108,
+          "decoded": 2108,
+          "duration": 170
+        },
+        {
+          "path": "/api/v1/performance/activity",
+          "bytes": 1741,
+          "encoded": 1441,
+          "decoded": 1441,
+          "duration": 164.10000002384186
+        },
+        {
+          "path": "/api/v1/me",
+          "bytes": 446,
+          "encoded": 146,
+          "decoded": 146,
+          "duration": 129.20000004768372
+        }
+      ],
+      "domNodes": 398,
+      "overflow": false,
+      "requests": [
+        {
+          "path": "/",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/site-assets/index-DGtkE_nb.js",
+          "status": 200,
+          "encoding": "br",
+          "cache": "public, max-age=31536000, immutable"
+        },
+        {
+          "path": "/site-assets/index-OHpSDBAD.css",
+          "status": 200,
+          "encoding": "br",
+          "cache": "public, max-age=31536000, immutable"
+        },
+        {
+          "path": "/site-assets/home-B_250Y_D.js",
+          "status": 200,
+          "encoding": "br",
+          "cache": "public, max-age=31536000, immutable"
+        },
+        {
+          "path": "/site-assets/performance-Do1EPOKi.js",
+          "status": 200,
+          "encoding": "br",
+          "cache": "public, max-age=31536000, immutable"
+        },
+        {
+          "path": "/favicon.svg",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/capabilities",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/performance/boards/tokens",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/performance/boards/nfts",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/performance/boards/airdrops",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/performance/boards/stake",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/performance/boards/earn",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/performance/activity",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/me",
+          "status": 401,
+          "encoding": "identity",
+          "cache": "no-store"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "route": "/tokens",
+      "cache": "cold",
+      "lcp": 424,
+      "shifts": [],
+      "longTasks": [
+        {
+          "at": 1016,
+          "duration": 189
+        },
+        {
+          "at": 1209.8999999761581,
+          "duration": 58
+        },
+        {
+          "at": 1449.3000000715256,
+          "duration": 110
+        },
+        {
+          "at": 2145.2000000476837,
+          "duration": 65
+        }
+      ],
+      "events": [
+        {
+          "at": 2803.7000000476837,
+          "duration": 48,
+          "interactionId": 3462
+        },
+        {
+          "at": 2803.8000000715256,
+          "duration": 48,
+          "interactionId": 3462
+        },
+        {
+          "at": 2803.8000000715256,
+          "duration": 48,
+          "interactionId": 3462
+        },
+        {
+          "at": 3111.3000000715256,
+          "duration": 40,
+          "interactionId": 3469
+        },
+        {
+          "at": 3111.399999976158,
+          "duration": 40,
+          "interactionId": 3469
+        },
+        {
+          "at": 3111.399999976158,
+          "duration": 40,
+          "interactionId": 3469
+        }
+      ],
+      "cls": 0,
+      "paint": [
+        {
+          "name": "first-paint",
+          "at": 424
+        },
+        {
+          "name": "first-contentful-paint",
+          "at": 424
+        }
+      ],
+      "resources": [
+        {
+          "path": "/site-assets/index-DGtkE_nb.js",
+          "bytes": 146543,
+          "encoded": 146243,
+          "decoded": 460124,
+          "duration": 873.3000000715256
+        },
+        {
+          "path": "/site-assets/index-OHpSDBAD.css",
+          "bytes": 7099,
+          "encoded": 6799,
+          "decoded": 24520,
+          "duration": 163.80000007152557
+        },
+        {
+          "path": "/site-assets/markets-Cqz9bM-9.js",
+          "bytes": 2751,
+          "encoded": 2451,
+          "decoded": 5792,
+          "duration": 154.79999995231628
+        },
+        {
+          "path": "/site-assets/performance-Do1EPOKi.js",
+          "bytes": 7708,
+          "encoded": 7408,
+          "decoded": 21144,
+          "duration": 184.20000004768372
+        },
+        {
+          "path": "/site-assets/quote-panel-DC0OxXOW.js",
+          "bytes": 2475,
+          "encoded": 2175,
+          "decoded": 5143,
+          "duration": 134.20000004768372
+        },
+        {
+          "path": "/favicon.svg",
+          "bytes": 520,
+          "encoded": 220,
+          "decoded": 220,
+          "duration": 102.5
+        },
+        {
+          "path": "/api/v1/capabilities",
+          "bytes": 5480,
+          "encoded": 5180,
+          "decoded": 5180,
+          "duration": 135.70000004768372
+        },
+        {
+          "path": "/api/v1/policy",
+          "bytes": 1641,
+          "encoded": 1341,
+          "decoded": 1341,
+          "duration": 111.79999995231628
+        },
+        {
+          "path": "/api/v1/performance/boards/tokens",
+          "bytes": 20163,
+          "encoded": 19863,
+          "decoded": 19863,
+          "duration": 275.60000002384186
+        },
+        {
+          "path": "/api/v1/launch/fee-schedule",
+          "bytes": 3765,
+          "encoded": 3465,
+          "decoded": 3465,
+          "duration": 156.19999992847443
+        },
+        {
+          "path": "/api/v1/markets",
+          "bytes": 9900,
+          "encoded": 9600,
+          "decoded": 9600,
+          "duration": 232
+        },
+        {
+          "path": "/api/v1/me",
+          "bytes": 446,
+          "encoded": 146,
+          "decoded": 146,
+          "duration": 121.5
+        }
+      ],
+      "domNodes": 304,
+      "overflow": false,
+      "requests": [
+        {
+          "path": "/tokens",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/site-assets/index-OHpSDBAD.css",
+          "status": 200,
+          "encoding": "br",
+          "cache": "public, max-age=31536000, immutable"
+        },
+        {
+          "path": "/site-assets/index-DGtkE_nb.js",
+          "status": 200,
+          "encoding": "br",
+          "cache": "public, max-age=31536000, immutable"
+        },
+        {
+          "path": "/favicon.svg",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/site-assets/quote-panel-DC0OxXOW.js",
+          "status": 200,
+          "encoding": "br",
+          "cache": "public, max-age=31536000, immutable"
+        },
+        {
+          "path": "/site-assets/markets-Cqz9bM-9.js",
+          "status": 200,
+          "encoding": "br",
+          "cache": "public, max-age=31536000, immutable"
+        },
+        {
+          "path": "/site-assets/performance-Do1EPOKi.js",
+          "status": 200,
+          "encoding": "br",
+          "cache": "public, max-age=31536000, immutable"
+        },
+        {
+          "path": "/api/v1/capabilities",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/policy",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/performance/boards/tokens",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/launch/fee-schedule",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/markets",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/me",
+          "status": 401,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/performance/boards/tokens",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "route": "/tokens",
+      "cache": "warm",
+      "lcp": 184,
+      "shifts": [],
+      "longTasks": [],
+      "events": [
+        {
+          "at": 1359.8000000715256,
+          "duration": 40,
+          "interactionId": 5354
+        },
+        {
+          "at": 1359.8999999761581,
+          "duration": 40,
+          "interactionId": 5354
+        },
+        {
+          "at": 1359.8999999761581,
+          "duration": 40,
+          "interactionId": 5354
+        },
+        {
+          "at": 1642.3000000715256,
+          "duration": 40,
+          "interactionId": 5361
+        },
+        {
+          "at": 1642.3000000715256,
+          "duration": 40,
+          "interactionId": 5361
+        },
+        {
+          "at": 1642.3000000715256,
+          "duration": 40,
+          "interactionId": 5361
+        }
+      ],
+      "cls": 0,
+      "paint": [
+        {
+          "name": "first-paint",
+          "at": 184
+        },
+        {
+          "name": "first-contentful-paint",
+          "at": 184
+        }
+      ],
+      "resources": [
+        {
+          "path": "/site-assets/index-DGtkE_nb.js",
+          "bytes": 0,
+          "encoded": 146243,
+          "decoded": 460124,
+          "duration": 0
+        },
+        {
+          "path": "/site-assets/index-OHpSDBAD.css",
+          "bytes": 0,
+          "encoded": 6799,
+          "decoded": 24520,
+          "duration": 0
+        },
+        {
+          "path": "/site-assets/markets-Cqz9bM-9.js",
+          "bytes": 0,
+          "encoded": 2451,
+          "decoded": 5792,
+          "duration": 0
+        },
+        {
+          "path": "/site-assets/performance-Do1EPOKi.js",
+          "bytes": 0,
+          "encoded": 7408,
+          "decoded": 21144,
+          "duration": 0
+        },
+        {
+          "path": "/site-assets/quote-panel-DC0OxXOW.js",
+          "bytes": 0,
+          "encoded": 2175,
+          "decoded": 5143,
+          "duration": 0
+        },
+        {
+          "path": "/favicon.svg",
+          "bytes": 520,
+          "encoded": 220,
+          "decoded": 220,
+          "duration": 101.30000007152557
+        },
+        {
+          "path": "/api/v1/capabilities",
+          "bytes": 5480,
+          "encoded": 5180,
+          "decoded": 5180,
+          "duration": 139.89999997615814
+        },
+        {
+          "path": "/api/v1/policy",
+          "bytes": 1641,
+          "encoded": 1341,
+          "decoded": 1341,
+          "duration": 120.10000002384186
+        },
+        {
+          "path": "/api/v1/performance/boards/tokens",
+          "bytes": 20163,
+          "encoded": 19863,
+          "decoded": 19863,
+          "duration": 266.8000000715256
+        },
+        {
+          "path": "/api/v1/launch/fee-schedule",
+          "bytes": 3765,
+          "encoded": 3465,
+          "decoded": 3465,
+          "duration": 142.30000007152557
+        },
+        {
+          "path": "/api/v1/markets",
+          "bytes": 9900,
+          "encoded": 9600,
+          "decoded": 9600,
+          "duration": 218.19999992847443
+        },
+        {
+          "path": "/api/v1/me",
+          "bytes": 446,
+          "encoded": 146,
+          "decoded": 146,
+          "duration": 107.40000009536743
+        }
+      ],
+      "domNodes": 304,
+      "overflow": false,
+      "requests": [
+        {
+          "path": "/tokens",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/site-assets/index-DGtkE_nb.js",
+          "status": 200,
+          "encoding": "br",
+          "cache": "public, max-age=31536000, immutable"
+        },
+        {
+          "path": "/site-assets/index-OHpSDBAD.css",
+          "status": 200,
+          "encoding": "br",
+          "cache": "public, max-age=31536000, immutable"
+        },
+        {
+          "path": "/site-assets/markets-Cqz9bM-9.js",
+          "status": 200,
+          "encoding": "br",
+          "cache": "public, max-age=31536000, immutable"
+        },
+        {
+          "path": "/site-assets/performance-Do1EPOKi.js",
+          "status": 200,
+          "encoding": "br",
+          "cache": "public, max-age=31536000, immutable"
+        },
+        {
+          "path": "/site-assets/quote-panel-DC0OxXOW.js",
+          "status": 200,
+          "encoding": "br",
+          "cache": "public, max-age=31536000, immutable"
+        },
+        {
+          "path": "/favicon.svg",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/capabilities",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/policy",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/performance/boards/tokens",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/launch/fee-schedule",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/markets",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/me",
+          "status": 401,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/performance/boards/tokens",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "route": "/participants/4nQTuFuY38vevToXAuMwT3nm4SFVfuRRWMEXRm68JeX9",
+      "cache": "cold",
+      "lcp": 1640,
+      "shifts": [],
+      "longTasks": [
+        {
+          "at": 1025.2000000476837,
+          "duration": 174
+        },
+        {
+          "at": 1406.2000000476837,
+          "duration": 90
+        },
+        {
+          "at": 1786.7999999523163,
+          "duration": 83
+        }
+      ],
+      "events": [
+        {
+          "at": 2447.899999976158,
+          "duration": 56,
+          "interactionId": 9382
+        },
+        {
+          "at": 2448,
+          "duration": 56,
+          "interactionId": 9382
+        },
+        {
+          "at": 2448,
+          "duration": 56,
+          "interactionId": 9382
+        },
+        {
+          "at": 2529.100000023842,
+          "duration": 40,
+          "interactionId": 9389
+        },
+        {
+          "at": 2529.2000000476837,
+          "duration": 40,
+          "interactionId": 9389
+        },
+        {
+          "at": 2529.2000000476837,
+          "duration": 40,
+          "interactionId": 9389
+        }
+      ],
+      "cls": 0,
+      "paint": [
+        {
+          "name": "first-paint",
+          "at": 424
+        },
+        {
+          "name": "first-contentful-paint",
+          "at": 424
+        }
+      ],
+      "resources": [
+        {
+          "path": "/site-assets/index-DGtkE_nb.js",
+          "bytes": 146543,
+          "encoded": 146243,
+          "decoded": 460124,
+          "duration": 879.5999999046326
+        },
+        {
+          "path": "/site-assets/index-OHpSDBAD.css",
+          "bytes": 7099,
+          "encoded": 6799,
+          "decoded": 24520,
+          "duration": 167
+        },
+        {
+          "path": "/site-assets/performance-Do1EPOKi.js",
+          "bytes": 7708,
+          "encoded": 7408,
+          "decoded": 21144,
+          "duration": 153.20000004768372
+        },
+        {
+          "path": "/favicon.svg",
+          "bytes": 520,
+          "encoded": 220,
+          "decoded": 220,
+          "duration": 107.59999990463257
+        },
+        {
+          "path": "/api/v1/capabilities",
+          "bytes": 5480,
+          "encoded": 5180,
+          "decoded": 5180,
+          "duration": 127.5
+        },
+        {
+          "path": "/api/v1/performance/profiles/4nQTuFuY38vevToXAuMwT3nm4SFVfuRRWMEXRm68JeX9",
+          "bytes": 5874,
+          "encoded": 5574,
+          "decoded": 5574,
+          "duration": 130.09999990463257
+        },
+        {
+          "path": "/api/v1/me",
+          "bytes": 446,
+          "encoded": 146,
+          "decoded": 146,
+          "duration": 95.10000002384186
+        }
+      ],
+      "domNodes": 486,
+      "overflow": false,
+      "requests": [
+        {
+          "path": "/participants/4nQTuFuY38vevToXAuMwT3nm4SFVfuRRWMEXRm68JeX9",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/site-assets/index-OHpSDBAD.css",
+          "status": 200,
+          "encoding": "br",
+          "cache": "public, max-age=31536000, immutable"
+        },
+        {
+          "path": "/site-assets/index-DGtkE_nb.js",
+          "status": 200,
+          "encoding": "br",
+          "cache": "public, max-age=31536000, immutable"
+        },
+        {
+          "path": "/favicon.svg",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/site-assets/performance-Do1EPOKi.js",
+          "status": 200,
+          "encoding": "br",
+          "cache": "public, max-age=31536000, immutable"
+        },
+        {
+          "path": "/api/v1/capabilities",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/performance/profiles/4nQTuFuY38vevToXAuMwT3nm4SFVfuRRWMEXRm68JeX9",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/me",
+          "status": 401,
+          "encoding": "identity",
+          "cache": "no-store"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "route": "/participants/4nQTuFuY38vevToXAuMwT3nm4SFVfuRRWMEXRm68JeX9",
+      "cache": "warm",
+      "lcp": 312,
+      "shifts": [],
+      "longTasks": [],
+      "events": [
+        {
+          "at": 1169.7000000476837,
+          "duration": 40,
+          "interactionId": 4326
+        },
+        {
+          "at": 1169.7000000476837,
+          "duration": 40,
+          "interactionId": 4326
+        },
+        {
+          "at": 1169.7000000476837,
+          "duration": 40,
+          "interactionId": 4326
+        },
+        {
+          "at": 1234.5,
+          "duration": 40,
+          "interactionId": 4333
+        },
+        {
+          "at": 1234.7000000476837,
+          "duration": 40,
+          "interactionId": 4333
+        },
+        {
+          "at": 1234.7000000476837,
+          "duration": 40,
+          "interactionId": 4333
+        }
+      ],
+      "cls": 0,
+      "paint": [
+        {
+          "name": "first-paint",
+          "at": 212
+        },
+        {
+          "name": "first-contentful-paint",
+          "at": 212
+        }
+      ],
+      "resources": [
+        {
+          "path": "/site-assets/index-DGtkE_nb.js",
+          "bytes": 0,
+          "encoded": 146243,
+          "decoded": 460124,
+          "duration": 0
+        },
+        {
+          "path": "/site-assets/index-OHpSDBAD.css",
+          "bytes": 0,
+          "encoded": 6799,
+          "decoded": 24520,
+          "duration": 0
+        },
+        {
+          "path": "/site-assets/performance-Do1EPOKi.js",
+          "bytes": 0,
+          "encoded": 7408,
+          "decoded": 21144,
+          "duration": 0
+        },
+        {
+          "path": "/favicon.svg",
+          "bytes": 520,
+          "encoded": 220,
+          "decoded": 220,
+          "duration": 105.70000004768372
+        },
+        {
+          "path": "/api/v1/capabilities",
+          "bytes": 5480,
+          "encoded": 5180,
+          "decoded": 5180,
+          "duration": 124.90000009536743
+        },
+        {
+          "path": "/api/v1/performance/profiles/4nQTuFuY38vevToXAuMwT3nm4SFVfuRRWMEXRm68JeX9",
+          "bytes": 5874,
+          "encoded": 5574,
+          "decoded": 5574,
+          "duration": 114.19999992847443
+        },
+        {
+          "path": "/api/v1/me",
+          "bytes": 446,
+          "encoded": 146,
+          "decoded": 146,
+          "duration": 94.80000007152557
+        }
+      ],
+      "domNodes": 486,
+      "overflow": false,
+      "requests": [
+        {
+          "path": "/api/v1/performance/profiles/4nQTuFuY38vevToXAuMwT3nm4SFVfuRRWMEXRm68JeX9",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/participants/4nQTuFuY38vevToXAuMwT3nm4SFVfuRRWMEXRm68JeX9",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/site-assets/index-DGtkE_nb.js",
+          "status": 200,
+          "encoding": "br",
+          "cache": "public, max-age=31536000, immutable"
+        },
+        {
+          "path": "/site-assets/index-OHpSDBAD.css",
+          "status": 200,
+          "encoding": "br",
+          "cache": "public, max-age=31536000, immutable"
+        },
+        {
+          "path": "/site-assets/performance-Do1EPOKi.js",
+          "status": 200,
+          "encoding": "br",
+          "cache": "public, max-age=31536000, immutable"
+        },
+        {
+          "path": "/favicon.svg",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/capabilities",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/performance/profiles/4nQTuFuY38vevToXAuMwT3nm4SFVfuRRWMEXRm68JeX9",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/me",
+          "status": 401,
+          "encoding": "identity",
+          "cache": "no-store"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "route": "/",
+      "cache": "cold",
+      "lcp": 2024,
+      "shifts": [],
+      "longTasks": [
+        {
+          "at": 1021.3999999761581,
+          "duration": 192
+        },
+        {
+          "at": 1219,
+          "duration": 62
+        },
+        {
+          "at": 1423.2000000476837,
+          "duration": 133
+        },
+        {
+          "at": 1948.2000000476837,
+          "duration": 62
+        },
+        {
+          "at": 2091,
+          "duration": 72
+        }
+      ],
+      "events": [],
+      "cls": 0,
+      "paint": [
+        {
+          "name": "first-paint",
+          "at": 408
+        },
+        {
+          "name": "first-contentful-paint",
+          "at": 408
+        }
+      ],
+      "resources": [
+        {
+          "path": "/site-assets/index-DGtkE_nb.js",
+          "bytes": 146543,
+          "encoded": 146243,
+          "decoded": 460124,
+          "duration": 875.2000000476837
+        },
+        {
+          "path": "/site-assets/index-OHpSDBAD.css",
+          "bytes": 7099,
+          "encoded": 6799,
+          "decoded": 24520,
+          "duration": 164.39999997615814
+        },
+        {
+          "path": "/site-assets/home-B_250Y_D.js",
+          "bytes": 1784,
+          "encoded": 1484,
+          "decoded": 3518,
+          "duration": 116.89999997615814
+        },
+        {
+          "path": "/site-assets/performance-Do1EPOKi.js",
+          "bytes": 7708,
+          "encoded": 7408,
+          "decoded": 21144,
+          "duration": 145.30000007152557
+        },
+        {
+          "path": "/favicon.svg",
+          "bytes": 520,
+          "encoded": 220,
+          "decoded": 220,
+          "duration": 93.59999990463257
+        },
+        {
+          "path": "/api/v1/capabilities",
+          "bytes": 5480,
+          "encoded": 5180,
+          "decoded": 5180,
+          "duration": 120.60000002384186
+        },
+        {
+          "path": "/api/v1/performance/boards/tokens",
+          "bytes": 1125,
+          "encoded": 825,
+          "decoded": 825,
+          "duration": 110.19999992847443
+        },
+        {
+          "path": "/api/v1/performance/boards/nfts",
+          "bytes": 2390,
+          "encoded": 2090,
+          "decoded": 2090,
+          "duration": 134.69999992847443
+        },
+        {
+          "path": "/api/v1/performance/boards/airdrops",
+          "bytes": 2423,
+          "encoded": 2123,
+          "decoded": 2123,
+          "duration": 161.09999990463257
+        },
+        {
+          "path": "/api/v1/performance/boards/stake",
+          "bytes": 2432,
+          "encoded": 2132,
+          "decoded": 2132,
+          "duration": 157
+        },
+        {
+          "path": "/api/v1/performance/boards/earn",
+          "bytes": 2408,
+          "encoded": 2108,
+          "decoded": 2108,
+          "duration": 166.10000002384186
+        },
+        {
+          "path": "/api/v1/performance/activity",
+          "bytes": 1741,
+          "encoded": 1441,
+          "decoded": 1441,
+          "duration": 158.89999997615814
+        },
+        {
+          "path": "/api/v1/me",
+          "bytes": 446,
+          "encoded": 146,
+          "decoded": 146,
+          "duration": 117.60000002384186
+        }
+      ],
+      "domNodes": 398,
+      "overflow": false,
+      "requests": [
+        {
+          "path": "/",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/site-assets/index-OHpSDBAD.css",
+          "status": 200,
+          "encoding": "br",
+          "cache": "public, max-age=31536000, immutable"
+        },
+        {
+          "path": "/site-assets/index-DGtkE_nb.js",
+          "status": 200,
+          "encoding": "br",
+          "cache": "public, max-age=31536000, immutable"
+        },
+        {
+          "path": "/favicon.svg",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/site-assets/home-B_250Y_D.js",
+          "status": 200,
+          "encoding": "br",
+          "cache": "public, max-age=31536000, immutable"
+        },
+        {
+          "path": "/site-assets/performance-Do1EPOKi.js",
+          "status": 200,
+          "encoding": "br",
+          "cache": "public, max-age=31536000, immutable"
+        },
+        {
+          "path": "/api/v1/capabilities",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/performance/boards/tokens",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/performance/boards/nfts",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/performance/boards/airdrops",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/performance/boards/stake",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/performance/boards/earn",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/performance/activity",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/me",
+          "status": 401,
+          "encoding": "identity",
+          "cache": "no-store"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "route": "/",
+      "cache": "warm",
+      "lcp": 380,
+      "shifts": [],
+      "longTasks": [
+        {
+          "at": 262.2999999523163,
+          "duration": 57
+        }
+      ],
+      "events": [],
+      "cls": 0,
+      "paint": [
+        {
+          "name": "first-paint",
+          "at": 180
+        },
+        {
+          "name": "first-contentful-paint",
+          "at": 180
+        }
+      ],
+      "resources": [
+        {
+          "path": "/site-assets/index-DGtkE_nb.js",
+          "bytes": 0,
+          "encoded": 146243,
+          "decoded": 460124,
+          "duration": 0
+        },
+        {
+          "path": "/site-assets/index-OHpSDBAD.css",
+          "bytes": 0,
+          "encoded": 6799,
+          "decoded": 24520,
+          "duration": 0
+        },
+        {
+          "path": "/site-assets/home-B_250Y_D.js",
+          "bytes": 0,
+          "encoded": 1484,
+          "decoded": 3518,
+          "duration": 0
+        },
+        {
+          "path": "/site-assets/performance-Do1EPOKi.js",
+          "bytes": 0,
+          "encoded": 7408,
+          "decoded": 21144,
+          "duration": 0
+        },
+        {
+          "path": "/favicon.svg",
+          "bytes": 520,
+          "encoded": 220,
+          "decoded": 220,
+          "duration": 102.5
+        },
+        {
+          "path": "/api/v1/capabilities",
+          "bytes": 5480,
+          "encoded": 5180,
+          "decoded": 5180,
+          "duration": 118.69999992847443
+        },
+        {
+          "path": "/api/v1/performance/boards/tokens",
+          "bytes": 1125,
+          "encoded": 825,
+          "decoded": 825,
+          "duration": 109.30000007152557
+        },
+        {
+          "path": "/api/v1/performance/boards/nfts",
+          "bytes": 2390,
+          "encoded": 2090,
+          "decoded": 2090,
+          "duration": 148.29999995231628
+        },
+        {
+          "path": "/api/v1/performance/boards/airdrops",
+          "bytes": 2423,
+          "encoded": 2123,
+          "decoded": 2123,
+          "duration": 161
+        },
+        {
+          "path": "/api/v1/performance/boards/stake",
+          "bytes": 2432,
+          "encoded": 2132,
+          "decoded": 2132,
+          "duration": 158.29999995231628
+        },
+        {
+          "path": "/api/v1/performance/boards/earn",
+          "bytes": 2408,
+          "encoded": 2108,
+          "decoded": 2108,
+          "duration": 155.5
+        },
+        {
+          "path": "/api/v1/performance/activity",
+          "bytes": 1741,
+          "encoded": 1441,
+          "decoded": 1441,
+          "duration": 167.39999997615814
+        },
+        {
+          "path": "/api/v1/me",
+          "bytes": 446,
+          "encoded": 146,
+          "decoded": 146,
+          "duration": 115.70000004768372
+        }
+      ],
+      "domNodes": 398,
+      "overflow": false,
+      "requests": [
+        {
+          "path": "/",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/site-assets/index-DGtkE_nb.js",
+          "status": 200,
+          "encoding": "br",
+          "cache": "public, max-age=31536000, immutable"
+        },
+        {
+          "path": "/site-assets/index-OHpSDBAD.css",
+          "status": 200,
+          "encoding": "br",
+          "cache": "public, max-age=31536000, immutable"
+        },
+        {
+          "path": "/site-assets/home-B_250Y_D.js",
+          "status": 200,
+          "encoding": "br",
+          "cache": "public, max-age=31536000, immutable"
+        },
+        {
+          "path": "/site-assets/performance-Do1EPOKi.js",
+          "status": 200,
+          "encoding": "br",
+          "cache": "public, max-age=31536000, immutable"
+        },
+        {
+          "path": "/favicon.svg",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/capabilities",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/performance/boards/tokens",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/performance/boards/nfts",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/performance/boards/airdrops",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/performance/boards/stake",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/performance/boards/earn",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/performance/activity",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/me",
+          "status": 401,
+          "encoding": "identity",
+          "cache": "no-store"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "route": "/tokens",
+      "cache": "cold",
+      "lcp": 1728,
+      "shifts": [],
+      "longTasks": [
+        {
+          "at": 1011.2000000476837,
+          "duration": 177
+        },
+        {
+          "at": 1195.4000000953674,
+          "duration": 59
+        },
+        {
+          "at": 1428.1000000238419,
+          "duration": 97
+        },
+        {
+          "at": 2093.2000000476837,
+          "duration": 64
+        }
+      ],
+      "events": [
+        {
+          "at": 2734.4000000953674,
+          "duration": 56,
+          "interactionId": 4411
+        },
+        {
+          "at": 2734.4000000953674,
+          "duration": 56,
+          "interactionId": 4411
+        },
+        {
+          "at": 2734.4000000953674,
+          "duration": 56,
+          "interactionId": 4411
+        },
+        {
+          "at": 3033.4000000953674,
+          "duration": 40,
+          "interactionId": 4418
+        },
+        {
+          "at": 3033.4000000953674,
+          "duration": 40,
+          "interactionId": 4418
+        },
+        {
+          "at": 3033.4000000953674,
+          "duration": 40,
+          "interactionId": 4418
+        }
+      ],
+      "cls": 0,
+      "paint": [
+        {
+          "name": "first-paint",
+          "at": 412
+        },
+        {
+          "name": "first-contentful-paint",
+          "at": 412
+        }
+      ],
+      "resources": [
+        {
+          "path": "/site-assets/index-DGtkE_nb.js",
+          "bytes": 146543,
+          "encoded": 146243,
+          "decoded": 460124,
+          "duration": 874.8999999761581
+        },
+        {
+          "path": "/site-assets/index-OHpSDBAD.css",
+          "bytes": 7099,
+          "encoded": 6799,
+          "decoded": 24520,
+          "duration": 164.29999995231628
+        },
+        {
+          "path": "/site-assets/markets-Cqz9bM-9.js",
+          "bytes": 2751,
+          "encoded": 2451,
+          "decoded": 5792,
+          "duration": 129.69999992847443
+        },
+        {
+          "path": "/site-assets/performance-Do1EPOKi.js",
+          "bytes": 7708,
+          "encoded": 7408,
+          "decoded": 21144,
+          "duration": 175.60000002384186
+        },
+        {
+          "path": "/site-assets/quote-panel-DC0OxXOW.js",
+          "bytes": 2475,
+          "encoded": 2175,
+          "decoded": 5143,
+          "duration": 141.10000002384186
+        },
+        {
+          "path": "/favicon.svg",
+          "bytes": 520,
+          "encoded": 220,
+          "decoded": 220,
+          "duration": 110.5
+        },
+        {
+          "path": "/api/v1/capabilities",
+          "bytes": 5480,
+          "encoded": 5180,
+          "decoded": 5180,
+          "duration": 139.10000002384186
+        },
+        {
+          "path": "/api/v1/policy",
+          "bytes": 1641,
+          "encoded": 1341,
+          "decoded": 1341,
+          "duration": 115.89999997615814
+        },
+        {
+          "path": "/api/v1/performance/boards/tokens",
+          "bytes": 20163,
+          "encoded": 19863,
+          "decoded": 19863,
+          "duration": 286.7000000476837
+        },
+        {
+          "path": "/api/v1/launch/fee-schedule",
+          "bytes": 3765,
+          "encoded": 3465,
+          "decoded": 3465,
+          "duration": 167.29999995231628
+        },
+        {
+          "path": "/api/v1/markets",
+          "bytes": 9900,
+          "encoded": 9600,
+          "decoded": 9600,
+          "duration": 227.89999997615814
+        },
+        {
+          "path": "/api/v1/me",
+          "bytes": 446,
+          "encoded": 146,
+          "decoded": 146,
+          "duration": 117.10000002384186
+        }
+      ],
+      "domNodes": 304,
+      "overflow": false,
+      "requests": [
+        {
+          "path": "/tokens",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/site-assets/index-OHpSDBAD.css",
+          "status": 200,
+          "encoding": "br",
+          "cache": "public, max-age=31536000, immutable"
+        },
+        {
+          "path": "/site-assets/index-DGtkE_nb.js",
+          "status": 200,
+          "encoding": "br",
+          "cache": "public, max-age=31536000, immutable"
+        },
+        {
+          "path": "/favicon.svg",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/site-assets/markets-Cqz9bM-9.js",
+          "status": 200,
+          "encoding": "br",
+          "cache": "public, max-age=31536000, immutable"
+        },
+        {
+          "path": "/site-assets/quote-panel-DC0OxXOW.js",
+          "status": 200,
+          "encoding": "br",
+          "cache": "public, max-age=31536000, immutable"
+        },
+        {
+          "path": "/site-assets/performance-Do1EPOKi.js",
+          "status": 200,
+          "encoding": "br",
+          "cache": "public, max-age=31536000, immutable"
+        },
+        {
+          "path": "/api/v1/capabilities",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/policy",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/performance/boards/tokens",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/markets",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/launch/fee-schedule",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/me",
+          "status": 401,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/performance/boards/tokens",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "route": "/tokens",
+      "cache": "warm",
+      "lcp": 336,
+      "shifts": [],
+      "longTasks": [],
+      "events": [
+        {
+          "at": 1361.9000000953674,
+          "duration": 40,
+          "interactionId": 8974
+        },
+        {
+          "at": 1362,
+          "duration": 40,
+          "interactionId": 8974
+        },
+        {
+          "at": 1362,
+          "duration": 40,
+          "interactionId": 8974
+        },
+        {
+          "at": 1643.6000000238419,
+          "duration": 40,
+          "interactionId": 8981
+        },
+        {
+          "at": 1643.7000000476837,
+          "duration": 40,
+          "interactionId": 8981
+        },
+        {
+          "at": 1643.7000000476837,
+          "duration": 40,
+          "interactionId": 8981
+        }
+      ],
+      "cls": 0,
+      "paint": [
+        {
+          "name": "first-paint",
+          "at": 188
+        },
+        {
+          "name": "first-contentful-paint",
+          "at": 188
+        }
+      ],
+      "resources": [
+        {
+          "path": "/site-assets/index-DGtkE_nb.js",
+          "bytes": 0,
+          "encoded": 146243,
+          "decoded": 460124,
+          "duration": 0
+        },
+        {
+          "path": "/site-assets/index-OHpSDBAD.css",
+          "bytes": 0,
+          "encoded": 6799,
+          "decoded": 24520,
+          "duration": 0
+        },
+        {
+          "path": "/site-assets/markets-Cqz9bM-9.js",
+          "bytes": 0,
+          "encoded": 2451,
+          "decoded": 5792,
+          "duration": 0
+        },
+        {
+          "path": "/site-assets/performance-Do1EPOKi.js",
+          "bytes": 0,
+          "encoded": 7408,
+          "decoded": 21144,
+          "duration": 0
+        },
+        {
+          "path": "/site-assets/quote-panel-DC0OxXOW.js",
+          "bytes": 0,
+          "encoded": 2175,
+          "decoded": 5143,
+          "duration": 0
+        },
+        {
+          "path": "/favicon.svg",
+          "bytes": 520,
+          "encoded": 220,
+          "decoded": 220,
+          "duration": 93.80000007152557
+        },
+        {
+          "path": "/api/v1/capabilities",
+          "bytes": 5480,
+          "encoded": 5180,
+          "decoded": 5180,
+          "duration": 136.29999995231628
+        },
+        {
+          "path": "/api/v1/policy",
+          "bytes": 1641,
+          "encoded": 1341,
+          "decoded": 1341,
+          "duration": 115.69999992847443
+        },
+        {
+          "path": "/api/v1/performance/boards/tokens",
+          "bytes": 20163,
+          "encoded": 19863,
+          "decoded": 19863,
+          "duration": 274.5
+        },
+        {
+          "path": "/api/v1/launch/fee-schedule",
+          "bytes": 3765,
+          "encoded": 3465,
+          "decoded": 3465,
+          "duration": 159.89999997615814
+        },
+        {
+          "path": "/api/v1/markets",
+          "bytes": 9900,
+          "encoded": 9600,
+          "decoded": 9600,
+          "duration": 221.09999990463257
+        },
+        {
+          "path": "/api/v1/me",
+          "bytes": 446,
+          "encoded": 146,
+          "decoded": 146,
+          "duration": 125.29999995231628
+        }
+      ],
+      "domNodes": 304,
+      "overflow": false,
+      "requests": [
+        {
+          "path": "/tokens",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/site-assets/index-DGtkE_nb.js",
+          "status": 200,
+          "encoding": "br",
+          "cache": "public, max-age=31536000, immutable"
+        },
+        {
+          "path": "/site-assets/index-OHpSDBAD.css",
+          "status": 200,
+          "encoding": "br",
+          "cache": "public, max-age=31536000, immutable"
+        },
+        {
+          "path": "/site-assets/markets-Cqz9bM-9.js",
+          "status": 200,
+          "encoding": "br",
+          "cache": "public, max-age=31536000, immutable"
+        },
+        {
+          "path": "/site-assets/performance-Do1EPOKi.js",
+          "status": 200,
+          "encoding": "br",
+          "cache": "public, max-age=31536000, immutable"
+        },
+        {
+          "path": "/site-assets/quote-panel-DC0OxXOW.js",
+          "status": 200,
+          "encoding": "br",
+          "cache": "public, max-age=31536000, immutable"
+        },
+        {
+          "path": "/favicon.svg",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/capabilities",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/policy",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/performance/boards/tokens",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/markets",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/launch/fee-schedule",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/me",
+          "status": 401,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/performance/boards/tokens",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "route": "/participants/4nQTuFuY38vevToXAuMwT3nm4SFVfuRRWMEXRm68JeX9",
+      "cache": "cold",
+      "lcp": 432,
+      "shifts": [],
+      "longTasks": [
+        {
+          "at": 1022.8000000715256,
+          "duration": 186
+        },
+        {
+          "at": 1419.7000000476837,
+          "duration": 86
+        },
+        {
+          "at": 1838,
+          "duration": 82
+        }
+      ],
+      "events": [
+        {
+          "at": 2508.4000000953674,
+          "duration": 56,
+          "interactionId": 4341
+        },
+        {
+          "at": 2508.4000000953674,
+          "duration": 56,
+          "interactionId": 4341
+        },
+        {
+          "at": 2508.4000000953674,
+          "duration": 56,
+          "interactionId": 4341
+        },
+        {
+          "at": 2590.3000000715256,
+          "duration": 40,
+          "interactionId": 4348
+        },
+        {
+          "at": 2590.4000000953674,
+          "duration": 40,
+          "interactionId": 4348
+        },
+        {
+          "at": 2590.4000000953674,
+          "duration": 40,
+          "interactionId": 4348
+        }
+      ],
+      "cls": 0,
+      "paint": [
+        {
+          "name": "first-paint",
+          "at": 432
+        },
+        {
+          "name": "first-contentful-paint",
+          "at": 432
+        }
+      ],
+      "resources": [
+        {
+          "path": "/site-assets/index-DGtkE_nb.js",
+          "bytes": 146543,
+          "encoded": 146243,
+          "decoded": 460124,
+          "duration": 879.5
+        },
+        {
+          "path": "/site-assets/index-OHpSDBAD.css",
+          "bytes": 7099,
+          "encoded": 6799,
+          "decoded": 24520,
+          "duration": 164.70000004768372
+        },
+        {
+          "path": "/site-assets/performance-Do1EPOKi.js",
+          "bytes": 7708,
+          "encoded": 7408,
+          "decoded": 21144,
+          "duration": 156.70000004768372
+        },
+        {
+          "path": "/favicon.svg",
+          "bytes": 520,
+          "encoded": 220,
+          "decoded": 220,
+          "duration": 111.10000002384186
+        },
+        {
+          "path": "/api/v1/capabilities",
+          "bytes": 5480,
+          "encoded": 5180,
+          "decoded": 5180,
+          "duration": 113.89999997615814
+        },
+        {
+          "path": "/api/v1/performance/profiles/4nQTuFuY38vevToXAuMwT3nm4SFVfuRRWMEXRm68JeX9",
+          "bytes": 5874,
+          "encoded": 5574,
+          "decoded": 5574,
+          "duration": 140.89999997615814
+        },
+        {
+          "path": "/api/v1/me",
+          "bytes": 446,
+          "encoded": 146,
+          "decoded": 146,
+          "duration": 103.39999997615814
+        }
+      ],
+      "domNodes": 486,
+      "overflow": false,
+      "requests": [
+        {
+          "path": "/participants/4nQTuFuY38vevToXAuMwT3nm4SFVfuRRWMEXRm68JeX9",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/site-assets/index-OHpSDBAD.css",
+          "status": 200,
+          "encoding": "br",
+          "cache": "public, max-age=31536000, immutable"
+        },
+        {
+          "path": "/site-assets/index-DGtkE_nb.js",
+          "status": 200,
+          "encoding": "br",
+          "cache": "public, max-age=31536000, immutable"
+        },
+        {
+          "path": "/favicon.svg",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/site-assets/performance-Do1EPOKi.js",
+          "status": 200,
+          "encoding": "br",
+          "cache": "public, max-age=31536000, immutable"
+        },
+        {
+          "path": "/api/v1/capabilities",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/performance/profiles/4nQTuFuY38vevToXAuMwT3nm4SFVfuRRWMEXRm68JeX9",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/me",
+          "status": 401,
+          "encoding": "identity",
+          "cache": "no-store"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "route": "/participants/4nQTuFuY38vevToXAuMwT3nm4SFVfuRRWMEXRm68JeX9",
+      "cache": "warm",
+      "lcp": 296,
+      "shifts": [],
+      "longTasks": [],
+      "events": [
+        {
+          "at": 1207.1000000238419,
+          "duration": 40,
+          "interactionId": 7847
+        },
+        {
+          "at": 1207.2999999523163,
+          "duration": 40,
+          "interactionId": 7847
+        },
+        {
+          "at": 1207.2999999523163,
+          "duration": 40,
+          "interactionId": 7847
+        },
+        {
+          "at": 1305.6000000238419,
+          "duration": 56,
+          "interactionId": 7854
+        },
+        {
+          "at": 1305.6000000238419,
+          "duration": 56,
+          "interactionId": 7854
+        },
+        {
+          "at": 1305.6000000238419,
+          "duration": 56,
+          "interactionId": 7854
+        }
+      ],
+      "cls": 0,
+      "paint": [
+        {
+          "name": "first-paint",
+          "at": 216
+        },
+        {
+          "name": "first-contentful-paint",
+          "at": 216
+        }
+      ],
+      "resources": [
+        {
+          "path": "/site-assets/index-DGtkE_nb.js",
+          "bytes": 0,
+          "encoded": 146243,
+          "decoded": 460124,
+          "duration": 0
+        },
+        {
+          "path": "/site-assets/index-OHpSDBAD.css",
+          "bytes": 0,
+          "encoded": 6799,
+          "decoded": 24520,
+          "duration": 0
+        },
+        {
+          "path": "/site-assets/performance-Do1EPOKi.js",
+          "bytes": 0,
+          "encoded": 7408,
+          "decoded": 21144,
+          "duration": 0
+        },
+        {
+          "path": "/favicon.svg",
+          "bytes": 520,
+          "encoded": 220,
+          "decoded": 220,
+          "duration": 100.20000004768372
+        },
+        {
+          "path": "/api/v1/capabilities",
+          "bytes": 5480,
+          "encoded": 5180,
+          "decoded": 5180,
+          "duration": 120.20000004768372
+        },
+        {
+          "path": "/api/v1/performance/profiles/4nQTuFuY38vevToXAuMwT3nm4SFVfuRRWMEXRm68JeX9",
+          "bytes": 5874,
+          "encoded": 5574,
+          "decoded": 5574,
+          "duration": 141.79999995231628
+        },
+        {
+          "path": "/api/v1/me",
+          "bytes": 446,
+          "encoded": 146,
+          "decoded": 146,
+          "duration": 105.89999997615814
+        }
+      ],
+      "domNodes": 486,
+      "overflow": false,
+      "requests": [
+        {
+          "path": "/api/v1/performance/profiles/4nQTuFuY38vevToXAuMwT3nm4SFVfuRRWMEXRm68JeX9",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/participants/4nQTuFuY38vevToXAuMwT3nm4SFVfuRRWMEXRm68JeX9",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/site-assets/index-DGtkE_nb.js",
+          "status": 200,
+          "encoding": "br",
+          "cache": "public, max-age=31536000, immutable"
+        },
+        {
+          "path": "/site-assets/index-OHpSDBAD.css",
+          "status": 200,
+          "encoding": "br",
+          "cache": "public, max-age=31536000, immutable"
+        },
+        {
+          "path": "/site-assets/performance-Do1EPOKi.js",
+          "status": 200,
+          "encoding": "br",
+          "cache": "public, max-age=31536000, immutable"
+        },
+        {
+          "path": "/favicon.svg",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/capabilities",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/performance/profiles/4nQTuFuY38vevToXAuMwT3nm4SFVfuRRWMEXRm68JeX9",
+          "status": 200,
+          "encoding": "identity",
+          "cache": "no-store"
+        },
+        {
+          "path": "/api/v1/me",
+          "status": 401,
+          "encoding": "identity",
+          "cache": "no-store"
+        }
+      ]
+    }
+  ]
+}

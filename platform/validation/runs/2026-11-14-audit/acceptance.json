@@ -1,0 +1,46 @@
+{
+  "candidate": "fa6d8922479d25d77f1babb9957d1486341ff481",
+  "at": "2026-11-13T20:10:22.909957+00:00",
+  "scope": "local synthetic audit only",
+  "checks": {
+    "nodeAuth": 8,
+    "performanceService": 15,
+    "frontend": 37,
+    "actualWorkerdAuthIntegration": 1,
+    "frontendAndWorkerTypes": true,
+    "frontendBuild": true,
+    "generatedContracts": true,
+    "earnRecovery": true,
+    "blueprintSelfCheck": true,
+    "focusedBrowsers": {
+      "engines": [
+        "Chromium156",
+        "WebKit27.2"
+      ],
+      "widths": [
+        320,
+        390,
+        1280
+      ],
+      "identityAndPagingBoundaries": true
+    },
+    "tunnelBrowserWidths": [
+      390,
+      1280
+    ]
+  },
+  "additionalBrowserRegression": "Broad Chromium operational/wallet/privacy/capability/quote and populated performance suites passed before the final profile-boundary/public-header refinement. Final focused tests cover those changed paths.",
+  "ci": {
+    "runId": 43498717270,
+    "url": "https://github.com/chrisjacob/warplets-api/actions/runs/43498717270",
+    "status": "in_progress"
+  },
+  "preservedQaSnapshotSha256": "263c74e3297b9db0e8a29beb8fe83f1cbe849ca358136300850129d8c1911ea7",
+  "localProcessesAtCheckpoint": {
+    "qa": 21532,
+    "originalDemoAndOperator": 12504,
+    "tunnel": 25704
+  },
+  "financialExecution": false,
+  "deployment": false
+}

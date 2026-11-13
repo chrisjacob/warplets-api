@@ -744,7 +744,7 @@
     "status": "local-verified-ci-pending",
     "baselineCommit": "47e4651",
     "preview": "https://app-local.10x.meme",
-    "qaProcessAtCheckpoint": 12568,
+    "qaProcessAtCheckpoint": 21532,
     "completed": [
       "Public asset compression, bounded cache and conditional requests; 3 focused tests and 35 frontend tests passed.",
       "Throttled browser comparison: home cold resource bytes527929 to181513; repeat527929 to18965.",
@@ -755,7 +755,10 @@
     "nextAction": "Push final audit candidate, follow test-only CI through completion, record final measurements and results; stop and save if account usage reaches the user50%cap.",
     "releaseWorkAuthorized": false,
     "originalDemoProcessAtCheckpoint": 12504,
-    "usagePercentAtCheckpoint": 41,
-    "report": "platform/validation/APP_AUDIT_2026-11-14.md"
+    "usagePercentAtCheckpoint": 42,
+    "report": "platform/validation/APP_AUDIT_2026-11-14.md",
+    "implementationCommit": "fa6d8922479d25d77f1babb9957d1486341ff481",
+    "ciRunId": 43498717270,
+    "ciConclusion": null
   }
 }
