@@ -1,3 +1,4 @@
+import {performancePaths,qaReviewPaths} from '../performance/openapi.mjs';
 import {refreshOwnerPaths} from '../nfts/refresh-owner-openapi.mjs';
 import { randomUUID } from 'node:crypto';
 import { policy } from '../contracts/policy.mjs';
@@ -23,10 +24,10 @@ const resources = {
   '/collections': { id: 'listCollections', summary: 'Read the planned collection terms.' },
   '/health': { id: 'getHealth', summary: 'Check the local API and policy version.' }
 };
-export function openapi() {
+export function openapi({performance=false,qaReview=false}={}) {
   const paths = Object.fromEntries(Object.entries(resources).map(([path, {id,summary}]) =>
     [path, {get: {operationId:id, summary, responses:{200:{description:summary, content:{'application/json':{schema:{type:'object'}}}}}}}]));
-  const routes={...paths,...authPaths,...marketPaths,...launchPlanPaths,...ballotPaths,...earnPaths,...vaultPaths,...stakePaths,...txPaths,...collectPaths,...refreshOwnerPaths,...operationsPaths,...notificationPaths,...quotePaths};
+  const routes={...paths,...authPaths,...marketPaths,...launchPlanPaths,...ballotPaths,...earnPaths,...vaultPaths,...stakePaths,...txPaths,...collectPaths,...refreshOwnerPaths,...operationsPaths,...notificationPaths,...quotePaths,...(performance?performancePaths:{}),...(qaReview?qaReviewPaths:{})};
   return {openapi:'3.1.0', info:{title:'10X.MEME validation API',version:policy.version},servers:[{url:apiBase}],
     paths:describeResponses(routes),components:{schemas:shapes}};
 }
@@ -39,12 +40,12 @@ export function json(data, status = 200, headers = {}) {
 export function failure(status, code, message, headers = {}) {
   return json({error:{code,message}},status,headers);
 }
-export function readApi(request) {
+export function readApi(request,options={}) {
   const {pathname} = new URL(request.url);
   if (request.method !== 'GET') return failure(405,'method_not_allowed','This resource supports GET.',{allow:'GET'});
   switch (pathname) {
-    case apiBase+'/capabilities': return json(makeCapabilities('node-reference'));
-    case apiBase+'/openapi.json': return json(openapi());
+    case apiBase+'/capabilities': return json(makeCapabilities('node-reference',options));
+    case apiBase+'/openapi.json': return json(openapi(options));
     case apiBase+'/health': return json({status:'ok',mode:policy.mode,policyVersion:policy.version});
     case apiBase+'/policy': return json(policy);
     case apiBase+'/collections': return json({items:[

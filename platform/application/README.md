@@ -25,3 +25,9 @@ B08 shares the historical semantic commitment codec across Node and Workers. The
 Recovery has separate public and private factories and an independently pinned inventory. Public recovery stays mutation-disabled; private recovery restores the complete allowlisted ledger, revokes authentication and fences prior leases before enabling local writes. Neither mode enables financial execution. See `platform/recovery/README.md` for bounded capture/restore commands and limitations.
 
 B20-core's `node platform/scripts/rehearse-hosted-slice.mjs --verify` serves the built React app and actual local workerd through one validated loopback origin. It uses generated Ed25519 message signatures, guarded API admission, explicit synthetic human review, complete recorded cutoff evidence, fenced settlement and immutable publication. It compares a captured source in Node/D1 and restores distinct public/private D1/R2 instances, including pending work and revoked sessions/leases. See `platform/scripts/HOSTED_REHEARSAL.md` for installed-browser configuration and the disposable preview command. All inputs remain synthetic and financial execution remains disabled.
+
+## Optional synthetic performance extension
+
+`createApp(db, {performanceService, qaReviewPreview})` can inject the bounded immutable performance projection and the fixed safe sample-feedback DTO. Never pass private captured review artifacts as the preview. These sources add only read-only local capabilities and optional OpenAPI paths; an ordinary app and the Worker profile do not advertise them. Browser queries wait for discovery. Financial execution, canonical allocation ledgers and immutable settlement remain unchanged.
+
+See `platform/performance/VALUATION_CONTRACT.md` and `platform/qa/README.md` for the separate synthetic snapshot, canonical selected-owner alignment and isolated three-month fixture. It is not a production price oracle or durable AI work queue.

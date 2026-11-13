@@ -3,7 +3,7 @@ const categories=['nfts','stake','earn'],allCategories=['tokens','airdrops',...c
 const require=(value,message)=>{if(!value)throw new TypeError(message);};
 const integer=(value,name)=>{require(typeof value==='string'&&/^(0|[1-9][0-9]{0,77})$/.test(value),'Invalid '+name);return BigInt(value);};
 const positive=(value,name)=>{const n=integer(value,name);require(n>0n,'Nonpositive '+name);return n;};
-const time=(value)=>{require(typeof value==='string'&&/^\d{4}-\d\d-\d\dT/.test(value)&&Number.isFinite(Date.parse(value)),'Invalid timestamp');return Date.parse(value);};
+const time=(value)=>{require(typeof value==='string'&&/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d{3})?Z$/.test(value)&&Number.isFinite(Date.parse(value)),'Invalid timestamp');const at=Date.parse(value);require(new Date(at).toISOString()===(value.includes('.')?value:value.replace('Z','.000Z')),'Invalid calendar timestamp');return at;};
 const identity=value=>{require(typeof value==='string'&&/^[A-Za-z0-9._:-]{1,128}$/.test(value),'Invalid identity');return value;};
 const label=value=>{require(typeof value==='string'&&value.length>0&&value.length<=160,'Invalid label');return value;};
 const order=(a,b)=>a<b?-1:a>b?1:0;

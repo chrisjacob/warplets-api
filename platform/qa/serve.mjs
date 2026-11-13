@@ -18,12 +18,11 @@ const snapshot=JSON.parse(bytes);
 const origin=a.origin??'http://127.0.0.1:'+port,parsed=new URL(origin);
 if(parsed.origin!==origin||(!['https:','http:'].includes(parsed.protocol))||(parsed.protocol==='http:'&&!['127.0.0.1','localhost'].includes(parsed.hostname)))throw Error('Use an exact HTTPS origin or loopback HTTP origin.');
 if(!existsSync(join(directory,'core.sqlite')))throw Error('Missing QA core database; refusing to create an empty one.');
-const db=openDatabase(join(directory,'core.sqlite')),app=createApp(db,{performanceService:createPerformanceService(snapshot)});
 const reviewPreview=await createSyntheticReviewPreview();
+const db=openDatabase(join(directory,'core.sqlite')),app=createApp(db,{performanceService:createPerformanceService(snapshot),qaReviewPreview:reviewPreview});
 const server=createLocalServer(async(request,peer)=>{
  if(!['GET','HEAD'].includes(request.method)&&request.headers.get('origin')!==origin)return new Response('Origin rejected',{status:403});
  const url=new URL(request.url),headers=new Headers(request.headers);
- if(url.pathname==='/api/v1/qa/content-review')return request.method==='GET'?Response.json({data:reviewPreview},{headers:{'cache-control':'no-store','x-tenx-preview':'synthetic-90-day-qa'}}):new Response('Use GET.',{status:405,headers:{allow:'GET'}});
  for(const key of [...headers.keys()])if(key==='forwarded'||key.startsWith('x-forwarded-')||key.startsWith('cf-'))headers.delete(key);
  const translated=new Request(origin+url.pathname+url.search,{method:request.method,headers,body:['GET','HEAD'].includes(request.method)?undefined:await request.arrayBuffer()});
  const response=await app(translated,peer),out=new Headers(response.headers);out.set('cache-control','no-store');out.set('x-tenx-preview','synthetic-90-day-qa');

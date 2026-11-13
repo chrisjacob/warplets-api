@@ -17,3 +17,19 @@ test('USD ATH uses paired observations rather than multiplying unrelated compone
 test('historical quote conflicts are rejected in every input order, while equivalent rational quotes agree',()=>{const original=fixture().tokens[0].observations;const conflicting={...original[0],id:'historical-conflict',attOgNumerator:'999'};for(const order of [[original[1],original[0],conflicting],[original[0],original[1],conflicting],[conflicting,original[0],original[1]]]){const f=fixture();f.tokens[0].observations=order;assert.throws(()=>createPerformanceService(f),/Conflicting prices/);}const f=fixture();f.tokens[0].observations=[original[1],original[0],{...original[0],id:'equivalent',attOgNumerator:'80',attOgDenominator:'2'}];assert.equal(createPerformanceService(f).board('tokens').items[0].multiple,'40.0000');});
 
 test('participant history is bounded, duplicate-free and milestones use actual awarded days',()=>{const f=fixture();f.rewards.push({...f.rewards[0]});for(let i=0;i<8;i++)f.rewards.push({...f.rewards[0],id:'history-'+i,awardedAt:'2026-10-'+String(i+3).padStart(2,'0')+'T00:00:00.000Z'});const p=createPerformanceService(f).profile('alice');assert.equal(p.allocationCount,10);assert.equal(p.activeDays,10);assert.equal(p.firstAwardAt,'2026-10-01T00:00:00.000Z');assert.equal(p.history.length,5);assert.equal(p.history[0].id,'history-7');assert.equal(p.tokenCount,1);assert.equal(createPerformanceService(f).profile('bob').firstAwardAt,null);});
+
+test('optional local sources advertise matching contracts and preserve runtime discovery plus both JSON representations',async t=>{
+ const [{openDatabase},{createApp},{makeCapabilities},{createSyntheticReviewPreview}]=await Promise.all([import('../storage/database.mjs'),import('../server/application.mjs'),import('../contracts/capabilities.mjs'),import('../ai-review/fixture.mjs')]);
+ const db=openDatabase();t.after(()=>db.close());const app=createApp(db,{performanceService:createPerformanceService(fixture()),qaReviewPreview:await createSyntheticReviewPreview()});
+ const get=async(path,accept='application/json')=>{const r=await app(new Request('http://localhost/api/v1/'+path,{headers:{accept}}));assert.equal(r.status,200);return r.json();};
+ const caps=await get('capabilities'),spec=await get('openapi.json');
+ for(const feature of caps.features.filter(f=>f.id.startsWith('synthetic-')))for(const r of feature.routes)assert(spec.paths[r.path.slice(7)]?.get);
+ assert.equal(caps.features.filter(f=>f.id.startsWith('synthetic-')).length,2);
+ assert.equal((await get('performance/boards/earn')).items.length,1);assert.equal((await get('performance/boards/earn','application/vnd.10x.v1+json')).items.length,1);
+ assert.equal((await get('performance/profiles/alice','application/vnd.10x.v1+json')).history.length,2);
+ assert.equal((await get('qa/content-review')).simulation,true);assert.equal((await get('qa/content-review','application/vnd.10x.v1+json')).data.financialExecution,false);
+ const ordinary=createApp(db),plain=await (await ordinary(new Request('http://localhost/api/v1/capabilities'))).json();assert.equal(plain.features.filter(f=>f.id.startsWith('synthetic-')).length,0);
+ assert.equal(makeCapabilities('workerd-local',{performance:true,qaReview:true}).features.filter(f=>f.id.startsWith('synthetic-')).length,0);
+});
+
+test('snapshot timestamps require real canonical UTC dates, never machine-local or rolled-over calendar dates',()=>{for(const at of ['2026-02-31T00:00:00Z','2026-11-13T00:00:00','2026-11-13T10:00:00+10:00']){const f=fixture();f.asOf=at;assert.throws(()=>createPerformanceService(f),/timestamp/);}const f=fixture();f.asOf='2026-11-13T00:00:00Z';assert.equal(createPerformanceService(f).metrics().rewardCount,2);});

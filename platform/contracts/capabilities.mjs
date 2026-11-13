@@ -27,9 +27,11 @@ const nodeOnly=[
  ['local-operation-status',[['GET','/operations/status']]],
 ];
 
-export function makeCapabilities(runtime) {
+export function makeCapabilities(runtime,{performance=false,qaReview=false}={}) {
  if(!['node-reference','workerd-local'].includes(runtime))throw new TypeError('Unknown local runtime.');
  const entries=[...shared,...(runtime==='node-reference'?nodeOnly:[['verified-manifest-read',[['GET','/manifests/{digest}']]]])];
+ if(runtime==='node-reference'&&performance)entries.push(['synthetic-performance',[['GET','/performance/boards/{category}'],['GET','/performance/profiles/{wallet}'],['GET','/performance/activity']]]);
+ if(runtime==='node-reference'&&qaReview)entries.push(['synthetic-review-preview',[['GET','/qa/content-review']]]);
  return {version:1,mode:'local-validation',runtime,apiBase:'/api/v1',openapi:'/api/v1/openapi.json',
    featureScope:'listed-routes-only',features:entries.map(([id,routes])=>feature(id,routes)),
    production:{financialExecution:false,serverSigning:false,broadcast:false,deposits:false,claimExecution:false},

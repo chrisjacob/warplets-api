@@ -19,7 +19,7 @@ import { handleNotifications } from '../notifications/http.mjs';
 import { handleInteractiveQuotes } from '../quotes/interactive-http.mjs';
 import { createNodeQuoteService,createNodeFinancialReadService,createNodeGovernanceService } from '../application/node-context.mjs';
 import { consumeQuota,currentSession } from './auth.mjs';
-export function createApp(db,{clock=Date.now,artifactStore,operationalEventSink,performanceService}={}) {
+export function createApp(db,{clock=Date.now,artifactStore,operationalEventSink,performanceService,qaReviewPreview}={}) {
   const refreshOwner=createNodeRefreshOwner(db,{clock,artifacts:artifactStore});
   const quotes=createNodeQuoteService(db,{clock:{nowMs:clock},store:artifactStore});
   const financial=createNodeFinancialReadService(db,{clock:{nowMs:clock}});
@@ -35,7 +35,8 @@ export function createApp(db,{clock=Date.now,artifactStore,operationalEventSink,
       nextCleanup=now+60000;
     }
     const performance=await handlePerformance(request,{service:performanceService,authenticate:async req=>{const session=currentSession(db,req,now);return session?{wallet:session.wallet}:null;}});
-    if(performance)return performance;
+    if(performance)return represent(request,performance,now);
+    if(qaReviewPreview&&new URL(request.url).pathname==='/api/v1/qa/content-review')return represent(request,request.method==='GET'?Response.json(qaReviewPreview,{headers:{'cache-control':'no-store'}}):new Response(null,{status:405,headers:{allow:'GET'}}),now);
     const response=await handleAuth(db,request,peer,now)??handleOperations(db,request,now)??await handleInteractiveQuotes(request,{service:quotes,peer,consumeQuota:async(bucket,limit)=>consumeQuota(db,bucket,now,limit)})??handleMarkets(db,request,now)??
       await handleFinancialReads(request,{service:financial,authenticate:async(req)=>{const session=currentSession(db,req,clock());return session?{kind:'wallet',wallet:session.wallet}:null;}})??await handleTransactions(db,request,now)??await handleNotifications(db,request,peer,now)??
       await handleInteractiveGovernance(request,{service:governance,peer,authenticate:async(req)=>{const session=currentSession(db,req,clock());return session?{kind:'wallet',wallet:session.wallet}:null;},consumeQuota:async(bucket,limit)=>consumeQuota(db,bucket,now,limit)})??
@@ -45,7 +46,7 @@ export function createApp(db,{clock=Date.now,artifactStore,operationalEventSink,
       await serveSite(request,undefined,path=>{
         if(typeof path!=='string'||!path.startsWith('/api/v1/'))throw Error('Invalid public SSR resource.');
         return dispatch(new Request(new URL(path,request.url)),peer);
-      })??await handleWeb(request)??readApi(request);
+      })??await handleWeb(request)??readApi(request,{performance:!!performanceService,qaReview:!!qaReviewPreview});
     return represent(request,response,now);
   }
   return (request,peer='loopback')=>observe(request,()=>dispatch(request,peer));
