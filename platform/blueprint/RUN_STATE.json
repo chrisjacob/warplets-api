@@ -5,7 +5,7 @@
   "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
   "currentTask": null,
-  "lastUpdatedAt": "2026-11-13T23:52:16.232517+00:00",
+  "lastUpdatedAt": "2026-11-13T23:55:16.258223+00:00",
   "migrationAllocation": {
     "next": 72,
     "reserved": [
@@ -779,7 +779,7 @@
     "budget": "stop at 10% remaining account usage",
     "paidCallsEnabled": false,
     "deployment": false,
-    "nextStep": "Follow corrected full CI43530055984/job132245223270 on bfdc9d3 to completion; finish remaining local broad recovery profiles; fix any failures without weakening checks. Then record exact counts and final handoff. No paid calls/deployment authorized.",
+    "nextStep": "Wait for exact-candidate full CI43530055984/job132245223270 on bfdc9d3. All local recovery regressions have passed. Resolve any CI failure without weakening acceptance, then record final counts/guide/handoff and push documentation. No paid calls/deployment authorized.",
     "tests": {
       "ai": 51,
       "serviceFinal": 14,
@@ -824,7 +824,15 @@
         "modernPendingRestore": 1,
         "modernPendingPeakCheckpointBytes": 126985,
         "limitBytes": 131072,
-        "broadProfiles": "remaining local profiles still running; no failures observed",
+        "broadProfiles": {
+          "tests": 14,
+          "passed": 14,
+          "failed": 0,
+          "completeAdoptionProfiles": 7,
+          "largestCheckpointBytes": 126988,
+          "maxOperations": 33,
+          "maxBatchBytes": 107232
+        },
         "serializedBoundReconcilers": 18,
         "actualD1FullLegacyPeakCheckpointBytes": 125568
       },
