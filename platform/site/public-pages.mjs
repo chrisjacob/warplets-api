@@ -5,7 +5,7 @@ const numeric=n=>Number.isFinite(n)?new Intl.NumberFormat('en-US').format(n):'Un
 const knownDates=s=>/^\d{4}-\d{2}-\d{2}$/.test(s) && Date.parse(s)>=0 && new Date(s).toISOString().startsWith(s);
 
 const routes={
-  '/':{title:'Tokens',description:'Curated Solana attention tokens and the original tokens they pair with.',canonical:'/tokens',type:'markets'},
+  '/':{title:'10X.meme',description:'Discover tokens, collect NFTs, stake and create attention. Explore participant rewards.',canonical:'/'},
   '/markets':{title:'Markets',description:'Curated Solana attention tokens and the original tokens they pair with.',type:'markets'},
   '/vault':{title:'Vault',description:'NFT allocations, vesting and historical ATT claims.',private:true},
   '/stake':{title:'Stake',description:'Continuous same-token campaign rewards and recorded staking positions.',private:true},
@@ -13,9 +13,10 @@ const routes={
   '/collect':{title:'Collect',description:'Explore permanent Genesis and monthly Season collections.',private:true},
   '/collections/genesis':{title:'Genesis',description:'Collection terms, release stages and permanent Genesis membership.',type:'genesis'},
 };
-for(const [path,legacy,title] of [['/tokens','/markets','Tokens'],['/airdrops','/vault','Airdrops'],['/nfts','/collect','NFTs'],['/attention','/earn','Attention']])routes[path]={...routes[legacy],title,canonical:path};
-routes['/leaderboards']={title:'Leaderboards',description:'Content rankings and finalized daily reward results.',private:true};
+for(const [path,legacy,title] of [['/tokens','/markets','Tokens'],['/airdrops','/vault','Airdrops'],['/nfts','/collect','NFTs'],['/attention','/earn','Earn']])routes[path]={...routes[legacy],title,canonical:path};
+routes['/leaderboards']={title:'Daily content scores',description:'Content rankings and finalized daily reward results.',private:true};
 const dynamic=[
+  ['participant',/^\/participants\/([1-9A-HJ-NP-Za-km-z]{32,44})$/,'Participant rewards'],
   ['market',new RegExp('^/markets/'+idPattern+'$'),'ATT market'],
   ['season',new RegExp('^/seasons/'+idPattern+'$'),'Season collection'],
   ['nft',new RegExp('^/nfts/'+idPattern+'$'),'NFT details'],
@@ -40,7 +41,7 @@ export function routeFor(url){
     if(match)return {type,title,id:match[1],canonical:path,description:title+' · '+match[1],
       invalid:type==='board'&&!knownDates(match[1])};
   }
-  if(/^\/(markets|nfts|seasons|earn|collections)\//.test(path))return {invalid:true,canonical:path,title:'Page not found',description:'Unknown public resource.'};
+  if(/^\/(markets|nfts|seasons|earn|collections|participants)\//.test(path))return {invalid:true,canonical:path,title:'Page not found',description:'Unknown public resource.'};
   return null;
 }
 function summaryList(items){
@@ -105,7 +106,7 @@ export async function initialPage(route,url,readPublic){
     +'<meta property="og:type" content="website"><meta property="og:title" content="'+html(title+' · 10X.MEME')+'">'
     +'<meta property="og:description" content="'+html(description)+'"><meta property="og:url" content="'+html(canonical)+'">'
     +'<meta property="og:image" content="'+html(url.origin+'/social-card.png')+'"><meta name="twitter:card" content="summary_large_image">';
-  const fallback='<div class="frame main"><nav aria-label="Public sections">'+links([['Tokens','/tokens'],['NFTs','/nfts'],['Airdrops','/airdrops'],['Attention','/attention'],['Leaderboards','/leaderboards']])
+  const fallback='<div class="frame main"><nav aria-label="Public sections">'+links([['Home','/'],['Tokens','/tokens'],['NFTs','/nfts'],['Airdrops','/airdrops'],['Stake','/stake'],['Earn','/earn']])
     +'</nav><main class="page-hero"><h1>'+html(title)+'</h1><p>'+html(description)+'</p>'+content+'</main></div>';
   return {title:title+' · 10X.MEME',metadata,content:fallback,status};
 }

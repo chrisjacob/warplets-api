@@ -1,3 +1,4 @@
+import {CategoryCompetition} from './performance';
 import {Diagnostics,NftArt,Journey,useExperience} from './experience';
 import {AssetEvidence,InventoryEvidence,StageEvidence,eligibleMaterials} from './collection-details';
 import {ProgressionAssetContext} from './progression-review';
@@ -215,6 +216,10 @@ function MaterialPicker({target,wallet,review}:{target:Asset;wallet:string;revie
 function MemberAssets({wallet,review}:{wallet:string;review:(review:Review)=>void}){
   const {technical}=useExperience();
   const search=rootRoute.useSearch();
+  const [visibleAssets,setVisibleAssets]=useState(6);
+  const [visibleOperations,setVisibleOperations]=useState(6);
+  useEffect(()=>setVisibleAssets(6),[wallet,search.owned]);
+  useEffect(()=>setVisibleOperations(6),[wallet,search.operations]);
   const assets=useRuntimeQuery('/api/v1/collect/me/assets',{queryKey:['private',wallet,'solana','collection-assets',search.owned],queryFn:({signal})=>sdk.assets(search.owned,signal)});
   const operations=useRuntimeQuery('/api/v1/collect/me/operations',{queryKey:['private',wallet,'solana','collection-operations',search.operations],queryFn:({signal})=>sdk.receipts(search.operations,signal)});
   const receipt=useRuntimeQuery('/api/v1/collect/me/operations/{id}',{queryKey:['private',wallet,'solana','collection-receipt',search.receipt],enabled:!!search.receipt,
@@ -222,7 +227,7 @@ function MemberAssets({wallet,review}:{wallet:string;review:(review:Review)=>voi
   return <>
     <Panel title="Your collection"><Loaded query={assets}>{page=><>
       {!page.items.length && <Empty title="No local collection assets"/>}
-      <div className="nft-grid">{page.items.map(asset=><article className="record nft-card" key={asset.id}><NftArt name={asset.id} level={asset.level} concealed={asset.revealStatus!=='revealed'}/><h3 className="wrap-anywhere"><Link to="/nfts/$assetId" params={{assetId:asset.id}}>{asset.id}</Link></h3><p>{asset.inventoryId} · {asset.revealStatus}</p>
+      <div className="nft-grid">{page.items.slice(0,technical?page.items.length:visibleAssets).map(asset=><article className="record nft-card" key={asset.id}><NftArt name={asset.id} level={asset.level} concealed={asset.revealStatus!=='revealed'}/><h3 className="wrap-anywhere"><Link to="/nfts/$assetId" params={{assetId:asset.id}}>{asset.id}</Link></h3><p>{asset.inventoryId} · {asset.revealStatus}</p>
         {asset.revealStatus==='revealed' && <><Facts items={[['Level',asset.level],['Model',asset.traits?.model],['Backdrop',asset.traits?.backdrop],
           ['Symbol',asset.traits?.symbol],['Benefit expiry',asset.expiresAt?utc(asset.expiresAt):'Permanent']].filter(([label])=>technical||!['Level','Model','Backdrop','Symbol'].includes(String(label))) as [string,React.ReactNode][]}/>
           {asset.operationPending?<p>{technical?'Awaiting committed draw evidence.':'Your request is processing. Check its status below.'}</p>:asset.expiresAt&&<>
@@ -230,19 +235,23 @@ function MemberAssets({wallet,review}:{wallet:string;review:(review:Review)=>voi
             {asset.level!<10&&<MaterialPicker target={asset} wallet={wallet} review={review}/>}</Capability></Capability></>}
           <AssetEvidence asset={asset}/><Link to="/airdrops" search={{asset:asset.id}}>{technical?'Vault allocations ↗':'View airdrops ↗'}</Link></>}
       </article>)}</div>
+      {!technical&&visibleAssets<page.items.length&&<button onClick={()=>setVisibleAssets(n=>n+6)}>Show more NFTs on this page ({Math.min(visibleAssets,page.items.length)} of {page.items.length})</button>}
       {page.nextCursor!==null&&<Link to="/nfts" search={{owned:String(page.nextCursor)}}>Next assets →</Link>}
     </>}</Loaded></Panel>
     <Panel title="Operation history">{search.receipt && <Loaded query={receipt}>{r=><article className="receipt"><h3>Operation receipt</h3>
       <Facts items={[['ID',r.id],['State',r.status],['Requested',r.createdAt?utc(r.createdAt):'Time withheld'],['Action',r.kind],['Collection',r.inventoryId],
         ['Recorded price',sol(r.priceLamports??r.feeLamports)],['Result NFT',r.assetId??'Pending']]}/><CollectionOperationHold operation={r}/><button type="button" onClick={()=>void receipt.refetch()} disabled={receipt.isFetching}>Refresh operation receipt</button><Diagnostics><CollectionOperationFairness key={wallet+':'+r.id} operation={r} wallet={wallet}/></Diagnostics></article>}</Loaded>}
-      <Loaded query={operations}>{page=><>{page.items.length?<ul className="rows">{page.items.map(op=><li key={op.id}><Link to="/nfts" search={{receipt:op.id}}>
+      <Loaded query={operations}>{page=><>{page.items.length?<ul className="rows operation-history">{page.items.slice(0,technical?page.items.length:visibleOperations).map(op=><li key={op.id}><Link to="/nfts" search={{receipt:op.id}}>
         <strong>{op.kind} · {op.inventoryId}</strong><span>{op.reconciliation?'Held after observed transfer':op.status} ↗</span></Link></li>)}</ul>:<p>No operations for this wallet.</p>}
+        {!technical&&visibleOperations<page.items.length&&<button onClick={()=>setVisibleOperations(n=>n+6)}>Show more operations ({visibleOperations} of {page.items.length})</button>}
         {page.nextCursor!==null&&<Link to="/nfts" search={{operations:String(page.nextCursor)}}>Next operations →</Link>}</>}</Loaded></Panel>
   </>;
 }
 export function Collect(){
   usePageMeta('NFTs','Explore permanent Genesis membership and monthly Season collections.','/nfts');
   const {wallet}=useSession(),search=rootRoute.useSearch();
+  const {technical}=useExperience(),[visibleInventories,setVisibleInventories]=useState(2);
+  useEffect(()=>setVisibleInventories(2),[wallet,search.inventories]);
   const [review,setReview]=useState<Review|null>(null);
   useEffect(()=>setReview(null),[wallet]);
   const inventories=useRuntimeQuery('/api/v1/collect/inventories',{queryKey:principalKey(wallet,'inventories',search.inventories),queryFn:({signal})=>sdk.inventories(search.inventories,signal)});
@@ -254,9 +263,10 @@ export function Collect(){
     <CollectionTerms/>
     <Panel title="Published stages"><Loaded query={inventories}>{page=><>
       {!page.items.length&&<Empty title="No published stages"/>}
-      {page.items.map(inv=><article key={inv.id} className="record"><h3>{inv.kind==='season'?<Link to="/seasons/$seasonId" params={{seasonId:inv.id}}>{inv.id}</Link>:inv.id}</h3>
+      {page.items.slice(0,technical?page.items.length:visibleInventories).map(inv=><article key={inv.id} className="record published-inventory"><h3>{inv.kind==='season'?<Link to="/seasons/$seasonId" params={{seasonId:inv.id}}>{inv.id}</Link>:inv.id}</h3>
         <InventoryEvidence inventory={inv}/>
         {inv.stages.map(s=><PublishedStage key={s.id} inventory={inv} stage={s} review={setReview}/>)}</article>)}
+      {!technical&&visibleInventories<page.items.length&&<button onClick={()=>setVisibleInventories(n=>n+2)}>Show more collections ({visibleInventories} of {page.items.length})</button>}
       {page.nextCursor!==null&&<Link to="/nfts" search={{inventories:String(page.nextCursor)}}>Next collections →</Link>}
     </>}</Loaded></Panel>
 
@@ -264,5 +274,6 @@ export function Collect(){
       <BallotCard key={b.id+(wallet??'')} wallet={wallet} ballot={b}/>):<Empty title="No published ballots"/>}</Loaded></Panel>
     {wallet&&review&&<Capability method="POST" path={review.kind==='mint'?'/api/v1/collect/inventories/{id}/stages/{stage}/reservations':'/api/v1/collect/inventories/{id}/progression/quote'}>
       <ReviewOperation key={wallet} wallet={wallet} review={review} onClose={()=>setReview(null)}/></Capability>}
+    <CategoryCompetition category="nfts"/>
   </>;
 }

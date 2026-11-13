@@ -36,7 +36,7 @@ try {
     const errors=[];
     page.on('pageerror',e=>errors.push(e.message));
     await page.route('**/*',route=>new URL(route.request().url()).origin===origin?route.continue():route.abort());
-    for(const section of ['Tokens','Airdrops','NFTs','Attention','Leaderboards']){
+    for(const section of ['Tokens','NFTs','Airdrops','Stake','Earn']){
       await page.goto(origin+'/'+section.toLowerCase());
       await page.getByRole('heading',{name:section,level:1}).waitFor();
       await page.locator('#view[aria-busy=false]').waitFor();
@@ -61,7 +61,7 @@ try {
     await page.getByRole('navigation').getByRole('link',{name:'Tokens'}).click();
     await page.getByRole('heading',{level:1,name:'Tokens'}).waitFor();
     await page.goBack();
-    await page.getByRole('heading',{level:1,name:'Leaderboards'}).waitFor();
+    await page.getByRole('heading',{level:1,name:'Earn'}).waitFor();
     assert.deepEqual(errors,[]);await page.close();
   }
   if(!onlyQuotes){
@@ -72,7 +72,7 @@ try {
     ['/collections/genesis','Genesis','10,000'],
     ['/seasons/browser-season','Season · browser-season','Season start'],
     ['/nfts/browser-s1','browser-s1','Revealed metadata'],
-    ['/earn/2026-11-01','Leaderboards','Awaiting final scores'],
+    ['/earn/2026-11-01','Daily content scores','Awaiting final scores'],
   ]){
     const resp=await details.goto(origin+path);
     assert.equal(resp.status(),200,path);

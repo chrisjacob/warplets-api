@@ -51,6 +51,7 @@ export async function checkRuntimeProfiles({browser,origin}){
     console.log(width+'px Worker-profile unavailable reads/actions and private recovery gating passed.');
   }
   const failed=await browser.newPage(),calls=[];
+  failed.setDefaultTimeout(15000);
   await failed.route('**/*',route=>{
     const url=new URL(route.request().url());
     if(url.origin!==origin)return route.abort();

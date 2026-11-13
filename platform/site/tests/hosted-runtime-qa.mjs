@@ -51,7 +51,7 @@ export async function checkHostedRuntime({browser,runtime,fixture}){
   });
   await installWallet(page,account,origin,()=>{signatures++;});
   try{
-   await page.goto(origin+'/earn');await page.getByRole('heading',{name:'Attention',exact:true}).waitFor();
+   await page.goto(origin+'/earn');await page.getByRole('heading',{name:'Earn',exact:true}).waitFor();
    if(width===360){await page.locator('#view[aria-busy=true]').waitFor();releaseCapacity();}
    await page.locator('#view[aria-busy=false]').waitFor();
    const capability=await page.evaluate(async()=>{const response=await fetch('/api/v1/capabilities');const value=await response.json();return value.data??value;});

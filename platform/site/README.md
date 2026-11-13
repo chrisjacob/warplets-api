@@ -1,6 +1,6 @@
 # 10X browser client
 
-This standalone React 19 / TypeScript application reads the versioned 10X API through its generated client. TanStack Router owns the five public routes and their shareable search parameters, TanStack Query manages remote state, and Vite with Tailwind v4 builds same-origin static assets. Native dialogs and form controls keep keyboard behavior in the platform. Wallet Standard discovery and an injected Solana fallback support message signing for local authentication.
+This standalone React 19 / TypeScript application reads the versioned 10X API through its generated client. TanStack Router owns the Home, Tokens, NFTs, Airdrops, Stake and Earn destinations and their shareable search parameters, TanStack Query manages remote state, and Vite with Tailwind v4 builds same-origin static assets. Native dialogs and form controls keep keyboard behavior in the platform. Wallet Standard discovery and an injected Solana fallback support message signing for local authentication.
 
 From this directory:
 
@@ -37,3 +37,13 @@ Vault combined totals are produced in one bounded server transaction, across the
 The optional owner-only Earn memberStatus projection separates current admission evidence, accepted submissions, pending cutoff evidence and sealed components. Action completion needs recorded verifier evidence. The shared domain computes overall multipliers; the UI only formats tenths. Missing ownership/purchase/history evidence is never shown as a zero-valued multiplier. Worker routes continue to follow their capability inventory.
 
 Offline operator whitelist preparation is available through `node platform/collect/operator.mjs whitelist-dry-run fixture.json` from the repository root. Input is `{source,entries}` with at most 10,000 canonical Solana addresses. Output includes sorted unique wallets, counts, indexed errors and a fixture-source digest; it performs no database writes. Review the report and use its accepted wallets in the existing immutable `stage` publication packet. This is not live chain eligibility or approval to publish a real priced stage.
+
+## Populated performance review
+
+The optional local performance source supplies a shared top-three Home preview and top-100 category boards, defaulting to Peak with a Market toggle. Boards display ten ranks per page; connected users retain their own rank beyond the top100. Public profiles separate lifetime awarded quantities and theoretical valuations from snapshot claimability, show twenty token types per page and include bounded award history, earned milestones and a labelled synthetic SVG download. No PnL is inferred.
+
+Performance and sample-scoring requests wait for explicit optional runtime capabilities. Absent sources or failed discovery show unavailable states without issuing unsupported requests. The default Worker profile does not expose these synthetic extensions. The populated Node runtime also supplies their optional OpenAPI paths; no generated financial contracts change.
+
+Consumer lists start small: ten tokens, six NFTs/receipts, six Airdrops/Stake rows and five Earn submissions/awards. Show more reveals the rest of the current server page; server pagination and the technical view remain available. The five category pages share Explain → Participate → Compete structure.
+
+See [the populated review guide](../validation/THREE_MONTH_QA_GUIDE_2026-11-13.md), [the generator](../qa/README.md), [valuation rules](../performance/VALUATION_CONTRACT.md) and [AI review boundaries](../ai-review/README.md). `tests/performance-qa.mjs` runs the populated acceptance with installed Playwright; `BROWSER_ENGINE=webkit` uses the installed WebKit build without `BROWSER_EXE`.

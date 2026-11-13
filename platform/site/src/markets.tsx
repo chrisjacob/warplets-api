@@ -1,6 +1,7 @@
-import {Diagnostics,TokenArt,Journey} from './experience';
+import {CategoryCompetition} from './performance';
+import {Diagnostics,TokenArt,Journey,useExperience} from './experience';
 import { useRuntimeQuery } from './capabilities';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from '@tanstack/react-router';
 import { useQuery } from '@tanstack/react-query';
 import type { FeePoint } from '../../contracts/client.mjs';
@@ -62,6 +63,8 @@ export function MarketDetail({id}:{id:string}){
 }
 export function Markets(){
   const {market,cursor}=rootRoute.useSearch();
+  const {technical}=useExperience(),[visible,setVisible]=useState(10);
+  useEffect(()=>setVisible(10),[cursor]);
   const policy=useQuery({queryKey:['policy'],queryFn:({signal})=>sdk.policy(signal),staleTime:120_000});
   const schedule=useRuntimeQuery('/api/v1/launch/fee-schedule',{queryKey:['fee-schedule'],queryFn:({signal})=>sdk.curve(signal),staleTime:120_000});
   const markets=useRuntimeQuery('/api/v1/markets',{queryKey:['markets',cursor],queryFn:({signal})=>sdk.markets(cursor,signal)});
@@ -73,10 +76,12 @@ export function Markets(){
       <Loaded query={policy}>{p=><Allocation policy={p}/>}</Loaded></div></Diagnostics>
     {market && <MarketDetail id={market}/>}
     <Panel title="Explore tokens"><Loaded query={markets}>{page=><>
-      {page.items.length?<ul className="rows">{page.items.map(m=><li className="token-list-item" key={m.id}><Link to="/markets/$marketId" params={{marketId:m.id}}>
+      {page.items.length?<ul className="rows">{page.items.slice(0,technical?page.items.length:visible).map(m=><li className="token-list-item" key={m.id}><Link to="/markets/$marketId" params={{marketId:m.id}}>
         <TokenArt name={m.symbol}/><strong>{m.symbol} <small>/ {m.ogSymbol}</small></strong><span>{m.status} · Explore →</span>
       </Link><Link className="stake-link" to="/stake" search={{farm:m.id}}>Stake {m.symbol} →</Link></li>)}</ul>:<Empty title="No tokens yet">Curated ATT/OG pairs appear here once a campaign opens.</Empty>}
+      {!technical&&visible<page.items.length&&<button onClick={()=>setVisible(n=>n+10)}>Show more tokens on this page ({visible} of {page.items.length})</button>}
       {page.nextCursor && <Link to="/tokens" search={{cursor:page.nextCursor}}>Next campaigns →</Link>}
     </>}</Loaded></Panel>
+    <CategoryCompetition category="tokens"/>
   </>;
 }
