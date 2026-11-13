@@ -1,0 +1,28 @@
+{
+  "workflow": "10X platform validation",
+  "runId": 43423065291,
+  "jobId": 131877708819,
+  "url": "https://github.com/chrisjacob/warplets-api/actions/runs/43423065291",
+  "implementationCommit": "8a3c4feaa5fb04285ca64c3f1606d1d8bd7e61db",
+  "conclusion": "success",
+  "createdAt": "2026-11-13T12:11:25Z",
+  "completedAt": "2026-11-13T13:28:16Z",
+  "node": "22.22.3",
+  "tests": {
+    "reference": 1264,
+    "frontend": 32,
+    "beacon": 3,
+    "localWorkerD1R2": 169,
+    "total": 1468,
+    "failed": 0
+  },
+  "builds": "frontend build/typecheck and Worker typecheck passed",
+  "contracts": "generated contracts check passed",
+  "recovery": "Earn recovery drill passed",
+  "notes": [
+    "Vite SSR test teardown emitted dependency-scan closed-server diagnostics; all32 frontend tests and the separate production build passed.",
+    "Pinned checkout/setup actions reported their existing Node20 runtime deprecation notice while running under forced Node24. No dependency or workflow change was made for this review."
+  ],
+  "deployment": false,
+  "financialExecution": false
+}

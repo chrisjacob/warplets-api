@@ -325,3 +325,11 @@ The QA process uses `platform/qa/serve.mjs --directory work/qa-three-month-final
 The local tunnel configuration is `work/app-local-tunnel.yml`. Its pre-QA copy is `work/app-local-tunnel.before-three-month-qa.yml`. To return to the original demo, verify the original process is healthy, restore that local configuration and restart only the identified app-local connector. No DNS, remote tunnel resource or deployment change is needed. Local configuration validation follows [Cloudflare’s configuration guide](https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/do-more-with-tunnels/local-management/configuration-file/).
 
 Keep the computer awake for the local server and tunnel to stay available. Refresh the browser after an asset rebuild. Generate a new directory when you want a new dated scenario; do not overwrite the manual database or this snapshot. Re-generating history does not authorize real pricing, funding, transactions or provider calls.
+
+## Verification for this review
+
+Product candidate `8a3c4fe` passed [CI43423065291](https://github.com/chrisjacob/warplets-api/actions/runs/43423065291): **1,468 tests, zero failures** (1,264 reference, 32 frontend, 3 beacon and 169 actual local Worker/D1/R2 tests). Frontend build, types, generated contracts and Earn recovery also passed. Later commits update documentation/evidence only.
+
+Populated Chromium and WebKit checks cover rankings, Peak/Market changes, profiles, list bounds, NFT layout, card downloads and unavailable-runtime behavior. Final Stake pagination was checked in both engines; actual tunnel browsing passed at 390/1280 pixels with the corrected history disclosure. See the [acceptance record](runs/2026-11-13-performance/acceptance.json) for the exact scopes and evidence reuse.
+
+A final local measurement used 200 read requests with 8 concurrent readers and observed a 95th-percentile latency of about41ms. This measures the synthetic Node projection on this machine; it is not hosted latency, D1 load, wallet compatibility or production-capacity proof. No paid AI requests, deployment or financial execution occurred.

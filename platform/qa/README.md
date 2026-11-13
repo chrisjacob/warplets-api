@@ -3,7 +3,7 @@
 This creates an isolated, synthetic 90-day scenario for reviewing data density,
 pagination and user workflows. It does not read or alter the existing manual
 demo database, contact external services, generate private keys, or execute
-financial transactions. Generated files belong under ignored `work/`.
+financial transactions. Generated files belong under untracked `work/`; keep them out of commits.
 
 From the repository root, create a **new** directory:
 
