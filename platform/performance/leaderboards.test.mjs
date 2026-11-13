@@ -33,3 +33,8 @@ test('optional local sources advertise matching contracts and preserve runtime d
 });
 
 test('snapshot timestamps require real canonical UTC dates, never machine-local or rolled-over calendar dates',()=>{for(const at of ['2026-02-31T00:00:00Z','2026-11-13T00:00:00','2026-11-13T10:00:00+10:00']){const f=fixture();f.asOf=at;assert.throws(()=>createPerformanceService(f),/timestamp/);}const f=fixture();f.asOf='2026-11-13T00:00:00Z';assert.equal(createPerformanceService(f).metrics().rewardCount,2);});
+
+test('accrual snapshots count toward valuations without inventing award dates or activity',()=>{
+ const f=fixture();f.rewards[1].kind='accrual-snapshot';f.rewards[1].awardedAt=f.asOf;const service=createPerformanceService(f),p=service.profile('alice');assert.equal(p.peakUsdMicros,'600000000');assert.equal(p.historyIncomplete,true);assert.equal(p.activeDays,1);assert.equal(p.allocationCount,1);assert.equal(p.history.length,1);assert.equal(p.history[0].id,'r1');assert.equal(service.activity().items.length,1);assert.equal(p.categories.find(c=>c.category==='stake').peakUsdMicros,'200000000');
+ f.rewards.push({...f.rewards[1],kind:'award'});assert.throws(()=>createPerformanceService(f),/Conflicting reward ID/);f.rewards.pop();f.rewards[0].kind='accrual-snapshot';assert.throws(()=>createPerformanceService(f),/history kind/);
+});

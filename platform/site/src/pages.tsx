@@ -77,11 +77,12 @@ export function Stake(){
   const {technical}=useExperience();
   const cache=useQueryClient();
   usePageMeta('Stake','Continuous same-token campaign rewards and recorded staking positions.','/stake');
-  const {farm,cursor}=rootRoute.useSearch(),{wallet,open}=useSession();
+  const {farm,cursor,campaigns}=rootRoute.useSearch(),{wallet,open}=useSession();
   const [shownCampaigns,setShownCampaigns]=useState(6),[shownPositions,setShownPositions]=useState(6);
+  useEffect(()=>setShownCampaigns(6),[campaigns]);
   useEffect(()=>setShownPositions(6),[wallet,cursor]);
   const policy=useQuery({queryKey:['policy'],queryFn:({signal})=>sdk.policy(signal)});
-  const catalog=useRuntimeQuery('/api/v1/markets',{queryKey:['markets',undefined],queryFn:({signal})=>sdk.markets(undefined,signal)});
+  const catalog=useRuntimeQuery('/api/v1/markets',{queryKey:['markets',campaigns],queryFn:({signal})=>sdk.markets(campaigns,signal)});
   const detail=useRuntimeQuery('/api/v1/farms/{id}',{queryKey:['farm',farm],enabled:!!farm,queryFn:({signal})=>sdk.farm(farm!,signal)});
   const positions=useRuntimeQuery('/api/v1/stake/positions',{queryKey:['private',wallet,'solana','stake',cursor],enabled:!!wallet,
     queryFn:({signal})=>sdk.positions(cursor,signal)});
@@ -94,20 +95,21 @@ export function Stake(){
       ['Accrual','Continuous','while the position is staked'],
     ]}/>}</Loaded>
     <Panel title="Find a token to stake"><Loaded query={catalog}>{page=>page.items.length?
-      <><ul className="rows stake-campaigns">{page.items.slice(0,technical?page.items.length:shownCampaigns).map(row=><li key={row.id}><Link to="/stake" search={{farm:row.id}}>
-        <TokenArt name={row.symbol}/><strong>{row.symbol}</strong><span>View campaign →</span></Link></li>)}</ul>{!technical&&shownCampaigns<page.items.length&&<button onClick={()=>setShownCampaigns(n=>n+6)}>Show more campaigns ({shownCampaigns} of {page.items.length})</button>}</>:<Empty title="No campaigns available"/>}</Loaded>
+      <><ul className="rows stake-campaigns">{page.items.slice(0,technical?page.items.length:shownCampaigns).map(row=><li key={row.id}><Link to="/stake" search={{farm:row.id,cursor,campaigns}}>
+        <TokenArt name={row.symbol}/><strong>{row.symbol}</strong><span>View campaign →</span></Link></li>)}</ul>{!technical&&shownCampaigns<page.items.length&&<button onClick={()=>setShownCampaigns(n=>n+6)}>Show more campaigns ({shownCampaigns} of {page.items.length})</button>}
+        <div className="board-pagination">{campaigns&&<Link to="/stake" search={{farm,cursor}}>First campaigns →</Link>}{page.nextCursor&&<Link to="/stake" search={{farm,cursor,campaigns:page.nextCursor}}>Next campaigns →</Link>}</div></>:<Empty title="No campaigns available"/>}</Loaded>
       {farm && <Loaded query={detail}>{f=><><h3>{f.marketId} · {f.status}</h3><Facts items={[
         ['Funded units',f.fundedUnits],['Total staked units',f.totalStakedUnits??'Pending'],['Harvest treasury fee',percent(f.treasuryFeeBps)],['Emissions end',utc(f.emissionEnd)],
       ]}/></>}</Loaded>}</Panel>
-    <Panel title="Your positions"><p className="status-pill">Demo balances · Deposits and withdrawals are not enabled</p>{wallet?<Loaded query={positions} restart={<Link to="/stake" search={{farm}} onClick={()=>cache.removeQueries({queryKey:['private',wallet,'solana','stake',undefined],exact:true})}>Restart positions</Link>}>{page=><>
+    <Panel title="Your positions"><p className="status-pill">Demo balances · Deposits and withdrawals are not enabled</p>{wallet?<Loaded query={positions} restart={<Link to="/stake" search={{farm,campaigns}} onClick={()=>cache.removeQueries({queryKey:['private',wallet,'solana','stake',undefined],exact:true})}>Restart positions</Link>}>{page=><>
       {page.items.length?technical?<><MobileRecords entries={page.items.map(p=>({id:p.marketId,summary:p.marketId+' · '+p.principalUnits+' base units staked',
         facts:[['Principal',p.principalUnits],['Earned gross',p.earnedGrossUnits],['Available gross',p.claimableGrossUnits],['Harvested gross',p.harvestedGrossUnits]]}))}/>
       <div className="scroller wide-table"><table><caption>Local positions · amounts in token base units</caption>
         <thead><tr>{['Campaign','Principal','Earned gross','Available gross','Harvested gross'].map(s=><th key={s}>{s}</th>)}</tr></thead>
-        <tbody>{page.items.map(p=><tr key={p.marketId}><td><Link to="/stake" search={{farm:p.marketId}}>{p.marketId}</Link></td><td>{p.principalUnits}</td>
-          <td>{p.earnedGrossUnits}</td><td>{p.claimableGrossUnits}</td><td>{p.harvestedGrossUnits}</td></tr>)}</tbody></table></div></>:<div className="position-grid stake-positions">{page.items.slice(0,shownPositions).map(p=><article className="position-card" key={p.marketId}><TokenArt name={p.marketId}/><h3><Link to="/stake" search={{farm:p.marketId}}>{p.marketId}</Link></h3><Facts items={[['Staked',p.principalUnits],['Rewards available before fees',p.claimableGrossUnits],['Rewards collected before fees',p.harvestedGrossUnits]]}/><small>Amounts in raw token units. Harvest fees apply.</small></article>)}</div>:<Empty title="No recorded positions"/>}
+        <tbody>{page.items.map(p=><tr key={p.marketId}><td><Link to="/stake" search={{farm:p.marketId,cursor,campaigns}}>{p.marketId}</Link></td><td>{p.principalUnits}</td>
+          <td>{p.earnedGrossUnits}</td><td>{p.claimableGrossUnits}</td><td>{p.harvestedGrossUnits}</td></tr>)}</tbody></table></div></>:<div className="position-grid stake-positions">{page.items.slice(0,shownPositions).map(p=><article className="position-card" key={p.marketId}><TokenArt name={p.marketId}/><h3><Link to="/stake" search={{farm:p.marketId,cursor,campaigns}}>{p.marketId}</Link></h3><Facts items={[['Staked',p.principalUnits],['Rewards available before fees',p.claimableGrossUnits],['Rewards collected before fees',p.harvestedGrossUnits]]}/><small>Amounts in raw token units. Harvest fees apply.</small></article>)}</div>:<Empty title="No recorded positions"/>}
       {!technical&&shownPositions<page.items.length&&<button onClick={()=>setShownPositions(n=>n+6)}>Show more positions ({shownPositions} of {page.items.length})</button>}
-      {page.nextCursor!==null && <Link to="/stake" search={{cursor:String(page.nextCursor)}}>Next positions →</Link>}
+      {page.nextCursor!==null && <Link to="/stake" search={{farm,campaigns,cursor:String(page.nextCursor)}}>Next positions →</Link>}
     </>}</Loaded>:<><p>Connect a wallet to view recorded stake and harvests.</p><button onClick={open}>Connect wallet</button></>}</Panel>
     <CategoryCompetition category="stake"/>
   </>;

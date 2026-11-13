@@ -16,7 +16,8 @@ export function readCoreRewards(db,{wallet,asOf}){
  for(const farm of db.prepare('SELECT * FROM stake_fixture_farms ORDER BY market_id').all()){
   if(farm.treasury_fee_bps!==0)throw Error('QA core alignment requires explicit zero-fee synthetic farms.');
   const events=db.prepare('SELECT * FROM stake_fixture_events WHERE market_id=? AND at_ms<=? ORDER BY at_ms,seq').all(farm.market_id,now),r=describeFarm(farm,now,wallet,events);
-  if(BigInt(r.earnedGrossUnits??'0')>0n)rewards.push({id:'core-stake:'+farm.market_id+':'+wallet,wallet,tokenId:farm.market_id,category:'stake',awardedUnits:r.earnedGrossUnits,vestedUnits:r.earnedGrossUnits,claimedUnits:r.harvestedGrossUnits,awardedAt:asOf});
+  // This timestamp dates the cumulative observation, not a distribution event.
+  if(BigInt(r.earnedGrossUnits??'0')>0n)rewards.push({id:'core-stake:'+farm.market_id+':'+wallet,kind:'accrual-snapshot',wallet,tokenId:farm.market_id,category:'stake',awardedUnits:r.earnedGrossUnits,vestedUnits:r.earnedGrossUnits,claimedUnits:r.harvestedGrossUnits,awardedAt:asOf});
  }
  let after=0;do{
   const page=readWalletClaims(db,{wallet,nowMs:now,after});

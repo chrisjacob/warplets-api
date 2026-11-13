@@ -41,9 +41,10 @@ export function createPerformanceService(input){
   identity(r.id);require(categories.includes(r.category)&&tokens.has(r.tokenId)&&people.has(r.wallet),'Unknown reward source, token or recipient');
   const awarded=integer(r.awardedUnits,'awarded quantity'),vested=integer(r.vestedUnits,'vested quantity'),claimed=integer(r.claimedUnits,'claimed quantity');
   require(awarded>=vested&&vested>=claimed&&time(r.awardedAt)<=at,'Invalid reward state or unawarded future emission');
-  const canonical=JSON.stringify([r.wallet,r.tokenId,r.category,r.awardedUnits,r.vestedUnits,r.claimedUnits,r.awardedAt]);
+  const kind=r.kind??'award';require(kind==='award'||kind==='accrual-snapshot'&&r.category==='stake','Invalid reward history kind');
+  const canonical=JSON.stringify([r.wallet,r.tokenId,r.category,r.awardedUnits,r.vestedUnits,r.claimedUnits,r.awardedAt,kind]);
   if(rewards.has(r.id)){require(rewards.get(r.id)===canonical,'Conflicting reward ID');continue;}
-  rewards.set(r.id,canonical);const p=people.get(r.wallet);p.events.push({...r,awarded,vested,claimed});
+  rewards.set(r.id,canonical);const p=people.get(r.wallet);p.events.push({...r,kind,awarded,vested,claimed});
  }
  function aggregate(events){
   const map=new Map();for(const e of events){const t=tokens.get(e.tokenId);const row=map.get(t.id)??{tokenId:t.id,symbol:t.symbol,decimals:t.decimals,awarded:0n,claimable:0n};row.awarded+=e.awarded;row.claimable+=e.vested-e.claimed;map.set(t.id,row);}
@@ -52,8 +53,8 @@ export function createPerformanceService(input){
  const sum=(rows,key)=>rows.some(r=>r[key]===null)?null:rows.reduce((n,r)=>n+BigInt(r[key]),0n).toString();
  for(const p of people.values())for(const category of ['airdrops',...categories]){const events=category==='airdrops'?p.events:p.events.filter(r=>r.category===category),items=aggregate(events);p.groups.set(category,{items,peakUsdMicros:sum(items,'peakUsdMicros'),marketUsdMicros:sum(items,'marketUsdMicros'),allocationCount:events.length});}
  for(const p of people.values()){
-  const awarded=p.events.filter(r=>r.awarded>0n).sort((a,b)=>time(b.awardedAt)-time(a.awardedAt)||order(a.id,b.id));
-  p.growth={tokenCount:p.groups.get('airdrops').items.length,allocationCount:awarded.length,activeDays:new Set(awarded.map(r=>new Date(time(r.awardedAt)).toISOString().slice(0,10))).size,firstAwardAt:awarded.at(-1)?.awardedAt??null,history:awarded.slice(0,5).map(r=>({id:r.id,category:r.category,tokenId:r.tokenId,symbol:tokens.get(r.tokenId).symbol,decimals:tokens.get(r.tokenId).decimals,awardedUnits:r.awardedUnits,awardedAt:r.awardedAt}))};
+  const awarded=p.events.filter(r=>r.awarded>0n&&r.kind==='award').sort((a,b)=>time(b.awardedAt)-time(a.awardedAt)||order(a.id,b.id));
+  p.growth={historyIncomplete:p.events.some(r=>r.awarded>0n&&r.kind==='accrual-snapshot'),tokenCount:p.groups.get('airdrops').items.length,allocationCount:awarded.length,activeDays:new Set(awarded.map(r=>new Date(time(r.awardedAt)).toISOString().slice(0,10))).size,firstAwardAt:awarded.at(-1)?.awardedAt??null,history:awarded.slice(0,5).map(r=>({id:r.id,category:r.category,tokenId:r.tokenId,symbol:tokens.get(r.tokenId).symbol,decimals:tokens.get(r.tokenId).decimals,awardedUnits:r.awardedUnits,awardedAt:r.awardedAt}))};
  }
  const boards=new Map(),ranking=new Map();
  for(const category of allCategories)for(const mode of ['peak','market']){
@@ -63,7 +64,7 @@ export function createPerformanceService(input){
   const known=entries.filter(e=>e.sort!==null);known.sort((a,b)=>-cmp(a.sort,b.sort)||order(a.participantId,b.participantId));
   const ranked=known.map(({sort,...r},i)=>({...r,rank:i+1}));boards.set(category+':'+mode,{items:ranked,totalParticipants:entries.length,unrankedCount:entries.length-known.length});ranking.set(category+':'+mode,new Map(ranked.map(r=>[r.participantId,r])));
  }
- const activity=[...people.values()].flatMap(p=>p.events.map(r=>({id:r.id,wallet:p.wallet,label:p.label,category:r.category,tokenId:r.tokenId,symbol:tokens.get(r.tokenId).symbol,decimals:tokens.get(r.tokenId).decimals,awardedUnits:r.awardedUnits,awardedAt:r.awardedAt}))).sort((a,b)=>time(b.awardedAt)-time(a.awardedAt)||order(a.id,b.id)).slice(0,50);
+ const activity=[...people.values()].flatMap(p=>p.events.filter(r=>r.kind==='award'&&r.awarded>0n).map(r=>({id:r.id,wallet:p.wallet,label:p.label,category:r.category,tokenId:r.tokenId,symbol:tokens.get(r.tokenId).symbol,decimals:tokens.get(r.tokenId).decimals,awardedUnits:r.awardedUnits,awardedAt:r.awardedAt}))).sort((a,b)=>time(b.awardedAt)-time(a.awardedAt)||order(a.id,b.id)).slice(0,50);
  const meta={mode:'synthetic-local',asOf};
  return Object.freeze({
   board(category,{mode='peak',limit=100,wallet=null}={}){require(allCategories.includes(category)&&['peak','market'].includes(mode)&&Number.isInteger(limit)&&limit>=1&&limit<=100,'Invalid board request');const b=boards.get(category+':'+mode);return structuredClone({...meta,category,valuationMode:mode,totalParticipants:b.totalParticipants,unrankedCount:b.unrankedCount,items:b.items.slice(0,limit),myRank:ranking.get(category+':'+mode).get(wallet)??null});},

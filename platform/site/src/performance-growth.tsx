@@ -4,7 +4,7 @@ import {dollarsMicros,tokenUnits} from './amounts';
 
 export type PerformanceGrowthProps={
  wallet:string;label:string;asOf:string;peakUsdMicros:string|null;marketUsdMicros:string|null;
- tokenCount:number;allocationCount:number;activeDays:number;firstAwardAt:string|null;
+ historyIncomplete?:boolean;tokenCount:number;allocationCount:number;activeDays:number;firstAwardAt:string|null;
  categories:Array<{category:string;allocationCount:number}>;
  history:Array<{id:string;category:string;tokenId:string;symbol:string;decimals:number;awardedUnits:string;awardedAt:string}>;
 };
@@ -32,8 +32,8 @@ export function earnedMilestones(profile:Pick<PerformanceGrowthProps,'allocation
  const awards=safeCount(profile.allocationCount,100000),days=safeCount(profile.activeDays,100000);
  if(days>awards)throw Error('Award-day count exceeds award history.');
  const milestones:Array<{id:string;title:string;detail:string}>=[];
- if(awards>0&&profile.firstAwardAt)milestones.push({id:'first',title:'First award',detail:utc(safeTime(profile.firstAwardAt))});
- if(awards>0&&days>=30)milestones.push({id:'days',title:'30 award days',detail:days.toLocaleString()+' distinct UTC days with awards. This is not a streak.'});
+ if(awards>0&&profile.firstAwardAt)milestones.push({id:'first',title:'First recorded award',detail:utc(safeTime(profile.firstAwardAt))});
+ if(awards>0&&days>=30)milestones.push({id:'days',title:'30 recorded award days',detail:days.toLocaleString()+' distinct UTC days with recorded awards. This is not a streak.'});
  const sources=new Set(profile.categories.filter(category=>Object.hasOwn(categoryNames,category.category)&&Number.isSafeInteger(category.allocationCount)&&category.allocationCount>0).map(category=>category.category));
  if(awards>0&&sources.size===3)milestones.push({id:'categories',title:'Across the ecosystem',detail:'Awards from NFTs, Stake and Earn.'});
  return milestones;
@@ -58,7 +58,7 @@ ${text(60,241,19,'#536458','THEORETICAL LIFETIME AWARDS',700)}
 <rect x="60" y="263" width="525" height="163" rx="18" fill="#20392b"/><rect x="610" y="263" width="530" height="163" rx="18" fill="#ffffff" stroke="#d8dfd4"/>
 ${text(88,307,20,'#d7f86b','Peak valuation',700)}${text(88,376,peak.length>18?36:48,'#ffffff',peak,700)}
 ${text(638,307,20,'#536458','Market valuation',700)}${text(638,376,market.length>18?36:48,'#20392b',market,700)}
-${text(60,476,22,'#20392b',tokens.toLocaleString('en-US')+' token types · '+awards.toLocaleString('en-US')+' awards · '+days.toLocaleString('en-US')+' award days',700)}
+${text(60,476,22,'#20392b',tokens.toLocaleString('en-US')+' token types · '+awards.toLocaleString('en-US')+' dated awards · '+days.toLocaleString('en-US')+' award days',700)}
 ${text(60,532,20,'#536458','Peak uses historical highs. Market uses snapshot prices.')}
 ${text(60,562,20,'#536458','Actual sale values depend on liquidity and fees. Awarded tokens may already be claimed.')}
 ${text(60,599,17,'#536458','Synthetic illustration only · No real funds or verified achievement')}
@@ -89,6 +89,7 @@ export function PerformanceGrowth(props:PerformanceGrowthProps){
    <article><h3>Earned along the way</h3>{milestones.length?<ul className="review-criteria" aria-label="Earned milestones">{milestones.map(milestone=><li key={milestone.id}><strong>{milestone.title}</strong><p>{milestone.detail}</p></li>)}</ul>:<p>Milestones appear after the first award in this history.</p>}<p className="muted">Milestones describe past awards. They do not unlock extra rewards.</p></article>
    <article><h3>Recent awards</h3>{history.length?<ul className="recent-awards">{history.map(award=><li key={award.id}><div><strong>{tokenUnits(award.awardedUnits,award.decimals)} {award.symbol}</strong><p>{Object.hasOwn(categoryNames,award.category)?categoryNames[award.category]:'Reward'} · <time dateTime={award.awardedAt}>{utc(award.awardedAt)}</time></p></div></li>)}</ul>:<p>No awarded tokens in this snapshot yet.</p>}</article>
   </div>
+  {props.historyIncomplete&&<p>Accrued staking rewards count toward valuations. They are omitted from dated history because their individual award dates are unavailable.</p>}
   <h3>Keep a snapshot</h3><p id={noticeId}>{priced?'Download a labelled synthetic card with both Peak and Market values. This saves a file; it does not post anywhere.':'A card is available when both snapshot values have complete pricing. Missing values are not shown as zero.'}</p>
   <button type="button" disabled={!priced} aria-describedby={noticeId} onClick={download}>Download synthetic card</button>
   <p role="status" aria-live="polite">{message}</p>

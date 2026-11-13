@@ -24,6 +24,7 @@ test('isolated population refuses overwrite and populates actual paginated APIs 
  const bytes=readFileSync(join(directory,'performance.json'));assert.throws(()=>populateQa({directory,asOf}),/overwrite/);assert.deepEqual(readFileSync(join(directory,'performance.json')),bytes);assert.throws(()=>populateQa({directory:join(parent,'manual-demo'),asOf}),/qa-/);assert.equal(existsSync(join(parent,'manual-demo')),false);
  db=openDatabase(join(directory,'core.sqlite'));const snapshot=JSON.parse(bytes),service=createPerformanceService(snapshot),now=Date.parse(asOf),token='synthetic-qa-api-session';
  assert.deepEqual(snapshot.rewards.filter(r=>r.wallet===report.wallet),readCoreRewards(db,{wallet:report.wallet,asOf}));
+ const accrued=snapshot.rewards.filter(r=>r.kind==='accrual-snapshot');assert.equal(accrued.length,90);assert(accrued.every(r=>r.wallet===report.wallet&&r.category==='stake'&&r.awardedAt===asOf));
  const aggregate=new Map();for(const r of snapshot.rewards.filter(r=>r.wallet===report.wallet)){const a=aggregate.get(r.tokenId)??{awarded:0n,claimable:0n};a.awarded+=BigInt(r.awardedUnits);a.claimable+=BigInt(r.vestedUnits)-BigInt(r.claimedUnits);aggregate.set(r.tokenId,a);}
  for(const row of service.profile(report.wallet,{limit:100}).items){assert.equal(row.awardedUnits,String(aggregate.get(row.tokenId).awarded));assert.equal(row.claimableUnits,String(aggregate.get(row.tokenId).claimable));}
  db.prepare('INSERT INTO sessions VALUES(?,?,?,?)').run(createHash('sha256').update(token).digest('hex'),report.wallet,'http://localhost',now+600000);

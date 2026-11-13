@@ -5,7 +5,7 @@ import { SessionProvider, useSession } from './session';
 import { compact } from './common';
 
 const destinations=[['','Home'],['tokens','Tokens'],['nfts','NFTs'],['airdrops','Airdrops'],['stake','Stake'],['earn','Earn']] as const;
-const searchKeys=['market','cursor','asset','farm','date','submissions','awards','owned','operations','inventories','receipt'] as const;
+const searchKeys=['market','cursor','campaigns','asset','farm','date','submissions','awards','owned','operations','inventories','receipt'] as const;
 export type Search=Partial<Record<typeof searchKeys[number],string>>;
 function validateSearch(input:Record<string,unknown>):Search{
   const result:Search={};

@@ -65,7 +65,13 @@ are synthetic QA reviews, not assessments by AI or a human moderator.
   the actual local vault, stake and Earn readers at the snapshot timestamp.
   Harvest fees are explicitly zero in this fixture so gross/net units agree.
   Farm rewards include only emissions accrued by that timestamp, not future
-  emissions. Historical harvested units remain part of lifetime awards.
+  emissions. Historical harvested units remain part of lifetime awards. Each
+  cumulative farm balance is marked `kind: accrual-snapshot`: its timestamp dates
+  the balance observation, not a new distribution. These 90 observations still
+  contribute quantities and valuations, but are excluded from recent award
+  activity, dated award history and milestone evidence. No missing distribution
+  dates are invented. The selected owner's dated history therefore covers NFT
+  allocations and Earn awards, not the timing of individual staking emissions.
 - Other participants have simulated lifetime awards across NFTs, Stake and Earn.
   They do not all have corresponding operational positions or claimable ledger
   balances. The large-holder example has real local collection fixtures, but
