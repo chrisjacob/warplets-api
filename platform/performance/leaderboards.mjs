@@ -21,7 +21,7 @@ export function createPerformanceService(input){
   const id=identity(raw.id);require(!tokens.has(id),'Duplicate token');require(Number.isInteger(raw.decimals)&&raw.decimals>=0&&raw.decimals<=18,'Invalid decimals');
   const supply=positive(raw.supplyUnits,'supply'),launch=raw.launchPriceMicros===null?null:decimal(raw.launchPriceMicros),launchAt=time(raw.launchAt);
   require(launchAt<=at&&Array.isArray(raw.observations)&&raw.observations.length<=1000,'Invalid launch or observation bound');
-  let peak=null,current=null,latest=-1,peakAt=null;const seen=new Set();
+  let peak=null,current=null,latest=-1,peakAt=null;const seen=new Set(),pricesByTime=new Map();
   for(const o of raw.observations){
    identity(o.id);require(!seen.has(o.id),'Duplicate observation');seen.add(o.id);
    require(['accepted','rejected'].includes(o.quality),'Observation must have a quality decision');
@@ -30,8 +30,9 @@ export function createPerformanceService(input){
    require(observed>=launchAt&&observed<=at&&Math.abs(observed-ogObserved)<=60000&&ogObserved<=at,'Price observations are not contemporaneous or within snapshot bounds');
    label(o.source);identity(o.poolId);
    const price={n:positive(o.attOgNumerator,'ATT/OG numerator')*positive(o.ogUsdMicros,'OG USD price'),d:positive(o.attOgDenominator,'ATT/OG denominator')};
+   const prior=pricesByTime.get(observed);require(!prior||cmp(price,prior)===0,'Conflicting prices at the same timestamp');pricesByTime.set(observed,price);
    if(!peak||cmp(price,peak)>0){peak=price;peakAt=o.at;}
-   if(observed>latest){current=price;latest=observed;}else if(observed===latest)require(cmp(price,current)===0,'Conflicting prices at the same timestamp');
+   if(observed>latest){current=price;latest=observed;}
   }
   if(at-latest>900000)current=null;
   tokens.set(id,{id,symbol:label(raw.symbol),decimals:raw.decimals,supply,launch,peak,current,peakAt});
@@ -50,6 +51,10 @@ export function createPerformanceService(input){
  }
  const sum=(rows,key)=>rows.some(r=>r[key]===null)?null:rows.reduce((n,r)=>n+BigInt(r[key]),0n).toString();
  for(const p of people.values())for(const category of ['airdrops',...categories]){const events=category==='airdrops'?p.events:p.events.filter(r=>r.category===category),items=aggregate(events);p.groups.set(category,{items,peakUsdMicros:sum(items,'peakUsdMicros'),marketUsdMicros:sum(items,'marketUsdMicros'),allocationCount:events.length});}
+ for(const p of people.values()){
+  const awarded=p.events.filter(r=>r.awarded>0n).sort((a,b)=>time(b.awardedAt)-time(a.awardedAt)||order(a.id,b.id));
+  p.growth={tokenCount:p.groups.get('airdrops').items.length,allocationCount:awarded.length,activeDays:new Set(awarded.map(r=>new Date(time(r.awardedAt)).toISOString().slice(0,10))).size,firstAwardAt:awarded.at(-1)?.awardedAt??null,history:awarded.slice(0,5).map(r=>({id:r.id,category:r.category,tokenId:r.tokenId,symbol:tokens.get(r.tokenId).symbol,decimals:tokens.get(r.tokenId).decimals,awardedUnits:r.awardedUnits,awardedAt:r.awardedAt}))};
+ }
  const boards=new Map(),ranking=new Map();
  for(const category of allCategories)for(const mode of ['peak','market']){
   let entries=[];const valueKey=mode==='peak'?'peakUsdMicros':'marketUsdMicros';
@@ -62,7 +67,7 @@ export function createPerformanceService(input){
  const meta={mode:'synthetic-local',asOf};
  return Object.freeze({
   board(category,{mode='peak',limit=100,wallet=null}={}){require(allCategories.includes(category)&&['peak','market'].includes(mode)&&Number.isInteger(limit)&&limit>=1&&limit<=100,'Invalid board request');const b=boards.get(category+':'+mode);return structuredClone({...meta,category,valuationMode:mode,totalParticipants:b.totalParticipants,unrankedCount:b.unrankedCount,items:b.items.slice(0,limit),myRank:ranking.get(category+':'+mode).get(wallet)??null});},
-  profile(wallet,{cursor=0,limit=20}={}){require(Number.isInteger(cursor)&&cursor>=0&&Number.isInteger(limit)&&limit>=1&&limit<=100,'Invalid profile pagination');const p=people.get(wallet);if(!p)return null;const total=p.groups.get('airdrops');return structuredClone({...meta,wallet,label:p.label,peakUsdMicros:total.peakUsdMicros,marketUsdMicros:total.marketUsdMicros,valuationComplete:total.peakUsdMicros!==null&&total.marketUsdMicros!==null,categories:categories.map(category=>{const g=p.groups.get(category);return {category,peakUsdMicros:g.peakUsdMicros,marketUsdMicros:g.marketUsdMicros,allocationCount:g.allocationCount};}),ranks:Object.fromEntries(['airdrops',...categories].map(category=>[category,ranking.get(category+':peak').get(wallet)?.rank??null])),items:total.items.slice(cursor,cursor+limit),nextCursor:cursor+limit<total.items.length?String(cursor+limit):null});},
+  profile(wallet,{cursor=0,limit=20}={}){require(Number.isInteger(cursor)&&cursor>=0&&Number.isInteger(limit)&&limit>=1&&limit<=100,'Invalid profile pagination');const p=people.get(wallet);if(!p)return null;const total=p.groups.get('airdrops');return structuredClone({...meta,...p.growth,wallet,label:p.label,peakUsdMicros:total.peakUsdMicros,marketUsdMicros:total.marketUsdMicros,valuationComplete:total.peakUsdMicros!==null&&total.marketUsdMicros!==null,categories:categories.map(category=>{const g=p.groups.get(category);return {category,peakUsdMicros:g.peakUsdMicros,marketUsdMicros:g.marketUsdMicros,allocationCount:g.allocationCount};}),ranks:Object.fromEntries(['airdrops',...categories].map(category=>[category,ranking.get(category+':peak').get(wallet)?.rank??null])),items:total.items.slice(cursor,cursor+limit),nextCursor:cursor+limit<total.items.length?String(cursor+limit):null});},
   activity(limit=5){require(Number.isInteger(limit)&&limit>=1&&limit<=50,'Invalid activity limit');return structuredClone({...meta,items:activity.slice(0,limit)});},
   metrics(){return {tokenCount:tokens.size,participantCount:people.size,rewardCount:rewards.size};}
  });
