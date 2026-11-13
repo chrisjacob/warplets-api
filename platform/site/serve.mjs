@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { initialPage, renderInitialPage, routeFor } from './public-pages.mjs';
+import {staticAsset} from './static-asset.mjs';
 
 const assetPattern=/^\/site-assets\/([A-Za-z0-9_-]+\.(js|css))$/;
 const types={html:'text/html',css:'text/css',js:'text/javascript'};
@@ -15,8 +16,15 @@ export async function serveSite(request, dist=new URL('./dist/',import.meta.url)
   if(!['GET','HEAD'].includes(request.method))return new Response('Method not allowed',
     {status:405,headers:{Allow:'GET, HEAD'}});
   const url=image?new URL('social-card.png',dist):asset?new URL('site-assets/'+asset[1],dist):new URL('index.html',dist);
+  const headers={
+    'content-type':image?'image/png':types[asset?.[2]??'html']+'; charset=utf-8',
+    'cache-control':asset?'public, max-age=31536000, immutable':'no-cache',
+    'content-security-policy':"default-src 'none'; base-uri 'none'; frame-ancestors 'none'; img-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; form-action 'none'",
+    'referrer-policy':'no-referrer','x-content-type-options':'nosniff',
+    'x-robots-tag':route?.private?'noindex, nofollow':'noindex, follow',
+  };
   let bytes;
-  try {bytes=await readFile(url);}
+  try {if(asset)return await staticAsset(request,url,headers);bytes=await readFile(url);}
   catch(error){
     if(error.code!=='ENOENT')throw error;
     if(!asset&&!image)return null;
@@ -28,11 +36,6 @@ export async function serveSite(request, dist=new URL('./dist/',import.meta.url)
     bytes=renderInitialPage(bytes.toString('utf8'),page);
     status=page.status;
   }
-  return new Response(request.method==='HEAD'?null:bytes,{status,headers:{
-    'content-type':image?'image/png':types[asset?.[2]??'html']+'; charset=utf-8',
-    'cache-control':asset?'public, max-age=31536000, immutable':'no-cache',
-    'content-security-policy':"default-src 'none'; base-uri 'none'; frame-ancestors 'none'; img-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; form-action 'none'",
-    'referrer-policy':'no-referrer','x-content-type-options':'nosniff',
-    'x-robots-tag':route?.private||status!==200?'noindex, nofollow':'noindex, follow',
-  }});
+  if(status!==200)headers['x-robots-tag']='noindex, nofollow';
+  return new Response(request.method==='HEAD'?null:bytes,{status,headers});
 }

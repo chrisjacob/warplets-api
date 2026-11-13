@@ -25,7 +25,10 @@ const server=createLocalServer(async(request,peer)=>{
  const url=new URL(request.url),headers=new Headers(request.headers);
  for(const key of [...headers.keys()])if(key==='forwarded'||key.startsWith('x-forwarded-')||key.startsWith('cf-'))headers.delete(key);
  const translated=new Request(origin+url.pathname+url.search,{method:request.method,headers,body:['GET','HEAD'].includes(request.method)?undefined:await request.arrayBuffer()});
- const response=await app(translated,peer),out=new Headers(response.headers);out.set('cache-control','no-store');out.set('x-tenx-preview','synthetic-90-day-qa');
+ const response=await app(translated,peer),out=new Headers(response.headers);
+ // Versioned public assets remain cacheable; every page and data response stays private to this preview.
+ if(!/^\/site-assets\/[A-Za-z0-9_-]+\.(js|css)$/.test(url.pathname)||!out.get('cache-control')?.includes('immutable'))out.set('cache-control','no-store');
+ out.set('x-tenx-preview','synthetic-90-day-qa');
  const cookie=out.get('set-cookie');if(cookie&&parsed.protocol==='https:'&&!/;\s*Secure(?:;|$)/i.test(cookie))out.set('set-cookie',cookie+'; Secure');
  let body=response.body;
  if(request.method==='GET'&&out.get('content-type')?.includes('text/html')){body=(await response.text()).replace('<body>','<body><aside role="note" aria-label="Synthetic demo">90-day synthetic QA · Simulated prices and rewards · No real funds · Performance history is a dated snapshot; live demo vesting continues.</aside>');out.delete('content-length');}
