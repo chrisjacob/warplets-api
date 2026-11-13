@@ -31,9 +31,24 @@
   },
   "additionalBrowserRegression": "Broad Chromium operational/wallet/privacy/capability/quote and populated performance suites passed before the final profile-boundary/public-header refinement. Final focused tests cover those changed paths.",
   "ci": {
+    "candidate": "fa6d8922479d25d77f1babb9957d1486341ff481",
     "runId": 43498717270,
+    "jobId": 132138539522,
     "url": "https://github.com/chrisjacob/warplets-api/actions/runs/43498717270",
-    "status": "in_progress"
+    "status": "completed",
+    "conclusion": "success",
+    "startedAt": "2026-11-13T20:08:11Z",
+    "completedAt": "2026-11-13T21:26:35Z",
+    "tests": {
+      "reference": 1267,
+      "frontend": 37,
+      "beacon": 3,
+      "workerD1R2": 169,
+      "total": 1476,
+      "failures": 0
+    },
+    "buildTypesContractsAndRecovery": "passed",
+    "deployment": false
   },
   "preservedQaSnapshotSha256": "263c74e3297b9db0e8a29beb8fe83f1cbe849ca358136300850129d8c1911ea7",
   "localProcessesAtCheckpoint": {

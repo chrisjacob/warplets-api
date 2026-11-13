@@ -5,7 +5,7 @@
   "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
   "currentTask": null,
-  "lastUpdatedAt": "2026-11-13T13:30:28.504101+00:00",
+  "lastUpdatedAt": "2026-11-13T21:27:47.081861+00:00",
   "migrationAllocation": {
     "next": 70,
     "reserved": [
@@ -741,7 +741,7 @@
   },
   "auditFollowup": {
     "id": "performance-security-ux-2026-11-14",
-    "status": "local-verified-ci-pending",
+    "status": "verified-awaiting-founder-review",
     "baselineCommit": "47e4651",
     "preview": "https://app-local.10x.meme",
     "qaProcessAtCheckpoint": 21532,
@@ -750,16 +750,18 @@
       "Throttled browser comparison: home cold resource bytes527929 to181513; repeat527929 to18965.",
       "9f0a5e0 asset delivery milestone pushed.",
       "30ad827 Node/Worker logout and HTTPS-cookie milestone pushed;8 Node tests,1 actualworkerd test,Worker types passed.",
-      "Final focused Chromium/WebKit320/390/1280 usability and actual-server identity tests passed;37frontend/15performance/8auth tests,actualworkerd,types/build/contracts/recovery passed."
+      "Final focused Chromium/WebKit320/390/1280 usability and actual-server identity tests passed;37frontend/15performance/8auth tests,actualworkerd,types/build/contracts/recovery passed.",
+      "CI43498717270 passed exactfa6d892:1267reference+37frontend+3beacon+169Worker/D1/R2=1476tests,zero failures;builds/types/contracts/recovery passed."
     ],
-    "nextAction": "Push final audit candidate, follow test-only CI through completion, record final measurements and results; stop and save if account usage reaches the user50%cap.",
+    "nextAction": "Founder reviews populated app and PRODUCT_AND_PRODUCTION_READINESS_2026-11-14.md. Prepare a separately approved non-financial hosted rehearsal; resolve custody/protocol gates and production AI/data design before financial release.",
     "releaseWorkAuthorized": false,
     "originalDemoProcessAtCheckpoint": 12504,
-    "usagePercentAtCheckpoint": 42,
+    "usagePercentAtCheckpoint": 43,
     "report": "platform/validation/APP_AUDIT_2026-11-14.md",
     "implementationCommit": "fa6d8922479d25d77f1babb9957d1486341ff481",
     "ciRunId": 43498717270,
-    "ciConclusion": null,
-    "productionReadinessSummary": "platform/validation/PRODUCT_AND_PRODUCTION_READINESS_2026-11-14.md"
+    "ciConclusion": "success",
+    "productionReadinessSummary": "platform/validation/PRODUCT_AND_PRODUCTION_READINESS_2026-11-14.md",
+    "ciTestsPassed": 1476
   }
 }

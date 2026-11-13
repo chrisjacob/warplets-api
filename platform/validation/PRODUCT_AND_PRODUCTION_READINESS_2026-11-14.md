@@ -10,6 +10,8 @@ The app is available at [app-local.10x.meme](https://app-local.10x.meme) through
 
 The largest remaining work is production data and AI integration, hosted operational readiness, and independent resolution of custody/protocol risks before funds can move. Several choices can require implementation changes; production readiness is not simply a deployment or configuration switch. R01–R06 remain unapproved.
 
+The exact product candidate passed [CI43498717270](https://github.com/chrisjacob/warplets-api/actions/runs/43498717270): **1,476 tests with zero failures**, plus builds, types, contracts and recovery. Local Chromium/WebKit and actual-tunnel checks also passed. This evidence validates the local scope; it does not approve hosted or financial release.
+
 ## What people can use today
 
 The current navigation is **Home · Tokens · NFTs · Airdrops · Stake · Earn**. Performance leaderboards live within the relevant sections, with top-three previews on Home.

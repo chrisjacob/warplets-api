@@ -1,0 +1,20 @@
+{
+  "candidate": "fa6d8922479d25d77f1babb9957d1486341ff481",
+  "runId": 43498717270,
+  "jobId": 132138539522,
+  "url": "https://github.com/chrisjacob/warplets-api/actions/runs/43498717270",
+  "status": "completed",
+  "conclusion": "success",
+  "startedAt": "2026-11-13T20:08:11Z",
+  "completedAt": "2026-11-13T21:26:35Z",
+  "tests": {
+    "reference": 1267,
+    "frontend": 37,
+    "beacon": 3,
+    "workerD1R2": 169,
+    "total": 1476,
+    "failures": 0
+  },
+  "buildTypesContractsAndRecovery": "passed",
+  "deployment": false
+}
