@@ -1,3 +1,4 @@
+import {parseRecoveryV2Checkpoint} from './v2-checkpoint.mjs';
 import {sql,measureBatch} from '../storage/atomic-driver.mjs';
 import {canonicalJson,utf8} from '../security/canonical.mjs';
 import {hashJson} from './inventory.mjs';
@@ -15,8 +16,9 @@ const receiptProjection=alias=>legacyRecoveryReceiptFields.map(k=>alias+'.'+k).j
  * Isolated callers hold after stage checks unless a successor phase is supplied. */
 export function createRecoveryV2LegacyAdoptionReconciler({driver,artifacts,crypto,repository,createDigest,onMeasure=()=>{},nextPhase='reconcile-collection-authorities',nextStagePhase=''}){
  function context(loaded,c){
+  const checkpointWorkingBytes=Math.max(utf8(loaded.run.checkpoint_json).length,size(c));
   const metrics={sql:0,objectReads:0,maxBatchBytes:0,maxReturnedBytes:0,checkpointBytes:utf8(loaded.run.checkpoint_json).length,maxWorkingBytes:0};let retained=0;
-  const working=extra=>{const total=metrics.checkpointBytes*2+retained*3+extra+32768;metrics.maxWorkingBytes=Math.max(metrics.maxWorkingBytes,total);need(total<=1048576,'working bound.');};
+  const working=extra=>{const total=checkpointWorkingBytes*2+retained*3+extra+32768;metrics.maxWorkingBytes=Math.max(metrics.maxWorkingBytes,total);need(total<=1048576,'working bound.');};
   const ctx={metrics,working,retain(value){retained=size(value);working(0);},async read(statements){const m=measureBatch(statements);metrics.sql+=m.statements;metrics.maxBatchBytes=Math.max(metrics.maxBatchBytes,m.batchBytes);need(metrics.sql+metrics.objectReads+12<=64,'operation bound.');const result=await driver.batch(statements),rows=result.map(r=>r.rows),n=size(rows);metrics.maxReturnedBytes=Math.max(metrics.maxReturnedBytes,n);need(n<=262144,'SQL return bound.');working(n*3+m.batchBytes*2);return rows;},async object(identity){metrics.objectReads++;need(metrics.sql+metrics.objectReads+12<=64,'operation bound.');working(identity.size*5);const stored=await artifacts.getVerified(identity);need(stored?.status==='verified'&&same(stored.identity,identity)&&stored.bytes instanceof Uint8Array&&stored.bytes.length===identity.size,'original object missing.');const bytes=new Uint8Array(stored.bytes);need(await crypto.sha256(bytes)===identity.byteDigest,'original object digest.');return bytes;},async pin(){const [rows]=await ctx.read([sql('SELECT revision FROM app_recovery_watermark WHERE id=1')]);need(rows.length===1&&rows[0].revision===c.targetWatermark,'target watermark changed.');},report(){onMeasure({...metrics,operationAllowance:metrics.sql+metrics.objectReads+12});}};return ctx;
  }
  async function certificate(ctx,id=null,after=-9007199254740991){
@@ -37,8 +39,8 @@ export function createRecoveryV2LegacyAdoptionReconciler({driver,artifacts,crypt
   const facts=index===null?{stageCount:root.stages.length,admissionCount:root.admissions.count}:clone({stage:root.stages[index],priorStages:root.stages.slice(0,index).map(s=>({id:s.terms.id,type:s.terms.type,closesAt:s.terms.closesAt}))});ctx.working(bytesCount*6+size(facts)*3);root=null;return facts;
  }
  async function checked(ctx,loaded,c,delta,scope,value){need(size(delta.legacyAdoption??c.legacyAdoption??null)<=16384,'context bound.');const resultDigest=await hashJson(crypto,['v2-reconciled-legacy-adoption',scope,value]);await ctx.pin();return repository.advance(loaded,{delta,targetWatermark:c.targetWatermark,check:{phase:'legacy-adoption',scope,ordinal:0,targetWatermark:c.targetWatermark,resultDigest,itemCount:1}});}
- return Object.freeze({async step(loaded,c=JSON.parse(loaded.run.checkpoint_json)){
-  const ctx=context(loaded,c);try{await ctx.pin();need(size(c.legacyAdoption??null)<=16384,'context bound.');
+ return Object.freeze({async step(loaded,c=parseRecoveryV2Checkpoint(loaded.run.checkpoint_json)){
+  c=parseRecoveryV2Checkpoint(canonicalJson(c));const ctx=context(loaded,c);try{await ctx.pin();need(size(c.legacyAdoption??null)<=16384,'context bound.');
    if(c.phase==='reconcile-legacy-adoptions'){
     const cert=await certificate(ctx,null,c.legacyAdoptionCursor??-9007199254740991);if(!cert)return await checked(ctx,loaded,c,{phase:nextPhase,legacyAdoption:null,collectionAuthorityCursor:-9007199254740991,checkedCollectionAuthorities:0},'certificates-complete',c.checkedLegacyAdoptions??0);
     await rootFacts(ctx,cert);const state={id:cert.b.adoptionId,cursor:cert.cursor,certificateDigest:cert.certificateDigest,stageIndex:0,chain:cert.b.parentDigest,stageProofChain:await hashJson(crypto,['v2-legacy-stage-start',cert.b.adoptionId,cert.certificateDigest])};return await checked(ctx,loaded,c,{phase:'reconcile-legacy-adoption-stages',legacyAdoption:state},'certificate:'+cert.b.adoptionId,{body:cert.b,digest:cert.certificateDigest});

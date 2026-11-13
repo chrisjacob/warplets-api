@@ -2,7 +2,6 @@
 const route=(method,path)=>({method,path:'/api/v1'+path});
 const feature=(id,routes)=>({id,status:'local-validation',routes:routes.map(([method,path])=>route(method,path))});
 const shared=[
- ['earn-review-feedback',[['GET','/earn/submissions/{submissionId}/review'],['POST','/earn/submissions/{submissionId}/appeals']]],
  ['discovery',[['GET','/capabilities'],['GET','/policy'],['GET','/collections'],['GET','/health'],['GET','/openapi.json']]],
  ['genesis-refresh-fixture-review',[['GET','/nfts/refreshes/{id}'],['POST','/nfts/refreshes/{id}/prepare'],['POST','/nfts/refreshes/{id}/execute'],['POST','/nfts/refreshes/{id}/receipt']]],
  ['transaction-receipt-preview',[['GET','/transactions/{id}']]],
@@ -13,6 +12,7 @@ const shared=[
  ['stake-preview',[['GET','/farms/{id}'],['GET','/stake/positions']]],
  ['earn-board-preview',[['GET','/earn/epochs/{epoch}/leaderboard'],['GET','/earn/claims']]],
  ['earn-admission',[['GET','/earn/capacity'],['POST','/earn/submissions'],['GET','/earn/me']]],
+ ['earn-review-feedback',[['GET','/earn/submissions/{submissionId}/review'],['POST','/earn/submissions/{submissionId}/appeals']]],
  ['earn-actions',[['GET','/earn/actions'],['POST','/earn/actions/{actionId}/completions']]],
  ['collection-inventory-read',[['GET','/collect/inventories'],['GET','/collect/inventories/{id}']]],
  ['collection-fixture-requests',[['POST','/collect/inventories/{id}/stages/{stage}/reservations']]],

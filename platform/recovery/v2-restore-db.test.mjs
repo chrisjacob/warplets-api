@@ -9,6 +9,7 @@ import {createNodeCrypto} from '../security/node-crypto.mjs';
 import {readInstalledRecoverySchema} from './node-schema.mjs';
 import {readRecoveryV2SourceMetadata} from './v2-schema.mjs';
 import {createRecoveryV2RestoreDatabase} from './v2-restore-db.mjs';
+import {parseRecoveryV2Checkpoint} from './v2-checkpoint.mjs';
 // Storage-only contracts. A complete graph importer/reconciler is required
 // before this repository can ever be composed into a ready restore operation.
 async function setup(t,{fault=null,descriptorTransform=value=>value}={}){
@@ -56,4 +57,20 @@ test('private checkpoint packing resumes legacy objects, retains exact raw CAS i
  const packed=JSON.parse((await f.repository.load(f.pin)).run.checkpoint_json);assert.equal(packed.tables,null);assert.equal(packed.tablesPackedV1.length,1);assert.equal((await f.repository.advance(loaded,{delta:{phase:'wrong-stale'}})).kind,'replayed');assert.notEqual(JSON.parse((await f.repository.load(f.pin)).run.checkpoint_json).phase,'wrong-stale');
  await assert.rejects(f.repository.advance(await f.repository.load(f.pin),{delta:{tablesPackedV1:[]}}),/direct packed/);
  assert.equal((await f.repository.advance(await f.repository.load(f.pin),{delta:{tables:null}})).kind,'progress');const retired=JSON.parse((await f.repository.load(f.pin)).run.checkpoint_json);assert.equal(retired.tables,null);assert.equal(retired.tablesPackedV1,null);
+});
+
+test('within-limit legacy schema checkpoints compact during guarded advance without relaxing size, schema or rollback fences',async t=>{
+ const size=value=>Buffer.byteLength(canonicalJson(value)),save=(f,c)=>f.db.prepare('UPDATE app_recovery_runs SET checkpoint_json=? WHERE id=?').run(canonicalJson(c),f.pin);
+ const f=await setup(t),legacy=parseRecoveryV2Checkpoint((await f.repository.load(f.pin)).run.checkpoint_json);
+ legacy.legacyPadding='';legacy.legacyPadding='x'.repeat(131000-size(legacy));assert.equal(size(legacy),131000);save(f,legacy);
+ const loaded=await f.repository.load(f.pin),delta={phase:'objects',objectCursor:'y'.repeat(300)};assert.ok(size({...legacy,...delta,revision:1})>131072,'The old expanded representation cannot fit the next valid step.');
+ assert.equal((await f.repository.advance(loaded,{delta})).kind,'progress');const accepted=await f.repository.load(f.pin),packed=JSON.parse(accepted.run.checkpoint_json);
+ assert.ok(Buffer.byteLength(accepted.run.checkpoint_json)<=131072);assert.ok(packed.descriptor.schemaInventoryPackedV1);assert.equal(packed.descriptor.schemaInventory,undefined);assert.deepEqual(parseRecoveryV2Checkpoint(accepted.run.checkpoint_json),{...legacy,...delta,revision:1});assert.ok(f.metrics.every(m=>m.batchBytes<=262144&&m.statements<=64));
+ assert.equal((await f.repository.advance(loaded,{delta:{phase:'stale'}})).kind,'replayed');assert.equal((await f.repository.load(f.pin)).run.checkpoint_json,accepted.run.checkpoint_json);
+ await assert.rejects(f.repository.advance(accepted,{delta:{extraPadding:'z'.repeat(131072)}}),/checkpoint bound/);assert.equal((await f.repository.load(f.pin)).run.checkpoint_json,accepted.run.checkpoint_json);
+
+ const invalid=await setup(t),changed=parseRecoveryV2Checkpoint((await invalid.repository.load(invalid.pin)).run.checkpoint_json);changed.descriptor.schemaInventory[0].sql+=' ';save(invalid,changed);const before=await invalid.repository.load(invalid.pin);
+ assert.equal((await invalid.repository.advance(before,{delta:{phase:'objects'},effects:[sql("INSERT INTO app_operator_scopes VALUES('forged','scope',0,1)")]})).kind,'conflict');assert.equal((await invalid.repository.load(invalid.pin)).run.checkpoint_json,before.run.checkpoint_json);assert.equal(invalid.db.prepare('SELECT COUNT(*) n FROM app_operator_scopes').get().n,0);
+ const omitted=await setup(t,{fault:'omit-clear'}),old=parseRecoveryV2Checkpoint((await omitted.repository.load(omitted.pin)).run.checkpoint_json);save(omitted,old);const raw=(await omitted.repository.load(omitted.pin)).run.checkpoint_json;
+ assert.equal((await omitted.repository.advance(await omitted.repository.load(omitted.pin),{delta:{phase:'objects'},records:[record]})).kind,'conflict');assert.equal((await omitted.repository.load(omitted.pin)).run.checkpoint_json,raw);assert.equal(omitted.db.prepare('SELECT COUNT(*) n FROM app_recovery_pages').get().n,0);assert.equal(omitted.db.prepare('SELECT write_nonce FROM app_recovery_state').get().write_nonce,null);
 });

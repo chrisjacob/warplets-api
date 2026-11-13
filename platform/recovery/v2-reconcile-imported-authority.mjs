@@ -1,3 +1,4 @@
+import {parseRecoveryV2Checkpoint} from './v2-checkpoint.mjs';
 import {sql,measureBatch} from '../storage/atomic-driver.mjs';
 import {canonicalJson,utf8} from '../security/canonical.mjs';
 import {LEVEL_QUOTAS} from '../domain/collections/policy.mjs';
@@ -21,12 +22,12 @@ function slotsSql(inventoryId,kind,tranche){
 /** Called only after aggregate adoption semantics are durably proved. Historical
  * anchors remain historical; no045/046 rows or historical receipts are invented. */
 export async function verifyRecoveryImportedAuthority(value,{driver,crypto,onMeasure=(_metrics)=>{}}){
- const checkpointBytes=utf8(value.loaded.run.checkpoint_json).length,checkpointMatches=same(value.c,JSON.parse(value.loaded.run.checkpoint_json));
+ let decoded=parseRecoveryV2Checkpoint(canonicalJson(value.c));const checkpointBytes=utf8(value.loaded.run.checkpoint_json).length,checkpointWorkingBytes=Math.max(checkpointBytes,size(decoded)),checkpointMatches=same(decoded,parseRecoveryV2Checkpoint(value.loaded.run.checkpoint_json));
  // Retain only the captured IDs/fence fields during certificate and aggregate
  // reads; the outer reconciler owns the original full checkpoint for its CAS.
- const q=JSON.parse(canonicalJson({authority:value.authority,loaded:{run:{id:value.loaded.run.id},state:value.loaded.state},c:{targetWatermark:value.c.targetWatermark}})),{loaded,c,authority:a}=q;value=null;
+ const q=JSON.parse(canonicalJson({authority:value.authority,loaded:{run:{id:value.loaded.run.id},state:value.loaded.state},c:{targetWatermark:value.c.targetWatermark}})),{loaded,c,authority:a}=q;value=null;decoded=null;
  const metrics={sql:0,maxBatchBytes:0,maxReturnedBytes:0,checkpointBytes,maxWorkingBytes:0};let retained=size(a);
- const working=n=>{metrics.maxWorkingBytes=Math.max(metrics.maxWorkingBytes,3*metrics.checkpointBytes+3*retained+n+32768);need(metrics.maxWorkingBytes<=1048576,'working bound.');};
+ const working=n=>{metrics.maxWorkingBytes=Math.max(metrics.maxWorkingBytes,3*checkpointWorkingBytes+3*retained+n+32768);need(metrics.maxWorkingBytes<=1048576,'working bound.');};
  const read=async statements=>{const m=measureBatch(statements);metrics.sql+=m.statements;metrics.maxBatchBytes=Math.max(metrics.maxBatchBytes,m.batchBytes);need(metrics.sql+12<=64,'operation bound.');const rows=(await driver.batch(statements)).map(r=>r.rows),n=size(rows);metrics.maxReturnedBytes=Math.max(metrics.maxReturnedBytes,n);need(n<=262144,'read bound.');working(n*4+m.batchBytes*2);return rows;};
  try{
   need(checkpointMatches&&loaded.state.mode==='private'&&loaded.state.status==='restoring'&&loaded.state.active_restore_id===loaded.run.id&&loaded.state.write_nonce===null&&a.origin_kind==='verified-source-import','private pinned target.');

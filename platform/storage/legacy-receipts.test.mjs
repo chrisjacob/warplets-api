@@ -69,12 +69,18 @@ test('legacy adoption still asserts the row and counter inside its atomic receip
  for(const method of ['admitSubmission','recordFinalReview']){
   const {db,driver,admission,moderation}=await fixture(t,{review:method==='recordFinalReview'});
   const table=method==='admitSubmission'?'earn_submissions':'earn_reviews',row=method==='admitSubmission'?'id':'submission_id';
+  // The durable review job now protects the source row with a foreign key.
+  // Exercise that guard separately, then corrupt an unreferenced source field
+  // inside the receipt transaction to keep proving the mandatory-row matcher.
+  const originalUrl=db.prepare('SELECT url FROM earn_submissions WHERE id=?').get('synthetic-legacy-post').url;
+  if(method==='admitSubmission')assert.throws(()=>db.prepare('DELETE FROM earn_submissions WHERE id=?').run('synthetic-legacy-post'),/FOREIGN KEY/);
+  const corrupt=method==='admitSubmission'?sql('UPDATE earn_submissions SET url=? WHERE id=?','https://wrong.invalid/source','synthetic-legacy-post'):sql('DELETE FROM '+table+' WHERE '+row+'=?','synthetic-legacy-post');
   const removing={...driver,async batch(statements){
-   if(statements[0].sql.startsWith('INSERT INTO app_command_receipts'))statements=[statements[0],sql('DELETE FROM '+table+' WHERE '+row+'=?','synthetic-legacy-post'),...statements.slice(1)];
+   if(statements[0].sql.startsWith('INSERT INTO app_command_receipts'))statements=[statements[0],corrupt,...statements.slice(1)];
    return driver.batch(statements);
   }};
   await assert.rejects(createAtomicEarnRepository(removing,ports)[method](method==='admitSubmission'?admission:moderation),/Missing mandatory submission|Missing mandatory review/);
-  assert.equal(count(db,table),1);assert.equal(count(db,'app_command_receipts'),0);
+  assert.equal(count(db,table),1);assert.equal(count(db,'app_command_receipts'),0);assert.equal(db.prepare('SELECT url FROM earn_submissions WHERE id=?').get('synthetic-legacy-post').url,originalUrl);
   assert.equal(db.prepare('SELECT admitted FROM earn_admission_counts WHERE epoch=20001').get().admitted,1);
  }
  const {db,repository,admission}=await fixture(t,{review:false});db.prepare('UPDATE earn_admission_counts SET admitted=0').run();

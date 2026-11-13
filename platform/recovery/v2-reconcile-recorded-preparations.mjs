@@ -1,3 +1,4 @@
+import {packRecoveryV2Checkpoint} from './v2-checkpoint.mjs';
 import {validatePacket} from '../transactions/packets.mjs';
 import {sql,measureBatch} from '../storage/atomic-driver.mjs';
 import {canonicalJson,utf8} from '../security/canonical.mjs';
@@ -49,7 +50,7 @@ export async function verifyRecoveredRecordedPreparation(input,{read,artifacts,c
  return {eventId:r.event_id,resultDigest:await hash(crypto,['v2-recorded-preparation',r.operation_id,r.request_digest,r.output_digest,r.evidence_receipt_digest,r.packet_digest,r.simulation_digest,line])};
 }
 export function createRecoveryV2RecordedPreparationReconciler({driver,artifacts,crypto,repository,onMeasure=(_m)=>{}}){return {async step(loaded,c){
- const retained=size(loaded)+size(c);need(size(c)<=131072,'checkpoint bound.');let operations=0,workingBytes=retained*2,maxBatchBytes=0;
+ const retained=size(loaded)+size(c);need(typeof loaded.run.checkpoint_json==='string'&&utf8(loaded.run.checkpoint_json).length<=131072&&size(packRecoveryV2Checkpoint(c))<=131072,'checkpoint bound.');let operations=0,workingBytes=retained*2,maxBatchBytes=0;
  const work=n=>{workingBytes=Math.max(workingBytes,retained*2+n);need(workingBytes<=1048576,'working byte bound.');};
  const read=async statements=>{operations+=statements.length;const measured=measureBatch(statements);maxBatchBytes=Math.max(maxBatchBytes,measured.batchBytes);need(operations<=48&&measured.batchBytes<=262144,'SQL bound.');const rows=(await driver.batch(statements)).map(r=>r.rows),n=size(rows);need(n<=262144,'read bound.');work(n*3);return rows;};
  let delta,check;
@@ -70,5 +71,5 @@ export function createRecoveryV2RecordedPreparationReconciler({driver,artifacts,
   if(rows.length){need(rows.length===1||rows[0].prior_revision!==rows[1].prior_revision,'duplicate prior revision.');const r=rows[0],proof=await verifyRecoveredRecordedPreparation({row:r,history:h},{read,artifacts,crypto,onWorking:work});delta={recordedPreparationHistory:{...h,after:r.prior_revision,checked:h.checked+1}};check={phase:'recorded-preparation',scope:r.event_id,ordinal:0,itemCount:1,resultDigest:proof.resultDigest};}
   else{const [counts]=await read([sql('SELECT COUNT(*) n FROM app_recorded_attempt_preparations WHERE intent_id=?',h.id)]);need(counts[0].n===h.checked,'complete intent sidecars.');delta={recordedPreparationIntent:h.id,recordedPreparationHistory:null};check={phase:'recorded-preparation-intent',scope:h.id,ordinal:0,itemCount:h.checked,resultDigest:await hash(crypto,['v2-recorded-preparation-intent',h.id,h.checked,h.lineage])};}
  }
- need(size({...c,...delta})<=131072,'next checkpoint bound.');onMeasure({operations,workingBytes,maxBatchBytes});return repository.advance(loaded,{delta,targetWatermark:c.targetWatermark,check:{...check,targetWatermark:c.targetWatermark}});
+ need(size(packRecoveryV2Checkpoint({...c,...delta}))<=131072,'next checkpoint bound.');onMeasure({operations,workingBytes,maxBatchBytes});return repository.advance(loaded,{delta,targetWatermark:c.targetWatermark,check:{...check,targetWatermark:c.targetWatermark}});
 }};}

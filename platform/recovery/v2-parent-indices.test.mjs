@@ -1,4 +1,4 @@
-import {parseRecoveryV2Checkpoint,packRecoveryV2CheckpointDelta} from './v2-checkpoint.mjs';
+import {parseRecoveryV2Checkpoint,packRecoveryV2CheckpointDelta,packRecoveryV2Checkpoint} from './v2-checkpoint.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {v2RestoreSource,v2RestoreTarget} from './v2-restore-fixtures.mjs';
@@ -22,7 +22,7 @@ test('indexed metadata parents resume legacy checkpoints and preserve exact dete
  assert.equal(result.phase,'objects');assert.ok(partial);assert.equal(last.tables.length,BUSINESS_TABLES.length);assert.ok(Array.isArray(last.parents));assert.equal(last.parents.length,BUSINESS_TABLES.length);
  const expected=target.checkpoint().tableOrder,old=clone(last);old.parents=legacy(old.parents);save(target,old);result=await step(target,old);assert.equal(result.phase,'objects');assert.deepEqual(target.checkpoint().tableOrder,expected);assert.equal(target.checkpoint().parents,null);
  const edges=legacy(last.parents),remaining=new Map(Object.entries(edges).map(([name,parents])=>[name,new Set(parents)]));remaining.get('app_epoch_freezes').add('earn_submissions');remaining.get('earn_admission_counts').add('earn_submissions');const ordered=[];while(remaining.size){const ready=[...remaining].filter(([,deps])=>[...deps].every(name=>ordered.includes(name))).map(([name])=>name).sort();assert.ok(ready.length);for(const name of ready){ordered.push(name);remaining.delete(name);}}
- assert.deepEqual(expected.map(entry=>typeof entry==='number'?BUSINESS_TABLES[entry]:entry),ordered);assert.equal(new Set(expected).size,BUSINESS_TABLES.length);assert.ok(bytes(stored(last))<131072);assert.ok(bytes(last.parents)<bytes(edges));
+ assert.deepEqual(expected.map(entry=>typeof entry==='number'?BUSINESS_TABLES[entry]:entry),ordered);assert.equal(new Set(expected).size,BUSINESS_TABLES.length);assert.ok(bytes(packRecoveryV2Checkpoint(last))<131072);assert.ok(maxCheckpoint<=131072);assert.ok(bytes(last.parents)<bytes(edges));
  // Synthetic checkpoint corruption stays inside the private test target; it
  // must be held before any business-row import or object-phase advancement.
  const invalid=[['negative',c=>{c.parents[0]=[-1];}],['fraction',c=>{c.parents[0]=[1.5];}],['overflow',c=>{c.parents[0]=[BUSINESS_TABLES.length];}],['unknown-name',c=>{c.parents=legacy(c.parents);c.parents[BUSINESS_TABLES[0]]=['unknown-table'];}],['extra-name',c=>{c.parents=legacy(c.parents);c.parents.unknown=[];}],['missing-name',c=>{c.parents=legacy(c.parents);delete c.parents[BUSINESS_TABLES[0]];}],['self',c=>{c.parents[0]=[0];}],['duplicate',c=>{c.parents[0]=[1,1];}],['wrong-length',c=>{c.parents.pop();}],['cycle',c=>{c.parents[0]=[1];c.parents[1]=[0];}],['legacy-cycle',c=>{c.parents=legacy(c.parents);c.parents[BUSINESS_TABLES[0]]=[BUSINESS_TABLES[1]];c.parents[BUSINESS_TABLES[1]]=[BUSINESS_TABLES[0]];}]];

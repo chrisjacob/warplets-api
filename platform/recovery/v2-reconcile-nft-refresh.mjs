@@ -1,3 +1,4 @@
+import {packRecoveryV2Checkpoint} from './v2-checkpoint.mjs';
 import {sql,measureBatch} from '../storage/atomic-driver.mjs';
 import {canonicalJson,utf8} from '../security/canonical.mjs';
 import {prepareRefreshCommand,REFRESH_COMMAND} from '../nfts/refresh-repository.mjs';
@@ -70,7 +71,7 @@ export async function verifyRecoveredNftRefresh(receipt,{read,artifacts,crypto,o
  return {operationId:r.operation_id,requestId:n.request_id,revision:n.revision,stateDigest:n.state_digest,resultDigest:await hash(crypto,['v2-nft-refresh',r.operation_id,r.request_digest,r.output_digest,n.prior_state_digest,n.state_digest]),rehearsalOnly:true,metadataApplied:false,financialExecution:false};
 }
 export function createRecoveryV2NftRefreshReconciler({driver,artifacts,crypto,repository,onMeasure=(_value)=>{}}){return {async step(loaded,c){
- const retained=bytes(loaded)+bytes(c);need(bytes(c)<=131072&&retained<=393216,'checkpoint bound.');let operations=0,readBytes=0,workingBytes=retained*2,maxBatchBytes=0,objectReads=0;
+ const retained=bytes(loaded)+bytes(c);need(typeof loaded.run.checkpoint_json==='string'&&utf8(loaded.run.checkpoint_json).length<=131072&&bytes(packRecoveryV2Checkpoint(c))<=131072&&retained<=393216,'checkpoint bound.');let operations=0,readBytes=0,workingBytes=retained*2,maxBatchBytes=0,objectReads=0;
  const work=n=>{workingBytes=Math.max(workingBytes,retained*2+n);need(workingBytes<=1048576,'working byte bound.');};
  const read=async statements=>{operations+=statements.length;const measured=measureBatch(statements);maxBatchBytes=Math.max(maxBatchBytes,measured.batchBytes);need(operations<=56&&measured.batchBytes<=262144,'SQL/operation bound.');const out=(await driver.batch(statements)).map(v=>v.rows),size=bytes(out);need(size<=196608,'read bound.');readBytes+=size;work(size*4);return out;};
  const store={async getVerified(identity){need(++operations<=56,'object operation bound.');objectReads++;return artifacts.getVerified(identity);}};

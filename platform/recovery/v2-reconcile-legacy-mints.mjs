@@ -1,3 +1,4 @@
+import {parseRecoveryV2Checkpoint} from './v2-checkpoint.mjs';
 import {sql,measureBatch} from '../storage/atomic-driver.mjs';
 import {canonicalJson,utf8} from '../security/canonical.mjs';
 import {LEVEL_QUOTAS} from '../domain/collections/policy.mjs';
@@ -13,15 +14,15 @@ const anchorFields=['adoption_id','inventory_id','ordinal','operation_id','stage
  * continuation state, separate from the not-yet-verified economic prefix.
  * This helper cannot finish recovery or grant financial execution. */
 export function createRecoveryV2LegacyMintReconciler({driver,artifacts,crypto,repository,createDigest,beaconVerifier,onMeasure=(_metrics)=>{},nextPhase=''}){
- return Object.freeze({async step(loaded,c=JSON.parse(loaded.run.checkpoint_json)){
-  loaded=clone(loaded);c=clone(c);let retained=0,persistent=0;
+ return Object.freeze({async step(loaded,c=parseRecoveryV2Checkpoint(loaded.run.checkpoint_json)){
+  loaded=clone(loaded);c=parseRecoveryV2Checkpoint(canonicalJson(c));const checkpointWorkingBytes=Math.max(utf8(loaded.run.checkpoint_json).length,size(c));let retained=0,persistent=0;
   const metrics={sql:0,objectReads:0,maxBatchBytes:0,maxReturnedBytes:0,checkpointBytes:utf8(loaded.run.checkpoint_json).length,maxWorkingBytes:0};
-  const working=extra=>{const n=metrics.checkpointBytes*3+retained*3+extra+32768;metrics.maxWorkingBytes=Math.max(metrics.maxWorkingBytes,n);need(n<=1048576,'working bound.');};
+  const working=extra=>{const n=checkpointWorkingBytes*3+retained*3+extra+32768;metrics.maxWorkingBytes=Math.max(metrics.maxWorkingBytes,n);need(n<=1048576,'working bound.');};
   const bound=()=>need(metrics.sql+metrics.objectReads+12<=64,'operation bound.');
   const ctx={working,retain(v){retained=size(v)+persistent;working(0);},async read(statements){const m=measureBatch(statements);metrics.sql+=m.statements;metrics.maxBatchBytes=Math.max(metrics.maxBatchBytes,m.batchBytes);need(m.batchBytes<=262144,'SQL batch bound.');bound();const rows=(await driver.batch(statements)).map(r=>r.rows),n=size(rows);metrics.maxReturnedBytes=Math.max(metrics.maxReturnedBytes,n);need(n<=262144,'SQL return bound.');working(n*3+m.batchBytes*2);return rows;},async object(identity){metrics.objectReads++;bound();working(identity.size*8);const r=await artifacts.getVerified(identity);need(r?.status==='verified'&&same(r.identity,identity)&&r.bytes instanceof Uint8Array&&r.bytes.length===identity.size,'original artifact missing.');const bytes=r.bytes.slice();need(await crypto.sha256(bytes)===identity.byteDigest,'original artifact digest.');return bytes;}};
   async function pin(){const [rows]=await ctx.read([sql('SELECT revision FROM app_recovery_watermark WHERE id=1')]);need(rows.length===1&&rows[0].revision===c.targetWatermark,'target watermark.');}
   try{
-   need(same(c,JSON.parse(loaded.run.checkpoint_json)),'checkpoint identity.');
+   need(same(c,parseRecoveryV2Checkpoint(loaded.run.checkpoint_json)),'checkpoint identity.');
    need(c.phase==='reconcile-legacy-adoption-mints'&&c.legacyAdoption&&size(c.legacyAdoption)<=16384,'phase or context.');
    need(loaded.state.mode==='private'&&loaded.state.status==='restoring'&&loaded.state.active_restore_id===loaded.run.id&&loaded.state.write_nonce===null,'private target.');await pin();
    const state=c.legacyAdoption,columns=certificateFields.join(',');let [certificates,proofs]=await ctx.read([

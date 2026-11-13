@@ -26,7 +26,7 @@ test('receipt, catalog, predecessor, event provenance, old private bytes and reg
  await assert.rejects(verifyRecoveredNftRefresh(all[3],{...ports,artifacts:{async getVerified(identity){const got=await f.store.getVerified(identity);return got.status==='verified'?{...got,bytes:new Uint8Array(got.bytes.length)}:got;}}}),/digest/);
 });
 test('continuation budgets include outer checkpoint and object calls; missing durable proof/count prevents completion',async t=>{
- const f=await setup(t),measures=[],proofs=[],c={phase:'reconcile-nft-refresh',targetWatermark:String(f.db.prepare('SELECT revision FROM app_recovery_watermark WHERE id=1').get().revision),padding:'x'.repeat(90000)},loaded={run:{id:'synthetic-refresh-semantic'}};
+ const f=await setup(t),measures=[],proofs=[],c={phase:'reconcile-nft-refresh',targetWatermark:String(f.db.prepare('SELECT revision FROM app_recovery_watermark WHERE id=1').get().revision),padding:'x'.repeat(90000)},loaded={run:{id:'synthetic-refresh-semantic',get checkpoint_json(){return canonicalJson(c);}}};
  // This isolated controller verifies phase outputs only; full atomic persistence is exercised by normal V2 integration.
  const repository={async advance(_loaded,value){proofs.push(value.check);Object.assign(c,value.delta);return value;}};
  const reader={...f.driver,async batch(statements){const out=await f.driver.batch(statements);if(statements.some(s=>s.sql.includes('FROM app_recovery_reconcile_checks p')))out[1]={rows:[{n:proofs.length,items:proofs.length}]};return out;}};

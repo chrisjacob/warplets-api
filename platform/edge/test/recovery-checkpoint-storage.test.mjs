@@ -1,0 +1,30 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {randomUUID} from 'node:crypto';
+import {localRuntime} from './local-runtime.mjs';
+import {canonicalJson} from '../../security/canonical.mjs';
+import {createNodeCrypto} from '../../security/node-crypto.mjs';
+import {readInstalledRecoverySchema} from '../../recovery/node-schema.mjs';
+import {readRecoveryV2SourceMetadata} from '../../recovery/v2-schema.mjs';
+import {createRecoveryV2RestoreDatabase} from '../../recovery/v2-restore-db.mjs';
+import {parseRecoveryV2Checkpoint} from '../../recovery/v2-checkpoint.mjs';
+import {measureBatch} from '../../storage/atomic-driver.mjs';
+
+test('actual D1 compacts a near-limit legacy checkpoint in its guarded CAS and retains exact schema authority',async t=>{
+ const {db}=await localRuntime(t,new URL('./fixtures/atomic-earn-worker.ts',import.meta.url));
+ const crypto=createNodeCrypto(),schema=await readInstalledRecoverySchema(crypto),metrics=[];
+ await db.prepare('CREATE TABLE schema_versions(version TEXT PRIMARY KEY) STRICT').run();await db.batch(schema.migrations.map(m=>db.prepare('INSERT INTO schema_versions VALUES(?)').bind(m.file)));
+ const driver={async batch(statements){metrics.push(measureBatch(statements));return (await db.batch(statements.map(s=>db.prepare(s.sql).bind(...s.values)))).map(r=>({rows:r.results,changes:r.meta.changes}));}};
+ const descriptor=await readRecoveryV2SourceMetadata(driver,{schema,crypto}),repository=createRecoveryV2RestoreDatabase({driver,clock:{nowMs:()=>1},ids:{next:randomUUID}}),pin='e'.repeat(64),root={sourceCommit:'a'.repeat(40),schema,syntheticStorageOnly:true};
+ assert.equal((await repository.start({root,pinnedDigest:pin,descriptor})).kind,'started');
+ const legacy=parseRecoveryV2Checkpoint((await repository.load(pin)).run.checkpoint_json);legacy.legacyPadding='';legacy.legacyPadding='x'.repeat(131000-Buffer.byteLength(canonicalJson(legacy)));assert.equal(Buffer.byteLength(canonicalJson(legacy)),131000);
+ await db.prepare('UPDATE app_recovery_runs SET checkpoint_json=? WHERE id=?').bind(canonicalJson(legacy),pin).run();
+ const loaded=await repository.load(pin),delta={phase:'objects',objectCursor:'y'.repeat(300)};assert.ok(Buffer.byteLength(canonicalJson({...legacy,...delta,revision:1}))>131072);
+ assert.equal((await repository.advance(loaded,{delta})).kind,'progress');const saved=await repository.load(pin),packed=JSON.parse(saved.run.checkpoint_json);
+ assert.ok(Buffer.byteLength(saved.run.checkpoint_json)<=131072);assert.ok(packed.descriptor.schemaInventoryPackedV1);assert.equal(packed.descriptor.schemaInventory,undefined);assert.deepEqual(parseRecoveryV2Checkpoint(saved.run.checkpoint_json),{...legacy,...delta,revision:1});assert.deepEqual(packed.root,root);
+ assert.equal((await repository.advance(loaded,{delta:{phase:'wrong-stale'}})).kind,'replayed');assert.equal((await repository.load(pin)).run.checkpoint_json,saved.run.checkpoint_json);
+ const forged=parseRecoveryV2Checkpoint(saved.run.checkpoint_json);forged.legacyPadding='';forged.descriptor.schemaInventory[0].sql+=' ';await db.prepare('UPDATE app_recovery_runs SET checkpoint_json=? WHERE id=?').bind(canonicalJson(forged),pin).run();const before=await repository.load(pin);
+ assert.equal((await repository.advance(before,{delta:{phase:'publications'}})).kind,'conflict');assert.equal((await repository.load(pin)).run.checkpoint_json,before.run.checkpoint_json);assert.equal(await db.prepare('SELECT write_nonce FROM app_recovery_state').first('write_nonce'),null);
+ assert.ok(metrics.every(m=>m.batchBytes<=262144&&m.statements<=64));
+ t.diagnostic(JSON.stringify({legacyBytes:131000,storedBytes:Buffer.byteLength(saved.run.checkpoint_json),checkpointLimit:131072,maxBatchBytes:Math.max(...metrics.map(m=>m.batchBytes)),schemaFenceRetained:true,staleCasReplayed:true}));
+});

@@ -48,3 +48,21 @@ export function packRecoveryV2CheckpointDelta(delta){
  if(!Object.hasOwn(delta,'tables'))return delta;
  return {...delta,tables:null,tablesPackedV1:delta.tables===null?null:packRecoveryV2Tables(delta.tables)};
 }
+/** Exact private storage shape, including checkpoints written before tuple
+ * encodings existed. Parsing first preserves all legacy validation rules. */
+export function packRecoveryV2Checkpoint(value){
+ const json=JSON.stringify(value),raw=JSON.parse(json),checkpoint=parseRecoveryV2Checkpoint(json);
+ return {...checkpoint,...(checkpoint.descriptor===undefined?{}:{descriptor:Object.hasOwn(raw.descriptor,'schemaInventoryPackedV1')?raw.descriptor:packRecoveryV2Descriptor(checkpoint.descriptor)}),
+  ...(Array.isArray(checkpoint.tables)?packRecoveryV2CheckpointDelta({tables:checkpoint.tables}):{})};
+}
+/** Equivalent SQL projection of the stored value. It runs inside the existing
+ * guarded revision update, avoiding a second large descriptor bind and never
+ * replacing a stored schema with a stale caller-side copy. */
+export function packRecoveryV2CheckpointSql(value){
+ const item=field=>`json_extract(e.value,'$.${field}')`,prefix=`'CREATE TABLE '||${item('name')}`;
+ const short=`${item('type')}='table' AND substr(${item('sql')},1,length(${prefix}))=${prefix}`;
+ const schemaRows=`SELECT json_array(${item('type')},${item('name')},CASE WHEN ${short} THEN 1 ELSE 0 END,CASE WHEN ${short} THEN substr(${item('sql')},length(${prefix})+1) ELSE ${item('sql')} END) tuple FROM json_each(${value},'$.descriptor.schemaInventory') e ORDER BY CAST(e.key AS INTEGER)`;
+ const descriptor=`CASE WHEN json_type(${value},'$.descriptor.schemaInventory')='array' THEN json_set(json_remove(${value},'$.descriptor.schemaInventory'),'$.descriptor.schemaInventoryPackedV1',json((SELECT json_group_array(json(tuple)) FROM (${schemaRows})))) ELSE ${value} END`;
+ const tableRows=`SELECT json_array(${fields.map(field=>field==='hasRowid'?`json(CASE ${item(field)} WHEN 1 THEN 'true' ELSE 'false' END)`:item(field)).join(',')}) tuple FROM json_each(${value},'$.tables') e ORDER BY CAST(e.key AS INTEGER)`;
+ return `(CASE WHEN json_type(${value},'$.tables')='array' THEN json_set(${descriptor},'$.tables',NULL,'$.tablesPackedV1',json((SELECT json_group_array(json(tuple)) FROM (${tableRows})))) ELSE ${descriptor} END)`;
+}

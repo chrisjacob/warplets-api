@@ -1,3 +1,4 @@
+import {packRecoveryV2Checkpoint} from './v2-checkpoint.mjs';
 import {sql,measureBatch} from '../storage/atomic-driver.mjs';
 import {canonicalJson,utf8} from '../security/canonical.mjs';
 import {bindActionRequest} from '../transactions/plan-contracts.mjs';
@@ -51,7 +52,7 @@ export async function verifyRecoveredEconomicPreparation(receipt,{read,artifacts
 }
 export function createRecoveryV2EconomicPlanReconciler({driver,artifacts,crypto,repository,onMeasure=(_value)=>{}}){
  return {async step(loaded,c){
-  const retained=bytes(loaded)+bytes(c);need(retained<=393216&&bytes(c)<=131072,'checkpoint bound.');let operations=0,readBytes=0,workingBytes=retained*2,maxBatchBytes=0;
+  const retained=bytes(loaded)+bytes(c);need(retained<=393216&&typeof loaded.run.checkpoint_json==='string'&&utf8(loaded.run.checkpoint_json).length<=131072&&bytes(packRecoveryV2Checkpoint(c))<=131072,'checkpoint bound.');let operations=0,readBytes=0,workingBytes=retained*2,maxBatchBytes=0;
   const work=n=>{workingBytes=Math.max(workingBytes,retained*2+n);need(workingBytes<=1048576,'working byte bound.');};
   const read=async statements=>{operations+=statements.length;const m=measureBatch(statements);maxBatchBytes=Math.max(maxBatchBytes,m.batchBytes);need(operations<=56&&m.batchBytes<=262144,'SQL bound.');const out=(await driver.batch(statements)).map(v=>v.rows),size=bytes(out);readBytes+=size;need(size<=196608,'read byte bound.');work(size*4);return out;};
   const [rows]=await read([sql(`SELECT rowid recovery_cursor,${receiptFields} FROM app_command_receipts WHERE operation_kind=? AND rowid>? ORDER BY rowid LIMIT 1`,PREPARE_ECONOMIC_PLAN,c.economicPreparationCursor??START)]);

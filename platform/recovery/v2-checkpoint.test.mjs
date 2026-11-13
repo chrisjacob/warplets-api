@@ -7,7 +7,7 @@ import {readRecoveryV2SourceMetadata,recoveryV2SchemaFence} from './v2-schema.mj
 import {openDatabase} from '../storage/database.mjs';
 import {createNodeAtomicDriver} from '../storage/node/atomic-driver.mjs';
 import {createRecoveryV2Codec} from './v2-codec.mjs';
-import {packRecoveryV2Descriptor,parseRecoveryV2Checkpoint,packRecoveryV2Tables,packRecoveryV2CheckpointDelta} from './v2-checkpoint.mjs';
+import {packRecoveryV2Descriptor,parseRecoveryV2Checkpoint,packRecoveryV2Tables,packRecoveryV2CheckpointDelta,packRecoveryV2Checkpoint,packRecoveryV2CheckpointSql} from './v2-checkpoint.mjs';
 const table=name=>({name,columns:['id','body'],primaryKey:['id'],hasRowid:false,rowCount:0,pages:{identity:null,count:0},tableDigest:'a'.repeat(64)});
 test('private tuple encoding preserves every descriptor value and old object checkpoints',()=>{
  const tables=[table('alpha'),table('beta')],legacy={revision:3,phase:'tables',tables},raw=canonicalJson(legacy),packed={...legacy,...packRecoveryV2CheckpointDelta({tables})};
@@ -36,4 +36,20 @@ test('private schema packing retains byte-exact SQL fences and refuses malformed
  assert.equal(check({...packed,schemaInventory:descriptor.schemaInventory}),0,'dual encodings cannot weaken schema fencing');
  for(const bad of [{...packed,schemaInventory:[]},{...packed,schemaInventoryPackedV2:[]},{...packed,schemaInventoryPackedV1:null},{...packed,schemaInventoryPackedV1:[['table','x',2,'()']]},{...packed,schemaInventoryPackedV1:[['trigger','x',1,'()']]}])assert.throws(()=>parseRecoveryV2Checkpoint(canonicalJson({descriptor:bad})),/checkpoint/);
  const saved=Buffer.byteLength(canonicalJson(descriptor))-Buffer.byteLength(canonicalJson(packed));assert.ok(saved>6000);t.diagnostic(JSON.stringify({schemaBytesSaved:saved,exactSqlFence:true,checkpointLimitUnchanged:131072}));
+});
+
+test('legacy checkpoint normalization has identical JS and guarded-SQL storage bytes without changing schema or table values',async t=>{
+ const db=openDatabase();t.after(()=>db.close());const crypto=createNodeCrypto(),schema=await readInstalledRecoverySchema(crypto),descriptor=await readRecoveryV2SourceMetadata(createNodeAtomicDriver(db),{schema,crypto});
+ const legacy={revision:8,phase:'tables',root:{schema},descriptor,tables:[table('alpha'),{...table('beta'),hasRowid:true}],tableIndex:0};
+ const statement=db.prepare('SELECT '+packRecoveryV2CheckpointSql('ctx.value')+' packed FROM (SELECT ? value) ctx');
+ const alreadyPacked=packRecoveryV2Checkpoint(legacy),alternatePacked=structuredClone(alreadyPacked);
+ const first=alternatePacked.descriptor.schemaInventoryPackedV1.find(row=>row[2]===1);first[3]='CREATE TABLE '+first[1]+first[3];first[2]=0;
+ for(const candidate of [legacy,alreadyPacked,alternatePacked,{...legacy,tables:[]},{...legacy,tables:null},{...legacy,tables:null,tablesPackedV1:null}]){
+  const expected=packRecoveryV2Checkpoint(candidate),stored=JSON.parse(statement.get(canonicalJson(candidate)).packed);
+  assert.equal(canonicalJson(stored),canonicalJson(expected),'SQL must persist the exact shape used by the byte limit');
+  assert.deepEqual(parseRecoveryV2Checkpoint(canonicalJson(stored)),parseRecoveryV2Checkpoint(canonicalJson(candidate)));
+  assert.deepEqual(stored.root,candidate.root);assert.equal(stored.revision,candidate.revision);
+ }
+ assert.ok(Buffer.byteLength(canonicalJson(alreadyPacked))<Buffer.byteLength(canonicalJson(legacy))-6000);
+ assert.throws(()=>packRecoveryV2Checkpoint({...legacy,descriptor:{...descriptor,schemaInventoryPackedV1:[]}}),/Ambiguous/);
 });

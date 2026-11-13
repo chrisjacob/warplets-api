@@ -1,3 +1,4 @@
+import {parseRecoveryV2Checkpoint} from './v2-checkpoint.mjs';
 import {sql,measureBatch} from '../storage/atomic-driver.mjs';
 import {canonicalJson,utf8} from '../security/canonical.mjs';
 import {hashLegacyAdoptionCertificate} from '../collect/legacy-adoption-authority.mjs';
@@ -8,14 +9,14 @@ const families=['stage','mint','economic','current','object'];
 /** Rebuild immutable proof chains in bounded pages before granting the narrow
  * adoption-complete prerequisite to the existing collection recovery pipeline. */
 export function createRecoveryV2LegacyAggregateReconciler({driver,crypto,repository,onMeasure=(_metrics)=>{}}){
- return Object.freeze({async step(loaded,c=JSON.parse(loaded.run.checkpoint_json)){
-  loaded=clone(loaded);c=clone(c);const metrics={sql:0,maxBatchBytes:0,workingBytes:0},checkpointBytes=utf8(loaded.run.checkpoint_json).length;let retained=0;
-  const hash=v=>crypto.sha256(utf8(canonicalJson(v))),bound=extra=>{metrics.workingBytes=Math.max(metrics.workingBytes,checkpointBytes*3+retained*3+extra+32768);need(metrics.workingBytes<=1048576,'working-bound');};
+ return Object.freeze({async step(loaded,c=parseRecoveryV2Checkpoint(loaded.run.checkpoint_json)){
+  loaded=clone(loaded);c=parseRecoveryV2Checkpoint(canonicalJson(c));const checkpointWorkingBytes=Math.max(utf8(loaded.run.checkpoint_json).length,size(c));const metrics={sql:0,maxBatchBytes:0,workingBytes:0},checkpointBytes=utf8(loaded.run.checkpoint_json).length;let retained=0;
+  const hash=v=>crypto.sha256(utf8(canonicalJson(v))),bound=extra=>{metrics.workingBytes=Math.max(metrics.workingBytes,checkpointWorkingBytes*3+retained*3+extra+32768);need(metrics.workingBytes<=1048576,'working-bound');};
   async function read(statements){const m=measureBatch(statements);metrics.sql+=m.statements;metrics.maxBatchBytes=Math.max(metrics.maxBatchBytes,m.batchBytes);need(metrics.sql+12<=64&&m.batchBytes<=262144,'operation-bound');bound(m.batchBytes*3);const rows=(await driver.batch(statements)).map(r=>r.rows);need(size(rows)<=196608,'return-bound');bound((size(rows)+m.batchBytes)*3);return rows;}
   async function pin(){const [rows]=await read([sql('SELECT revision FROM app_recovery_watermark WHERE id=1')]);need(rows.length===1&&rows[0].revision===c.targetWatermark,'target-changed');}
   async function save(state){need(size(state)<=32768,'context-bound');await pin();return repository.advance(loaded,{delta:{legacyAdoption:state},targetWatermark:c.targetWatermark});}
   try{
-   need(same(c,JSON.parse(loaded.run.checkpoint_json))&&c.phase==='reconcile-legacy-adoption-aggregate'&&c.legacyAdoption,'checkpoint');need(loaded.state.mode==='private'&&loaded.state.status==='restoring'&&loaded.state.active_restore_id===loaded.run.id&&loaded.state.write_nonce===null,'target');await pin();
+   need(same(c,parseRecoveryV2Checkpoint(loaded.run.checkpoint_json))&&c.phase==='reconcile-legacy-adoption-aggregate'&&c.legacyAdoption,'checkpoint');need(loaded.state.mode==='private'&&loaded.state.status==='restoring'&&loaded.state.active_restore_id===loaded.run.id&&loaded.state.write_nonce===null,'target');await pin();
    const state=c.legacyAdoption,columns=fields.join(','),[certs,certProofs]=await read([sql(`SELECT rowid cursor,${columns} FROM app_collection_legacy_adoptions WHERE id=? AND length(CAST(json_array(${columns}) AS BLOB))<=65536`,state.id),sql("SELECT result_digest,item_count FROM app_recovery_reconcile_checks WHERE restore_id=? AND phase='legacy-adoption' AND scope=? AND ordinal=0 AND target_watermark=?",loaded.run.id,'certificate:'+state.id,c.targetWatermark)]);need(certs.length===1,'certificate');retained=size(state)+size(certs);bound(size(certs)*4);
    const verified=await hashLegacyAdoptionCertificate(certs[0],crypto),b=verified.body,prepared=JSON.parse(certs[0].preparation_result_json),expectedObjects={count:prepared.objectCount,bytes:prepared.objectBytes,terminal:b.preparationDigest};
    need(state.certificateDigest===verified.certificateDigest&&state.cursor===certs[0].cursor&&state.stageIndex===b.stageCount&&state.currentOrdinal===b.admitted&&state.objectOrdinal===expectedObjects.count&&state.objectBytes===expectedObjects.bytes&&state.chain===b.preparationDigest&&certProofs.length===1&&certProofs[0].item_count===1&&certProofs[0].result_digest===await hash(['v2-reconciled-legacy-adoption','certificate:'+state.id,{body:b,digest:verified.certificateDigest}]),'completed-cursors');
