@@ -5,7 +5,7 @@
   "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
   "currentTask": null,
-  "lastUpdatedAt": "2026-11-13T23:50:02.099720+00:00",
+  "lastUpdatedAt": "2026-11-13T23:52:16.232517+00:00",
   "migrationAllocation": {
     "next": 72,
     "reserved": [
@@ -775,11 +775,11 @@
     "ciTestsPassed": 1476
   },
   "aiReviewFollowup": {
-    "status": "recovery-repair-candidate-ready-for-full-ci",
+    "status": "corrected-full-ci-in-progress",
     "budget": "stop at 10% remaining account usage",
     "paidCallsEnabled": false,
     "deployment": false,
-    "nextStep": "Push the tested recovery-compatibility checkpoint, follow full test-only CI to completion, and record remaining local broad-recovery results. No paid calls/deployment authorized.",
+    "nextStep": "Follow corrected full CI43530055984/job132245223270 on bfdc9d3 to completion; finish remaining local broad recovery profiles; fix any failures without weakening checks. Then record exact counts and final handoff. No paid calls/deployment authorized.",
     "tests": {
       "ai": 51,
       "serviceFinal": 14,
@@ -824,18 +824,21 @@
         "modernPendingRestore": 1,
         "modernPendingPeakCheckpointBytes": 126985,
         "limitBytes": 131072,
-        "broadProfiles": "remaining local profiles still running; no failures observed"
-      }
+        "broadProfiles": "remaining local profiles still running; no failures observed",
+        "serializedBoundReconcilers": 18,
+        "actualD1FullLegacyPeakCheckpointBytes": 125568
+      },
+      "boundedQueueReview": "No actionable findings: owner privacy, provider disablement, lease/unknown handling and appeal races."
     },
     "runtimeScope": "Node and Worker owner feedback/appeals; trusted capture and synthetic processing Node-local; paid/model processing disabled",
     "backendCommit": "593811c",
     "accountUsagePercent": 10,
     "nodeCandidate": "0a551b1227bd22c013890adf7579246d657bbbf9",
     "nodeCiRun": "https://github.com/chrisjacob/warplets-api/actions/runs/43522116139",
-    "localQaPid": 28440,
+    "localQaPid": 34944,
     "localQaDatabase": "work/qa-three-month-final-2026-11-13/core.sqlite",
     "preMigrationBackup": "work/qa-three-month-final-2026-11-13/core-before-review-2026-11-14.sqlite",
-    "lastTestedLocalProductCommit": "67279c035a38b987fa770b640e6942e2e1815ec8",
+    "lastTestedLocalProductCommit": "bfdc9d36f93e2017ceaaef86df12b86fe7d5aa6b",
     "priorNodeCi": "43522116139 superseded/cancelled by final parity checkpoint",
     "localQaSchema": "071-ai-review-appeal-obligation.sql",
     "parityBackup": "work/qa-three-month-final-2026-11-13/core-before-review-parity-2026-11-14.sqlite",
@@ -853,7 +856,8 @@
       "health": 200,
       "unauthenticatedPrivateFeedback": 401,
       "integrity": "ok",
-      "performanceSnapshotUnchanged": true
+      "performanceSnapshotUnchanged": true,
+      "postRepairEvidence": "work/qa-review-recovery-after.json"
     },
     "accountUsageReset": "Previous usage window reset during final CI; 62% last observed before reset.",
     "previousFailedCi": {
@@ -873,7 +877,11 @@
       ]
     },
     "ci": {
-      "status": "pending-repair-checkpoint-push"
-    }
+      "runId": 43530055984,
+      "jobId": 132245223270,
+      "url": "https://github.com/chrisjacob/warplets-api/actions/runs/43530055984",
+      "status": "in-progress"
+    },
+    "localQaProductCommit": "bfdc9d36f93e2017ceaaef86df12b86fe7d5aa6b"
   }
 }
