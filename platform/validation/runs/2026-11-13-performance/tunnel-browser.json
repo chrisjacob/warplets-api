@@ -1,0 +1,27 @@
+{
+  "at": "2026-11-13T12:12:38.483Z",
+  "origin": "https://app-local.10x.meme",
+  "mode": "public-read-only-synthetic-local",
+  "results": [
+    {
+      "width": 390,
+      "home15Rows": true,
+      "banner": true,
+      "profile20Rows": true,
+      "milestones3": true,
+      "realQaPreview": true,
+      "noPageErrors": true,
+      "noOverflow": true
+    },
+    {
+      "width": 1280,
+      "home15Rows": true,
+      "banner": true,
+      "profile20Rows": true,
+      "milestones3": true,
+      "realQaPreview": true,
+      "noPageErrors": true,
+      "noOverflow": true
+    }
+  ]
+}

@@ -1,0 +1,84 @@
+{
+  "recordedAt": "2026-11-13T12:15:24.872892+00:00",
+  "scope": "synthetic-local-only",
+  "implementationCommit": "8a3c4feaa5fb04285ca64c3f1606d1d8bd7e61db",
+  "milestones": [
+    "52fd718",
+    "4c41223",
+    "12e415e",
+    "0a8a24a",
+    "d3b6a59",
+    "b41320d",
+    "8a3c4fe"
+  ],
+  "checks": {
+    "performanceTests": 14,
+    "aiReviewTests": 20,
+    "qaPopulationTests": 2,
+    "frontendTests": 32,
+    "typescript": "pass",
+    "viteBuild": "pass",
+    "generatedContracts": "pass",
+    "blueprintSelfCheck": "pass",
+    "earnRecoveryDrill": "pass",
+    "existingEarnLoadRegression": "pass, 3000 local attempts across three recorded scenarios"
+  },
+  "browser": {
+    "chromium": "156.0.8078.4",
+    "webkit": "27.2",
+    "populatedWidths": [
+      320,
+      390,
+      1280
+    ],
+    "nftDensityWidths": [
+      320,
+      390,
+      768,
+      1280
+    ],
+    "navigationWidths": [
+      320,
+      390,
+      844,
+      1280
+    ],
+    "tunnelWidths": [
+      390,
+      1280
+    ],
+    "broadOperationalRegression": "Chromium pass on b41320d source; retained for unchanged wallet, moderation, governance and quote paths",
+    "finalChanges": "Stake pagination passed both engines; populated Chromium and actual tunnel checks repeated after award-history correction. Prior WebKit populated acceptance retained for unchanged views.",
+    "noPhysicalDeviceClaim": true
+  },
+  "data": {
+    "snapshotDirectory": "work/qa-three-month-final-2026-11-13",
+    "asOf": "2026-11-13T12:06:14.000Z",
+    "tokens": 90,
+    "participants": 250,
+    "rewardRecords": 24857,
+    "accrualSnapshotRecords": 90,
+    "nfts": 183,
+    "selectedOwnerNfts": 57,
+    "selectedOwnerSourceRecords": 2445,
+    "selectedOwnerDatedRecords": 2355,
+    "privateSigningKeysGeneratedByQaPopulation": false
+  },
+  "ci": {
+    "runId": 43423065291,
+    "url": "https://github.com/chrisjacob/warplets-api/actions/runs/43423065291",
+    "status": "in_progress",
+    "conclusion": null
+  },
+  "financialExecution": false,
+  "paidAiCalls": 0,
+  "deployment": false,
+  "remoteCloudflareMutations": false,
+  "remaining": [
+    "Approve real price sources, launch references, quote quality/freshness and publication/reconciliation rules.",
+    "Approve AI model/cost/retention and trusted content capture; calibrate rubric and decide final-review/appeals before live scoring.",
+    "Implement production durable AI queue, cross-run idempotency, daily rate/cost caps and operational monitoring after those decisions.",
+    "Verified achievements/historical rank charts require reviewed durable snapshots; PnL requires trade/cost-basis accounting.",
+    "Complete physical wallets/devices/screen readers and mandatory R01-R06 reviews; no release authorization implied."
+  ]
+}

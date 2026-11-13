@@ -1,0 +1,50 @@
+{
+  "engine": "chromium",
+  "version": "156.0.8078.4",
+  "snapshot": {
+    "tokenCount": 90,
+    "participantCount": 250,
+    "rewardCount": 22502
+  },
+  "results": [
+    {
+      "width": 320,
+      "homeTop3": true,
+      "categoryTop100Bounded": true,
+      "modeReranking": true,
+      "outside100": true,
+      "profilePagination": true,
+      "boundedConsumerLists": true,
+      "syntheticCardDownload": true,
+      "milestonesAndHistory": true,
+      "sampleReviewEnvelope": true,
+      "noOverflow": true
+    },
+    {
+      "width": 390,
+      "homeTop3": true,
+      "categoryTop100Bounded": true,
+      "modeReranking": true,
+      "outside100": true,
+      "profilePagination": true,
+      "boundedConsumerLists": true,
+      "syntheticCardDownload": true,
+      "milestonesAndHistory": true,
+      "sampleReviewEnvelope": true,
+      "noOverflow": true
+    },
+    {
+      "width": 1280,
+      "homeTop3": true,
+      "categoryTop100Bounded": true,
+      "modeReranking": true,
+      "outside100": true,
+      "profilePagination": true,
+      "boundedConsumerLists": true,
+      "syntheticCardDownload": true,
+      "milestonesAndHistory": true,
+      "sampleReviewEnvelope": true,
+      "noOverflow": true
+    }
+  ]
+}

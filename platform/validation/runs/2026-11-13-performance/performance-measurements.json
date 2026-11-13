@@ -1,0 +1,23 @@
+{
+  "at": "2026-11-13T12:12:34.294Z",
+  "scope": "local synthetic Node projection only; not hosted, geographic, database-load or financial execution evidence",
+  "implementationCommit": "8a3c4feaa5fb04285ca64c3f1606d1d8bd7e61db",
+  "snapshotAsOf": "2026-11-13T12:06:14.000Z",
+  "snapshot": {
+    "tokenCount": 90,
+    "participantCount": 250,
+    "rewardCount": 24857
+  },
+  "snapshotBytes": 6308486,
+  "compileMs": 1770.1368,
+  "cached1000Ms": 904.7055999999998,
+  "averageBoardBytes": 56089.6,
+  "http": {
+    "requests": 200,
+    "concurrency": 8,
+    "p50Ms": 25.03879999999981,
+    "p95Ms": 41.186499999999796,
+    "maxMs": 61.81860000000006
+  },
+  "heapUsedBytes": 44027448
+}

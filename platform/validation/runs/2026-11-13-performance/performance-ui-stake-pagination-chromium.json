@@ -1,0 +1,42 @@
+{
+  "engine": "chromium",
+  "version": "156.0.8078.4",
+  "results": [
+    {
+      "width": 320,
+      "catalogPageSize": 25,
+      "initialCampaigns": 6,
+      "nextCatalogFirst": "qa-att-027",
+      "positionPageSize": 25,
+      "independentCursors": true,
+      "preservedFarm": true,
+      "reload": true,
+      "tokenDetailLink": true,
+      "noOverflow": true
+    },
+    {
+      "width": 390,
+      "catalogPageSize": 25,
+      "initialCampaigns": 6,
+      "nextCatalogFirst": "qa-att-027",
+      "positionPageSize": 25,
+      "independentCursors": true,
+      "preservedFarm": true,
+      "reload": true,
+      "tokenDetailLink": true,
+      "noOverflow": true
+    },
+    {
+      "width": 1280,
+      "catalogPageSize": 25,
+      "initialCampaigns": 6,
+      "nextCatalogFirst": "qa-att-027",
+      "positionPageSize": 25,
+      "independentCursors": true,
+      "preservedFarm": true,
+      "reload": true,
+      "tokenDetailLink": true,
+      "noOverflow": true
+    }
+  ]
+}

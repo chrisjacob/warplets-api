@@ -1,0 +1,50 @@
+{
+  "engine": "chromium",
+  "version": "156.0.8078.4",
+  "results": [
+    {
+      "width": 320,
+      "initialAssets": 6,
+      "initialCollections": 2,
+      "totalCollections": 5,
+      "columns": 1,
+      "keyboardReveal": true,
+      "technicalUnchanged": true,
+      "pageHeight": 10019,
+      "noOverflow": true
+    },
+    {
+      "width": 390,
+      "initialAssets": 6,
+      "initialCollections": 2,
+      "totalCollections": 5,
+      "columns": 1,
+      "keyboardReveal": true,
+      "technicalUnchanged": true,
+      "pageHeight": 9340,
+      "noOverflow": true
+    },
+    {
+      "width": 768,
+      "initialAssets": 6,
+      "initialCollections": 2,
+      "totalCollections": 5,
+      "columns": 2,
+      "keyboardReveal": true,
+      "technicalUnchanged": true,
+      "pageHeight": 6332,
+      "noOverflow": true
+    },
+    {
+      "width": 1280,
+      "initialAssets": 6,
+      "initialCollections": 2,
+      "totalCollections": 5,
+      "columns": 3,
+      "keyboardReveal": true,
+      "technicalUnchanged": true,
+      "pageHeight": 5906,
+      "noOverflow": true
+    }
+  ]
+}

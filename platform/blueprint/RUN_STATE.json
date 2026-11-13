@@ -5,7 +5,7 @@
   "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
   "currentTask": null,
-  "lastUpdatedAt": "2026-11-12T14:37:34.855229+00:00",
+  "lastUpdatedAt": "2026-11-13T12:13:42.052072+00:00",
   "migrationAllocation": {
     "next": 70,
     "reserved": [
@@ -718,5 +718,19 @@
       "decision": "Implemented Tokens/Airdrops/NFTs/Attention/Leaderboards navigation, contextual staking and wallet My stakes. Local types/build/30 tests and full browser regression passed; legacy URLs preserved. See NAVIGATION_REVIEW_2026-11-13.md. No release gate changed."
     }
   ],
-  "handoff": "MORNING_HANDOFF.md"
+  "handoff": "MORNING_HANDOFF.md",
+  "productFollowup": {
+    "id": "performance-qa-ai-review-2026-11-13",
+    "status": "local-verified-ci-pending",
+    "implementationCommit": "8a3c4feaa5fb04285ca64c3f1606d1d8bd7e61db",
+    "ciRunId": 43423065291,
+    "preview": "https://app-local.10x.meme",
+    "localPort": 4181,
+    "qaDirectory": "work/qa-three-month-final-2026-11-13",
+    "originalDemoPreserved": true,
+    "guide": "platform/validation/THREE_MONTH_QA_GUIDE_2026-11-13.md",
+    "evidenceDirectory": "platform/validation/runs/2026-11-13-performance",
+    "nextAction": "Follow CI to completion, record exact result, commit final guide/evidence; then founder manual review and decisions on live pricing and AI provider/capture/calibration/final-review policy.",
+    "releaseWorkAuthorized": false
+  }
 }

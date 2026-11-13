@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "scope": "synthetic-local-only",
+  "status": "complete",
+  "seed": "three-month-v1",
+  "asOf": "2026-11-13T12:06:14.000Z",
+  "wallet": "4nQTuFuY38vevToXAuMwT3nm4SFVfuRRWMEXRm68JeX9",
+  "pricing": "complete",
+  "performance": {
+    "tokens": 90,
+    "participants": 250,
+    "rewards": 24857,
+    "bytes": 6308486,
+    "sha256": "263c74e3297b9db0e8a29beb8fe83f1cbe849ca358136300850129d8c1911ea7"
+  },
+  "core": {
+    "demo": {
+      "source": "local-fixture",
+      "wallet": "4nQTuFuY38vevToXAuMwT3nm4SFVfuRRWMEXRm68JeX9",
+      "marketId": "demo-att",
+      "genesisId": "demo-genesis",
+      "seasonId": "demo-season",
+      "ballotId": "demo-next-tranche",
+      "seededAt": "2026-11-13T12:06:14.000Z",
+      "stakeEligibilityExpiresAt": "2026-11-13T12:11:14.000Z"
+    },
+    "largeHolder": "Cg9tnGsFHUVjwnhYmwfwEj9GaMhVmHbJ6Dit2zhb9UfL",
+    "markets": 90,
+    "assets": 183,
+    "ownedAssets": 57,
+    "largeHolderAssets": 126,
+    "finalizedBoards": 90,
+    "recordedAllocations": 89,
+    "submissions": 90,
+    "pendingMintId": "dcce9138-2205-45c6-8629-7585705176a9"
+  },
+  "ownerAlignment": {
+    "wallet": "4nQTuFuY38vevToXAuMwT3nm4SFVfuRRWMEXRm68JeX9",
+    "asOf": "2026-11-13T12:06:14.000Z",
+    "records": 2445,
+    "categories": {
+      "nfts": 2266,
+      "stake": 90,
+      "earn": 89
+    }
+  },
+  "examples": {
+    "outsideTop100": {
+      "wallet": "8BrP6Wq8J1Ah6Bf3m9ir8sFTrtoszstwebwDxbvddDV6",
+      "peakRank": 247
+    }
+  },
+  "financialExecution": false,
+  "important": "Selected owner reward quantities match core fixture readers as of the snapshot timestamp. Live demo vesting continues afterward. Other participants are a separate synthetic history projection, not executable core ledger balances. Never sum the datasets. All prices, ownership and rewards are synthetic; no real funds or external traffic."
+}
