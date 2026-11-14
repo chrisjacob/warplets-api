@@ -5,7 +5,7 @@
   "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
   "currentTask": null,
-  "lastUpdatedAt": "2026-11-14T01:09:07.646608+00:00",
+  "lastUpdatedAt": "2026-11-14T03:03:18.416781+00:00",
   "migrationAllocation": {
     "next": 72,
     "reserved": [
@@ -947,6 +947,72 @@
       "jobId": 132245223270,
       "url": "https://github.com/chrisjacob/warplets-api/actions/runs/43530055984",
       "status": "superseded-cancelled"
+    }
+  },
+  "productSimplificationFollowup": {
+    "status": "implemented-local-verified-ci-running",
+    "baselineProduct": "721a20c",
+    "baselineHead": "3a8d968",
+    "scope": [
+      "retire advisory Genesis ballots from consumer product and active API tests",
+      "local-only real Farcaster and trending-token presentation overlay"
+    ],
+    "constraints": [
+      "preserve historical migrations and economic/recovery guards",
+      "preserve existing QA DB and snapshot",
+      "free public uncredentialed sources only",
+      "simulated activity remains labelled",
+      "no deploy/paid calls/external messages"
+    ],
+    "owners": {
+      "ballots": "performance_ui",
+      "qaIdentity": "ai_review",
+      "integration": "root"
+    },
+    "nextStep": "Follow exact-candidate full CI43549287399 to completion, resolve any failures without weakening safeguards, record final counts and push handoff. Localappalreadyupdated;publicdataandimagesremainuntrackedworkonly.",
+    "ballotRemoval": {
+      "status": "verified-and-pushed",
+      "commit": "1518a68",
+      "tests": 95,
+      "types": "passed",
+      "contracts": "passed",
+      "build": "passed",
+      "browser": "Chromium navigation/inbox/notifications; WebKit navigation/inbox",
+      "historicalSafeguards": "migrations, recovery, economic/founder gates retained"
+    },
+    "publicIdentitySources": [
+      "Farcaster public following/user endpoints",
+      "GeckoTerminal Solana 24h trending pools"
+    ],
+    "productCommit": "62aa4eebe1e4abd4385fa759657cb8d355b5f3ab",
+    "demoRetirementCommit": "83e2007",
+    "localQaPid": 36876,
+    "identityManifest": "work/qa-public-identities-complete-2026-11-14/identities.json",
+    "identityManifestSha256": "9631de011d70a88640031c73d4fae5f3e5c9fb4df5a1a6d700be15616471f457",
+    "coverage": {
+      "profiles": 249,
+      "tokens": 90,
+      "imageAssociations": 339,
+      "uniqueCachedRasters": 338,
+      "selectedImageFallbacks": 0,
+      "ownerUnchanged": true
+    },
+    "tests": {
+      "qa": 8,
+      "demoSeedFollowup": 3,
+      "qaSeedFollowup": 2,
+      "frontend": 37,
+      "browser": "Chromium156/WebKit27.2 at320/1280; all338imagesdecoded;zeroexternalrequests;nooverflow",
+      "siteTypesBuild": "passed",
+      "economicSnapshotAndCounts": "unchanged",
+      "publicTunnel": 200,
+      "retiredBallots": 404
+    },
+    "ci": {
+      "runId": 43549287399,
+      "jobId": 132307766863,
+      "url": "https://github.com/chrisjacob/warplets-api/actions/runs/43549287399",
+      "status": "in-progress"
     }
   }
 }

@@ -1,5 +1,17 @@
 # Completed local implementation — review handoff
 
+## Current work — simpler product and realistic QA identities
+
+Pushed milestones: **1518a68** retires Genesis advisory ballot UI, public Node/Worker routes, SDK/contracts and fallback UI; **83e2007** removes obsolete demo ballot seeding; **62aa4eebe1e4abd4385fa759657cb8d355b5f3ab** adds the optional local identity overlay. Founder notice/economic approval requirements, historical migrations and recovery fixtures remain intact. No social poll or external message was sent.
+
+The local QA app now runs on port4181/PID**36876** at **https://app-local.10x.meme** with the original dataset `work/qa-three-month-final-2026-11-13` and `--identity-overlay work/qa-public-identities-complete-2026-11-14/identities.json`. Verify process identity before restarting. The existing manual server/operator and tunnel were not changed. All database counts, integrity and original economic snapshot hash remain unchanged. Tunnel checks: health200, private feedback401, retired ballot404, overlay249profiles/90tokens and cached image200.
+
+The overlay uses **249 unique Farcaster profiles**, **90 unique current Solana trending tokens**, and **338 local raster files for339image associations**, with zero selected-image fallbacks. Your owner wallet remains unmapped. Source APIs were public, free and uncredentialed. Activity, wallets, economic symbols, prices and rewards remain synthetic with no-affiliation labels. Public data/images/screenshots stay under untracked `work/`; no real identity records are committed. Manifest SHA256: `9631de011d70a88640031c73d4fae5f3e5c9fb4df5a1a6d700be15616471f457`.
+
+Verified locally:95 retirement checks; site/Worker types and contracts;37 combined frontend tests/build;8 QA tests;3 demo and2 QA generator follow-ups. Chromium156 and WebKit27.2 pass at320/1280, decode every338unique image, make no external requests and show no horizontal overflow. Screenshots/results: `work/qa-identities-browser` and `work/qa-identities-browser-webkit`.
+
+[Combined CI43549287399](https://github.com/chrisjacob/warplets-api/actions/runs/43549287399), job132307766863, is running against exact product62aa4ee. Next: follow to completion, fix failures without weakened checks, then record exact totals and final handoff. No deployment, paid calls, financial execution or R-stage work is authorized. [Review instructions](../validation/PRODUCT_SIMPLIFICATION_2026-11-14.md).
+
 ## Current work — durable review queue, 14 November
 
 Implemented and pushed: durable submission obligations, Node and Worker owner-only feedback/appeals, creator dialog and screenshot guide, private retry identities and recovery compatibility corrections. Milestones are `593811c`, `0a551b1`, `67279c0` and `bfdc9d3`. Final evidence-size correction **`721a20c2755c0cd8d2c97079697d7dfd76e1a313`** is tested, pushed and running in local QA. Migration 071 remains current. Source capture and synthetic processing are trusted Node-local tasks. Paid calls, hosted model processing, financial execution and deployment remain disabled. Final moderation and rewards are separate; historical final submissions are not rescored.
