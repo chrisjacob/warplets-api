@@ -1,0 +1,90 @@
+{
+  "scope": "synthetic-local-only; no deployment or paid model calls",
+  "productCommit": "721a20c2755c0cd8d2c97079697d7dfd76e1a313",
+  "branch": "work/10x-prd-foundation",
+  "ci": {
+    "runId": 43533401131,
+    "jobId": 132256485116,
+    "url": "https://github.com/chrisjacob/warplets-api/actions/runs/43533401131",
+    "conclusion": "success",
+    "startedAt": "2026-11-14T00:19:22Z",
+    "completedAt": "2026-11-14T01:07:05Z",
+    "suites": {
+      "reference": {
+        "tests": 1316,
+        "passed": 1316,
+        "failed": 0
+      },
+      "frontend": {
+        "tests": 37,
+        "passed": 37,
+        "failed": 0
+      },
+      "beacon": {
+        "tests": 3,
+        "passed": 3,
+        "failed": 0
+      },
+      "workerD1R2": {
+        "tests": 177,
+        "passed": 177,
+        "failed": 0
+      }
+    },
+    "totalTests": 1533,
+    "failures": 0,
+    "skipped": 0,
+    "cancelled": 0,
+    "additionalChecks": [
+      "generated contracts",
+      "Earn recovery drill",
+      "frontend TypeScript/Vite build",
+      "Worker types"
+    ]
+  },
+  "focusedFeatureTests": {
+    "ai": 61,
+    "workerOwnerApi": 5,
+    "d1Queue": 2
+  },
+  "continuedRecovery": {
+    "largestAcceptedReport": {
+      "captureSteps": 512,
+      "restoreSteps": 1207,
+      "ready": true,
+      "exactEvidenceAndFeedback": true,
+      "reportPageBytes": 131037,
+      "worstContinuationPageBytes": 131072,
+      "peakCheckpointBytes": 126969,
+      "maxRestoreBatchBytes": 138844,
+      "maxCaptureWorkingBytes": 842628,
+      "maxRestoreWorkingBytes": 555209
+    },
+    "largestLegacyCheckpointBytes": 126988,
+    "unchangedLimits": {
+      "rowPageBytes": 131072,
+      "checkpointBytes": 131072,
+      "batchBytes": 262144,
+      "workingBytes": 1048576
+    }
+  },
+  "localPreview": {
+    "url": "https://app-local.10x.meme",
+    "pid": 30740,
+    "health": 200,
+    "unauthenticatedPrivateFeedback": 401,
+    "integrity": "ok",
+    "existingDataPreserved": true
+  },
+  "accountUsage": {
+    "usedPercent": 17,
+    "previousWindowResetDuringWork": true
+  },
+  "remaining": [
+    "approved provider/model, data handling and cost limits",
+    "trusted content/media capture",
+    "rubric calibration and reviewer/appeal policy",
+    "controlled Worker provider processing and monitoring",
+    "existing R01-R06 release approvals"
+  ]
+}

@@ -1,6 +1,6 @@
 # 10X.MEME — current product and production readiness
 
-Updated 14 November 2026. Audit baseline: `fa6d8922479d25d77f1babb9957d1486341ff481`; durable review backend: `593811c`; creator feedback and appeals: `0a551b1`; Worker parity: `67279c0`; final recovery and evidence safeguards: `721a20c`. [Audit and measurements](APP_AUDIT_2026-11-14.md) · [Populated-app guide](THREE_MONTH_QA_GUIDE_2026-11-13.md) · [Creator/operator review guide](AI_REVIEW_USER_GUIDE_2026-11-14.md).
+Updated 14 November 2026. Current tested product: `721a20c2755c0cd8d2c97079697d7dfd76e1a313`. [Audit and measurements](APP_AUDIT_2026-11-14.md) · [Populated-app guide](THREE_MONTH_QA_GUIDE_2026-11-13.md) · [Creator/operator review guide](AI_REVIEW_USER_GUIDE_2026-11-14.md).
 
 ## Brief summary
 
@@ -10,7 +10,7 @@ The app is available at [app-local.10x.meme](https://app-local.10x.meme) through
 
 The largest remaining work is production data and AI integration, hosted operational readiness, and independent resolution of custody/protocol risks before funds can move. Several choices can require implementation changes; production readiness is not simply a deployment or configuration switch. R01–R06 remain unapproved.
 
-The audit baseline passed [CI43498717270](https://github.com/chrisjacob/warplets-api/actions/runs/43498717270): **1,476 tests with zero failures**, plus builds, types, contracts and recovery. Local Chromium/WebKit and actual-tunnel checks also passed. The subsequent review extension passed 61 AI tests, actual Worker/D1 owner-route and guard tests, complete recovery journeys and Chromium/WebKit creator workflows; its exact final CI and recovery results are tracked in [the integration report](AI_REVIEW_INTEGRATION_2026-11-14.md) and the resumable handoff. This evidence validates the local scope; it does not approve hosted or financial release.
+The current product passed [CI 43533401131](https://github.com/chrisjacob/warplets-api/actions/runs/43533401131): **1,533 tests with zero failures, skips or cancellations**, plus builds, types, contracts and recovery. This includes 61 focused AI tests and actual Worker/D1/R2 acceptance. Chromium/WebKit creator workflows and the local tunnel also passed their recorded checks. [The integration report](AI_REVIEW_INTEGRATION_2026-11-14.md) records the exact candidate and evidence. This validates the local scope; it does not approve hosted or financial release.
 
 ## What people can use today
 

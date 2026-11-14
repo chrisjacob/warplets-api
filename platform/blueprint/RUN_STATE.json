@@ -5,7 +5,7 @@
   "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
   "currentTask": null,
-  "lastUpdatedAt": "2026-11-14T00:59:50.774834+00:00",
+  "lastUpdatedAt": "2026-11-14T01:09:07.646608+00:00",
   "migrationAllocation": {
     "next": 72,
     "reserved": [
@@ -775,11 +775,11 @@
     "ciTestsPassed": 1476
   },
   "aiReviewFollowup": {
-    "status": "final-exact-candidate-ci-in-progress",
+    "status": "complete-local-integration",
     "budget": "stop at 10% remaining account usage",
     "paidCallsEnabled": false,
     "deployment": false,
-    "nextStep": "Follow full CI43533401131/job132256485116 on exact product721a20c to completion. All targeted feature, evidence-size and recovery checks pass. Resolve any CI failure without weakened criteria; otherwise record exact totals, guide, remaining work and final usage, then push handoff documentation. Paid calls/deployment remain disabled.",
+    "nextStep": "Founder review of the local app and role-based screenshot guide. Before live AI: approve provider/model, data handling/cost limits, trusted capture, calibration and reviewer/appeal policy; implement controlled Worker provider processing/monitoring and complete existing release approvals. All requested local queue/feedback/appeal work and final CI are complete. Paid calls, deployment and R-stage execution remain unauthorized.",
     "tests": {
       "ai": 61,
       "serviceFinal": 14,
@@ -854,7 +854,7 @@
     },
     "runtimeScope": "Node and Worker owner feedback/appeals; trusted capture and synthetic processing Node-local; paid/model processing disabled",
     "backendCommit": "593811c",
-    "accountUsagePercent": 16,
+    "accountUsagePercent": 17,
     "nodeCandidate": "0a551b1227bd22c013890adf7579246d657bbbf9",
     "nodeCiRun": "https://github.com/chrisjacob/warplets-api/actions/runs/43522116139",
     "localQaPid": 30740,
@@ -907,13 +907,26 @@
       "runId": 43533401131,
       "jobId": 132256485116,
       "url": "https://github.com/chrisjacob/warplets-api/actions/runs/43533401131",
-      "status": "in-progress",
+      "status": "success",
       "completedStages": [
         "reference-contracts-recovery",
         "viewer-build-tests",
-        "beacon-offline"
+        "beacon-offline",
+        "worker-types-d1-r2-tests"
       ],
-      "activeStage": "worker-types-d1-r2-tests"
+      "activeStage": null,
+      "completedAt": "2026-11-14T01:07:05Z",
+      "tests": {
+        "reference": 1316,
+        "frontend": 37,
+        "beacon": 3,
+        "workerD1R2": 177,
+        "total": 1533,
+        "failed": 0,
+        "skipped": 0,
+        "cancelled": 0
+      },
+      "evidence": "platform/validation/evidence/ai-review-2026-11-14/ci-final.json"
     },
     "localQaProductCommit": "721a20c2755c0cd8d2c97079697d7dfd76e1a313",
     "evidenceBoundary": {
