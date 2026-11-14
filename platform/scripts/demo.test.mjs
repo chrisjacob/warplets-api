@@ -62,9 +62,8 @@ test('in-memory demo serves synthetic public fixtures without creating wallet se
     assert.equal(vault.items[0].marketId, 'demo-att');
     assert.ok(BigInt(vault.items[0].allocated) > 0n);
     assert.ok(BigInt(vault.items[0].claimable) > 0n);
-    const ballots = await get('/api/v1/genesis/ballots');
-    assert.equal(ballots.items[0].status, 'open');
-    assert.deepEqual(ballots.items[0].choices, ['ASAP', '7', '14', '30']);
+    assert.equal((await fetch(demo.origin + '/api/v1/genesis/ballots')).status, 404);
+    assert.equal(Object.hasOwn(demo.info, 'ballotId'), false);
     const availability = await get('/api/v1/markets/demo-att/quote-status');
     assert.equal(availability.available, false);
     for (const path of ['/api/v1/vault', '/api/v1/stake/positions', '/api/v1/collect/me/assets']) {

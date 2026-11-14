@@ -3,7 +3,6 @@ import { transaction } from '../storage/database.mjs';
 import { importMarket } from '../markets/catalog.mjs';
 import { recordVaultManifest } from '../vault/ledger.mjs';
 import { seedFarm, observeFarm } from '../stake/farms.mjs';
-import { seedBallot } from '../governance/ballots.mjs';
 import { addCampaign, recordStakeRead } from '../earn/workflow.mjs';
 import { LEVEL_QUOTAS } from '../domain/collections/policy.mjs';
 import { NOTICE_MS } from '../domain/collections/ballot.mjs';
@@ -66,10 +65,8 @@ export function seedDemo(db, { wallet = DEFAULT_DEMO_OWNER, now = Date.now() } =
     addCampaign(db, { tokenId: marketId, activationMs, originalUnits });
     recordStakeRead(db, { wallet, tokenId: marketId, observedMs: now,
       expiresMs: now + 300_000, microUsd: '10000000', sourceRef: 'synthetic-demo-stake' });
-    seedBallot(db, { id: 'demo-next-tranche', opensAt: now - 60_000,
-      currentTrancheOpenedAt: start, holders: [wallet], nextWhitelist: [] });
     return Object.freeze({ source: 'local-fixture', wallet, marketId, genesisId, seasonId,
-      ballotId: 'demo-next-tranche', seededAt: new Date(now).toISOString(),
+      seededAt: new Date(now).toISOString(),
       stakeEligibilityExpiresAt: new Date(now + 300_000).toISOString() });
   });
 }
