@@ -1,0 +1,50 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {transaction} from '../storage/database.mjs';
+import {measureBatch} from '../storage/atomic-driver.mjs';
+import {recoveryFixture} from '../recovery/fixtures.mjs';
+import {createRecoveryV2Capture} from '../recovery/v2-capture.mjs';
+import {createRecoveryV2Codec,RECOVERY_V2_LIMITS} from '../recovery/v2-codec.mjs';
+import {v2RestoreTarget} from '../recovery/v2-restore-fixtures.mjs';
+import {seedSyntheticReviewQueueFixture} from './queue-fixture.mjs';
+import {createNodeReviewQueueService} from './queue-service.mjs';
+import {assertReviewRowRecoverable} from './queue-storage.mjs';
+
+test('largest accepted review evidence survives continued V2 capture and fresh restore within unchanged bounds',async t=>{
+ const f=await recoveryFixture();t.after(()=>f.db.close());
+ const seeded=await seedSyntheticReviewQueueFixture(f.db,{nowMs:1794600000000,suffix:'00000000-0000-4000-8000-000000000000'}),now=seeded.nowMs+1;
+ f.db.function('synthetic_storage_v2_clock',()=>now);
+ const queue=createNodeReviewQueueService(f.db,{clock:{nowMs:()=>now},leaseNowSql:'synthetic_storage_v2_clock()'});
+ const prefix='SYNTHETIC ',content=prefix+'\u0001'.repeat(16127)+'A'.repeat(20000-prefix.length-16127),job={...seeded.job,content,projectContext:'B'.repeat(8000)};
+ assert.equal(queue.capture(seeded.operator,{...seeded,job}).outcome,'created');
+ const evaluated=await queue.runOne(seeded.operator,{jobId:seeded.jobId});assert.equal(evaluated.outcome,'completed');
+ const measured=transaction(f.db,()=>assertReviewRowRecoverable(f.db,'ai_review_reports',evaluated.reportId));assert.equal(measured.maxPageBytes,131072);
+ const expectedCapture=f.db.prepare('SELECT * FROM ai_review_captures WHERE job_id=?').get(seeded.jobId),expectedReport=f.db.prepare('SELECT * FROM ai_review_reports WHERE report_id=?').get(evaluated.reportId),expectedFeedback=queue.walletStatus(seeded.principal,seeded.submissionId);
+ const v2Codec=createRecoveryV2Codec(f),metrics=[];let active=null,maxCaptureCheckpointBytes=0;
+ const driver={...f.driver,async batch(statements){active.sql+=statements.length;active.maxBatchBytes=Math.max(active.maxBatchBytes,measureBatch(statements).batchBytes);const rows=await f.driver.batch(statements);active.returnedBytes+=Buffer.byteLength(JSON.stringify(rows));return rows;}};
+ const artifacts={async getVerified(identity){active.reads++;const result=await f.store.getVerified(identity);if(result.status==='verified')active.objectBytes+=result.bytes.length;return result;},async putIfAbsent(identity,bytes){active.writes++;active.objectBytes+=bytes.length;return f.store.putIfAbsent(identity,bytes);}};
+ const capture=createRecoveryV2Capture({...f,clock:{nowMs:()=>now},driver,artifacts,v2Codec});
+ const call=async(method,input)=>{active={sql:0,reads:0,writes:0,maxBatchBytes:0,returnedBytes:0,objectBytes:0};try{return await capture[method](input);}finally{metrics.push(active);active=null;const checkpoint=f.db.prepare('SELECT checkpoint_json FROM app_recovery_captures WHERE id=?').get(input.captureId)?.checkpoint_json;if(checkpoint)maxCaptureCheckpointBytes=Math.max(maxCaptureCheckpointBytes,Buffer.byteLength(checkpoint));}};
+ let captured=await call('start',{captureId:'synthetic-large-review-v2',sourceCommit:'a'.repeat(40)});
+ for(let n=0;n<5000&&['started','progress','replayed'].includes(captured.kind);n++)captured=await call('step',{captureId:captured.captureId,expectedRevision:captured.revision});
+ assert.equal(captured.kind,'captured',JSON.stringify(captured));
+ const rowPages=[...f.store.objects.values()].map(bytes=>({bytes,value:JSON.parse(new TextDecoder().decode(bytes))})).filter(({value})=>value.format==='10x.local.recovery.rows.v2'&&['ai_review_captures','ai_review_reports'].includes(value.table));
+ assert.equal(rowPages.length,2);assert.ok(rowPages.every(({bytes})=>bytes.length<=131072));
+ assert.equal(rowPages.find(({value})=>value.table==='ai_review_reports').bytes.length,131037);
+ const target=v2RestoreTarget(t,{...f,clock:{nowMs:()=>now},v2Codec,captured,now});let result=await target.call('start'),maxRestoreCheckpointBytes=0;
+ for(let n=0;n<3000&&['started','progress','replayed'].includes(result.kind);n++){
+  result=await target.call('step');const raw=target.db.prepare('SELECT checkpoint_json FROM app_recovery_runs').get().checkpoint_json;
+  maxRestoreCheckpointBytes=Math.max(maxRestoreCheckpointBytes,Buffer.byteLength(raw));
+ }
+ assert.equal(result.kind,'restored',JSON.stringify(result));assert.equal(target.db.prepare('SELECT status FROM app_recovery_state').get().status,'ready');
+ assert.deepEqual(target.db.prepare('SELECT * FROM ai_review_captures WHERE job_id=?').get(seeded.jobId),expectedCapture);
+ assert.deepEqual(target.db.prepare('SELECT * FROM ai_review_reports WHERE report_id=?').get(evaluated.reportId),expectedReport);
+ const restored=createNodeReviewQueueService(target.db,{clock:{nowMs:()=>now}});assert.deepEqual(restored.walletStatus(seeded.principal,seeded.submissionId),expectedFeedback);
+ assert.equal(target.db.prepare('SELECT COUNT(*) n FROM earn_reviews WHERE submission_id=?').get(seeded.submissionId).n,0);
+ assert.equal(target.db.prepare('SELECT COUNT(*) n FROM earn_awards').get().n,f.db.prepare('SELECT COUNT(*) n FROM earn_awards').get().n);
+ assert.equal(RECOVERY_V2_LIMITS.pageBytes,131072);assert.equal(RECOVERY_V2_LIMITS.stepWorkingBytes,1048576);
+ assert.ok(maxCaptureCheckpointBytes<=131072);assert.ok(maxRestoreCheckpointBytes<=131072);
+ assert.ok(metrics.every(m=>m.sql+m.reads+m.writes<=64&&m.maxBatchBytes<=262144&&m.returnedBytes+m.objectBytes+m.maxBatchBytes<=1048576));
+ assert.ok(target.metrics.every(m=>m.sql+m.objectReads+m.objectWrites<=64&&m.maxBatchBytes<=262144&&m.returnedBytes+m.objectBytes+m.maxBatchBytes<=1048576));
+ t.diagnostic(JSON.stringify({reportPageBytes:131037,reservedReportPageBytes:measured.maxPageBytes,captureCalls:metrics.length,restoreCalls:target.metrics.length,maxCaptureCheckpointBytes,maxRestoreCheckpointBytes,maxCaptureBatchBytes:Math.max(...metrics.map(m=>m.maxBatchBytes)),maxRestoreBatchBytes:Math.max(...target.metrics.map(m=>m.maxBatchBytes)),maxCaptureWorkingBytes:Math.max(...metrics.map(m=>m.returnedBytes+m.objectBytes+m.maxBatchBytes)),maxRestoreWorkingBytes:Math.max(...target.metrics.map(m=>m.returnedBytes+m.objectBytes+m.maxBatchBytes)),exactPrivateEvidenceAndFeedback:true}));
+});

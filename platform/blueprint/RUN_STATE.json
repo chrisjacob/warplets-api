@@ -5,7 +5,7 @@
   "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
   "currentTask": null,
-  "lastUpdatedAt": "2026-11-13T23:55:16.258223+00:00",
+  "lastUpdatedAt": "2026-11-14T00:18:57.321277+00:00",
   "migrationAllocation": {
     "next": 72,
     "reserved": [
@@ -775,13 +775,13 @@
     "ciTestsPassed": 1476
   },
   "aiReviewFollowup": {
-    "status": "corrected-full-ci-in-progress",
+    "status": "final-evidence-bound-candidate-tested",
     "budget": "stop at 10% remaining account usage",
     "paidCallsEnabled": false,
     "deployment": false,
-    "nextStep": "Wait for exact-candidate full CI43530055984/job132245223270 on bfdc9d3. All local recovery regressions have passed. Resolve any CI failure without weakening acceptance, then record final counts/guide/handoff and push documentation. No paid calls/deployment authorized.",
+    "nextStep": "Push tested final evidence-bound checkpoint, refresh preserved local QA server and follow exact-candidate full test-only CI. Record final results and remaining live AI/release decisions. Paid calls/deployment remain disabled.",
     "tests": {
-      "ai": 51,
+      "ai": 61,
       "serviceFinal": 14,
       "d1Queue": 2,
       "nodeAndWorkerRuntime": 2,
@@ -836,11 +836,25 @@
         "serializedBoundReconcilers": 18,
         "actualD1FullLegacyPeakCheckpointBytes": 125568
       },
-      "boundedQueueReview": "No actionable findings: owner privacy, provider disablement, lease/unknown handling and appeal races."
+      "boundedQueueReview": "No actionable findings: owner privacy, provider disablement, lease/unknown handling and appeal races.",
+      "evidenceStorageRegressions": 9,
+      "largestEvidenceContinuedRecovery": {
+        "tests": 1,
+        "captureSteps": 512,
+        "restoreSteps": 1207,
+        "ready": true,
+        "exactEvidenceAndFeedback": true,
+        "reportPageBytes": 131037,
+        "reservedPageBytes": 131072,
+        "peakCheckpointBytes": 126969,
+        "maxRestoreBatchBytes": 138844,
+        "maxCaptureWorkingBytes": 842628,
+        "maxRestoreWorkingBytes": 555209
+      }
     },
     "runtimeScope": "Node and Worker owner feedback/appeals; trusted capture and synthetic processing Node-local; paid/model processing disabled",
     "backendCommit": "593811c",
-    "accountUsagePercent": 10,
+    "accountUsagePercent": 16,
     "nodeCandidate": "0a551b1227bd22c013890adf7579246d657bbbf9",
     "nodeCiRun": "https://github.com/chrisjacob/warplets-api/actions/runs/43522116139",
     "localQaPid": 34944,
@@ -885,11 +899,27 @@
       ]
     },
     "ci": {
+      "status": "pending-final-checkpoint-push"
+    },
+    "localQaProductCommit": "bfdc9d36f93e2017ceaaef86df12b86fe7d5aa6b",
+    "evidenceBoundary": {
+      "status": "fixed-and-tested",
+      "reproducer": "work/ai-review-page-bound-probe.mjs",
+      "captureAcceptedButRecoveryPageBytes": 136746,
+      "reportAcceptedButRecoveryPageBytes": 142275,
+      "reportOnlyOverflowPageBytes": 136275,
+      "limitBytes": 131072,
+      "scope": "isolated synthetic fixtures only; QA has zero review jobs/reports",
+      "preflight": "actual inserted row, installed columns, canonical escaping, worst continuation index/cursor/rowid, inside owning transaction",
+      "captureOverflow": "413 with capture/job/watermark rollback",
+      "reportOverflow": "no report; durable unknown attempt; no automatic retry",
+      "largestAcceptedReservedPageBytes": 131072
+    },
+    "recoveryCompatibilityCi": {
       "runId": 43530055984,
       "jobId": 132245223270,
       "url": "https://github.com/chrisjacob/warplets-api/actions/runs/43530055984",
       "status": "in-progress"
-    },
-    "localQaProductCommit": "bfdc9d36f93e2017ceaaef86df12b86fe7d5aa6b"
+    }
   }
 }

@@ -4,9 +4,9 @@ This module makes AI-assisted review concrete without silently giving a model au
 
 **Default runtime:** local/offline. The default evaluator is deterministic **simulation**, not an AI model. The app's durable queue hard-disables model providers. A separate, unconnected artifact CLI has a concrete OpenAI Responses adapter requiring an explicit `openai --allow-paid-provider` invocation. No paid request was made during implementation or tests. Content URLs are never fetched and no final review is automatically executed. The queue persists review obligations, captures, suggestions and appeals; it never changes final scores or rewards.
 
-## Durable app queue (local Node only)
+## Durable app queue
 
-Migration `070-ai-review-queue.sql` atomically creates an initial review obligation with every accepted Earn submission. Existing unreviewed submissions are backfilled; already moderated history is not reopened. The local Node app offers authenticated owner-only feedback and report-bound appeal routes; the Worker capability remains absent. A queue entry does **not** mean an AI model has judged the content.
+Migration `070-ai-review-queue.sql` atomically creates an initial review obligation with every accepted Earn submission. Existing unreviewed submissions are backfilled; already moderated history is not reopened. Node and the local Worker offer authenticated owner-only feedback and report-bound appeal routes. Source capture and synthetic processing remain Node-local operator tasks. A queue entry does **not** mean an AI model has judged the content.
 
 The flow is `awaiting-capture` → `ready` → `running` → `completed` for explicitly synthetic captured fixtures. A trusted local operator supplies the exact submission ID, token, source URL, capture timestamp, content/transcript and project context. The queue never fetches the URL. Real sources can be captured for inspection but enter `held` with provider-disabled evidence. They cannot be evaluated by the deterministic fixture provider. This queue has no flag that enables paid calls.
 
@@ -24,6 +24,8 @@ VALUES (?,'ai-review',0,1);
 ```
 
 An initial job ID is `submission:` followed by the accepted submission ID. An appeal job is `appeal:` followed by the appeal ID. Supply a UTF-8 JSON capture file (maximum 128 KiB) using the exact seven fields shown by `exampleJob`, with the **actual accepted** IDs/URL and a capture timestamp between submission and now. Treat captures and the SQLite file as private.
+
+The complete stored capture and report must also fit a 128 KiB recovery page after JSON escaping, metadata and continuation overhead. Each insert checks that bound before its transaction commits. An oversized capture returns `input_too_large` and leaves the job awaiting capture; no source text is truncated. An oversized evaluated report is not retained, and the dispatched attempt becomes `unknown` for operator investigation without an automatic retry. A file below the raw input limit can still exceed this complete-row limit.
 
 ```powershell
 node platform/ai-review/queue-cli.mjs capture --database work/review-demo.sqlite --operator-id local-reviewer --job-id submission:SUBMISSION_ID --input work/captured-job.json --evidence-ref local:verified-source-001

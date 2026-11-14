@@ -4,6 +4,7 @@ import {canonicalJson} from '../security/canonical.mjs';
 import {normalizeJob,evaluateSubmission,verifyReport,creatorFeedback,createAppeal,verifyAppeal} from './review.mjs';
 import {syntheticProvider} from './fixture.mjs';
 import {checkReportBinding} from './review-core.mjs';
+import {assertReviewRowRecoverable} from './queue-storage.mjs';
 
 import {ReviewQueueError} from './queue-error.mjs';
 export {ReviewQueueError} from './queue-error.mjs';
@@ -78,6 +79,7 @@ export function createNodeReviewQueueService(db,{clock={nowMs:()=>Date.now()},le
     if(finalReview(submission.id)||boardClosed(submission.id))fail(409,'review_closed','Final moderation or the board has already closed.');
     const synthetic=isSynthetic(normalized),state=synthetic?'ready':'held';
     db.prepare('INSERT INTO ai_review_captures(job_id,job_json,input_hash,evidence_ref,captured_by,created_ms) VALUES(?,?,?,?,?,?)').run(jobId,json,digest,evidenceRef,principal.id,time);
+    assertReviewRowRecoverable(db,'ai_review_captures',jobId);
     db.prepare('UPDATE ai_review_jobs SET state=?,reason=?,updated_ms=?,revision=revision+1 WHERE id=?').run(state,synthetic?null:'provider-disabled',time,jobId);
     return {outcome:'created',jobId,state};
    });
@@ -131,6 +133,7 @@ export function createNodeReviewQueueService(db,{clock={nowMs:()=>Date.now()},le
      operator(principal);if(!leaseCurrent(claimed))fail(409,'lease_lost','The review lease expired before its result was accepted.');
      const time=now(),json=bounded(report,131072);
      db.prepare('INSERT INTO ai_review_reports(report_id,job_id,submission_id,report_json,created_ms) VALUES(?,?,?,?,?)').run(report.reportId,claimed.id,claimed.job.submissionId,json,time);
+     assertReviewRowRecoverable(db,'ai_review_reports',report.reportId);
      const changed=db.prepare(`UPDATE ai_review_jobs SET state='completed',lease_token=NULL,lease_until_ms=NULL,reason=NULL,updated_ms=?,revision=revision+1 WHERE id=? AND state='running' AND lease_token=? AND revision=? AND lease_until_ms>${leaseNowSql}`).run(time,claimed.id,claimed.token,claimed.revision).changes;
      if(Number(changed)!==1)fail(409,'lease_lost','The review lease expired before its result write.');
      endAttempt(claimed,'completed',time);

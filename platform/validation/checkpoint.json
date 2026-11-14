@@ -1,5 +1,5 @@
 {
   "policy": "prd-1.2",
   "scope": "local",
-  "checkpoint": "durable-review-recovery-compatibility-2026-11-14"
+  "checkpoint": "durable-review-recoverable-evidence-2026-11-14"
 }

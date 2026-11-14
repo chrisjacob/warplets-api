@@ -81,6 +81,8 @@ node platform/ai-review/queue-cli.mjs run --database DATABASE_PATH --operator-id
 
 Only a deliberately synthetic submission with a `.invalid` URL and captured text beginning `SYNTHETIC` can run in this local queue. Real source captures are retained on hold; there is no paid-provider or API-key option in this queue CLI. A source URL alone is not adequate review evidence. No external URL is fetched by these commands.
 
+Captures and reports must fit the recovery storage limit, including JSON escaping and record metadata. A capture rejected as `input_too_large` is not saved and leaves the job waiting for a valid capture. The app never silently truncates source evidence. If an evaluated report cannot be safely stored, its attempt needs operator investigation and is not automatically retried.
+
 For a saved appeal, capture the reconsidered evidence against `appeal:APPEAL_ID`, retaining the same submission, token and URL, then run that specific job. The job preserves the prior report and appeal identity. The local test proves this recorded lineage; it does not prove organizational independence or the impartiality of a future model/reviewer.
 
 An unknown outcome needs operator investigation. Do not repeatedly run or reconstruct a job to conceal an interrupted attempt. The queue records immutable completed reports and terminal outcomes, and uses leased attempts to prevent concurrent workers accepting conflicting results.

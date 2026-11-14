@@ -18,7 +18,7 @@ New Earn submissions now create a private, durable review obligation in the same
 
 ## Validation
 
-- 51 AI tests: evaluator/provider mocks, batch/CLI safety, queue concurrency/expiry/rollback, immutable evidence, owner HTTP routes, appeals and private/public recovery.
+- 61 AI tests: evaluator/provider mocks, batch/CLI safety, queue concurrency/expiry/rollback, immutable evidence, owner HTTP routes, appeals and private/public recovery.
 - Final service follow-up: 14 tests pass, including truthful nested appeal eligibility.
 - Node API and actual application workerd compatibility: 2 tests pass.
 - Actual D1 queue regression: 2 tests pass, including atomic admission/replay/rollback, lost-response replay, recovery guards/watermarks and authenticated Worker feedback routes.
@@ -30,6 +30,8 @@ New Earn submissions now create a private, durable review obligation in the same
 - Frontend: 37 tests, TypeScript and Vite build pass. Actual-API Chromium and WebKit acceptance passes at 320, 390 and 1280 pixels, including submission, feedback, appeal, reconsideration, final score, keyboard focus, private-session cleanup and unsupported-runtime gating.
 
 The first combined CI exposed 23 integration regressions (1,276 passed / 1,299): stale schema counts/discovery ordering, legacy checkpoint representation comparisons and byte accounting, and a receipt fault fixture intercepted by the new foreign key. The correction keeps all acceptance gates: semantic checkpoint identity compares decoded values, legacy storage compacts during guarded CAS, persisted bytes use the packed representation, and working-memory estimates retain the actual decoded size. Schema alterations, stale writes and rollback faults still fail closed. Focused compatibility and actual D1 tests pass; modern pending recovery peaks at 126,985 / 131,072 bytes. All 14 broad local recovery tests, including seven complete adoption profiles and corrupted-proof refusal, pass. All 18 additional serialized-bound cases pass. Largest observed checkpoint: 126,988 / 131,072 bytes; limits remain unchanged. Full corrected CI remains pending.
+
+A final maximum-evidence check found that accepted raw JSON could exceed a recovery page after escaping. Both capture and report writes now preflight their complete rows inside the transaction, reserving the largest legal continuation header and rowid. Oversized captures return 413 with no row, job or watermark change; oversized evaluated reports retain no report and preserve dispatched uncertainty without retry. Nine regressions cover normal, multibyte, quoted and control-character inputs, exact limits, rollback and privacy. A full V2 integration captures and restores the largest accepted report byte-for-byte in 512 capture / 1,207 restore steps: report page 131,037 bytes, worst reserved page 131,072, peak checkpoint 126,969, SQL batch 138,844 and working data 842,628 bytes. All existing limits remain unchanged. These ten additional checks bring the AI suite to 61 passing tests.
 
 Exact final combined CI is recorded in RUN_STATE and MORNING_HANDOFF when complete. Browser evidence and role workflows are in [the user guide](AI_REVIEW_USER_GUIDE_2026-11-14.md).
 
