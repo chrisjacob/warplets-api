@@ -5,7 +5,7 @@
   "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
   "currentTask": null,
-  "lastUpdatedAt": "2026-11-14T00:20:30.272119+00:00",
+  "lastUpdatedAt": "2026-11-14T00:59:50.774834+00:00",
   "migrationAllocation": {
     "next": 72,
     "reserved": [
@@ -879,7 +879,12 @@
       "unauthenticatedPrivateFeedback": 401,
       "integrity": "ok",
       "performanceSnapshotUnchanged": true,
-      "postRepairEvidence": "work/qa-review-recovery-after.json"
+      "postRepairEvidence": "work/qa-review-recovery-after.json",
+      "tunnel": {
+        "url": "https://app-local.10x.meme/api/v1/health",
+        "status": 200,
+        "preview": "synthetic-90-day-qa"
+      }
     },
     "accountUsageReset": "Previous usage window reset during final CI; 62% last observed before reset.",
     "previousFailedCi": {
@@ -902,7 +907,13 @@
       "runId": 43533401131,
       "jobId": 132256485116,
       "url": "https://github.com/chrisjacob/warplets-api/actions/runs/43533401131",
-      "status": "in-progress"
+      "status": "in-progress",
+      "completedStages": [
+        "reference-contracts-recovery",
+        "viewer-build-tests",
+        "beacon-offline"
+      ],
+      "activeStage": "worker-types-d1-r2-tests"
     },
     "localQaProductCommit": "721a20c2755c0cd8d2c97079697d7dfd76e1a313",
     "evidenceBoundary": {
