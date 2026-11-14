@@ -56,7 +56,7 @@ function describe(route,record){
     return {content:items.length?links(items.map(m=>[m.symbol+' / '+m.ogSymbol,'/markets/'+encodeURIComponent(m.id)])):'<p>No market campaigns have been recorded.</p>'};
   }
   if(route.type==='genesis')return {content:summaryList([['Maximum supply',numeric(record.genesis.cap)],['Tranche size',numeric(record.genesis.trancheSize)],
-    ['First whitelist price',record.genesis.firstWhitelistPriceSol+' SOL'],['Vote length',record.genesis.ballotHours+' hours']])};
+    ['First whitelist price',record.genesis.firstWhitelistPriceSol+' SOL'],['Stage notice',record.genesis.noticeHours+' hours']])};
   if(route.type==='market')return {title:record.symbol+' / '+record.ogSymbol,description:record.symbol+' pairs with '+record.ogSymbol+' in the Solana preview.',
     content:summaryList([['Campaign status',record.status],['Activated',record.activatedAt],['Opening fee',pct(record.feeBps)],['ATT mint',record.attMint],['OG mint',record.ogMint]])};
   if(route.type==='season'){

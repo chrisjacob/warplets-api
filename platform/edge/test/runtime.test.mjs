@@ -59,14 +59,6 @@ test('real workerd verifies a D1 wallet proof once and protects R2 public artifa
  const cookie=replies.find(r=>r.status===200).headers.get('set-cookie').split(';')[0];
  assert.equal((await (await get('/me',{cookie})).json()).wallet,wallet);
  const time=Date.now();
- await db.batch([
-  db.prepare('INSERT INTO genesis_ballots VALUES(?,?,?,?,?,?)').bind('next',time-1000,time-1000+2*86400000,time-86400000,createHash('sha256').update(JSON.stringify(['next',time-1000,time-86400000,[wallet]])).digest('hex'),1),
-  db.prepare('INSERT INTO genesis_voters VALUES(?,?)').bind('next',wallet)
- ]);
- const votes=await Promise.all([post('/genesis/ballots/next/votes',{choice:'ASAP'},{cookie}),post('/genesis/ballots/next/votes',{choice:'ASAP'},{cookie})]);
- assert.deepEqual(votes.map(r=>r.status).sort(),[200,201]);
- assert.equal((await post('/genesis/ballots/next/votes',{choice:'7'},{cookie})).status,409);
- const ballot=await (await get('/genesis/ballots/next')).json();assert.equal(ballot.votesCast,1);assert.equal(ballot.counts,null);
  for(const path of ['/vault','/stake/positions','/earn/claims']){
    assert.equal((await get(path)).status,401);
    const owned=await (await get(path,{cookie,accept:'application/vnd.10x.v1+json'})).json();

@@ -12,16 +12,11 @@ export const policyModel=z.object({
     campaignDays:count,clock:text,feeStartBps:count,feeFloorBps:count}),
   vault:z.object({cliffHours:count,vestHours:count}),
   earn:z.object({maxWinners:count,maxMultiplierTenths:count,minimumCorrespondingStakeUsd:text}),
-  genesis:z.object({cap:count,trancheSize:count,firstWhitelistPriceSol:text,choices:z.array(text),
-    ballotHours:count,noticeHours:count,votesPerWallet:count,mintsPerEligibleWalletPerStage:count}),
+  genesis:z.object({cap:count,trancheSize:count,firstWhitelistPriceSol:text,
+    noticeHours:count,mintsPerEligibleWalletPerStage:count}),
   season:z.object({monthlyCap:count,freeStageRequires:text,freeMintsPerEligibleWallet:count}),
 });
 export type Policy=z.infer<typeof policyModel>;
-export const ballotModel=z.object({
-  id:text,status:z.enum(['scheduled','open','closed']),opensAt:date,closesAt:date,choices:z.array(text),
-  eligibleWallets:count,votesCast:count,counts:z.record(text,count).nullable(),
-  decision:z.object({choice:text,rationale:text,earliestOpening:date}).nullable(),
-});
 export const stageModel=z.object({
   id:text,type:text,status:text,opensAt:date,closesAt:date,priceLamports:units,costLamports:units,
   allocation:count,available:count,walletLimit:count,eligible:z.boolean().nullable(),
@@ -77,7 +72,6 @@ export const farmModel=z.object({marketId:text,status:text,fundedUnits:units,tot
 export const pageOf=<T extends z.ZodType>(item:T)=>z.object({items:z.array(item),nextCursor:cursor});
 export const dataOf=<T extends z.ZodType>(item:T)=>z.object({data:item});
 export type Asset=z.infer<typeof assetModel>;
-export type Ballot=z.infer<typeof ballotModel>;
 export type Stage=z.infer<typeof stageModel>;
 export type Inventory=z.infer<typeof inventoryModel>;
 export type Receipt=z.infer<typeof receiptModel>;

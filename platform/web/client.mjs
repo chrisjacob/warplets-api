@@ -1,6 +1,6 @@
 import { initWallet } from './wallet.mjs';
 import { collectView, earnView, escapeHtml, marketsView, percent, stakeView, vaultView } from './views.mjs';
-import { ballotPanel, earnActivity, farmActivity, ownerVaultPanel } from './activity.mjs';
+import { earnActivity, farmActivity, ownerVaultPanel } from './activity.mjs';
 import { bindStudio, studioMarkup } from './collection-studio.mjs';
 
 const view=document.querySelector('#view');
@@ -35,7 +35,6 @@ let data=null, me=null, privateData={}, generation=0, submitIntent=null;
 const assetId=params.get('asset');
 const farmId=params.get('farm');
 const cursor=value=>value?'?cursor='+encodeURIComponent(value):'';
-const voteFeedback=new Map();
 let submissionFeedback='';
 const wallet=initWallet({api,onSession:changeSession});
 const collectionDialog=document.querySelector('#collection-dialog');
@@ -50,7 +49,6 @@ function changeSession(value) {
   privateData={};
   submitIntent=null;
   submissionFeedback='';
-  voteFeedback.clear();
   if(collectionDialog.open) collectionDialog.close();
   generation++;
   if(data) {
@@ -89,30 +87,6 @@ function bindActions() {
   document.querySelectorAll('[data-connect]').forEach(button=>button.addEventListener('click',()=>{
     document.querySelector('#wallet-button').click();
   }));
-  for(const form of document.querySelectorAll('form[data-ballot]')) {
-    const id=form.dataset.ballot;
-    const output=form.querySelector('output');
-    if(voteFeedback.has(id)) {
-      output.textContent=voteFeedback.get(id);form.querySelector('fieldset').disabled=true;form.querySelector('button').disabled=true;
-    }
-    form.addEventListener('submit',async event=>{
-      event.preventDefault();
-      const choice=new FormData(form).get('choice'),walletAtSubmit=me?.wallet;
-      form.querySelector('button').disabled=true;
-      output.textContent='Recording vote…';
-      try {
-        const receipt=await api('/genesis/ballots/'+encodeURIComponent(id)+'/votes',{method:'POST',body:{choice}});
-        if(walletAtSubmit!==me?.wallet) return;
-        voteFeedback.set(id,'Recorded your vote: '+(receipt.choice==='ASAP'?'As soon as possible':receipt.choice+' days')+'.');
-        data.ballots=await optional('/genesis/ballots');
-        render();
-      } catch (error) {
-        output.textContent=({voter_ineligible:'This wallet was outside the opening snapshot.',
-          wallet_already_voted:'This wallet has already voted.',ballot_closed:'This ballot is closed.'})[error.code] ?? error.message;
-        form.querySelector('button').disabled=false;
-      }
-    });
-  }
   const form=document.querySelector('#submission-form');
   if(!form) return;
   const output=form.querySelector('output');output.textContent=submissionFeedback;
@@ -158,7 +132,7 @@ function render() {
     bindCurve(schedule?.points);
   } else if(resource==='collect') {
     const inventories=privateData.inventories??data.inventories;
-    view.innerHTML=collectView({collections})+studioMarkup({me,...privateData,inventories})+ballotPanel(data.ballots,me);
+    view.innerHTML=collectView({collections})+studioMarkup({me,...privateData,inventories});
     const walletAtRender=me?.wallet;
     if(me && !privateData.loading) bindStudio({inventories,assets:privateData.assets,me,api,
       isCurrent:()=>walletAtRender===me?.wallet});
@@ -170,17 +144,16 @@ function render() {
 }
 
 async function load() {
-  const [policy,profile,markets,schedule,collections,board,ballots,detail,farm,inventories]=await Promise.all([
+  const [policy,profile,markets,schedule,collections,board,detail,farm,inventories]=await Promise.all([
     api('/policy'), optional('/me'), ['markets','stake','earn'].includes(resource)?optional('/markets'):null,
     resource==='markets'?optional('/launch/fee-schedule'):null,
     resource==='collect'?optional('/collections'):null,
     resource==='earn'?optional('/earn/epochs/'+date+'/leaderboard'):null,
-    resource==='collect'?optional('/genesis/ballots'):null,
     resource==='vault' && assetId?optional('/nfts/'+encodeURIComponent(assetId)+'/vault'+cursor(params.get('cursor'))):null,
     resource==='stake' && farmId?api('/farms/'+encodeURIComponent(farmId)).catch(error=>error.code==='farm_not_found'?{missing:true}:null):null,
     resource==='collect'?optional('/collect/inventories'+cursor(params.get('inventories'))):null]);
   wallet.session(profile?.wallet?profile:null);
-  data={policy,markets,schedule,collections,board,ballots,detail,farm,inventories};
+  data={policy,markets,schedule,collections,board,detail,farm,inventories};
   render();
   await loadPrivate();
 }

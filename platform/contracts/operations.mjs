@@ -71,21 +71,6 @@ export const operations = [
     "method": "POST"
   },
   {
-    "id": "listGenesisBallots",
-    "path": "/genesis/ballots",
-    "method": "GET"
-  },
-  {
-    "id": "getGenesisBallot",
-    "path": "/genesis/ballots/{id}",
-    "method": "GET"
-  },
-  {
-    "id": "castGenesisVote",
-    "path": "/genesis/ballots/{id}/votes",
-    "method": "POST"
-  },
-  {
     "id": "submitSignedActionCompletion",
     "path": "/earn/actions/{actionId}/completions",
     "method": "POST"

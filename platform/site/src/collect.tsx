@@ -8,35 +8,13 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { rootRoute } from './routes';
-import { client, sdk, PlatformApiError, type ProgressionRequest } from './sdk';
+import { sdk, PlatformApiError, type ProgressionRequest } from './sdk';
 import {progressionJournal,matchesProgressionReceipt,type ProgressionAttempt,type ProgressionJournalEntry} from './progression-intent';
 import {mintJournal,mintReviewAvailable,matchesMintReceipt,type MintAttempt,type MintJournalEntry} from './mint-intent';
-import type { Asset, Ballot, Inventory, ProgressQuote, Receipt, Stage } from './models';
+import type { Asset, Inventory, ProgressQuote, Receipt, Stage } from './models';
 import {RevealMore, Empty, Facts, friendlyError, Hero, Loaded, Modal, Panel, pretty, Signal, sol, usePageMeta, utc } from './common';
 import { useSession } from './session';
 
-const choiceLabel=(value:string)=>value==='ASAP'?'As soon as possible':value+' days';
-type VoteChoice='ASAP'|'7'|'14'|'30';
-
-export function BallotCard({ballot,wallet}:{ballot:Ballot;wallet:string|null}){
-  const cache=useQueryClient(),{open}=useSession();
-  const vote=useMutation({mutationFn:async(choice:VoteChoice)=>
-    (await client.castGenesisVote({path:{id:ballot.id},body:{choice}})).data,
-  onSuccess:()=>cache.invalidateQueries({queryKey:['ballots']})});
-  return <article className="record"><div className="entry-head"><h3>{ballot.id}</h3><span>{ballot.status}</span></div>
-    <p>{ballot.votesCast} votes from {ballot.eligibleWallets} eligible wallets. {ballot.status==='scheduled'?'Opens '+utc(ballot.opensAt):'Closes '+utc(ballot.closesAt)}.</p>
-    {ballot.status==='open' && <Capability method="POST" path="/api/v1/genesis/ballots/{id}/votes">{(wallet?<form onSubmit={event=>{
-      event.preventDefault();const value=String(new FormData(event.currentTarget).get('choice'));
-      if(['ASAP','7','14','30'].includes(value))vote.mutate(value as VoteChoice);
-    }}><fieldset disabled={vote.isPending||vote.isSuccess}><legend>When should the next tranche open?</legend>
-      {ballot.choices.map(choice=><label className="radio" key={choice}><input type="radio" name="choice" value={choice} required/>{choiceLabel(choice)}</label>)}
-      <button>Submit advisory vote</button></fieldset><output aria-live="polite">{vote.data?'Recorded your vote: '+choiceLabel(vote.data.choice)+'.':vote.error?friendlyError(vote.error):''}</output>
-    </form>:<button onClick={open}>Connect wallet</button>)}</Capability>}
-    {ballot.counts && <Facts items={ballot.choices.map(c=>[choiceLabel(c),ballot.counts![c]])}/>}
-    {ballot.decision && <p><strong>Founder decision · {choiceLabel(ballot.decision.choice)}</strong><br/>{ballot.decision.rationale}<br/>
-      Earliest opening: {utc(ballot.decision.earliestOpening)}.</p>}
-  </article>;
-}
 type Review={kind:'mint';inventory:Pick<Inventory,'id'>;stage:Stage} | {kind:'progress';asset:Asset;materialId?:string};
 type QuoteSelection={req:ProgressionRequest;target:Asset;material?:Asset};
 function ReviewOperation({review,wallet,onClose}:{review:Review;wallet:string;onClose:()=>void}){
@@ -167,8 +145,7 @@ function CollectionTerms(){
     <p>Permanent Vault eligibility with an immutable Level from 1 to 10.</p>
     <Facts items={[['Maximum supply',pretty(p.genesis.cap)],['Per tranche',pretty(p.genesis.trancheSize)],
       ['First whitelist price',p.genesis.firstWhitelistPriceSol+' SOL'],['Eligible wallet',p.genesis.mintsPerEligibleWalletPerStage+' mint per stage']]}/>
-    <Diagnostics><details><summary>Tranche voting</summary><p>Genesis holders and the next stage’s whitelist can vote for {p.genesis.ballotHours} hours.
-      Each eligible wallet gets {p.genesis.votesPerWallet} vote.</p></details></Diagnostics></Panel>
+    </Panel>
     <Panel className="collection-card"><NftArt name="season"/><h2>Seasons</h2>
       <p>Benefit duration follows the current Level, measured from the published Season start.</p>
       <Facts items={[['Monthly supply',pretty(p.season.monthlyCap)],['Free stage','Revealed Genesis 1X'],
@@ -255,7 +232,6 @@ export function Collect(){
   const [review,setReview]=useState<Review|null>(null);
   useEffect(()=>setReview(null),[wallet]);
   const inventories=useRuntimeQuery('/api/v1/collect/inventories',{queryKey:principalKey(wallet,'inventories',search.inventories),queryFn:({signal})=>sdk.inventories(search.inventories,signal)});
-  const ballots=useRuntimeQuery('/api/v1/genesis/ballots',{queryKey:['ballots'],queryFn:({signal})=>sdk.ballots(signal)});
   return <>
     <Hero title="NFTs">Find your next collectible. Make it yours, level it up, and follow its rewards.</Hero>
     <Journey steps={[['Find your collectible','Genesis lasts. Seasons have a benefit period.'],['Make it yours','Preview a mint or update a Season NFT.'],['Follow your rewards','See your NFT’s allocations in Airdrops.']]}/>
@@ -270,8 +246,6 @@ export function Collect(){
       {page.nextCursor!==null&&<Link to="/nfts" search={{inventories:String(page.nextCursor)}}>Next collections →</Link>}
     </>}</Loaded></Panel>
 
-    <Panel title="Genesis ballots"><Loaded query={ballots}>{page=>page.items.length?page.items.map(b=>
-      <BallotCard key={b.id+(wallet??'')} wallet={wallet} ballot={b}/>):<Empty title="No published ballots"/>}</Loaded></Panel>
     {wallet&&review&&<Capability method="POST" path={review.kind==='mint'?'/api/v1/collect/inventories/{id}/stages/{stage}/reservations':'/api/v1/collect/inventories/{id}/progression/quote'}>
       <ReviewOperation key={wallet} wallet={wallet} review={review} onClose={()=>setReview(null)}/></Capability>}
     <CategoryCompetition category="nfts"/>

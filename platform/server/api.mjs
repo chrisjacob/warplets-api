@@ -2,11 +2,10 @@ import {reviewQueuePaths} from '../ai-review/queue-openapi.mjs';
 import {performancePaths,qaReviewPaths} from '../performance/openapi.mjs';
 import {refreshOwnerPaths} from '../nfts/refresh-owner-openapi.mjs';
 import { randomUUID } from 'node:crypto';
-import { policy } from '../contracts/policy.mjs';
+import { publicPolicy as policy } from '../contracts/policy.mjs';
 import { authPaths } from './auth-contract.mjs';
 import { marketPaths } from '../markets/catalog.mjs';
 import { launchPlanPaths } from '../launch/schema.mjs';
-import { ballotPaths } from '../governance/ballots.mjs';
 import { earnPaths } from '../earn/openapi.mjs';
 import { vaultPaths } from '../vault/http.mjs';
 import { stakePaths } from '../stake/farms.mjs';
@@ -28,7 +27,7 @@ const resources = {
 export function openapi({performance=false,qaReview=false}={}) {
   const paths = Object.fromEntries(Object.entries(resources).map(([path, {id,summary}]) =>
     [path, {get: {operationId:id, summary, responses:{200:{description:summary, content:{'application/json':{schema:{type:'object'}}}}}}}]));
-  const routes={...paths,...authPaths,...marketPaths,...launchPlanPaths,...ballotPaths,...earnPaths,...reviewQueuePaths,...vaultPaths,...stakePaths,...txPaths,...collectPaths,...refreshOwnerPaths,...operationsPaths,...notificationPaths,...quotePaths,...(performance?performancePaths:{}),...(qaReview?qaReviewPaths:{})};
+  const routes={...paths,...authPaths,...marketPaths,...launchPlanPaths,...earnPaths,...reviewQueuePaths,...vaultPaths,...stakePaths,...txPaths,...collectPaths,...refreshOwnerPaths,...operationsPaths,...notificationPaths,...quotePaths,...(performance?performancePaths:{}),...(qaReview?qaReviewPaths:{})};
   return {openapi:'3.1.0', info:{title:'10X.MEME validation API',version:policy.version},servers:[{url:apiBase}],
     paths:describeResponses(routes),components:{schemas:shapes}};
 }
@@ -43,6 +42,7 @@ export function failure(status, code, message, headers = {}) {
 }
 export function readApi(request,options={}) {
   const {pathname} = new URL(request.url);
+  if (pathname==='/api/v1/genesis/ballots'||pathname.startsWith('/api/v1/genesis/ballots/')) return failure(404,'not_found','Unknown API resource.');
   if (request.method !== 'GET') return failure(405,'method_not_allowed','This resource supports GET.',{allow:'GET'});
   switch (pathname) {
     case apiBase+'/capabilities': return json(makeCapabilities('node-reference',options));

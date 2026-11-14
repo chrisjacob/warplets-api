@@ -438,33 +438,8 @@
                         "trancheSize": {
                           "const": 1000
                         },
-                        "ballotHours": {
-                          "const": 48
-                        },
                         "noticeHours": {
                           "const": 48
-                        },
-                        "choices": {
-                          "type": "array",
-                          "items": {
-                            "anyOf": [
-                              {
-                                "const": "ASAP"
-                              },
-                              {
-                                "const": "7d"
-                              },
-                              {
-                                "const": "14d"
-                              },
-                              {
-                                "const": "30d"
-                              }
-                            ]
-                          }
-                        },
-                        "votesPerWallet": {
-                          "const": 1
                         },
                         "mintsPerEligibleWalletPerStage": {
                           "const": 1
@@ -476,10 +451,7 @@
                       "required": [
                         "cap",
                         "trancheSize",
-                        "ballotHours",
                         "noticeHours",
-                        "choices",
-                        "votesPerWallet",
                         "mintsPerEligibleWalletPerStage",
                         "firstWhitelistPriceSol"
                       ]
@@ -727,33 +699,8 @@
                             "trancheSize": {
                               "const": 1000
                             },
-                            "ballotHours": {
-                              "const": 48
-                            },
                             "noticeHours": {
                               "const": 48
-                            },
-                            "choices": {
-                              "type": "array",
-                              "items": {
-                                "anyOf": [
-                                  {
-                                    "const": "ASAP"
-                                  },
-                                  {
-                                    "const": "7d"
-                                  },
-                                  {
-                                    "const": "14d"
-                                  },
-                                  {
-                                    "const": "30d"
-                                  }
-                                ]
-                              }
-                            },
-                            "votesPerWallet": {
-                              "const": 1
                             },
                             "mintsPerEligibleWalletPerStage": {
                               "const": 1
@@ -765,10 +712,7 @@
                           "required": [
                             "cap",
                             "trancheSize",
-                            "ballotHours",
                             "noticeHours",
-                            "choices",
-                            "votesPerWallet",
                             "mintsPerEligibleWalletPerStage",
                             "firstWhitelistPriceSol"
                           ]
@@ -899,33 +843,8 @@
                               "trancheSize": {
                                 "const": 1000
                               },
-                              "ballotHours": {
-                                "const": 48
-                              },
                               "noticeHours": {
                                 "const": 48
-                              },
-                              "choices": {
-                                "type": "array",
-                                "items": {
-                                  "anyOf": [
-                                    {
-                                      "const": "ASAP"
-                                    },
-                                    {
-                                      "const": "7d"
-                                    },
-                                    {
-                                      "const": "14d"
-                                    },
-                                    {
-                                      "const": "30d"
-                                    }
-                                  ]
-                                }
-                              },
-                              "votesPerWallet": {
-                                "const": 1
                               },
                               "mintsPerEligibleWalletPerStage": {
                                 "const": 1
@@ -939,10 +858,7 @@
                               "status",
                               "cap",
                               "trancheSize",
-                              "ballotHours",
                               "noticeHours",
-                              "choices",
-                              "votesPerWallet",
                               "mintsPerEligibleWalletPerStage",
                               "firstWhitelistPriceSol"
                             ]
@@ -1014,33 +930,8 @@
                               "trancheSize": {
                                 "const": 1000
                               },
-                              "ballotHours": {
-                                "const": 48
-                              },
                               "noticeHours": {
                                 "const": 48
-                              },
-                              "choices": {
-                                "type": "array",
-                                "items": {
-                                  "anyOf": [
-                                    {
-                                      "const": "ASAP"
-                                    },
-                                    {
-                                      "const": "7d"
-                                    },
-                                    {
-                                      "const": "14d"
-                                    },
-                                    {
-                                      "const": "30d"
-                                    }
-                                  ]
-                                }
-                              },
-                              "votesPerWallet": {
-                                "const": 1
                               },
                               "mintsPerEligibleWalletPerStage": {
                                 "const": 1
@@ -1054,10 +945,7 @@
                               "status",
                               "cap",
                               "trancheSize",
-                              "ballotHours",
                               "noticeHours",
-                              "choices",
-                              "votesPerWallet",
                               "mintsPerEligibleWalletPerStage",
                               "firstWhitelistPriceSol"
                             ]
@@ -2535,296 +2423,6 @@
           },
           "415": {
             "description": "Send application/json.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              },
-              "application/vnd.10x.v1+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/genesis/ballots": {
-      "get": {
-        "operationId": "listGenesisBallots",
-        "responses": {
-          "200": {
-            "description": "Recent local advisory ballots",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "items": {
-                      "type": "array",
-                      "items": {
-                        "$ref": "#/components/schemas/GenesisBallot"
-                      }
-                    },
-                    "nextCursor": {
-                      "type": "null"
-                    },
-                    "asOf": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "items",
-                    "nextCursor",
-                    "asOf"
-                  ]
-                }
-              },
-              "application/vnd.10x.v1+json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "items": {
-                      "type": "array",
-                      "items": {
-                        "$ref": "#/components/schemas/GenesisBallot"
-                      }
-                    },
-                    "nextCursor": {
-                      "type": "null"
-                    },
-                    "asOf": {
-                      "type": "string"
-                    },
-                    "snapshotId": {
-                      "type": "string"
-                    },
-                    "meta": {
-                      "$ref": "#/components/schemas/Meta"
-                    }
-                  },
-                  "required": [
-                    "items",
-                    "nextCursor",
-                    "asOf",
-                    "snapshotId",
-                    "meta"
-                  ]
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/genesis/ballots/{id}": {
-      "parameters": [
-        {
-          "in": "path",
-          "name": "id",
-          "required": true,
-          "schema": {
-            "type": "string"
-          }
-        }
-      ],
-      "get": {
-        "operationId": "getGenesisBallot",
-        "responses": {
-          "200": {
-            "description": "Turnout and final decision when available",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GenesisBallot"
-                }
-              },
-              "application/vnd.10x.v1+json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "$ref": "#/components/schemas/GenesisBallot"
-                    },
-                    "meta": {
-                      "$ref": "#/components/schemas/Meta"
-                    }
-                  },
-                  "required": [
-                    "data",
-                    "meta"
-                  ]
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/genesis/ballots/{id}/votes": {
-      "parameters": [
-        {
-          "in": "path",
-          "name": "id",
-          "required": true,
-          "schema": {
-            "type": "string"
-          }
-        }
-      ],
-      "post": {
-        "operationId": "castGenesisVote",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "required": [
-                  "choice"
-                ],
-                "properties": {
-                  "choice": {
-                    "type": "string",
-                    "enum": [
-                      "ASAP",
-                      "7",
-                      "14",
-                      "30"
-                    ]
-                  }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Original vote receipt on replay",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "choice": {
-                      "enum": [
-                        "ASAP",
-                        "7",
-                        "14",
-                        "30"
-                      ]
-                    },
-                    "replayed": {
-                      "type": "boolean"
-                    }
-                  },
-                  "required": [
-                    "choice",
-                    "replayed"
-                  ]
-                }
-              },
-              "application/vnd.10x.v1+json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "type": "object",
-                      "properties": {
-                        "choice": {
-                          "enum": [
-                            "ASAP",
-                            "7",
-                            "14",
-                            "30"
-                          ]
-                        },
-                        "replayed": {
-                          "type": "boolean"
-                        }
-                      },
-                      "required": [
-                        "choice",
-                        "replayed"
-                      ]
-                    },
-                    "meta": {
-                      "$ref": "#/components/schemas/Meta"
-                    }
-                  },
-                  "required": [
-                    "data",
-                    "meta"
-                  ]
-                }
-              }
-            }
-          },
-          "201": {
-            "description": "Recorded vote",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "choice": {
-                      "enum": [
-                        "ASAP",
-                        "7",
-                        "14",
-                        "30"
-                      ]
-                    },
-                    "replayed": {
-                      "type": "boolean"
-                    }
-                  },
-                  "required": [
-                    "choice",
-                    "replayed"
-                  ]
-                }
-              },
-              "application/vnd.10x.v1+json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "type": "object",
-                      "properties": {
-                        "choice": {
-                          "enum": [
-                            "ASAP",
-                            "7",
-                            "14",
-                            "30"
-                          ]
-                        },
-                        "replayed": {
-                          "type": "boolean"
-                        }
-                      },
-                      "required": [
-                        "choice",
-                        "replayed"
-                      ]
-                    },
-                    "meta": {
-                      "$ref": "#/components/schemas/Meta"
-                    }
-                  },
-                  "required": [
-                    "data",
-                    "meta"
-                  ]
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Closed ballot or conflicting vote",
             "content": {
               "application/json": {
                 "schema": {
@@ -12560,120 +12158,6 @@
           "scope",
           "allowed",
           "reason"
-        ]
-      },
-      "GenesisBallot": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "source": {
-            "const": "local-fixture"
-          },
-          "status": {
-            "enum": [
-              "scheduled",
-              "open",
-              "closed"
-            ]
-          },
-          "opensAt": {
-            "type": "string"
-          },
-          "closesAt": {
-            "type": "string"
-          },
-          "choices": {
-            "type": "array",
-            "items": {
-              "enum": [
-                "ASAP",
-                "7",
-                "14",
-                "30"
-              ]
-            }
-          },
-          "eligibleWallets": {
-            "type": "integer"
-          },
-          "votesCast": {
-            "type": "integer"
-          },
-          "counts": {
-            "anyOf": [
-              {
-                "type": "object",
-                "properties": {
-                  "7": {
-                    "type": "integer"
-                  },
-                  "14": {
-                    "type": "integer"
-                  },
-                  "30": {
-                    "type": "integer"
-                  },
-                  "ASAP": {
-                    "type": "integer"
-                  }
-                },
-                "required": [
-                  "7",
-                  "14",
-                  "30",
-                  "ASAP"
-                ]
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "decision": {
-            "anyOf": [
-              {
-                "type": "object",
-                "properties": {
-                  "choice": {
-                    "enum": [
-                      "ASAP",
-                      "7",
-                      "14",
-                      "30"
-                    ]
-                  },
-                  "rationale": {
-                    "type": "string"
-                  },
-                  "earliestOpening": {
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "choice",
-                  "rationale",
-                  "earliestOpening"
-                ]
-              },
-              {
-                "type": "null"
-              }
-            ]
-          }
-        },
-        "required": [
-          "id",
-          "source",
-          "status",
-          "opensAt",
-          "closesAt",
-          "choices",
-          "eligibleWallets",
-          "votesCast",
-          "counts",
-          "decision"
         ]
       },
       "Farm": {

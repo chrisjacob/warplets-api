@@ -8,9 +8,9 @@ Keep the current app a synthetic local demo. Complete physical wallet/device/acc
 
 ## 1. Evidence available for review
 
-- [x] User manually reviewed Vault, Stake, Earn, Collect mint/upgrade/reroll and Genesis voting.
+- [x] User manually reviewed Vault, Stake, Earn and Collect mint/upgrade/reroll. Genesis voting was also reviewed historically and retired from the product on 2026-11-14.
 - [x] Synthetic Earn admission, moderation, cutoff settlement, replay and 402,600-base-unit award verified.
-- [x] Separate-copy ballot closure/founder decision rehearsal passed; live ballot unchanged.
+- [x] Historical separate-copy ballot closure/founder decision rehearsal passed. In-app ballots are now retired; founder approval and stage-opening safeguards remain required. See [retirement scope](../governance/README.md).
 - [x] Fresh-database public Earn recovery matched archive, proof and vesting; duplicate import and tampering checks passed. This is public award recovery, not a full hosted private-state disaster recovery pass.
 - [x] Explicit account selection/switching and synthetic message-authentication isolation verified. No transaction signing or broadcasting.
 - [x] Mobile viewport, keyboard focus, Escape, focus return, reduced-motion and larger touch-target checks passed. Emulation is not a physical-device or screen-reader result.

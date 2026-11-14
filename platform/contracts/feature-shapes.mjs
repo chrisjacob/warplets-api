@@ -49,9 +49,6 @@ export const featureShapes={
     terms:{const:'10x-notice-local-inbox-v1'},changedAtMs:n(ms)}),
   LocalNotice:o({id:s,topic:{enum:['launch','voting','rewards']},title:s,message:s,target:s,deliveredMs:ms}),
   OperationScope:o({scope:s,allowed:b,reason:s,revision:n(s)},['scope','allowed','reason']),
-  GenesisBallot:o({id:s,source:local,status:{enum:['scheduled','open','closed']},opensAt:s,closesAt:s,choices:a({enum:['ASAP','7','14','30']}),
-    eligibleWallets:i,votesCast:i,counts:n(o({ASAP:i,'7':i,'14':i,'30':i})),
-    decision:n(o({choice:{enum:['ASAP','7','14','30']},rationale:s,earliestOpening:s}))}),
   Farm:o({marketId:s,fundedUnits:u,treasuryFeeBps:i,activationTime:s,emissionEnd:s,asOf:s,source:local,executable:{const:false},
     status:{enum:['scheduled','active','ended']},totalStakedUnits:u,earnedGrossUnits:u,unusedRecoverableUnits:u,roundingReserveUnits:u},
     ['marketId','fundedUnits','treasuryFeeBps','activationTime','emissionEnd','asOf','source','executable','status']),
@@ -63,8 +60,6 @@ export const featureShapes={
 export const rawFeatureSuccess={
   getMyRefreshProposal:{anyOf:[closed({kind:{const:'found'},value:r('RefreshOwnerView')}),r('RefreshOwnerPending')]},prepareMyRefreshAction:r('RefreshOwnerActionResult'),executeMyRefreshAction:r('RefreshOwnerActionResult'),getMyRefreshActionReceipt:r('RefreshOwnerActionResult'),
   readMyCollectionFairness:r('CollectionFairness'),
-  getGenesisBallot:r('GenesisBallot'),
-  listGenesisBallots:o({items:a(r('GenesisBallot')),nextCursor:{type:'null'},asOf:s}),
   getFarm:r('Farm'),getTransaction:r('TransactionIntent'),
   getEarnLeaderboard:o({mode:local,epoch:i,date:s,status:{enum:['pending','final']},items:a(r('EarnWinner')),allocations:a(r('EarnAllocation')),
     snapshotId:n(s),finalizedAtMs:n(ms),source:{const:'public-archive'}},

@@ -11,23 +11,24 @@ const preference=z.object({channel:z.literal('local-inbox'),revision:z.number().
   topics:z.array(topic),terms:z.literal('10x-notice-local-inbox-v1')});
 const capabilities=z.object({data:z.object({channel:z.literal('local-inbox'),topics:z.array(topic),dailyLimit:z.number().int(),
   terms:z.literal('10x-notice-local-inbox-v1'),externalTransport:z.literal(false)})});
-const inbox=z.object({items:z.array(z.object({id:z.string(),title:z.string(),message:z.string(),target:z.string(),deliveredMs:z.number()})),
+const inbox=z.object({items:z.array(z.object({id:z.string(),topic:topic.optional(),title:z.string(),message:z.string(),target:z.string(),deliveredMs:z.number()})),
   nextCursor:z.union([z.number(),z.string(),z.null()])});
-const labels:Record<Topic,string>={launch:'Market launches',voting:'Genesis votes',rewards:'Reward updates'};
+const activeTopics=(topics:Topic[])=>topics.filter(t=>t!=='voting');
+const labels:Partial<Record<Topic,string>>={launch:'Market launches',rewards:'Reward updates'};
 function safeTarget(raw:string){
   try{const url=new URL(raw,location.origin);
     return url.origin===location.origin && /^(\/markets|\/collections\/genesis|\/earn)(\/|$)/.test(url.pathname)
       ?url.pathname+url.search:null;}catch{return null;}
 }
 function InboxSettings({pref,topics,wallet}:{pref:z.infer<typeof preference>;topics:Topic[];wallet:string}){
-  const cache=useQueryClient(),[selected,setSelected]=useState<Topic[]>(pref.topics);
+  const cache=useQueryClient(),[selected,setSelected]=useState<Topic[]>(activeTopics(pref.topics));
   const preferenceKey=['private',wallet,'solana','notifications','preferences'];
   const [refreshing,setRefreshing]=useState(false),[refreshError,setRefreshError]=useState('');
   async function refreshPreferences(){
     setRefreshing(true);setRefreshError('');
     try{await cache.cancelQueries({queryKey:preferenceKey});
       const current=preference.parse((await client.getMyNoticePreferences()).data);
-      cache.setQueryData(preferenceKey,current);setSelected(current.topics);change.reset();
+      cache.setQueryData(preferenceKey,current);setSelected(activeTopics(current.topics));change.reset();
     }catch(error){setRefreshError(friendlyError(error));}finally{setRefreshing(false);}
   }
   const change=useMutation({mutationFn:async(enabled:boolean)=>{
@@ -42,7 +43,7 @@ function InboxSettings({pref,topics,wallet}:{pref:z.infer<typeof preference>;top
   },onSuccess:()=>cache.invalidateQueries({queryKey:['private',wallet,'solana','notifications','inbox']})});
   return <form className="member-form" onSubmit={e=>{e.preventDefault();change.mutate(true);}}>
     <fieldset disabled={change.isPending || refreshing}><legend>Topics</legend>
-      {topics.map(t=><label className="check" key={t}><input type="checkbox" checked={selected.includes(t)}
+      {activeTopics(topics).map(t=><label className="check" key={t}><input type="checkbox" checked={selected.includes(t)}
         onChange={e=>setSelected(old=>e.target.checked?[...old,t]:old.filter(x=>x!==t))}/>{labels[t]}</label>)}</fieldset>
     <button disabled={change.isPending || refreshing || !!change.error || !selected.length}>{pref.enabled?'Save topics':'Enable local inbox'}</button>
     {pref.enabled && <button type="button" disabled={change.isPending || refreshing || !!change.error} onClick={()=>change.mutate(false)}>Turn off and clear inbox</button>}
@@ -57,7 +58,7 @@ export function Notifications({wallet}:{wallet:string}){
   const prefs=useRuntimeQuery('/api/v1/notifications/subscriptions',{queryKey:['private',wallet,'solana','notifications','preferences'],enabled:opened,queryFn:async({signal})=>
     z.object({data:preference}).parse(await client.getMyNoticePreferences({signal})).data});
   const notices=useRuntimeQuery('/api/v1/notifications/inbox',{queryKey:['private',wallet,'solana','notifications','inbox',cursor],enabled:opened && !!prefs.data?.enabled,
-    queryFn:async({signal})=>inbox.parse(await client.getMyLocalNotices({query:{cursor},signal}))});
+    queryFn:async({signal})=>{const page=inbox.parse(await client.getMyLocalNotices({query:{cursor},signal}));return {...page,items:page.items.filter(n=>n.topic!=='voting')};}});
   return <details onToggle={e=>setOpened(e.currentTarget.open)}><summary>Local inbox settings</summary>
     {opened && <Loaded query={caps}>{c=><Loaded query={prefs}>{pref=><>
       <p>{pref.enabled?'Local inbox enabled.':'Local inbox off.'} Notices appear inside this preview. Daily maximum: {c.dailyLimit}.</p>

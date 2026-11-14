@@ -3,7 +3,7 @@ import {EarnError} from '../earn/validation.mjs';
 import {boundedJson,BodyInputError} from '../server/body.mjs';
 const json=(value,status=200,headers={})=>new Response(JSON.stringify(value),{status,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff',...headers}});
 const failure=(status,code,message,headers={})=>json({error:{code,message}},status,headers);
-export const portableNoticeCapabilities=Object.freeze({channel:'local-inbox',topics:NOTICE_TOPICS,terms:NOTICE_TERMS,delivery:'in-app fixture only',externalTransport:false,dailyLimit:3});
+export const portableNoticeCapabilities=Object.freeze({channel:'local-inbox',topics:Object.freeze(NOTICE_TOPICS.filter(topic=>topic!=='voting')),terms:NOTICE_TERMS,delivery:'in-app fixture only',externalTransport:false,dailyLimit:3});
 /** Portable private consent boundary. No enqueue, recipient or delivery input. */
 export async function handleNotificationConsent(request,{service,authenticate,consumeQuota,readInbox,capabilities=portableNoticeCapabilities}){
  const url=new URL(request.url),path=url.pathname,base='/api/v1/notifications';

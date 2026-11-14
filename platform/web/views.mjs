@@ -122,7 +122,7 @@ export function collectView({collections}) {
     +'<section class="card collection"><div class="collection-mark genesis-mark" aria-hidden="true">G<span>/</span></div><h2>Genesis</h2>'
     +'<p>Permanent Vault eligibility with an immutable Level from 1 to 10.</p>'
     +specs([['Maximum supply',number(genesis.cap)],['Per tranche',number(genesis.trancheSize)],['First whitelist price',genesis.firstWhitelistPriceSol+' SOL'],['Eligible wallet',genesis.mintsPerEligibleWalletPerStage+' mint per stage']])
-    +'<details><summary>Tranche voting</summary><p>Holder and next-tranche whitelist wallets get '+e(genesis.votesPerWallet)+' vote each. The advisory ballot lasts '+e(genesis.ballotHours)+' hours.</p><p>Timing choices: '+e(genesis.choices.join(' · '))+'.</p></details></section>'
+    +'</section>'
     +'<section class="card collection"><div class="collection-mark season-mark" aria-hidden="true">S<span>/</span></div><h2>Seasons</h2>'
     +'<p>Benefit duration follows the current Level, measured from the published Season start.</p>'
     +specs([['Monthly supply',number(season.monthlyCap)],['Free stage','Revealed Genesis 1X'],['Eligible wallet',season.freeMintsPerEligibleWallet+' free mint']])

@@ -1,6 +1,6 @@
 import {NftArt,TokenArt} from './experience';
 import {InventoryEvidence,AssetEvidence} from './collection-details';
-import {PublishedStage,BallotCard} from './collect';
+import {PublishedStage} from './collect';
 import {rootRoute} from './routes';
 import { useRuntimeQuery, principalKey } from './capabilities';
 import { Link, useParams } from '@tanstack/react-router';
@@ -30,19 +30,16 @@ export function CanonicalGenesis(){
   const terms=useQuery({queryKey:['policy'],queryFn:({signal})=>sdk.policy(signal)});
   const {wallet}=useSession(),search=rootRoute.useSearch();
   const inventories=useRuntimeQuery('/api/v1/collect/inventories',{queryKey:principalKey(wallet,'inventories',search.inventories),queryFn:({signal})=>sdk.inventories(search.inventories,signal)});
-  const ballots=useRuntimeQuery('/api/v1/genesis/ballots',{queryKey:['ballots'],queryFn:({signal})=>sdk.ballots(signal)});
   return <><Hero title="Genesis">Permanent membership in a collection with ten tranches and fixed Levels.</Hero>
     <Panel title="Collection terms"><Loaded query={terms}>{p=><Facts items={[['Maximum supply',pretty(p.genesis.cap)],
       ['Tranche size',pretty(p.genesis.trancheSize)],['First whitelist stage',p.genesis.firstWhitelistPriceSol+' SOL'],
       ['Stage notice',p.genesis.noticeHours+' hours'],['Mint limit',p.genesis.mintsPerEligibleWalletPerStage+' per eligible wallet per stage']]}/>}</Loaded></Panel>
-    <Panel title="Tranche voting"><p>Genesis holders and whitelisted wallets vote on the next tranche’s timing.
-      The founder publishes the decision and rationale.</p><Link to="/nfts">View published stages and ballots ↗</Link></Panel>
+    <Panel title="Release updates"><p>Follow community updates for upcoming releases. New stages require founder approval and published notice.</p><Link to="/nfts">View published stages ↗</Link></Panel>
     <Panel title="Published tranches"><Loaded query={inventories}>{page=><>
       {page.items.filter(i=>i.kind==='genesis').map(i=><article className="record" key={i.id}><h3>{i.id} · tranche {i.tranche}</h3><InventoryEvidence inventory={i}/>{i.stages.map(stage=><PublishedStage key={stage.id} inventory={i} stage={stage}/>)}</article>)}
       {!page.items.some(i=>i.kind==='genesis')&&<p>No Genesis tranches on this page.</p>}
       {page.nextCursor!==null&&<Link to="/collections/genesis" search={{inventories:String(page.nextCursor)}}>Next collections →</Link>}
     </>}</Loaded><Link to="/nfts">Open collection studio ↗</Link></Panel>
-    <Panel title="Published ballots"><Loaded query={ballots}>{page=>page.items.length?page.items.map(ballot=><BallotCard key={ballot.id} ballot={ballot} wallet={wallet}/>):<Empty title="No published ballots"/>}</Loaded></Panel>
     <ShareLink path="/collections/genesis" title="Genesis"/></>;
 }
 

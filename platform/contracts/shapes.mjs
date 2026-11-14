@@ -1,6 +1,6 @@
 // Wire types shared by the OpenAPI document and generated client declarations.
 import { featureShapes, rawFeatureSuccess } from './feature-shapes.mjs';
-import { policy } from './policy.mjs';
+import { publicPolicy as policy } from './policy.mjs';
 import { capabilitiesSchema } from './capabilities.mjs';
 const str={type:'string'},integer={type:'integer'},bool={type:'boolean'},units={type:'string',pattern:'^(0|[1-9][0-9]*)$'};
 const iso={type:'string',format:'date-time'};
@@ -50,9 +50,7 @@ export const success={
  verifyWalletSignature:enriched(object({wallet:str})),revokeSession:enriched(object({revoked:bool})),
  getMyVault:page(object({id:str,detail:str})),
  getNftVault:{allOf:[page(ref('VaultAllocation')),object({assetId:str,slot:{type:'object'},asOf:iso})]},
- getHealth:enriched(object({status:str,mode:str,policyVersion:str})),
- getGenesisBallot:enriched(object({id:str,status:str,eligibleWallets:integer,votesCast:integer},['id','status','eligibleWallets','votesCast'])),
- castGenesisVote:enriched(object({choice:{enum:['ASAP','7','14','30']},replayed:bool}))
+ getHealth:enriched(object({status:str,mode:str,policyVersion:str}))
 };
 Object.assign(success,{
  listLocalInventories:page(ref('Inventory')),readLocalInventory:enriched(ref('Inventory')),

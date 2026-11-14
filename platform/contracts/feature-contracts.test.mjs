@@ -61,7 +61,7 @@ test('generated client authenticates and exercises exact feature schemas through
     const response=Object.entries(schemasFor(spec,id).responses).find(([status])=>status.startsWith('2'))[1];
     check(response.content['application/vnd.10x.v1+json'].schema,result,spec,id);examined.push(id);return result;
   }
-  for(const id of ['getCapabilities','getPolicy','listCollections','getHealth','listGenesisBallots','listActiveEarnActions','getEarnAdmissionCapacity',
+  for(const id of ['getCapabilities','getPolicy','listCollections','getHealth','listActiveEarnActions','getEarnAdmissionCapacity',
     'getLocalOperationStatus','getNoticeCapabilities','listLaunchPlans'])await invoke(id);
   const keys=generateKeyPairSync('ed25519'),wallet=encode58(keys.publicKey.export({format:'der',type:'spki'}).subarray(-32));
   const challenge=await invoke('createWalletChallenge',{body:{wallet}});

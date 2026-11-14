@@ -1,3 +1,5 @@
+> Product update 2026-11-14: Genesis voting is retired. Current inbox discovery/UI offers launch and reward topics only; the app hides historical voting notices. The voting topic, source templates and consent receipt codec below remain for historical data/replay and recovery compatibility, not as an active ballot feature.
+
 # Local notification consent and delivery
 
 The wallet must opt into the local inbox and select one or more available topics. The service never accepts an email address, callback URL, push token or externally supplied notification text. A notice template is derived from an existing live fixture market, an open Genesis ballot for which the wallet is eligible, or the wallet's recorded and vesting fixture Earn award. No HTTP write route can enqueue or dispatch notices.

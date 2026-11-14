@@ -8,35 +8,11 @@ const when=value=>{
   const date=new Date(value);
   return Number.isNaN(date.getTime()) ? 'Unavailable' : date.toISOString().slice(0,16).replace('T',' ')+' UTC';
 };
-const choiceName=choice=>choice==='ASAP'?'As soon as possible':String(choice)+' days';
 const cursorLink=(path,params,cursor,label)=>{
   if(cursor==null) return '';
   const qs=new URLSearchParams({...params,cursor:String(cursor)});
   return '<a class="text-link" href="'+e(path+'?'+qs)+'">'+e(label)+' →</a>';
 };
-
-export function ballotPanel(ballots,me) {
-  if(!ballots) return section('Genesis ballots',notice('Ballots are unavailable. Reload to try again.'));
-  if(!ballots.items.length) return section('Genesis ballots','<p>No tranche ballot has been published.</p>');
-  const ballotCards=ballots.items.map(ballot=>{
-    const head='<div class="entry-head"><h3>'+e(ballot.id)+'</h3><span>'+e(ballot.status)+'</span></div>';
-    const turnout='<p>'+e(ballot.votesCast)+' votes from '+e(ballot.eligibleWallets)+' eligible wallets. '
-      +(ballot.status==='scheduled'?'Opens '+e(when(ballot.opensAt)):'Closes '+e(when(ballot.closesAt)))+'.</p>';
-    let action='';
-    if(ballot.status==='open' && me) {
-      action='<form data-ballot="'+e(ballot.id)+'" class="member-form"><fieldset><legend>When should the next tranche open?</legend>'
-        +ballot.choices.map(choice=>'<label class="radio"><input name="choice" type="radio" value="'+e(choice)+'" required>'
-          +e(choiceName(choice))+'</label>').join('')+'</fieldset><button>Submit advisory vote</button>'
-        +'<output class="form-status" aria-live="polite"></output></form>';
-    } else if(ballot.status==='open') action=openWallet;
-    if(ballot.counts) action='<dl class="breakdown">'+ballot.choices.map(choice=>'<div><dt>'+e(choiceName(choice))
-      +'</dt><dd>'+e(ballot.counts[choice])+'</dd></div>').join('')+'</dl>';
-    const decision=ballot.decision?'<p><strong>Founder decision · '+e(choiceName(ballot.decision.choice))+'</strong><br>'
-      +e(ballot.decision.rationale)+'<br>Earliest opening: '+e(when(ballot.decision.earliestOpening))+'</p>':'';
-    return '<article class="ballot">'+head+turnout+action+decision+'</article>';
-  }).join('');
-  return section('Genesis ballots',ballotCards);
-}
 
 export function ownerVaultPanel({me,assets,loading,assetId,detail}) {
   let body;

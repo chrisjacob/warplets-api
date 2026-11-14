@@ -8,7 +8,6 @@ import { handleAuth } from './auth.mjs';
 import { readApi } from './api.mjs';
 import { handleMarkets } from '../markets/catalog.mjs';
 import { handleLaunchPlans } from '../launch/router.mjs';
-import { handleInteractiveGovernance } from '../governance/interactive-http.mjs';
 import { handleEarn } from '../earn/http.mjs';
 import { handleWeb } from '../web/handler.mjs';
 import { serveSite } from '../site/serve.mjs';
@@ -19,14 +18,13 @@ import { handleCollect } from '../collect/http.mjs';
 import { handleOperations } from '../operations/http.mjs';
 import { handleNotifications } from '../notifications/http.mjs';
 import { handleInteractiveQuotes } from '../quotes/interactive-http.mjs';
-import { createNodeQuoteService,createNodeFinancialReadService,createNodeGovernanceService } from '../application/node-context.mjs';
+import { createNodeQuoteService,createNodeFinancialReadService } from '../application/node-context.mjs';
 import { consumeQuota,currentSession } from './auth.mjs';
 export function createApp(db,{clock=Date.now,artifactStore,operationalEventSink,performanceService,qaReviewPreview}={}) {
   const reviewQueue=createNodeReviewQueueService(db,{clock:{nowMs:clock}});
   const refreshOwner=createNodeRefreshOwner(db,{clock,artifacts:artifactStore});
   const quotes=createNodeQuoteService(db,{clock:{nowMs:clock},store:artifactStore});
   const financial=createNodeFinancialReadService(db,{clock:{nowMs:clock}});
-  const governance=createNodeGovernanceService(db,{clock:{nowMs:clock}});
   const observe=createMutationEventObserver({runtime:'node',crypto:createNodeCrypto(),clock:{nowMs:clock},write:operationalEventSink});
   let nextCleanup=0;
   async function dispatch(request,peer='loopback'){
@@ -42,7 +40,6 @@ export function createApp(db,{clock=Date.now,artifactStore,operationalEventSink,
     if(qaReviewPreview&&new URL(request.url).pathname==='/api/v1/qa/content-review')return represent(request,request.method==='GET'?Response.json(qaReviewPreview,{headers:{'cache-control':'no-store'}}):new Response(null,{status:405,headers:{allow:'GET'}}),now);
     const response=await handleAuth(db,request,peer,now)??handleOperations(db,request,now)??await handleInteractiveQuotes(request,{service:quotes,peer,consumeQuota:async(bucket,limit)=>consumeQuota(db,bucket,now,limit)})??handleMarkets(db,request,now)??
       await handleFinancialReads(request,{service:financial,authenticate:async(req)=>{const session=currentSession(db,req,clock());return session?{kind:'wallet',wallet:session.wallet}:null;}})??await handleTransactions(db,request,now)??await handleNotifications(db,request,peer,now)??
-      await handleInteractiveGovernance(request,{service:governance,peer,authenticate:async(req)=>{const session=currentSession(db,req,clock());return session?{kind:'wallet',wallet:session.wallet}:null;},consumeQuota:async(bucket,limit)=>consumeQuota(db,bucket,now,limit)})??
       await handleReviewQueue(request,{service:reviewQueue,authenticate:async req=>{const session=currentSession(db,req,clock());return session?{kind:'wallet',wallet:session.wallet}:null;},consumeQuota:async(bucket,limit)=>consumeQuota(db,bucket,now,limit)})??
       await handleEarn(db,request,peer,now)??
       await refreshOwner(request)??await handleCollect(db,request,peer,now,{clock})??

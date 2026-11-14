@@ -2,7 +2,7 @@ import { createClient, PlatformApiError } from '../../contracts/client.mjs';
 import { z } from 'zod';
 import { capabilityTransport } from './capability-transport.mjs';
 import {
-  assetModel, awardModel, ballotModel, boardModel, farmModel, inventoryModel, pageOf, policyModel,
+  assetModel, awardModel, boardModel, farmModel, inventoryModel, pageOf, policyModel,
   positionModel, quoteModel, receiptModel, vaultHoldingsModel, nftVaultModel, submissionsPageModel,
 } from './models';
 
@@ -44,7 +44,6 @@ export const sdk={
     return rows(receiptModel,await client.listMyCollectionOperations(options));
   },
   receipt:async(id:string,signal?:AbortSignal)=>one(receiptModel,await client.readMyCollectionOperation({path:{id},signal})),
-  ballots:async(signal?:AbortSignal)=>rows(ballotModel,await client.listGenesisBallots({signal})),
   board:async(epoch:string,signal?:AbortSignal)=>boardModel.parse(await client.getEarnLeaderboard({path:{epoch},signal})),
   submissions:async(cursor?:string,signal?:AbortSignal)=>submissionsPageModel.parse(await client.getMyEarnSubmissions({
     query:cursor?{cursor:Number(cursor)}:{},signal})),

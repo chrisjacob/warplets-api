@@ -1,4 +1,4 @@
-// Public terms for the PRD 1.2 local validation release.
+// Historical PRD 1.2 policy remains unchanged for recorded economics and recovery.
 export const policy = {
   version: 'prd-1.2',
   mode: 'offline-validation',
@@ -20,3 +20,8 @@ export const policy = {
     reserveGuidelinePercent: 50, recurringMonthlyCeilingUsd: '5' },
   capabilities: { signsTransactions: false, acceptsDeposits: false, offersNftBurn: false }
 };
+
+// Product-facing terms omit the retired in-app advisory ballot. Founder approval,
+// collection economics and stage notice requirements remain unchanged.
+const {ballotHours,choices,votesPerWallet,...currentGenesis}=policy.genesis;
+export const publicPolicy={...policy,genesis:currentGenesis};

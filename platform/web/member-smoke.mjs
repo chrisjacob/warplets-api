@@ -4,7 +4,6 @@ import { encode58 } from '../server/base58.mjs';
 import { importMarket } from '../markets/catalog.mjs';
 import { observeAsset, recordVaultManifest } from '../vault/ledger.mjs';
 import { observeFarm, seedFarm } from '../stake/farms.mjs';
-import { seedBallot } from '../governance/ballots.mjs';
 import { addCampaign, recordStakeRead } from '../earn/workflow.mjs';
 import {configureWorkload} from '../earn/operations.mjs';
 import {createGuardedFulfillmentFixture} from '../application/fixtures/guarded-fulfillment.mjs';
@@ -31,7 +30,6 @@ export async function checkMemberPages({ browser, db, origin }) {
     owner:wallet,slot:{kind:'genesis',tranche:1,level:1,ordinal:3}});
   seedFarm(db,{marketId:'browser-att',originalUnits:'402600000',treasuryFeeBps:100});
   observeFarm(db,{id:'browser-deposit',marketId:'browser-att',kind:'deposit',at:startIso,wallet,amount:'1234'});
-  seedBallot(db,{id:'browser-vote',opensAt:now-60_000,currentTrancheOpenedAt:start,holders:[wallet],nextWhitelist:[]});
   const seasonId='browser-season',stageId='priority';
   createCollection(db,{id:seasonId,kind:'season',seasonStart:start});
   publishCollectionStage(db,{inventoryId:seasonId,stage:{id:stageId,type:'whitelist',publishedAt:start,
@@ -62,10 +60,6 @@ export async function checkMemberPages({ browser, db, origin }) {
     await page.getByRole('button',{name:'Connect Solana wallet'}).click();await page.getByRole('button',{name:/^Use account /}).click();
     await page.getByRole('button',{name:'Sign in with this message'}).click();
     await page.locator('#wallet-dialog').waitFor({state:'hidden'});
-    await page.getByLabel('As soon as possible',{exact:true}).check();
-    await page.getByRole('button',{name:'Submit advisory vote'}).click();
-    await page.getByText('Recorded your vote: As soon as possible.').waitFor();
-    assert.equal(db.prepare('SELECT COUNT(*) AS count FROM genesis_votes').get().count,1);
     await page.getByRole('button',{name:'Review reservation'}).click();
     await page.getByRole('button',{name:'Reserve preview slot'}).click();
     await page.getByRole('heading',{name:'Operation receipt',exact:true}).waitFor();
@@ -110,7 +104,7 @@ export async function checkMemberPages({ browser, db, origin }) {
     await page.locator('#view[aria-busy=false]').waitFor();
     assert.equal(await page.getByRole('cell',{name:'1234',exact:true}).count(),0);
     assert.deepEqual(errors,[]);
-    console.log('Verified wallet session, advisory vote, collection mint reservation, upgrade quote, pending recovery, fulfilled progression, Earn submission, Vault and Stake data, and sign-out.');
+    console.log('Verified wallet session, collection mint reservation, upgrade quote, pending recovery, fulfilled progression, Earn submission, Vault and Stake data, and sign-out.');
   } finally {
     await page.close();
   }

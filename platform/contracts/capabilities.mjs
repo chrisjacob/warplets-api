@@ -19,7 +19,6 @@ const shared=[
  ['collection-fairness-read',[['GET','/collect/me/operations/{id}/fairness']]],
  ['collection-asset-operation-read',[['GET','/collect/assets/{id}'],['GET','/collect/me/assets'],['GET','/collect/me/operations'],['GET','/collect/me/operations/{id}']]],
  ['collection-progression-preview',[['POST','/collect/inventories/{id}/progression'],['POST','/collect/inventories/{id}/progression/quote']]],
- ['genesis-advisory-vote',[['GET','/genesis/ballots'],['GET','/genesis/ballots/{id}'],['POST','/genesis/ballots/{id}/votes']]],
  ['local-inbox',[['GET','/notifications/capabilities'],['GET','/notifications/subscriptions'],['POST','/notifications/subscriptions'],['GET','/notifications/inbox']]],
 ];
 const nodeOnly=[
