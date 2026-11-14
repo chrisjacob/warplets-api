@@ -25,4 +25,4 @@ Current screenshots and browser results: `work/qa-identities-browser` and `work/
 
 ## Verification
 
-Both Chromium and WebKit passed at 320 and 1280 pixels, including decoding all 338 cached images, no external requests, owner identity preservation and no horizontal overflow. Frontend types/build and 37 tests pass; 8 QA tests and the ballot/demo regressions pass. Full combined CI is tracked in RUN_STATE and MORNING_HANDOFF. Nothing was deployed and no financial capability changed.
+Both Chromium and WebKit passed at 320 and 1280 pixels, including decoding all 338 cached images, no external requests, owner identity preservation and no horizontal overflow. Frontend types/build and 37 tests pass; 8 QA tests and the ballot/demo regressions pass. [Full combined CI](https://github.com/chrisjacob/warplets-api/actions/runs/43549287399) passed on `62aa4ee`: **1,539 tests**, zero failures, skips or cancellations, plus builds, types, contracts and Earn recovery. [Exact evidence](evidence/product-simplification-2026-11-14.json). Nothing was deployed and no financial capability changed.

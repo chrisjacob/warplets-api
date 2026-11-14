@@ -1,6 +1,6 @@
 # 10X.MEME — current product and production readiness
 
-Updated 14 November 2026. Current tested product: `721a20c2755c0cd8d2c97079697d7dfd76e1a313`. [Audit and measurements](APP_AUDIT_2026-11-14.md) · [Populated-app guide](THREE_MONTH_QA_GUIDE_2026-11-13.md) · [Creator/operator review guide](AI_REVIEW_USER_GUIDE_2026-11-14.md).
+Updated 14 November 2026. Current tested product: `62aa4eebe1e4abd4385fa759657cb8d355b5f3ab`. [Audit and measurements](APP_AUDIT_2026-11-14.md) · [Populated-app guide](THREE_MONTH_QA_GUIDE_2026-11-13.md) · [Creator/operator review guide](AI_REVIEW_USER_GUIDE_2026-11-14.md).
 
 ## Brief summary
 
@@ -10,7 +10,9 @@ The app is available at [app-local.10x.meme](https://app-local.10x.meme) through
 
 The largest remaining work is production data and AI integration, hosted operational readiness, and independent resolution of custody/protocol risks before funds can move. Several choices can require implementation changes; production readiness is not simply a deployment or configuration switch. R01–R06 remain unapproved.
 
-The current product passed [CI 43533401131](https://github.com/chrisjacob/warplets-api/actions/runs/43533401131): **1,533 tests with zero failures, skips or cancellations**, plus builds, types, contracts and recovery. This includes 61 focused AI tests and actual Worker/D1/R2 acceptance. Chromium/WebKit creator workflows and the local tunnel also passed their recorded checks. [The integration report](AI_REVIEW_INTEGRATION_2026-11-14.md) records the exact candidate and evidence. This validates the local scope; it does not approve hosted or financial release.
+The current product passed [CI 43549287399](https://github.com/chrisjacob/warplets-api/actions/runs/43549287399): **1,539 tests with zero failures, skips or cancellations**, plus builds, types, contracts and recovery. This includes 61 focused AI tests and actual Worker/D1/R2 acceptance. Chromium/WebKit creator workflows and the local tunnel also passed their recorded checks. [The integration report](AI_REVIEW_INTEGRATION_2026-11-14.md) records the exact candidate and evidence. This validates the local scope; it does not approve hosted or financial release.
+
+Genesis advisory ballots are retired. The optional local QA overlay now supplies 90 real public token identities and 249 Farcaster profiles with cached artwork; activity and economics remain synthetic. [Changes and review steps](PRODUCT_SIMPLIFICATION_2026-11-14.md).
 
 ## What people can use today
 

@@ -1,0 +1,40 @@
+{
+  "scope": "local-only product simplification and public QA identity overlay; no deployment",
+  "productCommit": "62aa4eebe1e4abd4385fa759657cb8d355b5f3ab",
+  "ci": {
+    "runId": 43549287399,
+    "jobId": 132307766863,
+    "url": "https://github.com/chrisjacob/warplets-api/actions/runs/43549287399",
+    "conclusion": "success",
+    "startedAt": "2026-11-14T03:00:08Z",
+    "completedAt": "2026-11-14T04:16:58Z",
+    "suites": {
+      "reference": 1322,
+      "frontend": 37,
+      "beacon": 3,
+      "workerD1R2": 177
+    },
+    "totalTests": 1539,
+    "failures": 0,
+    "skipped": 0,
+    "cancelled": 0,
+    "additionalChecks": [
+      "generated contracts",
+      "Earn recovery drill",
+      "frontend build",
+      "Worker types"
+    ]
+  },
+  "localBrowser": "Chromium and WebKit at 320/1280; all 338 images decode; zero external requests; no horizontal overflow",
+  "dataPreserved": true,
+  "publicIdentityCoverage": {
+    "profiles": 249,
+    "tokens": 90,
+    "imageAssociations": 339,
+    "uniqueCachedRasters": 338,
+    "selectedImageFallbacks": 0,
+    "ownerUnchanged": true
+  },
+  "identityManifestSha256": "9631de011d70a88640031c73d4fae5f3e5c9fb4df5a1a6d700be15616471f457",
+  "logSha256": "2ae4dad08ea72dac32c93679702436a11d01395d4bc8f8e1eed36b6f57d373f5"
+}

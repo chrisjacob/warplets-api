@@ -10,7 +10,7 @@ The overlay uses **249 unique Farcaster profiles**, **90 unique current Solana t
 
 Verified locally:95 retirement checks; site/Worker types and contracts;37 combined frontend tests/build;8 QA tests;3 demo and2 QA generator follow-ups. Chromium156 and WebKit27.2 pass at320/1280, decode every338unique image, make no external requests and show no horizontal overflow. Screenshots/results: `work/qa-identities-browser` and `work/qa-identities-browser-webkit`.
 
-[Combined CI43549287399](https://github.com/chrisjacob/warplets-api/actions/runs/43549287399), job132307766863, is running against exact product62aa4ee. Next: follow to completion, fix failures without weakened checks, then record exact totals and final handoff. No deployment, paid calls, financial execution or R-stage work is authorized. [Review instructions](../validation/PRODUCT_SIMPLIFICATION_2026-11-14.md).
+[Combined CI 43549287399](https://github.com/chrisjacob/warplets-api/actions/runs/43549287399), job **132307766863**, **passed** on exact product **62aa4ee** at 2026-11-14 04:16 UTC: **1,322 reference + 37 frontend + 3 beacon + 177 Worker/D1/R2 = 1,539 tests**, zero failures, skips or cancellations. Builds, types, generated contracts and Earn recovery passed. [Exact evidence](../validation/evidence/product-simplification-2026-11-14.json). Next: user reviews the updated local app; production approvals and integrations remain pending. No deployment, paid calls, financial execution or R-stage work is authorized. [Review instructions](../validation/PRODUCT_SIMPLIFICATION_2026-11-14.md).
 
 ## Current work — durable review queue, 14 November
 
