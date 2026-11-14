@@ -1,4 +1,5 @@
 import {CategoryCompetition} from './performance';
+import {QaTokenName,QaTokenDetails} from './qa-identity';
 import {Diagnostics,TokenArt,Journey,useExperience} from './experience';
 import { useRuntimeQuery } from './capabilities';
 import { useEffect, useState } from 'react';
@@ -55,7 +56,7 @@ function Allocation({policy}:{policy:Policy}){
 export function MarketDetail({id}:{id:string}){
   const market=useRuntimeQuery('/api/v1/markets/{id}',{queryKey:['market',id],queryFn:({signal})=>sdk.market(id,signal)});
   return <><Panel title="Market details"><Loaded query={market}>{m=><>
-    <div className="entry-head"><h3>{m.symbol} / {m.ogSymbol}</h3><span>Local fixture</span></div>
+    <div className="entry-head"><h3>{m.symbol} / {m.ogSymbol}</h3><span>Local fixture</span></div><QaTokenDetails id={m.id}/>
     <Facts items={[['Status',m.status],['Activated',utc(m.activatedAt)],['Current fee',percent(m.feeBps)],
       ['ATT mint',m.attMint],['Original token mint',m.ogMint],['Pool',m.poolAddress]]}/>
     <Link to="/stake" search={{farm:m.id}}>Stake this token →</Link>
@@ -77,7 +78,7 @@ export function Markets(){
     {market && <MarketDetail id={market}/>}
     <Panel title="Explore tokens" className={!markets.data&&!markets.isError&&(markets.availability.pending||markets.availability.allowed)?'catalog-loading':''}><Loaded query={markets}>{page=><>
       {page.items.length?<ul className="rows">{page.items.slice(0,technical?page.items.length:visible).map(m=><li className="token-list-item" key={m.id}><Link to="/markets/$marketId" params={{marketId:m.id}}>
-        <TokenArt name={m.symbol}/><strong>{m.symbol} <small>/ {m.ogSymbol}</small></strong><span>{m.status} · Explore →</span>
+        <TokenArt name={m.id}/><strong><QaTokenName id={m.id} fallback={<>{m.symbol} <small>/ {m.ogSymbol}</small></>}/></strong><span>{m.status} · Explore →</span>
       </Link><Link className="stake-link" to="/stake" search={{farm:m.id}}>Stake {m.symbol} →</Link></li>)}</ul>:<Empty title="No tokens yet">Curated ATT/OG pairs appear here once a campaign opens.</Empty>}
       {!technical&&visible<page.items.length&&<RevealMore items=".token-list-item" shown={visible} onReveal={()=>setVisible(n=>n+10)}>Show more tokens on this page ({visible} of {page.items.length})</RevealMore>}
       {page.nextCursor && <Link to="/tokens" search={{cursor:page.nextCursor}}>Next campaigns →</Link>}

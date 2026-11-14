@@ -1,4 +1,5 @@
 import {createContext,useContext,useState,type ReactNode} from 'react';
+import {QaIdentityArt} from './qa-identity';
 const Experience=createContext({technical:false,toggle:()=>{}});
 export function ExperienceProvider({children,initialTechnical=false}:{children:ReactNode;initialTechnical?:boolean}){
  const [technical,setTechnical]=useState(()=>{try{return sessionStorage.getItem('10x:technical')==='true'||initialTechnical;}catch{return initialTechnical;}});
@@ -9,7 +10,7 @@ export function Diagnostics({children}:{children:ReactNode}){return useExperienc
 export function TechnicalToggle(){const {technical,toggle}=useExperience();return <button className="technical-toggle" aria-pressed={technical} onClick={toggle}>{technical?'Switch to simple view':'Technical view'}</button>;}
 export function TokenArt({name}:{name:string}){
  const n=[...name].reduce((a,c)=>a+c.charCodeAt(0),0)%3;
- return <span className={'token-art tone-'+n} aria-hidden="true"><svg viewBox="0 0 64 64"><circle cx="32" cy="32" r="28" fill="currentColor" opacity=".13"/><path d="m16 39 11-20h9l-5 11h17L32 48l5-12H23l-4 7Z" fill="currentColor"/></svg></span>;
+ return <QaIdentityArt name={name} fallback={<span className={'token-art tone-'+n} aria-hidden="true"><svg viewBox="0 0 64 64"><circle cx="32" cy="32" r="28" fill="currentColor" opacity=".13"/><path d="m16 39 11-20h9l-5 11h17L32 48l5-12H23l-4 7Z" fill="currentColor"/></svg></span>}/>;
 }
 export function NftArt({name,level,concealed=false}:{name:string;level?:number;concealed?:boolean}){
  const n=[...name].reduce((a,c)=>a+c.charCodeAt(0),0)%3;

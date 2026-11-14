@@ -1,0 +1,8 @@
+.qa-public-art{overflow:hidden;flex-shrink:0;border-radius:50%;background:var(--surface,#f1f2e9)}
+.qa-public-art img{display:block;width:100%;height:100%;object-fit:cover;aspect-ratio:1}
+.qa-public-name{overflow-wrap:anywhere}
+.qa-public-name small{display:inline-block;margin-left:.4rem;font-size:.68em;font-weight:500;opacity:.7;white-space:normal}
+.qa-public-attribution{font-size:.84rem;line-height:1.5;color:var(--muted,#657168);overflow-wrap:anywhere}
+.qa-public-attribution h3{color:var(--ink,#172c22)}
+.qa-profile-heading{display:flex;align-items:center;gap:.75rem;margin-bottom:.6rem}
+.qa-profile-heading h3{margin:0;min-width:0}

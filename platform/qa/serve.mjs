@@ -7,7 +7,10 @@ import {createLocalServer} from '../server/start.mjs';
 import {createPerformanceService} from '../performance/leaderboards.mjs';
 import {parseArgs} from './populate.mjs';
 import {createSyntheticReviewPreview} from '../ai-review/fixture.mjs';
-const a=parseArgs(process.argv.slice(2)),directory=resolve(a.directory??''),port=Number(a.port??4181);
+import {loadPublicIdentities,publicIdentityResponse} from './public-identities.mjs';
+const args=process.argv.slice(2),overlayIndex=args.indexOf('--identity-overlay');let overlayPath=null;
+if(overlayIndex!==-1){if(!args[overlayIndex+1]||args[overlayIndex+1].startsWith('--')||args.lastIndexOf('--identity-overlay')!==overlayIndex)throw Error('Supply one --identity-overlay manifest path.');overlayPath=args[overlayIndex+1];args.splice(overlayIndex,2);}
+const a=parseArgs(args),directory=resolve(a.directory??''),port=Number(a.port??4181);
 if(!a.directory||!Number.isInteger(port)||port<1024||port>65535)throw Error('Supply --directory and a local port from 1024 to 65535.');
 if(existsSync(join(directory,'FAILED.txt')))throw Error('Refusing to serve an incomplete scenario.');
 const report=JSON.parse(readFileSync(join(directory,'scenario.json'),'utf8'));
@@ -15,6 +18,7 @@ if(report.scope!=='synthetic-local-only'||report.status!=='complete')throw Error
 const bytes=readFileSync(join(directory,'performance.json'));
 if(createHash('sha256').update(bytes).digest('hex')!==report.performance.sha256)throw Error('QA snapshot digest differs from its generation report.');
 const snapshot=JSON.parse(bytes);
+const identityOverlay=overlayPath?loadPublicIdentities(overlayPath,{snapshot,report}):null;
 const origin=a.origin??'http://127.0.0.1:'+port,parsed=new URL(origin);
 if(parsed.origin!==origin||(!['https:','http:'].includes(parsed.protocol))||(parsed.protocol==='http:'&&!['127.0.0.1','localhost'].includes(parsed.hostname)))throw Error('Use an exact HTTPS origin or loopback HTTP origin.');
 if(!existsSync(join(directory,'core.sqlite')))throw Error('Missing QA core database; refusing to create an empty one.');
@@ -25,13 +29,13 @@ const server=createLocalServer(async(request,peer)=>{
  const url=new URL(request.url),headers=new Headers(request.headers);
  for(const key of [...headers.keys()])if(key==='forwarded'||key.startsWith('x-forwarded-')||key.startsWith('cf-'))headers.delete(key);
  const translated=new Request(origin+url.pathname+url.search,{method:request.method,headers,body:['GET','HEAD'].includes(request.method)?undefined:await request.arrayBuffer()});
- const response=await app(translated,peer),out=new Headers(response.headers);
+ const response=publicIdentityResponse(translated,identityOverlay)??await app(translated,peer),out=new Headers(response.headers);
  // Versioned public assets remain cacheable; every page and data response stays private to this preview.
- if(!/^\/site-assets\/[A-Za-z0-9_-]+\.(js|css)$/.test(url.pathname)||!out.get('cache-control')?.includes('immutable'))out.set('cache-control','no-store');
+ if(!/^(?:\/site-assets\/[A-Za-z0-9_-]+\.(js|css)|\/qa-media\/[a-f0-9]{64}\.(png|jpg|webp|gif))$/.test(url.pathname)||!out.get('cache-control')?.includes('immutable'))out.set('cache-control','no-store');
  out.set('x-tenx-preview','synthetic-90-day-qa');
  const cookie=out.get('set-cookie');if(cookie&&parsed.protocol==='https:'&&!/;\s*Secure(?:;|$)/i.test(cookie))out.set('set-cookie',cookie+'; Secure');
  let body=response.body;
- if(request.method==='GET'&&out.get('content-type')?.includes('text/html')){body=(await response.text()).replace('<body>','<body><aside role="note" aria-label="Synthetic demo">90-day synthetic QA · Simulated prices and rewards · No real funds · Performance history is a dated snapshot; live demo vesting continues.</aside>');out.delete('content-length');}
+ if(request.method==='GET'&&out.get('content-type')?.includes('text/html')){body=(await response.text()).replace('<body>','<body><aside role="note" aria-label="Synthetic demo">90-day synthetic QA · Simulated prices and rewards · No real funds'+(identityOverlay?' · Public names and artwork; no affiliation. All activity is simulated.':' · Performance history is a dated snapshot; live demo vesting continues.')+'</aside>');if(identityOverlay)body=body.replace('</head>','<meta name="tenx-qa-public-identities" content="enabled"></head>');out.delete('content-length');}
  return new Response(body,{status:response.status,headers:out});
 });
 server.listen(port,'127.0.0.1',()=>console.log(JSON.stringify({scope:'synthetic-local-only',origin,port,directory,wallet:report.wallet,asOf:report.asOf,financialExecution:false})));

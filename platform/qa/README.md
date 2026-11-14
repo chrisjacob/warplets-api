@@ -128,6 +128,56 @@ Any participant with a missing constituent value correctly has an unavailable
 aggregate, rather than an understated zero. Historical ATH survives a stale
 current quote. The primary scenario deliberately uses complete prices.
 
+## Optional public names and artwork
+
+Keep the generated database and performance snapshot intact. This separate,
+explicit refresh fetches free, public, uncredentialed Farcaster profiles and
+GeckoTerminal's current 24-hour Solana trending-pool token metadata:
+
+```powershell
+node platform/qa/import-public-identities.mjs --directory work/qa-three-month-final-2026-11-13 --output work/qa-public-identities-review
+node platform/qa/serve.mjs --directory work/qa-three-month-final-2026-11-13 --port 4181 --origin https://app-local.10x.meme --identity-overlay work/qa-public-identities-review/identities.json
+node --test platform/qa/public-identities.test.mjs
+```
+
+Use a **new output directory for each refresh**. The importer never opens or
+writes `core.sqlite`, changes `performance.json`, or reseeds the scenario.
+Names/artwork are presentation samples mapped to existing synthetic IDs. The
+selected owner's wallet keeps its own identity. Public people are not presented
+as actual 10X users: rows say `demo`, profiles state that their wallet/activity
+are simulated, and the QA banner states there is no affiliation or endorsement.
+Token artwork likewise does not turn a synthetic Attention Token into the real
+source asset. Trading terms, balances, valuation prices and rewards remain the
+original synthetic data. Trending pools are a source selection, not a claim that
+every token is a memecoin, a recommendation, or the app's performance ranking.
+
+Farcaster samples come from the public following lists of FIDs 3 and 2. The
+bounded candidate pool prefers unique accounts with successfully cached raster
+images. This is a display sample, not a representative user survey. The importer
+retains only username, public display name, FID, profile URL and artwork; it
+discards bios, connected-account metadata and real wallet addresses. Token
+prices and trading statistics from the source response are discarded too.
+
+`identities.json` pins the economic snapshot digest, retrieval time, source URLs,
+response SHA-256 receipts, coverage, failure counts and every cached image digest.
+`identities.sha256` pins that manifest. These are local integrity receipts, not
+provider signatures. A missing source or rejected image is reported honestly;
+uncovered rows keep their synthetic labels/artwork. The refresh performs at most
+20 metadata requests, uses four image fetches concurrently, and follows no
+redirects. Images must come from the fixed public host allowlist, be PNG/JPEG/
+WebP/GIF with matching magic and bounded dimensions (up to 2048 × 2048), fit
+256 KiB each and a 32 MiB import cache. SVG, HTML, oversized or unknown images
+fall back safely. No image transformation dependency is installed.
+
+Serving is offline: startup verifies the pinned manifest, snapshot mapping and
+local raster bytes, then serves only their hashed `/qa-media/` paths. Browsers do
+not contact profile/image providers. The local-only manifest endpoint is read
+only, has no proxy parameter, and is enabled only by `--identity-overlay`.
+Normal Node/Worker runtimes keep their original UI and have no importer route.
+See [GeckoTerminal's public API](https://www.geckoterminal.com/dex-api) and the
+retrieved source URLs in the manifest for provenance. Public endpoints can change
+or become unavailable; refresh failure never modifies the existing scenario.
+
 All output directories must begin `qa-` and must not exist. Overwrites are refused
 even if the previous generation was incomplete. Failed generation leaves a
 `FAILED.txt` marker; the server refuses to serve it. The server also verifies
