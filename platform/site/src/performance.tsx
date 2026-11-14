@@ -38,7 +38,7 @@ function ModeSwitch({mode,change}:{mode:ValuationMode;change:(mode:ValuationMode
 function RankingRow({row,mode,category:kind,own=false}:{row:z.infer<typeof performanceRow>;mode:ValuationMode;category:Category;own?:boolean}){
  const metric=mode==='peak'?row.peakUsdMicros:row.marketUsdMicros;
  const link=kind==='tokens'?<Link to="/markets/$marketId" params={{marketId:row.participantId}}><QaTokenName id={row.participantId} fallback={row.label} compact/></Link>:row.wallet?<Link to="/participants/$wallet" params={{wallet:row.wallet}}><QaParticipantName wallet={row.wallet} fallback={row.label}/></Link>:row.label;
- return <li className={'performance-row'+(own?' is-you':'')}><span className="rank-number">#{row.rank}</span><TokenArt name={row.participantId}/><div className="rank-identity"><strong>{link}{own&&<span className="you-badge">You</span>}</strong>
+ return <li className={'performance-row'+(own?' is-you':'')}><span className="rank-number">#{row.rank}</span><TokenArt name={kind==='tokens'?row.participantId:(row.wallet??row.participantId)}/><div className="rank-identity"><strong>{link}{own&&<span className="you-badge">You</span>}</strong>
   {kind==='tokens'?<small>{mode==='peak'?'Peak':'Market'} FDV · {usd(metric)}</small>:<small>{row.awardedTokens[0]?tokenUnits(row.awardedTokens[0].awardedUnits,row.awardedTokens[0].decimals)+' '+row.awardedTokens[0].symbol:'No awarded quantity'}{row.tokenCount>1?' + '+(row.tokenCount-1)+' other tokens':''}</small>}</div>
   <strong className="rank-value">{kind==='tokens'?(row.multiple===null?'Unavailable':row.multiple.replace(/(\.\d*?)0+$/,'$1').replace(/\.$/,'')+'X'):usd(metric)}</strong></li>;
 }

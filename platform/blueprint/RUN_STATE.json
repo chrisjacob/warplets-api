@@ -1033,5 +1033,12 @@
       ]
     },
     "evidence": "platform/validation/evidence/product-simplification-2026-11-14.json"
+  },
+  "leaderboardAvatarFollowup": {
+    "status": "complete",
+    "scope": "Visible wallet-keyed portraits in shared rankings; readable stacked mobile values",
+    "validation": "Typecheck/build; Chromium and WebKit, four user boards at 320/1280, matching visible portraits, no overflow or external image requests",
+    "localApp": "rebuilt in place; existing data preserved",
+    "nextStep": "Refresh local app to review Top 100 user lists"
   }
 }

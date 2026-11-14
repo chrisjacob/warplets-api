@@ -1,5 +1,9 @@
 # Completed local implementation — review handoff
 
+## Leaderboard avatar follow-up
+
+User Top 100 rows now use wallet-keyed profile portraits, including on mobile. At widths up to 480px, values sit below user details to keep names and amounts readable. The shared row also updates Home previews. Local app rebuilt in place; no server restart or database changes. Typecheck/build passed. Chromium and WebKit passed all four user boards (NFTs, Airdrops, Stake, Earn) at 320/1280 pixels, including visible matching portraits, no overflow and no external image requests. Evidence stays local in `work/qa-ranking-avatars-chromium` and `work/qa-ranking-avatars-webkit`. This small presentation follow-up was locally verified; the full CI below applies to the preceding product commit.
+
 ## Current work — simpler product and realistic QA identities
 
 Pushed milestones: **1518a68** retires Genesis advisory ballot UI, public Node/Worker routes, SDK/contracts and fallback UI; **83e2007** removes obsolete demo ballot seeding; **62aa4eebe1e4abd4385fa759657cb8d355b5f3ab** adds the optional local identity overlay. Founder notice/economic approval requirements, historical migrations and recovery fixtures remain intact. No social poll or external message was sent.

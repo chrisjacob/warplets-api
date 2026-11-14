@@ -35,14 +35,16 @@ try{
   await visit('/markets/'+overlay.tokens[0].tokenId);const token=overlay.tokens[0];
   assert.equal(await page.locator('h1').innerText(),token.name+' · '+token.symbol+' (demo)');assert.ok((await page.title()).includes(token.name));
   assert.equal(await page.locator('.qa-public-attribution a').getAttribute('href'),token.sourceUrl);assert.match(await page.locator('.qa-public-attribution').innerText(),/Prices and rewards remain demo data/);await imagesLoaded('.qa-public-art img');await shot('token-detail');
-  await visit('/airdrops');const board=page.getByRole('region',{name:'Airdrops performance leaderboard'});assert.equal(await board.locator('.performance-list > .performance-row').count(),10);
+  for(const [path,label] of [['airdrops','Airdrops'],['nfts','NFTs'],['stake','Stake'],['earn','Earn']]){
+  await visit('/'+path);const board=page.getByRole('region',{name:label+' performance leaderboard'});assert.equal(await board.locator('.performance-list > .performance-row').count(),10);
   const profileByWallet=new Map(overlay.profiles.map(p=>[p.wallet,p]));let checked=0;
   for(const row of await board.locator('.performance-list > .performance-row').all()){
    const href=await row.locator('.rank-identity a').getAttribute('href'),wallet=decodeURIComponent(href.split('/').at(-1)),profile=profileByWallet.get(wallet);
    if(!profile){assert.equal(wallet,manifest.ownerWallet);continue;}
-   assert.ok((await row.locator('.rank-identity').innerText()).includes('@'+profile.username));assert.equal(await row.locator('img').getAttribute('src'),profile.image);checked++;
+   assert.ok((await row.locator('.rank-identity').innerText()).includes('@'+profile.username));assert.equal(await row.locator('img').getAttribute('src'),profile.image);assert.equal(await row.locator('img').isVisible(),true,'Profile image stays visible at '+width);checked++;
   }
-  assert.ok(checked>=9);await imagesLoaded('.performance-list .qa-public-art img');await board.scrollIntoViewIfNeeded();await shot('leaderboard');
+  assert.ok(checked>=9);await imagesLoaded('.performance-list .qa-public-art img');await board.scrollIntoViewIfNeeded();await shot('leaderboard-'+path);
+  }
   await visit('/participants/'+overlay.profiles[0].wallet);const profile=overlay.profiles[0];
   const heading=await page.locator('.qa-profile-heading h3').innerText();assert.ok(heading.includes(profile.displayName));assert.ok(heading.includes('@'+profile.username));assert.match(heading,/demo/);
   const notice=await page.locator('.qa-public-attribution').innerText();assert.match(notice,/This demo wallet and its activity are simulated/);assert.match(notice,/No affiliation/);assert.equal(await page.locator('.qa-public-attribution a').getAttribute('href'),profile.profileUrl);
