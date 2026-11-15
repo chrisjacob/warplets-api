@@ -5,7 +5,7 @@
   "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
   "currentTask": null,
-  "lastUpdatedAt": "2026-11-15T10:59:18.775431+00:00",
+  "lastUpdatedAt": "2026-11-15T11:01:30.359311+00:00",
   "migrationAllocation": {
     "next": 72,
     "reserved": [
@@ -1042,7 +1042,7 @@
     "nextStep": "Refresh local app to review Top 100 user lists"
   },
   "darkDesignSupportedPostsFollowup": {
-    "status": "locally-verified-awaiting-ci",
+    "status": "implemented-local-verified-ci-running",
     "baselineCommit": "ab7311f",
     "scope": [
       "dark green consumer design and category chips",
@@ -1060,9 +1060,9 @@
     "paidProviderCalls": false,
     "deployment": false,
     "visualValidation": "38site tests; TypeScript/Vite build; Chromium+WebKit at320/390/1280:contrast,keyboard,all5Seasonart,Genesisart,concealedart,nooverflow",
-    "nextStep": "Follow full test-only CI for this integration checkpoint; resolve failures, restart final app, record exact evidence and handoff.",
+    "nextStep": "Follow CI43706696337 to completion, fix any failures without weakened checks, then save exact totals and final handoff. Use direct GitHub CLI because connector status previously lagged.",
     "visualCommit": "892db16",
-    "localQaPid": 13652,
+    "localQaPid": 8792,
     "tunnelPid": 19364,
     "databaseBackup": "work/qa-three-month-final-2026-11-13/core-before-dark-2026-11-15.sqlite",
     "supportedPostValidation": {
@@ -1074,6 +1074,15 @@
       "frontend": 38,
       "browser": "Chromium/WebKit post cards at320/1280; Chromium review/appeals at320/390/1280; both engines dark theme at320/390/1280 including token and participant details",
       "liveSource": "Public Farcaster text-only adapter verified in2fixedrequests; no database/model writes"
+    },
+    "productCommit": "d4c3e11689705c3ecbd9fa62245c8a784ec060c4",
+    "temporaryPreviewStopped": true,
+    "databasePreserved": "All7domain tables match backup exactly; integrity OK and performance snapshot unchanged",
+    "ci": {
+      "runId": 43706696337,
+      "jobId": 132789239713,
+      "url": "https://github.com/chrisjacob/warplets-api/actions/runs/43706696337",
+      "status": "in-progress"
     }
   }
 }
