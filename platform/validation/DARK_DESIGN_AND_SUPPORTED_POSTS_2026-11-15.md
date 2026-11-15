@@ -22,7 +22,7 @@ The built-in image generator produced five original Season images; optimized Web
 
 ## Verification
 
-Local checks pass: 38 frontend tests, TypeScript/build, 12 source/privacy/capture tests, the final 7 source-access/capture regressions, 6 Node/Worker checks, an additional Worker owner-content check and 6 contract checks. Both Chromium and WebKit passed the dark design at 320/390/1280 pixels and post cards at 320/1280 pixels. Chromium also passed the existing review/appeals flow at 320/390/1280 pixels. Full combined CI is pending; its exact product commit and result will be recorded in MORNING_HANDOFF.
+Local checks pass: 38 frontend tests, TypeScript/build, 12 source/privacy/capture tests, the final 7 source-access/capture regressions, 6 Node/Worker checks, an additional Worker owner-content check and 6 contract checks. Both Chromium and WebKit passed the dark design at 320/390/1280 pixels and post cards at 320/1280 pixels. Chromium also passed the existing review/appeals flow at 320/390/1280 pixels. Full combined [CI43715749113](https://github.com/chrisjacob/warplets-api/actions/runs/43715749113) passed on `7c314987ab08c266eca5fbe0d15baa95859d6502`: **1,552 tests**, zero failures, skips or cancellations, plus builds, types, contracts and recovery. Two obsolete unsupported-URL fixtures were corrected without changing acceptance assertions. [Exact evidence](evidence/dark-supported-posts-2026-11-15.json).
 
 Local screenshots: `work/dark-design-final-chromium`, `work/dark-design-final-webkit`, `work/post-content-chromium` and `work/post-content-webkit`. Public profile screenshots stay untracked. [Operator capture and source limitations](../earn/SUPPORTED_POSTS.md).
 

@@ -1,0 +1,78 @@
+{
+  "productCommit": "7c314987ab08c266eca5fbe0d15baa95859d6502",
+  "ci": {
+    "runId": 43715749113,
+    "jobId": 132816793596,
+    "url": "https://github.com/chrisjacob/warplets-api/actions/runs/43715749113",
+    "status": "completed",
+    "conclusion": "success",
+    "startedAt": "2026-11-15T12:48:53Z",
+    "completedAt": "2026-11-15T13:46:24Z",
+    "suites": {
+      "reference": 1334,
+      "frontend": 38,
+      "beacon": 3,
+      "workerD1R2": 177
+    },
+    "totalTests": 1552,
+    "failures": 0,
+    "skipped": 0,
+    "cancelled": 0,
+    "additionalChecks": [
+      "generated contracts",
+      "Earn recovery drill",
+      "frontend build",
+      "Worker types",
+      "hosted transcript with Node/D1 parity and fresh-instance recovery"
+    ]
+  },
+  "localBrowserChecks": {
+    "engines": [
+      "Chromium 156",
+      "WebKit 27.2"
+    ],
+    "darkThemeWidths": [
+      320,
+      390,
+      1280
+    ],
+    "supportedPostWidths": [
+      320,
+      1280
+    ],
+    "reviewAppealsWidthsChromium": [
+      320,
+      390,
+      1280
+    ],
+    "checks": [
+      "artwork decoding",
+      "concealed art remains concealed",
+      "contrast",
+      "keyboard dialog focus",
+      "no horizontal overflow",
+      "supported post intake",
+      "escaped text previews",
+      "private/public visibility"
+    ]
+  },
+  "localApp": {
+    "url": "https://app-local.10x.meme",
+    "finalPageStatus": 200,
+    "databasePreserved": true,
+    "profileCount": 249,
+    "tokenCount": 90
+  },
+  "financialExecution": false,
+  "paidScoringCalls": false,
+  "deployment": false,
+  "usageUsedPercentAtCompletion": 35,
+  "artworkProvenance": "platform/site/src/assets/collectibles/provenance.json",
+  "limitations": [
+    "X oEmbed is excerpt-only, not complete scoring evidence",
+    "Media scoring remains held",
+    "Farcaster client endpoints require dependable production sourcing",
+    "Creator verification and model calibration remain outstanding",
+    "Concept artwork is not approved mint metadata"
+  ]
+}

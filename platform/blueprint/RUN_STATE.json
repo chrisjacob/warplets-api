@@ -1042,7 +1042,7 @@
     "nextStep": "Refresh local app to review Top 100 user lists"
   },
   "darkDesignSupportedPostsFollowup": {
-    "status": "implemented-local-verified-ci-running",
+    "status": "complete",
     "baselineCommit": "ab7311f",
     "scope": [
       "dark green consumer design and category chips",
@@ -1054,13 +1054,14 @@
     "budget": {
       "initialUsedPercent": 23,
       "maximumUsedPercent": 50,
-      "reserveCheckpointAtUsedPercent": 47
+      "reserveCheckpointAtUsedPercent": 47,
+      "finalUsedPercent": 35
     },
     "financialExecution": false,
     "paidProviderCalls": false,
     "deployment": false,
     "visualValidation": "38site tests; TypeScript/Vite build; Chromium+WebKit at320/390/1280:contrast,keyboard,all5Seasonart,Genesisart,concealedart,nooverflow",
-    "nextStep": "Follow CI43715749113 to completion; save exact totals and final handoff.",
+    "nextStep": "User reviews updated local Home, Tokens/rankings, Genesis/Season artwork and supported Earn posts. Production source/model/identity/media and release gates remain pending.",
     "visualCommit": "892db16",
     "localQaPid": 8792,
     "tunnelPid": 19364,
@@ -1082,7 +1083,27 @@
       "runId": 43715749113,
       "jobId": 132816793596,
       "url": "https://github.com/chrisjacob/warplets-api/actions/runs/43715749113",
-      "status": "in-progress"
+      "status": "completed",
+      "conclusion": "success",
+      "startedAt": "2026-11-15T12:48:53Z",
+      "completedAt": "2026-11-15T13:46:24Z",
+      "suites": {
+        "reference": 1334,
+        "frontend": 38,
+        "beacon": 3,
+        "workerD1R2": 177
+      },
+      "totalTests": 1552,
+      "failures": 0,
+      "skipped": 0,
+      "cancelled": 0,
+      "additionalChecks": [
+        "generated contracts",
+        "Earn recovery drill",
+        "frontend build",
+        "Worker types",
+        "hosted transcript with Node/D1 parity and fresh-instance recovery"
+      ]
     },
     "priorCi": {
       "runId": 43706696337,
@@ -1116,6 +1137,7 @@
       "reason": "obsolete arbitrary-URL hosted transcript fixture rejected by supported-post intake",
       "fixCommit": "7c31498",
       "localRegression": "Complete hosted transcript passed: settlement, publication, parity and fresh-instance recovery"
-    }
+    },
+    "evidence": "platform/validation/evidence/dark-supported-posts-2026-11-15.json"
   }
 }
