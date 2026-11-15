@@ -76,7 +76,7 @@ export async function runLoad(contributors,{campaignCount=1,staffedMinutes=null}
       const before={...metrics},selected=campaignAt(i).tokenId;byCampaign[selected].attempts++;
       const response=await fetch(origin+'/api/v1/earn/submissions',{method:'POST',headers:{origin,
         cookie:'tenx_local_session='+token(i),'content-type':'application/json','idempotency-key':'first'},
-        body:JSON.stringify({tokenId:selected,url:'https://example.org/content/'+i})});
+        body:JSON.stringify({tokenId:selected,url:'https://x.com/fixture_author/status/'+(18446744073709550000n+BigInt(i))})});
       const body=await response.json();elapsed.push(performance.now()-at);
       if (response.status===201) {counts.accepted++;byCampaign[selected].accepted++;admitted.push([wallet(i),body.id,selected]);}
       else {assert.equal(response.status,409,JSON.stringify({attempt:i,body}));assert.equal(body.error.code,'board_capacity');counts.capacity++;byCampaign[selected].capacity++;}
