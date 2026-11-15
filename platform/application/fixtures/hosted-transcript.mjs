@@ -52,7 +52,7 @@ export async function verifyHostedTranscript(runtime,fixture){
    const actor=await authenticateHosted(runtime,account);
    const tokens=index===0?['hosted-a','hosted-b']:['hosted-a'];
    for(const tokenId of tokens){
-    const prior=existing.find(p=>p.token_id===tokenId),body={tokenId,url:'https://example.test/synthetic-'+account.label+'-'+tokenId};
+    const prior=existing.find(p=>p.token_id===tokenId),body={tokenId,url:'https://x.com/fixture_author/status/'+(18446744073709550100n+BigInt(index*2+(tokenId==='hosted-b'?1:0)))};
     const post=prior??(await actor.client.submitEarnContent({idempotencyKey:'synthetic-'+account.label+'-'+tokenId,body})).data;
     if(!prior){const replay=await actor.client.submitEarnContent({idempotencyKey:'synthetic-'+account.label+'-'+tokenId,body});assert.equal(replay.data.id,post.id);}
     const score=index===2?0:index===0?(tokenId==='hosted-a'?9:7):index===1?8:6;
