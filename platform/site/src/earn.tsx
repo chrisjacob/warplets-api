@@ -1,5 +1,7 @@
 import {ReviewPreview} from './review-preview';
 import {SubmissionReview} from './earn-review';
+import {PostContent} from './post-content';
+import {supportedPost} from '../../earn/supported-post.mjs';
 import {CategoryCompetition} from './performance';
 import {Diagnostics,Journey,TokenArt,ProgressBar,useExperience} from './experience';
 import {EarnMemberDetails} from './earn-details';
@@ -19,6 +21,7 @@ function Contribution({wallet}:{wallet:string}){
   useEffect(()=>setShownSubmissions(5),[wallet,submissions]);
   useEffect(()=>setShownAwards(5),[wallet,awards]);
   const [tokenId,setTokenId]=useState('');
+  const [urlError,setUrlError]=useState('');
   const catalog=useRuntimeQuery('/api/v1/markets',{queryKey:['markets',undefined],queryFn:({signal})=>sdk.markets(undefined,signal)});
   const history=useRuntimeQuery('/api/v1/earn/me',{queryKey:['private',wallet,'solana','submissions',submissions],queryFn:({signal})=>sdk.submissions(submissions,signal)});
   const claims=useRuntimeQuery('/api/v1/earn/claims',{queryKey:['private',wallet,'solana','awards',awards],queryFn:({signal})=>sdk.awards(awards,signal)});
@@ -33,19 +36,21 @@ function Contribution({wallet}:{wallet:string}){
       const selectedToken=active.find(m=>m.id===tokenId)??active[0];
       return <form id="submission-form" className="member-form" onSubmit={event=>{
         event.preventDefault();const fields=new FormData(event.currentTarget);
-        submit.mutate({tokenId:String(fields.get('tokenId')),url:String(fields.get('url'))});
+        let post;try{post=supportedPost(String(fields.get('url')).trim());setUrlError('');}catch{setUrlError('Paste a shared Farcaster or X post link. Profile pages and other sites are not supported.');return;}
+        submit.mutate({tokenId:String(fields.get('tokenId')),url:post.canonicalUrl});
       }}>
         <label>ATT campaign<select name="tokenId" required value={selectedToken.id} onChange={e=>setTokenId(e.target.value)}>{active.map(m=><option value={m.id} key={m.id}>{m.symbol}</option>)}</select></label>
-        <label>Content URL<input name="url" type="url" required maxLength={2048} placeholder="https://…"/></label>
+        <label>Farcaster or X post link<input name="url" type="url" required maxLength={2048} placeholder="https://x.com/yourname/status/…" aria-describedby="post-link-help" onChange={()=>setUrlError('')}/></label>
+        <p id="post-link-help">Share a public post about this token. Private, deleted or unavailable posts cannot be reviewed from a link alone.</p>
         <p>You’ll need at least $10 staked in the corresponding Attention Token when you submit and at the daily cutoff. Each campaign has its own requirement.</p><p><Link to="/stake" search={{farm:selectedToken.id}}>Stake {selectedToken.symbol} to participate →</Link></p>
         <button disabled={submit.isPending}>Submit contribution</button>
-        <output aria-live="polite">{submit.isSuccess?'Contribution recorded for moderation.':submit.isError?friendlyError(submit.error):''}</output>
+        <output aria-live="polite">{urlError|| (submit.isSuccess?'Contribution recorded for moderation.':submit.isError?friendlyError(submit.error):'')}</output>
       </form>;
     }}</Loaded></Capability></Panel>
     <Panel technicalOnly title="Your Earn evidence">{history.data?.memberStatus?<EarnMemberDetails status={history.data.memberStatus}/>:<p>Current wallet evidence is unavailable in this runtime.</p>}</Panel>
     <div className="two-up"><Panel title="Your submissions"><Loaded query={history}>{page=><>
       {page.items.length?<ul className="records submission-records">{page.items.slice(0,technical?page.items.length:shownSubmissions).map(i=><li key={i.id}><strong>{i.tokenId}</strong><span>{technical?i.status:i.status==='final'?'Daily result final':'Awaiting daily results'}{i.score==null?'':' · final score '+i.score+' / 10'}</span>
-        <small>{i.url}</small>{i.reason && <p>{i.reason}</p>}
+        <Diagnostics><small>{i.url}</small></Diagnostics><PostContent submissionId={i.id}/>{i.reason && <p>{i.reason}</p>}
         <p>{i.status!=='final'?'Your contribution is saved. We’ll check your eligibility when the day closes.':i.eligible===true?'Eligible at cutoff. Eligibility does not guarantee a Top 100 award.':i.eligible===false?'Not eligible at cutoff.':'Cutoff eligibility unavailable.'}</p>
         <SubmissionReview wallet={wallet} submissionId={i.id}/>
         <Diagnostics><Facts items={[["Entry stake (micro-USD)",i.entryStakeMicroUsd??'Unavailable'],['Cutoff stake (micro-USD)',i.closingStakeMicroUsd??'Pending or unavailable']]}/></Diagnostics>
@@ -72,7 +77,7 @@ export function Attention(){
   const actions=useRuntimeQuery('/api/v1/earn/actions',{queryKey:['earn-actions'],queryFn:({signal})=>client.listActiveEarnActions({signal})});
   return <>
     <Hero title="Earn">Bring attention to projects you believe in. Create content, submit your link and follow its review.</Hero>
-    <Journey steps={[['Create & share','Post original content about a token.'],['Submit your link','Keep at least $10 staked in that token.'],['Get reviewed','Eligible top-ranked contributions earn rewards.']]}/>
+    <Journey steps={[['Create & share','Post original content on Farcaster or X.'],['Submit your link','Keep at least $10 staked in that token.'],['Get reviewed','Eligible top-ranked contributions earn rewards.']]}/>
     {capacity.data&&<p className="status-pill">{capacity.data.data.accepting?'Submissions open · '+capacity.data.data.remaining+' places left today':'Submissions paused · Check back soon'}</p>}
     <Loaded query={policy}>{p=><Metrics items={[
       ['Winner places','Top '+p.earn.maxWinners,'across active campaigns'],['Stake requirement','US$'+p.earn.minimumCorrespondingStakeUsd,'in the corresponding ATT'],
@@ -108,9 +113,9 @@ export function Leaderboards({epochId}:{epochId?:string}={}){
         if(b.status==='pending')return <Empty title="Awaiting final scores">Reviews are still in progress. Final results will appear here.</Empty>;
         if(!b.items.length)return <Empty title="Final board · no winners">No eligible contribution placed on this board.</Empty>;
         return <><div className="scroller"><table><caption>Final leaderboard · {boardDate} UTC</caption>
-          <thead><tr>{['Rank','Wallet','Score','Multiplier','Points'].map(s=><th key={s}>{s}</th>)}</tr></thead>
+          <thead><tr>{['Rank','Wallet','Score','Multiplier','Points','Post'].map(s=><th key={s}>{s}</th>)}</tr></thead>
           <tbody>{b.items.slice(0,technical?b.items.length:shown).map(i=><tr key={i.wallet}><td>{i.rank}</td><td><abbr title={i.wallet}>{compact(i.wallet)}</abbr></td><td>{i.contentScore}</td>
-            <td>{i.multiplierTenths/10}×</td><td>{i.pointsTenths/10}</td></tr>)}</tbody></table></div>{!technical&&shown<b.items.length&&<RevealMore items="tbody > tr" shown={shown} onReveal={()=>setShown(n=>n+10)}>Show more scores ({shown} of {b.items.length})</RevealMore>}</>;
+            <td>{i.multiplierTenths/10}×</td><td>{i.pointsTenths/10}</td><td>{i.submissionId?<PostContent submissionId={i.submissionId} label="View winning post"/>:'Unavailable'}</td></tr>)}</tbody></table></div>{!technical&&shown<b.items.length&&<RevealMore items="tbody > tr" shown={shown} onReveal={()=>setShown(n=>n+10)}>Show more scores ({shown} of {b.items.length})</RevealMore>}</>;
       }}</Loaded></Panel>
   </>;
 }

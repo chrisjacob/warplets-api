@@ -38,8 +38,8 @@ async function fixture(t,count=6){
  const [owner,other]=await Promise.all(keys.map(k=>actor(mf,k)));
  const admit=async index=>{
   const tokenId='synthetic-review-http-'+index,url='https://qa.invalid/submissions/worker-'+index;
-  const result=await owner.client.submitEarnContent({body:{tokenId,url},idempotencyKey:'synthetic-worker-submit-'+index});
-  assert.equal(owner.lastStatus,201);const id=result.data.id;
+  const response=await mf.dispatchFetch(origin+'/__fixture/admit',{method:'POST',body:JSON.stringify({wallet:owner.wallet,tokenId,url,requestKey:'synthetic-worker-submit-'+index})}),result=await response.json();
+  assert.equal(result.kind,'committed');const id=result.value.submission.id;
   assert.equal((await db.prepare('SELECT state FROM ai_review_jobs WHERE submission_id=?').bind(id).first()).state,'awaiting-capture');
   return {id,tokenId,url};
  };
@@ -72,7 +72,10 @@ test('actual Worker creator feedback is advertised, wallet-owned, bounded and pr
  assert.equal((await mf.dispatchFetch(origin+path+'/review')).status,401);assert.equal((await owner.raw(path+'/capture',{method:'POST',headers:{'content-type':'application/json'},body:'{}'})).status,404);assert.equal((await owner.raw(path+'/run',{method:'POST',headers:{'content-type':'application/json'},body:'{}'})).status,404);
  await expectError(read(other,submission.id),404,'submission_not_found');
  const pending=(await read(owner,submission.id)).data;assert.equal(pending.status,'awaiting-capture');assert.equal(pending.feedback,null);assert.equal(pending.appeal.eligible,false);assert.equal(pending.paidCallsEnabled,false);
+ assert.equal((await mf.dispatchFetch(origin+path+'/content')).status,404);assert.equal((await other.raw(path+'/content')).status,404);
+ const beforeContent=await owner.raw(path+'/content');assert.equal(beforeContent.status,200);assert.equal((await beforeContent.json()).status,'unsupported');
  const report=await f.install(submission),ready=(await read(owner,submission.id)).data;
+ const savedContent=await owner.raw(path+'/content'),savedText=await savedContent.json();assert.equal(savedContent.status,200);assert.equal(savedContent.headers.get('cache-control'),'no-store');assert.equal(savedText.text,report.payload.capturedJob.content);assert.equal(savedText.canonicalUrl,null);assert.equal(savedText.automatedScoringEnabled,false);assert.doesNotMatch(JSON.stringify(savedText),/projectContext|evidenceRef|providerEvidence/);
  assert.equal(ready.feedback.reportId,report.reportId);assert.equal(ready.feedback.suggestedScore,report.payload.score);assert.equal(ready.feedback.label,'SIMULATION — not an AI judgment');assert.equal(ready.finalReview,null);assert.equal(ready.appeal.eligible,true);
  assert.doesNotMatch(JSON.stringify(ready),/capturedJob|projectContext|providerEvidence|job_json|report_json/);assert.ok(!JSON.stringify(ready).includes(report.payload.capturedJob.content));
  await expectError(appeal(other,submission.id,report.reportId),404,'submission_not_found');

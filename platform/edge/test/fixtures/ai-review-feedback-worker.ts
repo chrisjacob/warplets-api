@@ -4,8 +4,16 @@ import worker from '../../src/worker';
 import {createD1AtomicDriver} from '../../../storage/d1/atomic-driver';
 import {createWebCrypto} from '../../../security/web-crypto.mjs';
 import {createReviewFeedbackService} from '../../../ai-review/portable-queue-service.mjs';
+import {createAtomicEarnRepository} from '../../../storage/atomic-earn.mjs';
+import {ADMIT_SUBMISSION,admissionRequestBytes} from '../../../application/commands.mjs';
 type Statement={sql:string;values:(string|number|null)[]};
 export default {async fetch(request:Request,env:Env,ctx:ExecutionContext){
+ if(new URL(request.url).hostname==='localhost'&&new URL(request.url).pathname==='/__fixture/admit'){
+  // Internal synthetic admission only; the production HTTP route rejects .invalid.
+  const body=await request.json() as {wallet:string;tokenId:string;url:string;requestKey:string},cryptoPort=createWebCrypto();
+  const command={principal:{kind:'wallet' as const,wallet:body.wallet},operationKind:'earn.admit-submission.v1' as const,businessIdentity:body.wallet+'/'+body.tokenId,requestKey:body.requestKey,expectedRevisions:{},nowMs:Date.now(),input:{tokenId:body.tokenId,url:body.url}};
+  return Response.json(await createAtomicEarnRepository(createD1AtomicDriver(env.DB),{crypto:cryptoPort,ids:{next:()=>crypto.randomUUID()}}).admitSubmission({...command,requestDigest:await cryptoPort.sha256(admissionRequestBytes(command))}));
+ }
  if(new URL(request.url).hostname==='localhost'&&new URL(request.url).pathname==='/__fixture/appeal-race'){
   const body=await request.json() as {wallet:string;submissionId:string;reportId:string;reason:string;requestKey:string;raceStatements?:Statement[];lostResponse?:boolean};
   const base=createD1AtomicDriver(env.DB),baseCrypto=createWebCrypto();let loaded=false,injected=false,hashes=0,committed=false;

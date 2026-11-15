@@ -1,5 +1,7 @@
 import {createNodeReviewQueueService} from '../ai-review/queue-service.mjs';
 import {handleReviewQueue} from '../ai-review/queue-http.mjs';
+import {createPostContentService} from '../earn/post-content.mjs';
+import {createNodeAtomicDriver} from '../storage/node/atomic-driver.mjs';
 import {handlePerformance} from '../performance/leaderboards-http.mjs';
 import {createNodeRefreshOwner} from '../nfts/node-refresh-owner.mjs';
 import {createMutationEventObserver} from '../observability/mutation-events.mjs';
@@ -20,8 +22,8 @@ import { handleNotifications } from '../notifications/http.mjs';
 import { handleInteractiveQuotes } from '../quotes/interactive-http.mjs';
 import { createNodeQuoteService,createNodeFinancialReadService } from '../application/node-context.mjs';
 import { consumeQuota,currentSession } from './auth.mjs';
-export function createApp(db,{clock=Date.now,artifactStore,operationalEventSink,performanceService,qaReviewPreview}={}) {
-  const reviewQueue=createNodeReviewQueueService(db,{clock:{nowMs:clock}});
+export function createApp(db,{clock=Date.now,artifactStore,operationalEventSink,performanceService,qaReviewPreview,postSourceFetch=fetch}={}) {
+  const reviewQueue={...createNodeReviewQueueService(db,{clock:{nowMs:clock}}),...createPostContentService({driver:createNodeAtomicDriver(db),crypto:createNodeCrypto(),clock:{nowMs:clock},fetcher:postSourceFetch})};
   const refreshOwner=createNodeRefreshOwner(db,{clock,artifacts:artifactStore});
   const quotes=createNodeQuoteService(db,{clock:{nowMs:clock},store:artifactStore});
   const financial=createNodeFinancialReadService(db,{clock:{nowMs:clock}});

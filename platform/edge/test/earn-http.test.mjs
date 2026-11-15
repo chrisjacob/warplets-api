@@ -46,14 +46,15 @@ async function exercise({fetch,execute,review,count},keys,{issuer,grantRevision}
  assert.equal((await fetch(origin+'/api/v1/earn/me')).status,401);
  const capacity=await a.client.getEarnAdmissionCapacity();check(schemaFor('getEarnAdmissionCapacity'),capacity);assert.equal(capacity.data.limit,1);assert.equal(capacity.data.accepting,true);
  const ordinary=await a.raw('/api/v1/earn/capacity');const rawCapacity=await ordinary.json();check(schemaFor('getEarnAdmissionCapacity','application/json'),rawCapacity);assert.deepEqual(rawCapacity,capacity.data);
- const body=wallet=>({tokenId:'A',url:'https://example.test/'+wallet});
+ const body=wallet=>({tokenId:'A',url:'https://x.com/i/status/'+(1000+actors.findIndex(a=>a.wallet===wallet))});
+ for(const url of ['https://example.test/post','https://x.com/fixture','https://farcaster.xyz/fixture'])await assert.rejects(a.client.submitEarnContent({idempotencyKey:'unsupported-'+url.length,body:{tokenId:'A',url}}),e=>e.status===400&&e.code==='unsupported_post_url');
  const competing=await Promise.allSettled([a,b].map(actor=>actor.client.submitEarnContent({idempotencyKey:'shared-key',body:body(actor.wallet)})));
  assert.equal(competing.filter(r=>r.status==='fulfilled').length,1);const winnerIndex=competing.findIndex(r=>r.status==='fulfilled'),winner=actors[winnerIndex],loser=actors[1-winnerIndex];
  const admitted=competing[winnerIndex].value;check(schemaFor('submitEarnContent'),admitted);assert.equal(winner.lastStatus,201);
  const losing=competing[1-winnerIndex].reason;assert.ok(losing instanceof PlatformApiError);assert.equal(losing.status,409);assert.ok(['board_capacity','revision_conflict'].includes(losing.code));
  assert.equal(await count('earn_submissions'),1);
  const replay=await winner.client.submitEarnContent({idempotencyKey:'shared-key',body:body(winner.wallet)});assert.equal(winner.lastStatus,200);assert.equal(replay.data.id,admitted.data.id);
- await assert.rejects(winner.client.submitEarnContent({idempotencyKey:'shared-key',body:{tokenId:'A',url:'https://example.test/different'}}),e=>e.code==='idempotency_conflict'&&e.status===409);
+ await assert.rejects(winner.client.submitEarnContent({idempotencyKey:'shared-key',body:{tokenId:'A',url:'https://x.com/i/status/9999'}}),e=>e.code==='idempotency_conflict'&&e.status===409);
  const own=await winner.client.getMyEarnSubmissions();check(schemaFor('getMyEarnSubmissions'),own);assert.equal(own.items.length,1);assert.equal(own.items[0].id,admitted.data.id);assert.equal(own.items[0].score,null);
  assert.equal((await loser.client.getMyEarnSubmissions()).items.length,0);assert.equal((await winner.raw('/api/v1/earn/me/'+loser.wallet)).status,404);
  const filtered=await loser.raw('/api/v1/earn/me?wallet='+encodeURIComponent(winner.wallet));assert.deepEqual((await filtered.json()).items,[]);

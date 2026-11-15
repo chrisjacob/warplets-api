@@ -3621,6 +3621,336 @@
         }
       }
     },
+    "/earn/submissions/{submissionId}/content": {
+      "get": {
+        "operationId": "getEarnSubmissionContent",
+        "summary": "Read a supported post preview without executing third-party HTML.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "submissionId",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 128
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Source-labelled plain text; previews are not scoring evidence",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "submissionId": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "enum": [
+                        "captured",
+                        "preview",
+                        "unavailable",
+                        "unsupported"
+                      ]
+                    },
+                    "source": {
+                      "anyOf": [
+                        {
+                          "enum": [
+                            "farcaster",
+                            "x"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "canonicalUrl": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "maxLength": 2048
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "text": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "maxLength": 32000
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "author": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "maxLength": 256
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "capturedAt": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "provenance": {
+                      "anyOf": [
+                        {
+                          "enum": [
+                            "operator-capture",
+                            "farcaster-public-api",
+                            "x-oembed"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "textComplete": {
+                      "type": "boolean"
+                    },
+                    "mediaIncluded": {
+                      "const": false
+                    },
+                    "automatedScoringEnabled": {
+                      "const": false
+                    },
+                    "message": {
+                      "type": "string",
+                      "maxLength": 1000
+                    }
+                  },
+                  "required": [
+                    "submissionId",
+                    "status",
+                    "source",
+                    "canonicalUrl",
+                    "text",
+                    "author",
+                    "capturedAt",
+                    "provenance",
+                    "textComplete",
+                    "mediaIncluded",
+                    "automatedScoringEnabled",
+                    "message"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "application/vnd.10x.v1+json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "submissionId": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "enum": [
+                            "captured",
+                            "preview",
+                            "unavailable",
+                            "unsupported"
+                          ]
+                        },
+                        "source": {
+                          "anyOf": [
+                            {
+                              "enum": [
+                                "farcaster",
+                                "x"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "canonicalUrl": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "maxLength": 2048
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "text": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "maxLength": 32000
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "author": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "maxLength": 256
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "capturedAt": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "provenance": {
+                          "anyOf": [
+                            {
+                              "enum": [
+                                "operator-capture",
+                                "farcaster-public-api",
+                                "x-oembed"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "textComplete": {
+                          "type": "boolean"
+                        },
+                        "mediaIncluded": {
+                          "const": false
+                        },
+                        "automatedScoringEnabled": {
+                          "const": false
+                        },
+                        "message": {
+                          "type": "string",
+                          "maxLength": 1000
+                        }
+                      },
+                      "required": [
+                        "submissionId",
+                        "status",
+                        "source",
+                        "canonicalUrl",
+                        "text",
+                        "author",
+                        "capturedAt",
+                        "provenance",
+                        "textComplete",
+                        "mediaIncluded",
+                        "automatedScoringEnabled",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/Meta"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Wallet session required for private submissions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              },
+              "application/vnd.10x.v1+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Submission unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              },
+              "application/vnd.10x.v1+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Recovery in progress",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              },
+              "application/vnd.10x.v1+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Read limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              },
+              "application/vnd.10x.v1+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/earn/submissions/{submissionId}/review": {
       "get": {
         "operationId": "getEarnReviewFeedback",

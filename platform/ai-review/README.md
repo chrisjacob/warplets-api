@@ -182,6 +182,8 @@ Appeals retain the original report ID and do not overwrite it. Subsequent review
 
 ## Day-one launch requirements still outstanding
 
+The [supported-post reader and operator capture guide](../earn/SUPPORTED_POSTS.md) describes the implemented Farcaster text-only capture command and X excerpt preview. Real captures remain held with paid providers disabled; complete media, authorship and stable full-source access remain launch dependencies.
+
 1. Choose and explicitly authorize the real model/provider, pinned configuration, data handling/retention terms and per-day cost/call budget. No paid calls are authorized or made here.
 2. Establish trusted capture of the submitted post, media/transcripts and project reference context. A URL alone is not scorable evidence; paywalls, deleted posts and incomplete media need visible holds.
 3. Calibrate this provisional rubric against a labelled, multilingual representative set. Measure reviewer/model agreement, repeated-run variability, false flags, identity leakage and adversarial instructions. Compare models blind before selecting one; AI is not inherently neutral.

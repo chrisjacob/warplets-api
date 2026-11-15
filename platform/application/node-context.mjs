@@ -29,7 +29,7 @@ export function createNodeQuoteService(db,{clock={nowMs:Date.now},store={async g
 }
 export function createNodeGuardedEarnService(db,{nowMs,ids={next:randomUUID}}){
  const driver=createNodeAtomicDriver(db),ports={crypto:createNodeCrypto(),clock:{nowMs:()=>nowMs},ids};
- return createGuardedEarnService({guarded:createAtomicEarnRepository(driver,ports),reads:createEarnReadRepository(driver),actions:createAtomicActionRepository(driver,ports),...ports});
+ return createGuardedEarnService({guarded:createAtomicEarnRepository(driver,{...ports,supportedPostsOnly:true}),reads:createEarnReadRepository(driver),actions:createAtomicActionRepository(driver,ports),...ports});
 }
 export function createNodeEarnService(db,{nowMs,ids={next:randomUUID}}) {
   return createEarnService(createApplicationContext({clock:{nowMs:()=>nowMs},ids,crypto:createNodeCrypto(),

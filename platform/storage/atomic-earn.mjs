@@ -7,6 +7,7 @@ import { canonicalContentUrl, name, nat, requireValue } from '../earn/validation
 import { DAY_MS, MIN_STAKE_MICRO_USD } from '../domain/earn/index.mjs';
 import { sql, revisions, measureBatch, matchesExpectedRevisions } from './atomic-driver.mjs';
 import {admissionRead} from '../pricing/admission-read.mjs';
+import {supportedPost} from '../earn/supported-post.mjs';
 const pending=(reason)=>({kind:'pending',reason,dependencyIds:[]});
 const conflict=code=>({kind:'conflict',code});
 function costHeld(usage,spend,nowMs) {
@@ -14,8 +15,8 @@ function costHeld(usage,spend,nowMs) {
   return pressure.status==='pending'?pressure.reason:pressure.level==='limit'?'budget-limit':null;
 }
 /** @param {object} driver
- * @param {{crypto:import('../application/ports.ts').CanonicalCrypto,ids:{next():string},telemetry?:import('../application/ports.ts').AppTelemetry}} ports */
-export function createAtomicEarnRepository(driver,{crypto,ids,telemetry={record(){}}}) {
+ * @param {{crypto:import('../application/ports.ts').CanonicalCrypto,ids:{next():string},telemetry?:import('../application/ports.ts').AppTelemetry,supportedPostsOnly?:boolean}} ports */
+export function createAtomicEarnRepository(driver,{crypto,ids,telemetry={record(){}},supportedPostsOnly=false}) {
   const {read,replay,execute}=createAtomicReceipts(driver,{crypto,ids,telemetry});
   return Object.freeze({
     async admitSubmission(command) {
@@ -56,6 +57,9 @@ export function createAtomicEarnRepository(driver,{crypto,ids,telemetry={record(
           result:{submission:{id:row.id,tokenId:row.token_id,epoch:row.epoch,url:row.url,submittedAtMs:row.submitted_ms},replay:true},
           resultRef:row.id,version:revisions(versionsRows),child:()=>[]});
       }
+      // Runtime intake is restricted; already committed/reference receipts above
+      // preserve their original URL and digest. Internal fixture writers opt out.
+      if(supportedPostsOnly){try{supportedPost(input.url);}catch{return conflict('unsupported_post_url');}}
       if(recovered.length)return conflict('read_only_archive');
       if(!campaign[0]||nowMs<campaign[0].activation_ms||nowMs>=campaign[0].activation_ms+10*DAY_MS)return conflict('campaign_inactive');
       if(board.length)return conflict('board_closed');if(duplicate.length)return conflict('already_submitted');

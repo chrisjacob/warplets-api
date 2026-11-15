@@ -5,11 +5,12 @@ import {createD1AtomicDriver} from '../../storage/d1/atomic-driver';
 import {createWebCrypto} from '../../security/web-crypto.mjs';
 import {createReviewFeedbackService} from '../../ai-review/portable-queue-service.mjs';
 import {handleReviewQueue} from '../../ai-review/queue-http.mjs';
+import {createPostContentService} from '../../earn/post-content.mjs';
 
-// Owner feedback and appeals only. No provider, capture or processing route.
+// Private feedback/appeals and fixed-source public post reads. No model, capture write or processing route.
 export const reviews=new Hono<{Bindings:Env}>();
 reviews.all('/earn/submissions/:submissionId/:action',async(c,next)=>{
- const at=Date.now(),service=createReviewFeedbackService({driver:createD1AtomicDriver(c.env.DB),crypto:createWebCrypto(),clock:{nowMs:()=>at}});
+ const at=Date.now(),ports={driver:createD1AtomicDriver(c.env.DB),crypto:createWebCrypto(),clock:{nowMs:()=>at}},service={...createReviewFeedbackService(ports),...createPostContentService(ports)};
  const response=await handleReviewQueue(c.req.raw,{service,
   authenticate:async(request:Request)=>{const wallet=await sessionOwner(request,c.env.DB,getCookie(c,sessionCookie));return wallet?{kind:'wallet' as const,wallet}:null;},
   consumeQuota:async(bucket:string,limit:number)=>{

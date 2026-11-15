@@ -12,7 +12,7 @@ import {handleInteractiveEarn} from '../../earn/interactive-http.mjs';
 // never a public HTTP route. No server signing or economic execution is mounted.
 export function createWorkerEarnService(db:D1Database,nowMs=Date.now()){
  const driver=createD1AtomicDriver(db),ports={crypto:createWebCrypto(),clock:{nowMs:()=>nowMs},ids:{next:()=>crypto.randomUUID()}};
- return createGuardedEarnService({guarded:createAtomicEarnRepository(driver,ports),reads:createEarnReadRepository(driver),actions:createAtomicActionRepository(driver,ports),...ports});
+ return createGuardedEarnService({guarded:createAtomicEarnRepository(driver,{...ports,supportedPostsOnly:true}),reads:createEarnReadRepository(driver),actions:createAtomicActionRepository(driver,ports),...ports});
 }
 export const earn=new Hono<{Bindings:Env}>();
 earn.all('/earn/*',async(c,next)=>{

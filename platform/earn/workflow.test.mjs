@@ -55,7 +55,8 @@ function writeOptions(wallet,body,key='web-key') {
 test('HTTP entry enforces wallet identity, origin, scoped idempotency and current stake', async t=>{
   const db=openDatabase(); t.after(()=>db.close()); setup(db);
   configureWorkload(db,{effectiveEpoch:epoch,atMs:start-1,staffedMinutes:10,secondsPerReview:6,admissionLimit:100,operator:'synthetic-reviewer',reason:'Explicit HTTP fixture staffing'});
-  const body={tokenId:token,url:'https://example.org/article'};
+  // Inert supported-source identity; no external post read occurs on intake.
+  const body={tokenId:token,url:'https://x.com/i/status/18446744073709550001'};
   const post=(options,time=start+1)=>api(db,'/submissions',time,options);
   const unauth=writeOptions(alice,body);delete unauth.headers.cookie;
   assert.equal((await post(unauth)).status,401);
@@ -72,7 +73,7 @@ test('HTTP entry enforces wallet identity, origin, scoped idempotency and curren
   const replayAtNextEpoch=await post(writeOptions(alice,body),start+DAY_MS);
   assert.equal(replayAtNextEpoch.status,200);
   assert.equal((await replayAtNextEpoch.json()).id,result.id);
-  assert.equal((await post(writeOptions(alice,{...body,url:'https://example.org/different'}))).status,409);
+  assert.equal((await post(writeOptions(alice,{...body,url:'https://x.com/i/status/18446744073709550002'}))).status,409);
   assert.equal((await post(writeOptions(alice,body,'different-key'))).status,409);
   assert.equal((await post(writeOptions(bob,body))).status,201);
   const privateData=await (await api(db,'/me',start+2,{headers:{cookie:'tenx_local_session='+tokenFor(alice)}})).json();

@@ -2,6 +2,7 @@ import {createEarnService} from './service.mjs';
 import {createActionCommand} from '../storage/atomic-actions.mjs';
 import {EarnError,nat} from './validation.mjs';
 const errors={
+ 'unsupported_post_url':[400,'unsupported_post_url','Use a shared Farcaster or X post link. Profiles, feeds and other websites are not supported.'],
  'stake-evidence':[503,'stake_evidence_pending','A current position read is required.'],
  'staffing-required':[503,'staffing_required','Staffed admission capacity is not configured.'],
  'operator-pause':[409,'scope_paused','New Earn admissions are paused.'],

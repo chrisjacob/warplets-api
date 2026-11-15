@@ -12,7 +12,7 @@ try{for(const width of [320,390,1280]){
  const contrast=()=>page.evaluate(()=>{
   const rgb=s=>(s.match(/[\d.]+/g)??[]).map(Number),blend=(f,b,a)=>f.map((v,i)=>v*a+b[i]*(1-a));
   const luminance=channels=>channels.map(v=>v/255).map(v=>v<=.04045?v/12.92:((v+.055)/1.055)**2.4).reduce((a,v,i)=>a+v*[.2126,.7152,.0722][i],0);
-  return [...document.querySelectorAll('h1,.page-hero p,.panel>h2,.fixture-label,.ranking-label,.primary-link,.wallet-button,.category-chips a,.collection-art figcaption strong,.rank-value,.journey p,nav[aria-label="Main navigation"] a')].filter(el=>el.getClientRects().length).map(el=>{
+  return [...document.querySelectorAll('h1,.page-hero p,.panel>h2,.fixture-label,.ranking-label,.primary-link,.wallet-button,.category-chips a,.collection-art figcaption strong,.rank-value,.journey p,.qa-public-attribution,.qa-public-attribution h3,nav[aria-label="Main navigation"] a')].filter(el=>el.getClientRects().length).map(el=>{
    let bg=[9,14,12],layers=[];for(let n=el;n;n=n.parentElement){const c=rgb(getComputedStyle(n).backgroundColor);if(c.length>=3)layers.push(c);}for(const c of layers.reverse())bg=blend(c.slice(0,3),bg,c[3]??1);
    const style=getComputedStyle(el),fg=rgb(style.color).slice(0,3),a=luminance(fg),b=luminance(bg);return {text:el.textContent?.slice(0,60),selector:el.className,ratio:(Math.max(a,b)+.05)/(Math.min(a,b)+.05)};
   });
@@ -30,6 +30,8 @@ try{for(const width of [320,390,1280]){
   await page.screenshot({path:directory+'/'+(path==='/'?'home':path.slice(1).replaceAll('/','-'))+'-'+width+'.png'});
   if(path==='/tokens'){await page.locator('.token-list-item').first().evaluate(el=>el.scrollIntoView({block:'start'}));await page.screenshot({path:directory+'/token-list-'+width+'.png'});}
  }
+ const identities=await page.evaluate(async()=>{const response=await fetch('/api/v1/qa/identities');return response.json();});
+ for(const [path,label] of [['/markets/'+identities.tokens[0].tokenId,'token-detail'],['/participants/'+identities.profiles[0].wallet,'participant']]){await visit(path);assert.deepEqual((await contrast()).filter(r=>r.ratio<4.5),[],label+' text contrast');await page.screenshot({path:directory+'/'+label+'-'+width+'.png'});}
  await page.route('**/api/v1/collect/assets/concealed-art-fixture',route=>route.fulfill({status:200,json:{data:{id:'concealed-art-fixture',inventoryId:'demo-season',owner:'demo',revealStatus:'unrevealed'},meta:{requestId:'synthetic-concealed',policyVersion:'prd-1.2',asOf:'2026-11-14T00:00:00.000Z',sourceSlot:null}}}));await page.evaluate(()=>{history.pushState({},'','/nfts/concealed-art-fixture');window.dispatchEvent(new PopStateEvent('popstate'));});await page.locator('.is-concealed').waitFor();assert.equal(await page.locator('.is-concealed img').count(),0);await page.screenshot({path:directory+'/concealed-'+width+'.png'});
  await page.locator('#wallet-button').focus();await page.keyboard.press('Enter');const dialog=page.getByRole('dialog');await dialog.waitFor();assert.equal(await dialog.evaluate(el=>getComputedStyle(el).backgroundColor),'rgb(18, 29, 23)');await page.keyboard.press('Escape');await dialog.waitFor({state:'hidden'});assert.equal(await page.evaluate(()=>document.activeElement?.id),'wallet-button');
  assert.deepEqual(errors,[]);results.push({engine,width,darkTheme:true,allSeasonArtDecoded:true,concealedArtHidden:true,genesisWarpletDecoded:true,sampledTextContrastAtLeast4_5:true,categoryChipsKeyboard:true,focusRing:true,dialogEscapeAndReturn:true,noOverflow:true});await context.close();

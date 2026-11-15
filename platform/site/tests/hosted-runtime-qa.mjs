@@ -30,7 +30,7 @@ async function installWallet(page,account,origin,onSignature){
  * a response; it is reported separately as an explicitly injected UI fault. */
 export async function checkHostedRuntime({browser,runtime,fixture}){
  const {origin,db}=runtime,account=fixture.browserAccount??fixture.accounts[0],widths=[360,390,768,1440];
- const contentUrl=fixture.browserContentUrl??'https://example.test/synthetic-hosted-browser-contribution';
+ const contentUrl=fixture.browserContentUrl??'https://x.com/i/status/18446744073709550001';
  let signatures=0,admissionId;
  assert.equal((await fetch(origin+'/__fixture',{method:'POST',body:'{}'})).status,404);
  const wrongHost=await new Promise((resolve,reject)=>{
@@ -72,7 +72,7 @@ export async function checkHostedRuntime({browser,runtime,fixture}){
    const session=await db.prepare('SELECT COUNT(*) n FROM sessions WHERE wallet=? AND origin=?').bind(account.wallet,origin).first('n');assert.equal(session,1);
    if(width===360){
     await page.getByLabel('ATT campaign').selectOption(fixture.browserTokenId);
-    await page.getByLabel('Content URL').fill(contentUrl);
+    await page.getByLabel('Farcaster or X post link').fill(contentUrl);
     const accepted=page.waitForResponse(response=>new URL(response.url()).pathname==='/api/v1/earn/submissions'&&response.request().method()==='POST');
     await page.getByRole('button',{name:'Submit contribution',exact:true}).click();
     const response=await accepted;assert.equal(response.status(),201);const body=await response.json();admissionId=(body.data??body).id;
@@ -82,7 +82,7 @@ export async function checkHostedRuntime({browser,runtime,fixture}){
    const admitted=await db.prepare('SELECT id,wallet FROM earn_submissions WHERE id=?').bind(admissionId).first();assert.equal(admitted.wallet,account.wallet);
    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'Earn overflow '+width);
    if(process.env.SCREENSHOT_DIR){await mkdir(process.env.SCREENSHOT_DIR,{recursive:true});await page.screenshot({path:join(process.env.SCREENSHOT_DIR,'hosted-earn-'+width+'.png')});}
-   await page.getByRole('navigation').getByRole('link',{name:'NFTs',exact:true}).click();
+   await page.getByRole('navigation',{name:'Main navigation'}).getByRole('link',{name:'NFTs',exact:true}).click();
    await page.getByRole('heading',{name:'NFTs',exact:true}).waitFor();await page.locator('#view[aria-busy=false]').waitFor();
    await page.getByText('This feature is unavailable in the connected runtime.',{exact:true}).first().waitFor();
    assert.equal(await page.getByText('No published stages',{exact:true}).count(),0);

@@ -50,18 +50,18 @@ export function buildPerformanceCardSvg(profile:PerformanceGrowthProps){
  const text=(x:number,y:number,size:number,fill:string,value:string,weight=400)=>`<text x="${x}" y="${y}" font-size="${size}" font-weight="${weight}" fill="${fill}">${xml(value)}</text>`;
  return `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="card-title card-description">
 <title id="card-title">10X.MEME synthetic reward snapshot</title><desc id="card-description">Synthetic QA illustration. Peak and Market are theoretical valuations of lifetime token awards, not cash proceeds or personal trading profit.</desc>
-<rect width="1200" height="630" rx="24" fill="#f6f7f1"/><path d="M850 0h350v215Z" fill="#d7f86b" opacity=".35"/>
+<rect width="1200" height="630" rx="24" fill="#090e0c"/><path d="M850 0h350v215Z" fill="#b8f66c" opacity=".12"/>
 <g font-family="Arial,Helvetica,sans-serif">
-${text(60,70,34,'#20392b','10X.MEME',900)}<rect x="910" y="35" width="230" height="46" rx="23" fill="#20392b"/>${text(934,65,20,'#d7f86b','SYNTHETIC QA',700)}
-${text(60,148,Math.min(38,Math.floor(1040/[...displayLabel].length)),'#18281f',displayLabel,700)}${text(60,186,20,'#536458',compact(wallet)+' · Snapshot '+utc(asOf))}
-${text(60,241,19,'#536458','THEORETICAL LIFETIME AWARDS',700)}
-<rect x="60" y="263" width="525" height="163" rx="18" fill="#20392b"/><rect x="610" y="263" width="530" height="163" rx="18" fill="#ffffff" stroke="#d8dfd4"/>
-${text(88,307,20,'#d7f86b','Peak valuation',700)}${text(88,376,peak.length>18?36:48,'#ffffff',peak,700)}
-${text(638,307,20,'#536458','Market valuation',700)}${text(638,376,market.length>18?36:48,'#20392b',market,700)}
-${text(60,476,22,'#20392b',tokens.toLocaleString('en-US')+' token types · '+awards.toLocaleString('en-US')+' dated awards · '+days.toLocaleString('en-US')+' award days',700)}
-${text(60,532,20,'#536458','Peak uses historical highs. Market uses snapshot prices.')}
-${text(60,562,20,'#536458','Actual sale values depend on liquidity and fees. Awarded tokens may already be claimed.')}
-${text(60,599,17,'#536458','Synthetic illustration only · No real funds or verified achievement')}
+${text(60,70,34,'#f1f8f3','10X.MEME',900)}<rect x="910" y="35" width="230" height="46" rx="23" fill="#b8f66c"/>${text(934,65,20,'#10220f','SYNTHETIC QA',700)}
+${text(60,148,Math.min(38,Math.floor(1040/[...displayLabel].length)),'#f1f8f3',displayLabel,700)}${text(60,186,20,'#a8bdb0',compact(wallet)+' · Snapshot '+utc(asOf))}
+${text(60,241,19,'#a8bdb0','THEORETICAL LIFETIME AWARDS',700)}
+<rect x="60" y="263" width="525" height="163" rx="18" fill="#173422"/><rect x="610" y="263" width="530" height="163" rx="18" fill="#121d17" stroke="#2b4033"/>
+${text(88,307,20,'#b8f66c','Peak valuation',700)}${text(88,376,peak.length>18?36:48,'#ffffff',peak,700)}
+${text(638,307,20,'#a8bdb0','Market valuation',700)}${text(638,376,market.length>18?36:48,'#f1f8f3',market,700)}
+${text(60,476,22,'#f1f8f3',tokens.toLocaleString('en-US')+' token types · '+awards.toLocaleString('en-US')+' dated awards · '+days.toLocaleString('en-US')+' award days',700)}
+${text(60,532,20,'#a8bdb0','Peak uses historical highs. Market uses snapshot prices.')}
+${text(60,562,20,'#a8bdb0','Actual sale values depend on liquidity and fees. Awarded tokens may already be claimed.')}
+${text(60,599,17,'#a8bdb0','Synthetic illustration only · No real funds or verified achievement')}
 </g></svg>`;
 }
 

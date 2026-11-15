@@ -5,7 +5,7 @@
   "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
   "currentTask": null,
-  "lastUpdatedAt": "2026-11-15T10:39:56.965620+00:00",
+  "lastUpdatedAt": "2026-11-15T10:59:18.775431+00:00",
   "migrationAllocation": {
     "next": 72,
     "reserved": [
@@ -1042,7 +1042,7 @@
     "nextStep": "Refresh local app to review Top 100 user lists"
   },
   "darkDesignSupportedPostsFollowup": {
-    "status": "implementation-in-progress",
+    "status": "locally-verified-awaiting-ci",
     "baselineCommit": "ab7311f",
     "scope": [
       "dark green consumer design and category chips",
@@ -1060,6 +1060,20 @@
     "paidProviderCalls": false,
     "deployment": false,
     "visualValidation": "38site tests; TypeScript/Vite build; Chromium+WebKit at320/390/1280:contrast,keyboard,all5Seasonart,Genesisart,concealedart,nooverflow",
-    "nextStep": "Visual milestone tested; finish supported-post tests and integration, run full CI, refresh local app"
+    "nextStep": "Follow full test-only CI for this integration checkpoint; resolve failures, restart final app, record exact evidence and handoff.",
+    "visualCommit": "892db16",
+    "localQaPid": 13652,
+    "tunnelPid": 19364,
+    "databaseBackup": "work/qa-three-month-final-2026-11-13/core-before-dark-2026-11-15.sqlite",
+    "supportedPostValidation": {
+      "sourcePrivacyCapture": 12,
+      "lastAccessGuardRegression": 7,
+      "nodeWorker": 6,
+      "workerOwnerContent": 1,
+      "contract": 6,
+      "frontend": 38,
+      "browser": "Chromium/WebKit post cards at320/1280; Chromium review/appeals at320/390/1280; both engines dark theme at320/390/1280 including token and participant details",
+      "liveSource": "Public Farcaster text-only adapter verified in2fixedrequests; no database/model writes"
+    }
   }
 }

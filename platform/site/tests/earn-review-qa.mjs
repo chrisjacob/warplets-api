@@ -1,7 +1,11 @@
 // Real local HTTP/session, durable queue, capture and simulation; no paid provider or remote URL reads.
 import assert from 'node:assert/strict';
 import {createRequire} from 'node:module';
-import {createHash} from 'node:crypto';
+import {createHash,randomUUID} from 'node:crypto';
+import {createNodeCrypto} from '../../security/node-crypto.mjs';
+import {createNodeAtomicDriver} from '../../storage/node/atomic-driver.mjs';
+import {createAtomicEarnRepository} from '../../storage/atomic-earn.mjs';
+import {ADMIT_SUBMISSION,admissionRequestBytes} from '../../application/commands.mjs';
 import {mkdirSync,writeFileSync} from 'node:fs';
 import {openDatabase} from '../../storage/database.mjs';
 import {seedDemo} from '../../scripts/demo-data.mjs';
@@ -34,10 +38,11 @@ try{
   const context=await browser.newContext({viewport:{width,height:900},reducedMotion:'reduce'});context.setDefaultTimeout(15000);
   await context.addCookies([{name:'tenx_local_session',value:token,url:origin,httpOnly:true,sameSite:'Strict'}]);const page=await context.newPage(),errors=[];page.on('pageerror',error=>errors.push(error.message));
   try{
+   // The production intake deliberately refuses .invalid. Synthetic scoring uses the real atomic repository through this private test setup only.
+   const contentUrl='https://qa.invalid/submissions/synthetic-browser-'+width,cryptoPort=createNodeCrypto(),command={principal:{kind:'wallet',wallet:f.wallet},operationKind:ADMIT_SUBMISSION,businessIdentity:f.wallet+'/'+f.marketId,requestKey:'synthetic-browser-'+width,expectedRevisions:{},nowMs:now,input:{tokenId:f.marketId,url:contentUrl}};
+   const admitted=await createAtomicEarnRepository(createNodeAtomicDriver(db),{crypto:cryptoPort,ids:{next:randomUUID}}).admitSubmission({...command,requestDigest:await cryptoPort.sha256(admissionRequestBytes(command))});assert.equal(admitted.kind,'committed');
    await page.goto(origin+'/earn');await page.locator('#submission-form').waitFor();assert.equal(reads.length,0);
-   const contentUrl='https://qa.invalid/submissions/synthetic-browser-'+width;
-   await page.getByLabel('Content URL',{exact:true}).fill(contentUrl);await page.getByRole('button',{name:'Submit contribution',exact:true}).click();
-   const row=page.locator('.submission-records > li').filter({hasText:contentUrl});await row.waitFor();assert.equal(reads.length,0,'Review must load lazily, not once per history row.');
+   const row=page.locator('.submission-records > li').first();await row.waitFor();assert.equal(reads.length,0,'Review must load lazily, not once per history row.');
    const submission=db.prepare('SELECT * FROM earn_submissions WHERE wallet=?').get(f.wallet),jobId='submission:'+submission.id;
    assert.equal(service.walletStatus({kind:'wallet',wallet:f.wallet},submission.id).status,'awaiting-capture');
    const open=row.getByRole('button',{name:'Review & feedback',exact:true});await open.focus();await page.keyboard.press('Enter');const dialog=page.getByRole('dialog',{name:'Review & feedback',exact:true});
@@ -72,7 +77,7 @@ try{
    await dialog.getByRole('button',{name:'Refresh review',exact:true}).click();await dialog.waitFor({state:'hidden'});assert.equal(await page.locator('.submission-review').count(),0);await page.locator('#view').getByRole('button',{name:'Connect wallet',exact:true}).waitFor();
    db.prepare('INSERT INTO sessions VALUES(?,?,?,?)').run(createHash('sha256').update(token).digest('hex'),f.wallet,origin,now+1800000);await context.addCookies([{name:'tenx_local_session',value:token,url:origin,httpOnly:true,sameSite:'Strict'}]);
    capabilityOff=true;const before=reads.length;await page.reload();await page.locator('.submission-records > li').waitFor();assert.equal(await page.getByRole('button',{name:'Review & feedback',exact:true}).count(),0);assert.equal(reads.length,before,'Unsupported runtimes must not call review endpoints.');
-   assert.deepEqual(errors,[]);results.push({width,realSubmissionEnqueued:true,lazyRead:true,sourceCaptureAndSimulation:true,separateReviewLineage:true,duplicateClickGuard:true,privateIdempotencyStorage:true,retryKeepsKey:true,finalScoreSeparate:true,noAutomaticFinalScore:true,sessionExpiryClearsFeedback:true,capabilityFailClosed:true,keyboardReturn:true,noOverflow:true});
+   assert.deepEqual(errors,[]);results.push({width,internalSyntheticSubmissionEnqueued:true,lazyRead:true,sourceCaptureAndSimulation:true,separateReviewLineage:true,duplicateClickGuard:true,privateIdempotencyStorage:true,retryKeepsKey:true,finalScoreSeparate:true,noAutomaticFinalScore:true,sessionExpiryClearsFeedback:true,capabilityFailClosed:true,keyboardReturn:true,noOverflow:true});
   }catch(error){await page.screenshot({path:directory+'/failure-'+width+'.png'});throw error;}
   finally{await context.close();server.closeAllConnections();await new Promise(r=>server.close(r));db.close();}
  }

@@ -13,6 +13,7 @@ const shared=[
  ['earn-board-preview',[['GET','/earn/epochs/{epoch}/leaderboard'],['GET','/earn/claims']]],
  ['earn-admission',[['GET','/earn/capacity'],['POST','/earn/submissions'],['GET','/earn/me']]],
  ['earn-review-feedback',[['GET','/earn/submissions/{submissionId}/review'],['POST','/earn/submissions/{submissionId}/appeals']]],
+ ['earn-supported-post-content',[['GET','/earn/submissions/{submissionId}/content']]],
  ['earn-actions',[['GET','/earn/actions'],['POST','/earn/actions/{actionId}/completions']]],
  ['collection-inventory-read',[['GET','/collect/inventories'],['GET','/collect/inventories/{id}']]],
  ['collection-fixture-requests',[['POST','/collect/inventories/{id}/stages/{stage}/reservations']]],

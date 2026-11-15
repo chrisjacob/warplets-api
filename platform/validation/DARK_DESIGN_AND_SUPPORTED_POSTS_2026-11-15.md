@@ -22,7 +22,9 @@ The built-in image generator produced five original Season images; optimized Web
 
 ## Verification
 
-Implementation and verification are in progress. Final exact test totals, commits, CI result, running local process and screenshots will be recorded here and in MORNING_HANDOFF before stopping.
+Local checks pass: 38 frontend tests, TypeScript/build, 12 source/privacy/capture tests, the final 7 source-access/capture regressions, 6 Node/Worker checks, an additional Worker owner-content check and 6 contract checks. Both Chromium and WebKit passed the dark design at 320/390/1280 pixels and post cards at 320/1280 pixels. Chromium also passed the existing review/appeals flow at 320/390/1280 pixels. Full combined CI is pending; its exact product commit and result will be recorded in MORNING_HANDOFF.
+
+Local screenshots: `work/dark-design-final-chromium`, `work/dark-design-final-webkit`, `work/post-content-chromium` and `work/post-content-webkit`. Public profile screenshots stay untracked. [Operator capture and source limitations](../earn/SUPPORTED_POSTS.md).
 
 ## Remaining production work
 

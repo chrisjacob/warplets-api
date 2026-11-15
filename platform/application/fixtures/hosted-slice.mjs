@@ -39,7 +39,7 @@ export async function createHostedSlice(runtime,{nowMs=Math.floor(Date.now()/100
  }finally{seed.close();}
  await runtime.call({method:'set-clock',nowMs});
  const fixture={label:'synthetic-complete-hosted-transcript',accounts,browserAccount:accounts[3],epoch,start,cutoff,activation,nowMs,browserTokenId:'hosted-a',
-  browserContentUrl:'https://example.test/synthetic-hosted-browser-contribution',principal:HOSTED_PRINCIPAL,
+  browserContentUrl:'https://x.com/i/status/18446744073709550001',principal:HOSTED_PRINCIPAL,
   advance:async ms=>{nowMs+=ms;return runtime.call({method:'set-clock',nowMs});},
   verify:()=>verifyHostedTranscript(runtime,fixture)};
  return fixture;

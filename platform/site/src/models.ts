@@ -59,7 +59,7 @@ export const quoteModel=z.object({
 });
 export const boardModel=z.object({
   status:z.enum(['pending','final']),date:text,
-  items:z.array(z.object({rank:count,wallet:text,contentScore:count,multiplierTenths:count,pointsTenths:count})),
+  items:z.array(z.object({rank:count,wallet:text,submissionId:text.optional(),contentScore:count,multiplierTenths:count,pointsTenths:count})),
 });
 export const submissionModel=z.object({id:text,url:text,tokenId:text,status:text,score:count.nullable(),reason:text.nullable(),
   eligible:z.boolean().nullable().optional(),entryStakeMicroUsd:units.optional(),closingStakeMicroUsd:units.nullable().optional(),
