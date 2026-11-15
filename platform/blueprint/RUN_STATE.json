@@ -1060,7 +1060,7 @@
     "paidProviderCalls": false,
     "deployment": false,
     "visualValidation": "38site tests; TypeScript/Vite build; Chromium+WebKit at320/390/1280:contrast,keyboard,all5Seasonart,Genesisart,concealedart,nooverflow",
-    "nextStep": "Follow CI43706696337 to completion, fix any failures without weakened checks, then save exact totals and final handoff. Use direct GitHub CLI because connector status previously lagged.",
+    "nextStep": "Follow CI43715749113 to completion; save exact totals and final handoff.",
     "visualCommit": "892db16",
     "localQaPid": 8792,
     "tunnelPid": 19364,
@@ -1075,14 +1075,47 @@
       "browser": "Chromium/WebKit post cards at320/1280; Chromium review/appeals at320/390/1280; both engines dark theme at320/390/1280 including token and participant details",
       "liveSource": "Public Farcaster text-only adapter verified in2fixedrequests; no database/model writes"
     },
-    "productCommit": "d4c3e11689705c3ecbd9fa62245c8a784ec060c4",
+    "productCommit": "7c314987ab08c266eca5fbe0d15baa95859d6502",
     "temporaryPreviewStopped": true,
     "databasePreserved": "All7domain tables match backup exactly; integrity OK and performance snapshot unchanged",
     "ci": {
-      "runId": 43706696337,
-      "jobId": 132789239713,
-      "url": "https://github.com/chrisjacob/warplets-api/actions/runs/43706696337",
+      "runId": 43715749113,
+      "jobId": 132816793596,
+      "url": "https://github.com/chrisjacob/warplets-api/actions/runs/43715749113",
       "status": "in-progress"
+    },
+    "priorCi": {
+      "runId": 43706696337,
+      "conclusion": "failure",
+      "referenceTests": 1334,
+      "passed": 1333,
+      "failed": 1,
+      "reason": "obsolete arbitrary-URL load fixture rejected by supported-post intake",
+      "fixCommit": "af31da2",
+      "localRegression": "Passed unchanged three 1000-attempt scenarios"
+    },
+    "secondCi": {
+      "runId": 43710063825,
+      "conclusion": "failure",
+      "reference": {
+        "tests": 1334,
+        "failures": 0
+      },
+      "frontend": {
+        "tests": 38,
+        "failures": 0
+      },
+      "beacon": {
+        "tests": 3,
+        "failures": 0
+      },
+      "workerD1R2": {
+        "tests": 177,
+        "failures": 1
+      },
+      "reason": "obsolete arbitrary-URL hosted transcript fixture rejected by supported-post intake",
+      "fixCommit": "7c31498",
+      "localRegression": "Complete hosted transcript passed: settlement, publication, parity and fresh-instance recovery"
     }
   }
 }
