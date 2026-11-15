@@ -71,7 +71,7 @@ export function Markets(){
   const markets=useRuntimeQuery('/api/v1/markets',{queryKey:['markets',cursor],queryFn:({signal})=>sdk.markets(cursor,signal)});
   usePageMeta('Tokens','Explore curated Solana attention tokens and their original-token pairs.',market?'/markets/'+encodeURIComponent(market):'/tokens',true);
   return <>
-    <Hero title="Tokens">Discover attention tokens. Find a community, explore its token, and see what you can earn.</Hero>
+    <Hero title="Tokens">Find your next community. Explore its Attention Token, follow the campaign and choose how to take part.</Hero>
     <Journey steps={[['Discover a project','Explore Attention Tokens and the projects behind them.'],['Get to know its token','Review the token pair, fees and campaign details.'],['Take part','Stake the corresponding Attention Token to join its content campaign.']]}/>
     <Diagnostics><div className="market-grid"><Loaded query={schedule}>{points=><FeeChart points={points}/>}</Loaded>
       <Loaded query={policy}>{p=><Allocation policy={p}/>}</Loaded></div></Diagnostics>
@@ -79,7 +79,7 @@ export function Markets(){
     <Panel title="Explore tokens" className={!markets.data&&!markets.isError&&(markets.availability.pending||markets.availability.allowed)?'catalog-loading':''}><Loaded query={markets}>{page=><>
       {page.items.length?<ul className="rows">{page.items.slice(0,technical?page.items.length:visible).map(m=><li className="token-list-item" key={m.id}><Link to="/markets/$marketId" params={{marketId:m.id}}>
         <TokenArt name={m.id}/><strong><QaTokenName id={m.id} fallback={<>{m.symbol} <small>/ {m.ogSymbol}</small></>}/></strong><span>{m.status} · Explore →</span>
-      </Link><Link className="stake-link" to="/stake" search={{farm:m.id}}>Stake {m.symbol} →</Link></li>)}</ul>:<Empty title="No tokens yet">Curated ATT/OG pairs appear here once a campaign opens.</Empty>}
+      </Link><Link className="stake-link" to="/stake" search={{farm:m.id}}>Stake <QaTokenName id={m.id} fallback={m.symbol} compact/> →</Link></li>)}</ul>:<Empty title="No tokens yet">Curated ATT/OG pairs appear here once a campaign opens.</Empty>}
       {!technical&&visible<page.items.length&&<RevealMore items=".token-list-item" shown={visible} onReveal={()=>setVisible(n=>n+10)}>Show more tokens on this page ({visible} of {page.items.length})</RevealMore>}
       {page.nextCursor && <Link to="/tokens" search={{cursor:page.nextCursor}}>Next campaigns →</Link>}
     </>}</Loaded></Panel>

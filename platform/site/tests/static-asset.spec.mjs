@@ -44,6 +44,16 @@ test('HTML and unknown paths never enter the public compressed asset cache',asyn
  assert.equal((await request({},'POST')).status,405);
 });
 
+test('bundled collectible WebP files have image MIME and preserve bounded static serving',async t=>{
+ const {dir,request}=await fixture(t),bytes=Buffer.from('RIFF0000WEBPtest');
+ await writeFile(join(dir,'site-assets','season-cate-testhash.webp'),bytes);
+ const response=await request({},'GET','/site-assets/season-cate-testhash.webp');
+ assert.equal(response.status,200);assert.equal(response.headers.get('content-type'),'image/webp');
+ assert.deepEqual(Buffer.from(await response.arrayBuffer()),bytes);assert.match(response.headers.get('cache-control'),/immutable/);
+ assert.equal((await request({},'HEAD','/site-assets/season-cate-testhash.webp')).status,200);
+ assert.equal(await request({},'GET','/site-assets/unknown.svg'),null);
+});
+
 test('concurrent cold requests share one asset build and a failed build can be retried',async t=>{
  for(const failFirst of [false,true]){
   const {dir,request,source}=await fixture(t),target=pathToFileURL(join(dir,'site-assets','index-testhash.js')).href;

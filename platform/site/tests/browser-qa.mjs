@@ -58,7 +58,7 @@ try {
       console.log(width+'px '+section+' passed');
     }
     // Client-side routing and browser Back must both restore the correct page.
-    await page.getByRole('navigation').getByRole('link',{name:'Tokens'}).click();
+    await page.getByRole('navigation',{name:'Main navigation'}).getByRole('link',{name:'Tokens'}).click();
     await page.getByRole('heading',{level:1,name:'Tokens'}).waitFor();
     await page.goBack();
     await page.getByRole('heading',{level:1,name:'Earn'}).waitFor();

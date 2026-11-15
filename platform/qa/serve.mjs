@@ -31,7 +31,7 @@ const server=createLocalServer(async(request,peer)=>{
  const translated=new Request(origin+url.pathname+url.search,{method:request.method,headers,body:['GET','HEAD'].includes(request.method)?undefined:await request.arrayBuffer()});
  const response=publicIdentityResponse(translated,identityOverlay)??await app(translated,peer),out=new Headers(response.headers);
  // Versioned public assets remain cacheable; every page and data response stays private to this preview.
- if(!/^(?:\/site-assets\/[A-Za-z0-9_-]+\.(js|css)|\/qa-media\/[a-f0-9]{64}\.(png|jpg|webp|gif))$/.test(url.pathname)||!out.get('cache-control')?.includes('immutable'))out.set('cache-control','no-store');
+ if(!/^(?:\/site-assets\/[A-Za-z0-9_-]+\.(js|css|webp)|\/qa-media\/[a-f0-9]{64}\.(png|jpg|webp|gif))$/.test(url.pathname)||!out.get('cache-control')?.includes('immutable'))out.set('cache-control','no-store');
  out.set('x-tenx-preview','synthetic-90-day-qa');
  const cookie=out.get('set-cookie');if(cookie&&parsed.protocol==='https:'&&!/;\s*Secure(?:;|$)/i.test(cookie))out.set('set-cookie',cookie+'; Secure');
  let body=response.body;

@@ -1,3 +1,4 @@
+import {Link} from '@tanstack/react-router';
 import {useExperience} from './experience';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { PlatformApiError } from './sdk';
@@ -131,4 +132,9 @@ export async function privateIntentKey(wallet:string,action:string,body:unknown)
   const key=sessionStorage.getItem(name)??sessionStorage.getItem(legacy)??crypto.randomUUID();
   sessionStorage.setItem(name,key);sessionStorage.removeItem(legacy);
   return {key,done:()=>sessionStorage.removeItem(name)};
+}
+
+export function CategoryChips(){
+ const items=[['tokens','Tokens','M4 7h16M4 12h16M4 17h16'],['nfts','NFTs','M4 4h16v16H4zM4 16l5-5 4 4 3-3 4 4'],['airdrops','Airdrops','M12 3v12m-5-5 5 5 5-5M4 17v4h16v-4'],['stake','Stake','M4 20h16M6 16V8m6 8V4m6 12v-6'],['earn','Earn','m13 2-9 12h7l-1 8 10-12h-7z']] as const;
+ return <nav className="category-chips" aria-label="Explore categories">{items.map(([path,label,icon])=><Link key={path} to={'/'+path as '/tokens'}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={icon}/></svg>{label}</Link>)}</nav>;
 }

@@ -1,3 +1,4 @@
+import {SeasonGallery} from './collection-art';
 import {CategoryCompetition} from './performance';
 import {Diagnostics,NftArt,Journey,useExperience} from './experience';
 import {AssetEvidence,InventoryEvidence,StageEvidence,eligibleMaterials} from './collection-details';
@@ -142,12 +143,12 @@ function CollectionTerms(){
   const policy=useQuery({queryKey:['policy'],queryFn:({signal})=>sdk.policy(signal)});
   return <Loaded query={policy}>{p=><div className="two-up"><Panel className="collection-card">
     <NftArt name="genesis"/><h2><Link to="/collections/genesis">Genesis</Link></h2>
-    <p>Permanent Vault eligibility with an immutable Level from 1 to 10.</p>
+    <p>Your permanent place in 10X. Genesis unlocks airdrop eligibility with a fixed Level from 1 to 10.</p>
     <Facts items={[['Maximum supply',pretty(p.genesis.cap)],['Per tranche',pretty(p.genesis.trancheSize)],
       ['First whitelist price',p.genesis.firstWhitelistPriceSol+' SOL'],['Eligible wallet',p.genesis.mintsPerEligibleWalletPerStage+' mint per stage']]}/>
     </Panel>
     <Panel className="collection-card"><NftArt name="season"/><h2>Seasons</h2>
-      <p>Benefit duration follows the current Level, measured from the published Season start.</p>
+      <p>A fresh cast of collectibles. Season benefits run for a limited time, based on Level and the published start date.</p>
       <Facts items={[['Monthly supply',pretty(p.season.monthlyCap)],['Free stage','Revealed Genesis 1X'],
         ['Eligible wallet',p.season.freeMintsPerEligibleWallet+' free mint']]}/>
       <Diagnostics><details><summary>Upgrades and visual rerolls</summary><p>Pair two same-Level NFTs from one Season to raise the target’s Level.
@@ -204,7 +205,7 @@ function MemberAssets({wallet,review}:{wallet:string;review:(review:Review)=>voi
   return <>
     <Panel title="Your collection"><Loaded query={assets}>{page=><>
       {!page.items.length && <Empty title="No local collection assets"/>}
-      <div className="nft-grid">{page.items.slice(0,technical?page.items.length:visibleAssets).map(asset=><article className="record nft-card" key={asset.id}><NftArt name={asset.id} level={asset.level} concealed={asset.revealStatus!=='revealed'}/><h3 className="wrap-anywhere"><Link to="/nfts/$assetId" params={{assetId:asset.id}}>{asset.id}</Link></h3><p>{asset.inventoryId} · {asset.revealStatus}</p>
+      <div className="nft-grid">{page.items.slice(0,technical?page.items.length:visibleAssets).map(asset=><article className="record nft-card" key={asset.id}><NftArt name={asset.id} inventoryId={asset.inventoryId} level={asset.level} concealed={asset.revealStatus!=='revealed'}/><h3 className="wrap-anywhere"><Link to="/nfts/$assetId" params={{assetId:asset.id}}>{asset.id}</Link></h3><p>{asset.inventoryId} · {asset.revealStatus}</p>
         {asset.revealStatus==='revealed' && <><Facts items={[['Level',asset.level],['Model',asset.traits?.model],['Backdrop',asset.traits?.backdrop],
           ['Symbol',asset.traits?.symbol],['Benefit expiry',asset.expiresAt?utc(asset.expiresAt):'Permanent']].filter(([label])=>technical||!['Level','Model','Backdrop','Symbol'].includes(String(label))) as [string,React.ReactNode][]}/>
           {asset.operationPending?<p>{technical?'Awaiting committed draw evidence.':'Your request is processing. Check its status below.'}</p>:asset.expiresAt&&<>
@@ -236,7 +237,7 @@ export function Collect(){
     <Hero title="NFTs">Find your next collectible. Make it yours, level it up, and follow its rewards.</Hero>
     <Journey steps={[['Find your collectible','Genesis lasts. Seasons have a benefit period.'],['Make it yours','Preview a mint or update a Season NFT.'],['Follow your rewards','See your NFT’s allocations in Airdrops.']]}/>
     {wallet&&<><PendingMint key={'mint-pending:'+wallet} wallet={wallet} review={setReview}/><PendingProgression key={'pending:'+wallet} wallet={wallet} review={setReview}/><MemberAssets key={wallet} wallet={wallet} review={setReview}/></>}
-    <CollectionTerms/>
+    <CollectionTerms/><SeasonGallery/>
     <Panel title="Published stages"><Loaded query={inventories}>{page=><>
       {!page.items.length&&<Empty title="No published stages"/>}
       {page.items.slice(0,technical?page.items.length:visibleInventories).map(inv=><article key={inv.id} className="record published-inventory"><h3>{inv.kind==='season'?<Link to="/seasons/$seasonId" params={{seasonId:inv.id}}>{inv.id}</Link>:inv.id}</h3>

@@ -20,7 +20,7 @@ export function CanonicalMarket(){
   const title=presentation?presentation.name+' · '+presentation.symbol+' (demo)':market.data?market.data.symbol+' / '+market.data.ogSymbol:'ATT market';
   usePageMeta(title,'Campaign timing, fee and the paired original token.','/markets/'+encodeURIComponent(marketId),true);
   return <><Hero title={title}>Explore this token and preview its trading terms.</Hero>
-    <Loaded query={market}>{m=><Panel title="Market details"><TokenArt name={m.id}/><QaTokenDetails id={m.id}/><Facts items={[['Source','Local fixture'],['Campaign status',m.status],
+    <Loaded query={market}>{m=><Panel title="Market details"><div className="token-detail-hero"><TokenArt name={m.id}/><QaTokenDetails id={m.id}/></div><Facts items={[['Source','Local fixture'],['Campaign status',m.status],
       ['Activated',utc(m.activatedAt)],['Current fee',percent(m.feeBps)],['ATT mint',m.attMint],['OG mint',m.ogMint],['Pool',m.poolAddress]]}/>
       <p><Link to="/stake" search={{farm:m.id}}>Stake this token →</Link></p></Panel>}</Loaded>
     {market.data&&<QuotePanel marketId={marketId} symbol={market.data.symbol} ogSymbol={market.data.ogSymbol} services={quoteServices}/>}
@@ -33,7 +33,7 @@ export function CanonicalGenesis(){
   const {wallet}=useSession(),search=rootRoute.useSearch();
   const inventories=useRuntimeQuery('/api/v1/collect/inventories',{queryKey:principalKey(wallet,'inventories',search.inventories),queryFn:({signal})=>sdk.inventories(search.inventories,signal)});
   return <><Hero title="Genesis">Permanent membership in a collection with ten tranches and fixed Levels.</Hero>
-    <Panel title="Collection terms"><Loaded query={terms}>{p=><Facts items={[['Maximum supply',pretty(p.genesis.cap)],
+    <div className="collection-detail-art"><NftArt name="genesis"/></div><Panel title="Collection terms"><Loaded query={terms}>{p=><Facts items={[['Maximum supply',pretty(p.genesis.cap)],
       ['Tranche size',pretty(p.genesis.trancheSize)],['First whitelist stage',p.genesis.firstWhitelistPriceSol+' SOL'],
       ['Stage notice',p.genesis.noticeHours+' hours'],['Mint limit',p.genesis.mintsPerEligibleWalletPerStage+' per eligible wallet per stage']]}/>}</Loaded></Panel>
     <Panel title="Release updates"><p>Follow community updates for upcoming releases. New stages require founder approval and published notice.</p><Link to="/nfts">View published stages ↗</Link></Panel>
@@ -52,7 +52,7 @@ export function CanonicalSeason(){
   const inventory=useRuntimeQuery('/api/v1/collect/inventories/{id}',{queryKey:principalKey(wallet,'season',seasonId),queryFn:({signal})=>sdk.inventory(seasonId,signal)});
   return <><Hero title={'Season · '+seasonId}>Monthly collection inventory and benefit periods.</Hero>
     <Loaded query={inventory}>{inv=>inv.kind==='season'?<>
-      <Panel title="Season inventory"><Facts items={[['Season start',inv.seasonStart?utc(inv.seasonStart):'Unavailable'],
+      <div className="collection-detail-art"><NftArt name={inv.id} inventoryId={inv.id}/></div><Panel title="Season inventory"><Facts items={[['Season start',inv.seasonStart?utc(inv.seasonStart):'Unavailable'],
         ['Total slots',pretty(inv.capacity)],['Slots available',pretty(inv.counts.unsold)],['Awaiting fulfillment',inv.counts.pending],
         ['Collection',inv.id]]}/><InventoryEvidence inventory={inv}/></Panel>
       <Panel title="Published stages">{inv.stages.length?inv.stages.map(s=><PublishedStage key={s.id} stage={s} inventory={inv}/>):<Empty title="No published stages"/>}
@@ -65,7 +65,7 @@ export function CanonicalAsset(){
   usePageMeta('NFT · '+assetId,'Publicly revealed NFT metadata and ownership.','/nfts/'+encodeURIComponent(assetId),true);
   const asset=useRuntimeQuery('/api/v1/collect/assets/{id}',{queryKey:['public-asset',assetId],queryFn:({signal})=>sdk.asset(assetId,signal)});
   return <><Hero title={assetId}>Collection metadata and current ownership.</Hero><Loaded query={asset}>{a=>
-    <Panel title={a.revealStatus==='revealed'?'Collectible details':'Awaiting reveal'}><NftArt name={a.id} level={a.level} concealed={a.revealStatus!=='revealed'}/>
+    <Panel title={a.revealStatus==='revealed'?'Collectible details':'Awaiting reveal'}><NftArt name={a.id} inventoryId={a.inventoryId} level={a.level} concealed={a.revealStatus!=='revealed'}/>
       <Facts items={[['Collection',a.inventoryId],['Owner',a.owner],['Status',a.revealStatus],
         ...(a.revealStatus==='revealed'?[['Level',a.level],['Model',a.traits?.model],['Backdrop',a.traits?.backdrop],['Symbol',a.traits?.symbol]] as [string,React.ReactNode][]:[])]}/>
       <AssetEvidence asset={a}/>{a.revealStatus==='revealed'&&<p><Link to="/airdrops" search={{asset:a.id}}>View airdrops ↗</Link></p>}

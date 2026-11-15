@@ -1,0 +1,86 @@
+{
+  "scope": "Presentation-only local-demo artwork; not finalized metadata or an approved release",
+  "date": "2026-11-15",
+  "generator": "Built-in image_gen tool; no API key or paid provider adapter",
+  "delivery": "Generated PNG originals retained under untracked work/nft-art-sources; delivery derivatives resized to640px and encoded WebP quality85 with installed ImageMagick. Same-origin Vite hashed assets.",
+  "sharedPrompt": "Single square premium 3D digital collectible for 10X.MEME. Original polished miniature vinyl art-toy aesthetic; rounded sculpted forms, exquisite shading, dramatic soft studio light, emerald highlights, deep near-black forest-green background with subtle halo. Centered full character on a small jade-green plinth, filling about 75% of the frame with safe margins. Playful, desirable and readable at thumbnail size. No text, watermarks, logos or currency marks. Telegram collectible gifts are aesthetic inspiration only; no copied gift artwork.",
+  "assets": [
+    {
+      "file": "genesis-1.webp",
+      "bytes": 30676,
+      "sha256": "8f0589ab5cce09564c5a740562e6caa672138b22a0320955432aac3a12418e1d",
+      "source": "https://warplets.10x.meme/1.webp",
+      "prompt": null
+    },
+    {
+      "file": "genesis-2.webp",
+      "bytes": 37934,
+      "sha256": "5279a1555cbd265603858aee46fcf1bb4620832b15082eb43ae3e3e66401bfdb",
+      "source": "https://warplets.10x.meme/2.webp",
+      "prompt": null
+    },
+    {
+      "file": "genesis-3.webp",
+      "bytes": 23200,
+      "sha256": "b33c76f3c694526fe72f50340c73f7fd398d03298d9ac36ea326a266b1107b65",
+      "source": "https://warplets.10x.meme/3.webp",
+      "prompt": null
+    },
+    {
+      "file": "genesis-4.webp",
+      "bytes": 34882,
+      "sha256": "2534354761bd423412d45256d238f48329e89cf904ac76de4905017f7c43836b",
+      "source": "https://warplets.10x.meme/4.webp",
+      "prompt": null
+    },
+    {
+      "file": "genesis-5.webp",
+      "bytes": 31868,
+      "sha256": "f1f79befd948a00364f089b68a711b39ebb4a831b1926d1521677705af6581d7",
+      "source": "https://warplets.10x.meme/5.webp",
+      "prompt": null
+    },
+    {
+      "file": "genesis-6.webp",
+      "bytes": 36632,
+      "sha256": "f162cfbd298d914f720f1550a2b894ec66ac06c6694a316c5a15973e5eb7138b",
+      "source": "https://warplets.10x.meme/6.webp",
+      "prompt": null
+    },
+    {
+      "file": "season-ansem.webp",
+      "bytes": 32760,
+      "sha256": "c20c7da034cb7a0a7e0b1d62fb9fdb925c69c8ff5b89d2c163bf1574e2f28ad9",
+      "source": "original generated Season concept",
+      "prompt": "Single square premium 3D digital collectible for 10X.MEME. Original polished miniature vinyl art-toy aesthetic; rounded sculpted forms, exquisite shading, dramatic soft studio light, emerald highlights, deep near-black forest-green background with subtle halo. Centered full character on a small jade-green plinth, filling about 75% of the frame with safe margins. Playful, desirable and readable at thumbnail size. No text, watermarks, logos or currency marks. Telegram collectible gifts are aesthetic inspiration only; no copied gift artwork. Subject: A powerful but adorable jet-black bull with ivory horns, silver nose ring and emerald varsity jacket; a mascot, not a person portrait."
+    },
+    {
+      "file": "season-cate.webp",
+      "bytes": 34332,
+      "sha256": "68da84d1b30d73a9b1298cb5fedc3c941b94b8a2cdc7771f273b8733c6b83df1",
+      "source": "original generated Season concept",
+      "prompt": "Single square premium 3D digital collectible for 10X.MEME. Original polished miniature vinyl art-toy aesthetic; rounded sculpted forms, exquisite shading, dramatic soft studio light, emerald highlights, deep near-black forest-green background with subtle halo. Centered full character on a small jade-green plinth, filling about 75% of the frame with safe margins. Playful, desirable and readable at thumbnail size. No text, watermarks, logos or currency marks. Telegram collectible gifts are aesthetic inspiration only; no copied gift artwork. Subject: An adorable mischievous orange cat with expressive eyes, a confident smirk, glossy jade-green collar and diamond charm."
+    },
+    {
+      "file": "season-doge.webp",
+      "bytes": 30964,
+      "sha256": "95ebf1f2e173c39a4642093c74e1aad2f28f4b643b37c2d70678a2ab348f58e8",
+      "source": "original generated Season concept",
+      "prompt": "Single square premium 3D digital collectible for 10X.MEME. Original polished miniature vinyl art-toy aesthetic; rounded sculpted forms, exquisite shading, dramatic soft studio light, emerald highlights, deep near-black forest-green background with subtle halo. Centered full character on a small jade-green plinth, filling about 75% of the frame with safe margins. Playful, desirable and readable at thumbnail size. No text, watermarks, logos or currency marks. Telegram collectible gifts are aesthetic inspiration only; no copied gift artwork. Subject: A cheerful golden Shiba Inu with stylized fluffy cheeks, amused sideways glance and emerald bandana."
+    },
+    {
+      "file": "season-pepe.webp",
+      "bytes": 42860,
+      "sha256": "f89c2f98325a6062caacd13c136f0b94b1b4a0b957bfee03f228822d4f24bcd3",
+      "source": "original generated Season concept",
+      "prompt": "Single square premium 3D digital collectible for 10X.MEME. Original polished miniature vinyl art-toy aesthetic; rounded sculpted forms, exquisite shading, dramatic soft studio light, emerald highlights, deep near-black forest-green background with subtle halo. Centered full character on a small jade-green plinth, filling about 75% of the frame with safe margins. Playful, desirable and readable at thumbnail size. No text, watermarks, logos or currency marks. Telegram collectible gifts are aesthetic inspiration only; no copied gift artwork. Subject: A lovable green frog with sleepy eyes and a knowing grin, blue zip hoodie, holding a polished golden star."
+    },
+    {
+      "file": "season-wif.webp",
+      "bytes": 35536,
+      "sha256": "76b75a3b552a7033c216438de5179de3cd516c6220013b7a02fef21f5df4afa8",
+      "source": "original generated Season concept",
+      "prompt": "Single square premium 3D digital collectible for 10X.MEME. Original polished miniature vinyl art-toy aesthetic; rounded sculpted forms, exquisite shading, dramatic soft studio light, emerald highlights, deep near-black forest-green background with subtle halo. Centered full character on a small jade-green plinth, filling about 75% of the frame with safe margins. Playful, desirable and readable at thumbnail size. No text, watermarks, logos or currency marks. Telegram collectible gifts are aesthetic inspiration only; no copied gift artwork. Subject: A charming beige Shiba Inu wearing an oversized soft pink knitted beanie, with a friendly curious expression."
+    }
+  ]
+}

@@ -1,5 +1,9 @@
 # Completed local implementation — review handoff
 
+## 15 November — dark design and supported posts
+
+Visual milestone implemented and locally verified: dark emerald theme, green actions, category chips, larger portraits, refreshed copy, six real Warplet samples and five generated Season concepts.38site tests and type/build passed. Chromium/WebKit at320/390/1280 passed artwork decoding, contrast, keyboard/focus, concealed-art protection and no overflow. Screenshots: `work/dark-design-final-chromium` and `work/dark-design-final-webkit`. No data reseed. Earn supported-source intake, safe previews and capture integration remain in progress in the current working tree. Full combined CI and final app restart follow integration. Budget starts23%used; stopbefore50%used. [Review guide](../validation/DARK_DESIGN_AND_SUPPORTED_POSTS_2026-11-15.md).
+
 ## Leaderboard avatar follow-up
 
 User Top 100 rows now use wallet-keyed profile portraits, including on mobile. At widths up to 480px, values sit below user details to keep names and amounts readable. The shared row also updates Home previews. Local app rebuilt in place; no server restart or database changes. Typecheck/build passed. Chromium and WebKit passed all four user boards (NFTs, Airdrops, Stake, Earn) at 320/1280 pixels, including visible matching portraits, no overflow and no external image requests. Evidence stays local in `work/qa-ranking-avatars-chromium` and `work/qa-ranking-avatars-webkit`. This small presentation follow-up was locally verified; the full CI below applies to the preceding product commit.

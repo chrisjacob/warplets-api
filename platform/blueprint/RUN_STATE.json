@@ -5,7 +5,7 @@
   "baselineHead": "1c2dc7030060d411f58eb6f99fa1f22a566042a2",
   "branch": "work/10x-prd-foundation",
   "currentTask": null,
-  "lastUpdatedAt": "2026-11-14T04:18:37.411652+00:00",
+  "lastUpdatedAt": "2026-11-15T10:39:56.965620+00:00",
   "migrationAllocation": {
     "next": 72,
     "reserved": [
@@ -1040,5 +1040,26 @@
     "validation": "Typecheck/build; Chromium and WebKit, four user boards at 320/1280, matching visible portraits, no overflow or external image requests",
     "localApp": "rebuilt in place; existing data preserved",
     "nextStep": "Refresh local app to review Top 100 user lists"
+  },
+  "darkDesignSupportedPostsFollowup": {
+    "status": "implementation-in-progress",
+    "baselineCommit": "ab7311f",
+    "scope": [
+      "dark green consumer design and category chips",
+      "larger user/token images",
+      "real Warplet Genesis samples and five generated Season concepts",
+      "strict Farcaster/X intake and safe post previews",
+      "source reading for operator scoring captures"
+    ],
+    "budget": {
+      "initialUsedPercent": 23,
+      "maximumUsedPercent": 50,
+      "reserveCheckpointAtUsedPercent": 47
+    },
+    "financialExecution": false,
+    "paidProviderCalls": false,
+    "deployment": false,
+    "visualValidation": "38site tests; TypeScript/Vite build; Chromium+WebKit at320/390/1280:contrast,keyboard,all5Seasonart,Genesisart,concealedart,nooverflow",
+    "nextStep": "Visual milestone tested; finish supported-post tests and integration, run full CI, refresh local app"
   }
 }
