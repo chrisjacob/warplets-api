@@ -1,0 +1,35 @@
+name: Meme foundation
+on:
+  push:
+    branches: [codex/10x-daily-launchpad, 'codex/10x-*']
+  pull_request:
+    paths:
+      - 'meme/**'
+      - 'packages/connect/**'
+      - 'docs/10x/**'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - '.github/workflows/meme-foundation.yml'
+permissions:
+  contents: read
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+jobs:
+  foundation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v5
+        with:
+          version: 10.26.0
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Check isolated local foundation
+        run: pnpm --dir meme check
+      - name: Shared Connect regressions
+        run: pnpm --dir app test
+      - name: Verify existing production app stays separate
+        run: pnpm --dir app build && pnpm --dir app release:check

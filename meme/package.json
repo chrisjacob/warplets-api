@@ -1,0 +1,41 @@
+{
+  "name": "@10x/meme",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1 --port 5194 --strictPort",
+    "dev:worker": "wrangler dev --local --ip 127.0.0.1 --port 8797 --persist-to .wrangler/state",
+    "db:migrate": "wrangler d1 migrations apply meme-local --local --persist-to .wrangler/state",
+    "types": "wrangler types worker-configuration.d.ts --include-runtime false",
+    "typecheck": "tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.worker.json",
+    "build": "vite build && node scripts/check-performance.mjs",
+    "build:worker": "wrangler deploy --dry-run --outdir .tmp/worker",
+    "test": "tsx --test src/worker/*.test.ts src/shared/*.test.ts src/app/*.test.ts",
+    "check": "pnpm boundary && pnpm typecheck && pnpm test && pnpm build && pnpm build:worker",
+    "boundary": "node scripts/check-boundaries.mjs",
+    "operator": "node scripts/operator.mjs"
+  },
+  "dependencies": {
+    "react": "19.2.5",
+    "react-dom": "19.2.5",
+    "@10x/connect": "workspace:*",
+    "@farcaster/quick-auth": "0.0.6",
+    "@farcaster/auth-client": "0.7.1",
+    "viem": "^2.55.19",
+    "@wallet-standard/app": "1.1.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "5.20261028.1",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@vitejs/plugin-react": "^4",
+    "tsx": "4.21.0",
+    "typescript": "5.9.3",
+    "vite": "6.4.5",
+    "wrangler": "4.154.0"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

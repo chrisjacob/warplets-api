@@ -1,0 +1,13 @@
+CREATE TABLE meme_rounds(id TEXT PRIMARY KEY,opens_at INTEGER NOT NULL,closes_at INTEGER NOT NULL,attribute TEXT NOT NULL,state TEXT NOT NULL CHECK(state IN('prepared','frozen','open','closed','selected','skipped')),snapshot_id TEXT,rules_version TEXT NOT NULL,selected_candidate TEXT,outcome_reason TEXT,CHECK(opens_at<closes_at));
+CREATE TABLE meme_candidates(round_id TEXT NOT NULL REFERENCES meme_rounds(id),id TEXT NOT NULL,name TEXT NOT NULL,symbol TEXT NOT NULL,og_mint TEXT NOT NULL,evidence TEXT NOT NULL,PRIMARY KEY(round_id,id));
+CREATE TABLE meme_ownership_snapshots(id TEXT PRIMARY KEY,round_id TEXT NOT NULL UNIQUE REFERENCES meme_rounds(id),source TEXT NOT NULL,mode TEXT NOT NULL CHECK(mode IN('observed','simulated')),source_at INTEGER NOT NULL,captured_at INTEGER NOT NULL,expected_tokens INTEGER NOT NULL,state TEXT NOT NULL CHECK(state IN('importing','ready')),manifest TEXT NOT NULL);
+CREATE TABLE meme_ownership_tokens(snapshot_id TEXT NOT NULL REFERENCES meme_ownership_snapshots(id),token_id INTEGER NOT NULL,wallet TEXT NOT NULL,levels TEXT NOT NULL,PRIMARY KEY(snapshot_id,token_id));
+CREATE TABLE meme_round_eligibility(round_id TEXT NOT NULL REFERENCES meme_rounds(id),fid INTEGER NOT NULL,wallets TEXT NOT NULL,tokens TEXT NOT NULL,level INTEGER NOT NULL,PRIMARY KEY(round_id,fid));
+CREATE TABLE meme_votes(round_id TEXT NOT NULL,fid INTEGER NOT NULL,candidate_id TEXT NOT NULL,first_valid_at INTEGER NOT NULL,updated_at INTEGER NOT NULL,reward_wallet TEXT NOT NULL,PRIMARY KEY(round_id,fid),FOREIGN KEY(round_id,candidate_id) REFERENCES meme_candidates(round_id,id));
+CREATE TABLE meme_round_wallets(round_id TEXT NOT NULL REFERENCES meme_rounds(id),chain TEXT NOT NULL,address TEXT NOT NULL,fid INTEGER NOT NULL,PRIMARY KEY(round_id,chain,address));
+CREATE TABLE meme_operations(key TEXT PRIMARY KEY NOT NULL,round_id TEXT NOT NULL REFERENCES meme_rounds(id),payload_hash TEXT NOT NULL);
+CREATE INDEX meme_votes_by_time ON meme_votes(round_id,first_valid_at,fid);
+CREATE INDEX meme_rounds_by_close ON meme_rounds(closes_at);
+CREATE UNIQUE INDEX meme_one_round_per_day ON meme_rounds(date(closes_at/1000,'unixepoch'));
+CREATE UNIQUE INDEX meme_candidate_mint_unique ON meme_candidates(round_id,og_mint);
+CREATE TRIGGER meme_round_overlap BEFORE INSERT ON meme_rounds WHEN EXISTS(SELECT 1 FROM meme_rounds WHERE NEW.opens_at<closes_at AND NEW.closes_at>opens_at) BEGIN SELECT RAISE(ABORT,'Rounds overlap'); END;

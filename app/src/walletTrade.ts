@@ -1,41 +1,12 @@
+export type { EthereumProvider } from "@10x/connect/evm";
+import { EthereumProvider, WalletReviewRequest, walletReviewRequestListeners, subscribeToWalletReviewRequests, notifyWalletReviewRequest, BASE_CHAIN_CONFIG, asObject, asString, withWalletTimeout, waitForWalletPrompt, requestWithWalletReview, getWalletErrorMessage, getWalletErrorCode, isUserRejected, normalizeAccountList, getWalletAccounts, ensureBaseChain, preferBaseChainBeforeConnect, signMessage } from "@10x/connect/evm";
+export { getWalletAccounts, ensureBaseChain, preferBaseChainBeforeConnect, signMessage, subscribeToWalletReviewRequests, getWalletErrorCode, getWalletErrorMessage, isUserRejected } from "@10x/connect/evm";
+export type { WalletReviewRequest } from "@10x/connect/evm";
 import { encodeFunctionData, erc20Abi, erc721Abi, getAddress, recoverTypedDataAddress, serializeTypedData, type Address } from "viem";
 import { appendBuilderCode, builderCodeSuffix } from "./builderCode";
 import { trackAppEvent } from "./analytics";
 import { recordLocalOfferDiagnostic } from "./localOfferDiagnostics";
 import { BASE_CHAIN_ID_HEX, normalizeTransactionChainId, sendEthereumTransaction } from "./ethereumTransaction";
-
-export type EthereumProvider = {
-  request(args: { method: string; params?: readonly unknown[] | object }): Promise<unknown>;
-  isBaseAccount?: boolean;
-  connectorId?: string;
-  walletConnectPeer?: {
-    name?: string;
-    sessionTopic?: string;
-    nativeRedirect?: string;
-    universalRedirect?: string;
-  };
-};
-
-export type WalletReviewRequest = {
-  provider: EthereumProvider;
-  kind: "transaction" | "signature" | "network";
-  phase: "started" | "settled";
-};
-
-const walletReviewRequestListeners = new Set<(request: WalletReviewRequest) => void>();
-
-export function subscribeToWalletReviewRequests(listener: (request: WalletReviewRequest) => void): () => void {
-  walletReviewRequestListeners.add(listener);
-  return () => walletReviewRequestListeners.delete(listener);
-}
-
-function notifyWalletReviewRequest(
-  provider: EthereumProvider,
-  kind: WalletReviewRequest["kind"],
-  phase: WalletReviewRequest["phase"],
-): void {
-  walletReviewRequestListeners.forEach((listener) => listener({ provider, kind, phase }));
-}
 
 export type TokenApprovalRequirement = {
   tokenAddress: string;
@@ -88,18 +59,6 @@ type SeaportOrderParameters = {
   salt?: unknown;
   conduitKey?: unknown;
   totalOriginalConsiderationItems?: unknown;
-};
-
-const BASE_CHAIN_CONFIG = {
-  chainId: BASE_CHAIN_ID_HEX,
-  chainName: "Base",
-  nativeCurrency: {
-    name: "Ether",
-    symbol: "ETH",
-    decimals: 18,
-  },
-  rpcUrls: ["https://mainnet.base.org"],
-  blockExplorerUrls: ["https://basescan.org"],
 };
 const BASE_RPC_URL = BASE_CHAIN_CONFIG.rpcUrls[0];
 const seaportCancelAbi = [{
@@ -386,14 +345,6 @@ const seaportFulfillmentAbi = [
   },
 ] as const;
 
-function asObject(value: unknown): Record<string, unknown> | undefined {
-  return value && typeof value === "object" ? (value as Record<string, unknown>) : undefined;
-}
-
-function asString(value: unknown): string | undefined {
-  return typeof value === "string" && value.trim() ? value.trim() : undefined;
-}
-
 function asArray(value: unknown): unknown[] {
   return Array.isArray(value) ? value : [];
 }
@@ -629,70 +580,12 @@ function normalizeSeaportCancelOrder(parameters: SeaportCancelOrderParameters) {
   };
 }
 
-function withWalletTimeout<T>(promise: Promise<T>, label: string, timeoutMs = 25000): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    const timeoutId = globalThis.setTimeout(() => {
-      reject(new Error(`${label} did not open or respond. Return to your wallet and try again.`));
-    }, timeoutMs);
-    promise.then(
-      (value) => {
-        globalThis.clearTimeout(timeoutId);
-        resolve(value);
-      },
-      (error) => {
-        globalThis.clearTimeout(timeoutId);
-        reject(error);
-      },
-    );
-  });
-}
-
-function waitForWalletPrompt<T>(promise: Promise<T>, label = "Wallet request", timeoutMs = 120000): Promise<T> {
-  return withWalletTimeout(promise, label, timeoutMs);
-}
-
-function requestWithWalletReview<T>(
-  provider: EthereumProvider,
-  kind: WalletReviewRequest["kind"],
-  request: () => Promise<T>,
-  label = "Wallet request",
-  timeoutMs = 120000,
-): Promise<T> {
-  notifyWalletReviewRequest(provider, kind, "started");
-  try {
-    return waitForWalletPrompt(request(), label, timeoutMs)
-      .finally(() => notifyWalletReviewRequest(provider, kind, "settled"));
-  } catch (error) {
-    notifyWalletReviewRequest(provider, kind, "settled");
-    return Promise.reject(error);
-  }
-}
-
 function toHexQuantity(value: string | number | bigint | null | undefined): `0x${string}` {
   if (typeof value === "string" && value.startsWith("0x")) return value as `0x${string}`;
   if (typeof value === "string" && value) return `0x${BigInt(value).toString(16)}`;
   if (typeof value === "number") return `0x${BigInt(value).toString(16)}`;
   if (typeof value === "bigint") return `0x${value.toString(16)}`;
   return "0x0";
-}
-
-export function getWalletErrorMessage(error: unknown): string {
-  if (error instanceof Error && error.message) return error.message;
-  const maybe = asObject(error);
-  const message = asString(maybe?.message) ?? asString(maybe?.shortMessage);
-  return message ?? String(error);
-}
-
-export function getWalletErrorCode(error: unknown): string | null {
-  const maybe = asObject(error);
-  const code = maybe?.code;
-  return code == null ? null : String(code);
-}
-
-export function isUserRejected(error: unknown): boolean {
-  const message = getWalletErrorMessage(error).toLowerCase();
-  const code = getWalletErrorCode(error);
-  return code === "4001" || message.includes("rejected") || message.includes("denied") || message.includes("cancelled") || message.includes("canceled");
 }
 
 function isWalletTimeoutError(error: unknown): boolean {
@@ -793,24 +686,6 @@ export function normalizeBaseAccountTypedData(typedData: Record<string, unknown>
   };
 }
 
-function normalizeAccountList(raw: unknown): Address[] {
-  const accounts = Array.isArray(raw) ? raw : [];
-  return accounts
-    .filter((account): account is string => typeof account === "string" && /^0x[0-9a-fA-F]{40}$/.test(account))
-    .map((account) => getAddress(account));
-}
-
-export async function getWalletAccounts(provider: EthereumProvider, _preferredAccount?: string | null): Promise<Address[]> {
-  const existing = await withWalletTimeout(
-    provider.request({ method: "eth_accounts" }),
-    "Wallet account lookup",
-    2500,
-  ).then(normalizeAccountList).catch(() => []);
-  if (existing.length > 0) return existing;
-  const raw = await waitForWalletPrompt(provider.request({ method: "eth_requestAccounts" }));
-  return normalizeAccountList(raw);
-}
-
 export async function sendAttributedTransaction(
   provider: EthereumProvider,
   transaction: Record<string, unknown>,
@@ -834,80 +709,6 @@ export async function sendAttributedTransaction(
       result: error instanceof Error ? error.message.slice(0, 100) : "unknown",
     });
     throw error;
-  }
-}
-
-export async function ensureBaseChain(
-  provider: EthereumProvider,
-  chainIdHex = BASE_CHAIN_CONFIG.chainId,
-  options: { allowSkipSwitch?: boolean; confirmTimeoutMs?: number } = {},
-): Promise<void> {
-  const normalizedTargetChainId = chainIdHex.toLowerCase();
-  const readProviderChainId = () => withWalletTimeout(
-    provider.request({ method: "eth_chainId" }),
-    "Wallet chain lookup",
-    2500,
-  ).then((value) => {
-    if (typeof value === "string") return value.toLowerCase();
-    if (typeof value === "number" && Number.isInteger(value)) return `0x${value.toString(16)}`;
-    return null;
-  }).catch(() => null);
-  const confirmTargetChain = async () => {
-    const timeoutMs = options.confirmTimeoutMs ?? 10000;
-    if (timeoutMs <= 0) return;
-    const deadline = Date.now() + timeoutMs;
-    do {
-      if (await readProviderChainId() === normalizedTargetChainId) return;
-      await new Promise((resolve) => globalThis.setTimeout(resolve, 150));
-    } while (Date.now() < deadline);
-    throw new Error("Base Mainnet is required. Trust Wallet did not finish switching networks.");
-  };
-  const currentChainId = await readProviderChainId();
-  if (currentChainId === normalizedTargetChainId) return;
-  if (options.allowSkipSwitch) return;
-
-  try {
-    await requestWithWalletReview(provider, "network", () => provider.request({
-      method: "wallet_switchEthereumChain",
-      params: [{ chainId: chainIdHex }],
-    }));
-  } catch (error) {
-    const maybe = asObject(error);
-    if (maybe?.code === 4902 || String(maybe?.message ?? "").includes("Unrecognized chain")) {
-      await requestWithWalletReview(provider, "network", () => provider.request({
-        method: "wallet_addEthereumChain",
-        params: [BASE_CHAIN_CONFIG],
-      }));
-      await requestWithWalletReview(provider, "network", () => provider.request({
-        method: "wallet_switchEthereumChain",
-        params: [{ chainId: chainIdHex }],
-      }));
-      await confirmTargetChain();
-      return;
-    }
-    throw error;
-  }
-  await confirmTargetChain();
-}
-
-/**
- * Give injected wallets a chance to select Base before they present their
- * account-connection UI. Some wallets (including Trust Wallet's dapp browser)
- * otherwise default that first prompt to Ethereum Mainnet.
- *
- * Wallets that require account authorization before allowing a chain switch
- * may reject this preliminary request. In that case activation continues and
- * `ensureBaseChain` runs again after account access has been granted. An
- * explicit user rejection is still respected and stops the connection flow.
- */
-export async function preferBaseChainBeforeConnect(provider: EthereumProvider): Promise<void> {
-  try {
-    // This is only a preference before authorization. Some injected wallets do
-    // not expose the updated chain until account access has been granted, so
-    // activation performs the authoritative, confirmed switch afterwards.
-    await ensureBaseChain(provider, BASE_CHAIN_CONFIG.chainId, { confirmTimeoutMs: 0 });
-  } catch (error) {
-    if (isUserRejected(error)) throw error;
   }
 }
 
@@ -1468,15 +1269,6 @@ export async function signTypedData(provider: EthereumProvider, account: string,
   }
   recordLocalOfferDiagnostic("wallet.signature.complete", { signatureLength: signature.length });
   trackAppEvent("transaction_confirmed", { transactionType: "seaport_order_signature" });
-  return signature;
-}
-
-export async function signMessage(provider: EthereumProvider, account: string, message: string): Promise<string> {
-  const signature = await requestWithWalletReview(provider, "signature", () => provider.request({
-    method: "personal_sign",
-    params: [message, account],
-  }));
-  if (typeof signature !== "string") throw new Error("Wallet did not return a signature");
   return signature;
 }
 
