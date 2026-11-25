@@ -10,13 +10,13 @@ export async function checkQuoteView({browser,db,origin,artifactStore}){
     await page.goto(origin+'/markets/quote-demo');
     await page.getByLabel('Amount in QUOTEOG',{exact:true}).fill('1');
     await page.getByRole('button',{name:'Preview swap quote'}).click();
-    await page.getByRole('heading',{name:'Local exact-input quote'}).waitFor();
+    await page.getByRole('heading',{name:'Exact-input quote'}).waitFor();
     assert.equal(calls[0].inputUnits,'1000000');assert.equal(calls[0].direction,'buy-att');
     await page.getByText('Effective buy FDV',{exact:true}).waitFor();
     await page.getByLabel('Direction',{exact:true}).selectOption('sell-att');
     await page.getByLabel('Amount in QUOTEATT',{exact:true}).fill('2');
     await page.getByRole('button',{name:'Preview swap quote'}).click();
-    await page.getByRole('heading',{name:'Local exact-input quote'}).waitFor();
+    await page.getByRole('heading',{name:'Exact-input quote'}).waitFor();
     assert.equal(calls[1].inputUnits,'2000000000');assert.equal(calls[1].direction,'sell-att');
     assert.equal(await page.getByText('Effective buy FDV',{exact:true}).count(),0);
     assert.equal(await page.getByRole('button',{name:/send|swap now|sign transaction/i}).count(),0);
@@ -33,7 +33,7 @@ export async function checkQuoteView({browser,db,origin,artifactStore}){
     await page.getByLabel('Slippage tolerance',{exact:true}).selectOption('50');
     await page.getByLabel('Amount in QUOTEOG',{exact:true}).fill('1');
     await page.getByRole('button',{name:'Preview swap quote'}).click();
-    await page.getByRole('heading',{name:'Local exact-input quote'}).waitFor();
+    await page.getByRole('heading',{name:'Exact-input quote'}).waitFor();
     assert.equal(calls[2].slippageBps,50);
     console.log('Both quote directions, token precision, fee-inclusive FDV, slippage and mobile presentation passed.');
   }finally{await page.close();}

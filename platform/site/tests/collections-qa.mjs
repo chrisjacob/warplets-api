@@ -39,7 +39,7 @@ export async function checkCollectionDetails({browser,db,origin}){
   await form.getByText('Choose a listed same-owner, same-Season, same-Level material.').waitFor();assert.equal(quotes,0);
   await input.fill('fixture-material');await input.press('Tab');await page.keyboard.press('Enter');
   await page.getByText('Fixture ownership changed; refresh the asset pair.').waitFor();
-  assert.equal(await page.getByRole('button',{name:'Record preview request'}).isDisabled(),true);
+  assert.equal(await page.getByRole('button',{name:'Confirm request'}).isDisabled(),true);
   await page.keyboard.press('Escape');await page.locator('#collection-dialog').waitFor({state:'hidden'});
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
   if(process.env.SCREENSHOT_DIR){await mkdir(process.env.SCREENSHOT_DIR,{recursive:true});await page.screenshot({path:join(process.env.SCREENSHOT_DIR,'collection-populated-'+width+'.png')});}

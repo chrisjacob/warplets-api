@@ -24,7 +24,7 @@ export async function checkCollectionEdges({browser}){
    await stage.getByText('unknown',{exact:true}).waitFor();await stage.getByText('opening-snapshot-pending',{exact:true}).waitFor();assert.equal(await stage.getByRole('button',{name:'Review reservation'}).count(),0);
    await stage.getByText('Complete opening-cut evidence is pending',{exact:true}).waitFor();await stage.getByText('Availability is unknown',{exact:true}).waitFor();
    f.acceptSnapshot();await page.reload();await stage.getByText('eligible',{exact:true}).waitFor();
-   await stage.getByText('Eligible for a local reservation',{exact:true}).waitFor();
+   await stage.getByText('Eligible for a reservation',{exact:true}).waitFor();
    const acceptedCut=f.db.prepare('SELECT snapshot_hash FROM collect_snapshots WHERE inventory_id=? AND stage_id=?').get(f.seasonId,'synthetic-free').snapshot_hash;
    assert.equal(await stage.locator('dt').filter({hasText:/^Accepted opening-cut digest$/}).locator('..').locator('dd').textContent(),acceptedCut);
    const cut=new Date(f.cut).toISOString().slice(0,16).replace('T',' ')+' UTC';assert.ok((await stage.textContent()).includes(cut));
@@ -52,7 +52,7 @@ export async function checkCollectionEdges({browser}){
    const quoteResponse=await page.request.post(f.origin+'/api/v1/collect/inventories/'+f.seasonId+'/progression/quote',{headers:{origin:f.origin,'idempotency-key':'synthetic-qa-quote-'+width},data:{kind:'upgrade',targetId:'synthetic-season-000',materialId:'synthetic-season-001',expectedTargetVersion:0,expectedMaterialVersion:0}});
    const quote=await quoteResponse.json();assert.equal(quoteResponse.status(),200);assert.equal(quote.nextTargetLevel,2);assert.ok(Date.parse(quote.nextTargetExpiry)>f.nowMs);assert.equal(quote.materialProbabilities[0].remainingMs,0);
    const historical=f.historical(),before=await (await page.request.get(f.origin+'/api/v1/nfts/synthetic-season-000/vault')).json();
-   await page.getByRole('button',{name:'Record preview request',exact:true}).click();await page.locator('#collection-dialog').waitFor({state:'hidden'});await page.getByText('Awaiting committed draw evidence.',{exact:true}).first().waitFor();
+   await page.getByRole('button',{name:'Confirm request',exact:true}).click();await page.locator('#collection-dialog').waitFor({state:'hidden'});await page.getByText('Awaiting committed draw evidence.',{exact:true}).first().waitFor();
    const operation=f.db.prepare("SELECT id FROM collect_operations WHERE kind='upgrade' AND owner=?").get(f.accounts.original.wallet);assert.ok(operation);
    await f.fulfill(operation.id);await page.reload();const target=page.locator('article.record').filter({has:page.getByRole('heading',{name:'synthetic-season-000',exact:true})});
    await target.locator('dt').filter({hasText:/^Level$/}).locator('..').getByText('2',{exact:true}).waitFor();
@@ -71,7 +71,7 @@ export async function checkCollectionEdges({browser}){
    observeCollectionAsset(f.db,{sourceId:'synthetic-review-transfer',assetId:'synthetic-season-002',kind:'transfer',from:f.accounts.original.wallet,to:f.accounts.buyer.wallet,at:f.nowMs,finalized:true},f.nowMs);
    const counts={quotes,vaultReads};await staleForm.getByLabel('Same-Level material NFT ID').fill('synthetic-season-003');await staleForm.getByLabel('Same-Level material NFT ID').press('Enter');
    await page.getByText('The target ownership, reveal or version changed. Refresh the selected asset.',{exact:true}).waitFor();
-   assert.equal(await page.getByRole('button',{name:'Record preview request',exact:true}).isDisabled(),true);assert.deepEqual({quotes,vaultReads},counts,'stale target must not issue a quote or private historical reads');
+   assert.equal(await page.getByRole('button',{name:'Confirm request',exact:true}).isDisabled(),true);assert.deepEqual({quotes,vaultReads},counts,'stale target must not issue a quote or private historical reads');
    await page.keyboard.press('Escape');await page.locator('#collection-dialog').waitFor({state:'hidden'});
    await page.locator('#wallet-button').click();await page.getByRole('button',{name:'Sign out',exact:true}).click();await page.locator('#wallet-dialog').waitFor({state:'hidden'});
    assert.equal(await page.getByRole('heading',{name:'Your collection',exact:true}).count(),0);

@@ -34,3 +34,23 @@ test('isolated population refuses overwrite and populates actual paginated APIs 
  assert.equal((await pages('/api/v1/markets')).length,90);assert.equal((await pages('/api/v1/collect/me/assets')).length,report.core.ownedAssets);assert.equal((await pages('/api/v1/stake/positions')).length,90);assert.equal((await pages('/api/v1/earn/me')).length,90);assert.equal((await pages('/api/v1/earn/claims')).length,89);
  const board=await get('/api/v1/performance/boards/airdrops?mode=peak&limit=100');assert.equal(board.items.length,100);assert(board.myRank.rank);assert(service.profile(report.wallet).valuationComplete);assert(service.board('airdrops',{wallet:report.examples.outsideTop100.wallet}).myRank.rank>100);
 });
+
+test('six-month history has 180 launches, seven editions and closed historic stages; launch mode starts empty',async t=>{
+ const parent=mkdtempSync(join(tmpdir(),'10x-qa-six-month-'));let db;t.after(()=>{db?.close();assert(parent.startsWith(resolve(tmpdir())+sep));rmSync(parent,{recursive:true,force:true});});
+ const directory=join(parent,'qa-six-month'),report=populateQa({directory,asOf,participantCount:150,mintCountPerSeason:5,historyDays:180});
+ assert.equal(report.historyDays,180);assert.equal(report.core.markets,180);assert.equal(report.core.finalizedBoards,180);
+ assert(report.performance.bytes<10*1024*1024);
+ const timeline=JSON.parse(readFileSync(join(directory,'timeline.json'),'utf8'));
+ assert.deepEqual(timeline.editions.map(e=>e.number),[0,1,2,3,4,5,6]);assert.equal(timeline.editions.filter(e=>e.current).length,1);
+ db=openDatabase(join(directory,'core.sqlite'));
+ const app=createApp(db,{clock:()=>Date.parse(asOf)});
+ const response=await app(new Request('http://localhost/api/v1/collect/inventories'));
+ const inventories=await response.json();
+ const historic=inventories.items.filter(i=>/^season-/.test(i.id));assert.equal(historic.length,6);
+ assert(historic.every(i=>i.stages.every(s=>s.status==='closed')));
+ const launchDirectory=join(parent,'qa-launch'),launch=populateQa({directory:launchDirectory,asOf,historyDays:0});
+ assert.equal(launch.performance.tokens,0);assert.equal(JSON.parse(readFileSync(join(launchDirectory,'timeline.json'),'utf8')).mode,'season-0');
+ assert.throws(()=>buildPerformanceScenario({asOf,historyDays:181}),/history days/);
+ const gaps=buildPerformanceScenario({asOf,historyDays:180,participantCount:150,missingPrices:true});
+ assert.equal(gaps.tokens.at(-1).observations.length,0);
+});

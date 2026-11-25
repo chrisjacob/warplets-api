@@ -22,7 +22,7 @@ const one=<T extends z.ZodType>(type:T,payload:unknown):z.output<T>=>
 
 export const sdk={
   policy:async(signal?:AbortSignal)=>one(policyModel,await client.getPolicy({signal})),
-  markets:(cursor?:string,signal?:AbortSignal)=>client.listMarkets({query:{...queryCursor(cursor),limit:25},signal}),
+  markets:(cursor?:string,signal?:AbortSignal,filters:{q?:string;status?:'all'|'active'|'campaign-ended'|'scheduled'}={})=>client.listMarkets({query:{...queryCursor(cursor),limit:25,...filters},signal}),
   market:async(id:string,signal?:AbortSignal)=>(await client.getMarket({path:{id},signal})).data,
   curve:async(signal?:AbortSignal)=>(await client.getFeeSchedule({signal})).data.points,
   profile:async(signal?:AbortSignal)=>{

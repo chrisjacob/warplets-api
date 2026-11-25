@@ -1,3 +1,4 @@
+import {products} from '../public-content.mjs';
 import {useExperience} from './experience';
 import type { Inventory, Stage, Asset } from './models';
 import { Facts, utc } from './common';
@@ -5,16 +6,16 @@ export function StageEvidence({stage:s}:{stage:Stage}){
   const {technical}=useExperience();
   if(!technical)return <p className="status-pill">{s.status==='awaiting-snapshot'?'Eligibility is unknown while opening checks finish':s.status!=='open'?'This stage is '+s.status:s.reservationStatus?.reason==='wallet-limit'?'You’ve used your mint for this stage':s.eligible===true?'Your wallet is eligible':s.eligible===false?'This wallet is not eligible':'Connect to check eligibility'}</p>;
   const eligibility=s.eligibility?.status??(s.status==='awaiting-snapshot'||s.eligible===null?'unknown':s.eligible?'eligible':'ineligible');
-  const reasons={'eligible':'Eligible for a local reservation','not-signed-in':'Sign in to check the wallet limit','opening-hold':'Opening is held for the published dependency','stage-scheduled':'The stage has not opened','stage-closed':'The stage has closed','sold-out':'No stage or shared inventory remains','snapshot-pending':'Complete opening-cut evidence is pending','not-on-list':'Wallet is absent from the fixed eligibility list','wallet-limit':'The per-stage wallet limit has been used','operator-only':'Founder allocations require the separate operator command','admission-unavailable':'Reservations are not yet available for this collection'};
+  const reasons={'eligible':'Eligible for a reservation','not-signed-in':'Sign in to check the wallet limit','opening-hold':'Opening is held for the published dependency','stage-scheduled':'The stage has not opened','stage-closed':'The stage has closed','sold-out':'No stage or shared inventory remains','snapshot-pending':'Complete opening-cut evidence is pending','not-on-list':'Wallet is absent from the fixed eligibility list','wallet-limit':'The per-stage wallet limit has been used','operator-only':'Founder allocations require the separate operator command','admission-unavailable':'Reservations are not yet available for this collection'};
   return <><Facts items={[
     ['Published',s.publishedAt?utc(s.publishedAt):'Unavailable'],['Terms digest',s.termsDigest??'Unavailable'],
     ['Eligibility',eligibility],['Evidence reason',s.eligibility?.reason??'No detailed evidence supplied'],
     ...(s.eligibility?.cutoffAt?[['Free-stage ownership cut',utc(s.eligibility.cutoffAt)] as [string,string]]:[]),
   ]}/>{s.reservationStatus&&<Facts items={[
-    ['Current reservation',s.reservationStatus.status==='available'?'Available for a local request':s.reservationStatus.status==='unknown'?'Availability is unknown':'Unavailable for a local request'],['Reservation reason',reasons[s.reservationStatus.reason]],
+    ['Current reservation',s.reservationStatus.status==='available'?'Available for a request':s.reservationStatus.status==='unknown'?'Availability is unknown':'Unavailable for a request'],['Reservation reason',reasons[s.reservationStatus.reason]],
     ['Stage reservations used',s.reservationStatus.used??'Unknown'],['Wallet slots remaining',s.reservationStatus.remaining??'Unknown'],
     ['Accepted opening-cut digest',s.reservationStatus.snapshotId??'Not recorded'],['Availability as of',utc(s.reservationStatus.asOf)],
-  ]}/>}<p>Fixed-list eligibility and current reservation availability are separate. All reservations remain local previews.</p>{s.type==='free'&&<p>Eligibility uses revealed Genesis Level 1 ownership at the published opening time. Later evidence does not move this cut.</p>}</>;
+  ]}/>}<p>Fixed-list eligibility and current reservation availability are separate.</p>{s.type==='free'&&<p>Eligibility uses revealed {products.genesis.name} Level 1 ownership at the published opening time. Later evidence does not move this cut.</p>}</>;
 }
 export function InventoryEvidence({inventory:i}:{inventory:Inventory}){
   if(!useExperience().technical)return <p>{i.counts.unsold.toLocaleString()} available · {i.counts.pending} awaiting reveal</p>;
@@ -22,7 +23,7 @@ export function InventoryEvidence({inventory:i}:{inventory:Inventory}){
     ['Priced-stage allocations',i.counts.paid],['Free-stage allocations',i.counts.free],['Founder-stage allocations',i.counts.founder],
     ['Awaiting fulfillment',i.counts.pending],['Slots available',i.counts.unsold],['Unminted reserve',i.counts.unmintedReserve],
     ['Concealed NFTs',i.concealedCount??'Unavailable'],['Source',i.source??'Unavailable'],['Projection as of',i.asOf?utc(i.asOf):'Unavailable'],
-  ]}/><p>Local allocations do not establish verified sales, payments or revenue. Later launch prices and Sydney launch hours remain unset.</p>
+  ]}/><p>Later launch prices and Sydney launch hours remain unset.</p>
   {i.initialLevelQuotas&&<details><summary>Initial Level quotas and public reveals</summary><Facts items={i.initialLevelQuotas.map((n,index)=>[
     'Level '+(index+1),n+' initial slots; '+(i.revealedLevelCounts?.[index]??'unavailable')+' publicly revealed NFTs'])}/>
     <p>Revealed counts describe current public Levels; upgrades can change them. Concealed Levels are withheld.</p></details>}

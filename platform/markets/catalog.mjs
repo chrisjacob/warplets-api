@@ -45,8 +45,10 @@ export function handleMarkets(db,request,now) {
     return row?json(view(row.body,now)):failure(404,'market_not_found','Unknown market.');
   }
   const params=url.searchParams;
-  if([...params.keys()].some(key=>!['limit','cursor'].includes(key)||params.getAll(key).length!==1))
+  if([...params.keys()].some(key=>!['limit','cursor','q','status'].includes(key)||params.getAll(key).length!==1))
     return failure(400,'invalid_filter','Unsupported or repeated query parameter.');
+  const q=(params.get('q')??'').trim().toLowerCase(),status=params.get('status')??'all';
+  if(q.length>64||!['all','active','campaign-ended','scheduled'].includes(status))return failure(400,'invalid_filter','Invalid search or campaign status.');
   const str=params.get('limit')??'25',limit=Number(str);
   if(!/^[1-9][0-9]{0,2}$/.test(str)||limit>100)return failure(400,'invalid_limit','Use a page size between 1 and 100.');
   const high=db.prepare('SELECT COALESCE(MAX(seq),0) AS n FROM market_fixtures').get().n;
@@ -54,22 +56,31 @@ export function handleMarkets(db,request,now) {
   if(params.has('cursor')){
     try {
       const value=params.get('cursor');
-      if(value.length>160||!/^[A-Za-z0-9_-]+$/.test(value))throw Error();
+      if(value.length>512||!/^[A-Za-z0-9_-]+$/.test(value))throw Error();
       const arr=JSON.parse(Buffer.from(value,'base64url').toString('utf8'));
-      if(!Array.isArray(arr)||arr.length!==3||!arr.every(n=>Number.isSafeInteger(n)&&n>=0))throw Error();
+      if(!Array.isArray(arr)||![3,5].includes(arr.length)||!arr.slice(0,3).every(n=>Number.isSafeInteger(n)&&n>=0))throw Error();
+      if(arr.length===5?(arr[3]!==q||arr[4]!==status):(q!==''||status!=='all'))throw Error();
       [watermark,at,before]=arr;
       if(watermark>high||at>now||before>watermark||before<1)throw Error();
     }catch{return failure(400,'invalid_cursor','Invalid catalog cursor.');}
   }
-  const rows=db.prepare('SELECT seq,body FROM market_fixtures WHERE seq<=? AND seq<? ORDER BY seq DESC LIMIT ?').all(watermark,before,limit+1);
+  const conditions=['seq<=?','seq<?'],values=[watermark,before];
+  if(q){conditions.push("instr(lower(json_extract(body,'$.symbol')||' '||json_extract(body,'$.ogSymbol')||' '||id),?)>0");values.push(q);}
+  const activated="json_extract(body,'$.activatedAt')";
+  if(status==='active'){conditions.push(activated+'<=? AND '+activated+'>?');values.push(iso(at),iso(at-Number(CAMPAIGN_SECONDS)*1000));}
+  if(status==='campaign-ended'){conditions.push(activated+'<=?');values.push(iso(at-Number(CAMPAIGN_SECONDS)*1000));}
+  if(status==='scheduled'){conditions.push(activated+'>?');values.push(iso(at));}
+  const rows=db.prepare('SELECT seq,body FROM market_fixtures WHERE '+conditions.join(' AND ')+' ORDER BY seq DESC LIMIT ?').all(...values,limit+1);
   const more=rows.length>limit,page=rows.slice(0,limit);
-  const nextCursor=more?Buffer.from(JSON.stringify([watermark,at,page.at(-1).seq])).toString('base64url'):null;
+  const nextCursor=more?Buffer.from(JSON.stringify(q||status!=='all'?[watermark,at,page.at(-1).seq,q,status]:[watermark,at,page.at(-1).seq])).toString('base64url'):null;
   return json({items:page.map(row=>view(row.body,at)),nextCursor,snapshotId:'fixture-'+watermark+'-'+at,asOf:iso(at)});
 }
 export const marketPaths={
   '/markets':{get:{operationId:'listMarkets',parameters:[
     {in:'query',name:'limit',schema:{type:'integer',minimum:1,maximum:100,default:25}},
-    {in:'query',name:'cursor',schema:{type:'string'}}],responses:{200:{description:'Local fixture page with stable as-of time and cursor'}}}},
+    {in:'query',name:'cursor',schema:{type:'string'}},
+    {in:'query',name:'q',schema:{type:'string',maxLength:64}},
+    {in:'query',name:'status',schema:{type:'string',enum:['all','active','campaign-ended','scheduled']}}],responses:{200:{description:'Local fixture page with stable as-of time and cursor'}}}},
   '/markets/{id}':{get:{operationId:'getMarket',parameters:[{in:'path',name:'id',required:true,schema:{type:'string'}}],responses:{200:{description:'Read-only market detail'},404:{description:'Unknown market'}}}},
   '/launch/fee-schedule':{get:{operationId:'getFeeSchedule',responses:{200:{description:'Fee basis points for elapsed seconds zero through ninety'}}}}
 };

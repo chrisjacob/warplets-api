@@ -1,5 +1,7 @@
 # Financial and production release gates
 
+> Current product direction: [24 November brand alignment](../spec/BRAND_ALIGNMENT_DECISION_2026-11-24.md) supersedes conflicting branding and first-launch theme in older records. Use the [current roadmap](../spec/ROADMAP.md) for launch sequence. Economic and financial release gates remain in force.
+
 **Every R stage is outside overnight authority.** B-task completion authorizes neither funds nor deployment. All B work remains local: no remote Cloudflare writes/resource provisioning, signed transactions, service purchase, token funding, broadcaster or new authority/security probes. Optional observations use public, free, uncredentialed reads only. Missing access stays missing and does not prevent ordinary offline implementation.
 
 This register specifies evidence and decisions for a later separately authorized release review. It is not a queue to start when B tasks finish. Production deployment remains prohibited until the founder explicitly authorizes a concrete reviewed release. No standing threshold, proposed actor or approval field below grants that authorization.

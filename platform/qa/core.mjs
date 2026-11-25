@@ -10,14 +10,14 @@ import {LEVEL_QUOTAS} from '../domain/collections/policy.mjs';
 import {DAY,QA_SUPPLY,qaAddress} from './scenario.mjs';
 const iso=ms=>new Date(ms).toISOString();
 /** Writes only into the fresh database supplied by the isolated QA command. */
-export function seedCoreScenario(db,snapshot,{wallet,seed='three-month-v1',mintCountPerSeason=60}={}){
+export function seedCoreScenario(db,snapshot,{wallet,seed='three-month-v1',mintCountPerSeason=60,historyDays=90}={}){
  const now=Date.parse(snapshot.asOf),demo=seedDemo(db,{wallet,now}),largeHolder=snapshot.participants[0].wallet;
  if(!Number.isInteger(mintCountPerSeason)||mintCountPerSeason<1||mintCountPerSeason>100)throw Error('Mint fixture bound exceeded.');
  const seasons=[];
- for(let offset=3;offset>=1;offset--){
-  const d=new Date(now),start=Date.UTC(d.getUTCFullYear(),d.getUTCMonth()-offset,1),id='qa-season-'+iso(start).slice(0,7),opens=Math.max(start+3*DAY,now-90*DAY),stageId='synthetic-history';
+ for(let offset=Math.ceil(historyDays/30);offset>=1;offset--){
+  const d=new Date(now),start=Date.UTC(d.getUTCFullYear(),d.getUTCMonth()-offset,1),id=historyDays===180?'season-'+(6-offset):'qa-season-'+iso(start).slice(0,7),opens=Math.max(start+3*DAY,now-historyDays*DAY),stageId='synthetic-history';
   createCollection(db,{id,kind:'season',seasonStart:start});
-  publishCollectionStage(db,{inventoryId:id,stage:{id:stageId,type:'whitelist',publishedAt:opens-2*DAY,opensAt:opens,closesAt:now+7*DAY,allocation:1000,priceLamports:'100000000',costLamports:'5000',wallets:[wallet,largeHolder],walletLimit:mintCountPerSeason}},now);
+  publishCollectionStage(db,{inventoryId:id,stage:{id:stageId,type:'whitelist',publishedAt:opens-2*DAY,opensAt:opens,closesAt:historyDays===180?opens+7*DAY:now+7*DAY,allocation:1000,priceLamports:'100000000',costLamports:'5000',wallets:[wallet,largeHolder],walletLimit:mintCountPerSeason}},now);
   seasons.push({id,startsAt:iso(start),levels:LEVEL_QUOTAS.flatMap((count,i)=>Array(count).fill(i+1))});
   for(let n=0;n<mintCountPerSeason;n++){
    const owner=n<Math.floor(mintCountPerSeason*.3)?wallet:largeHolder,at=opens+n*4000,assetId=id+'-synthetic-'+String(n).padStart(3,'0');
@@ -31,7 +31,7 @@ export function seedCoreScenario(db,snapshot,{wallet,seed='three-month-v1',mintC
  for(const token of snapshot.tokens){
   if(token.id==='demo-att')continue;
   const activationMs=Date.parse(token.launchAt);
-  importMarket(db,{id:token.id,symbol:token.symbol,ogSymbol:'SYNTHOG',attMint:qaAddress(seed,'att-'+token.id),ogMint:qaAddress(seed,'og-'+token.id),poolAddress:qaAddress(seed,'pool-'+token.id),activatedAt:token.launchAt});
+  importMarket(db,{id:token.id,symbol:token.symbol,ogSymbol:historyDays===180?token.symbol.replace(/-ATT$/,''):'SYNTHOG',attMint:qaAddress(seed,'att-'+token.id),ogMint:qaAddress(seed,'og-'+token.id),poolAddress:qaAddress(seed,'pool-'+token.id),activatedAt:token.launchAt});
   recordVaultManifest(db,{marketId:token.id,originalUnits:QA_SUPPLY,seasons:seasons.filter(s=>Date.parse(s.startsAt)<=activationMs)});
   seedFarm(db,{marketId:token.id,originalUnits:QA_SUPPLY,treasuryFeeBps:0});
   observeFarm(db,{id:'synthetic-deposit-'+token.id,marketId:token.id,kind:'deposit',at:token.launchAt,wallet,amount:String(BigInt(10000+activationMs%1000)*1000000n)},now);

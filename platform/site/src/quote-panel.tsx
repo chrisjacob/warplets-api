@@ -1,3 +1,4 @@
+import {brand} from '../public-content.mjs';
 import {useExperience} from './experience';
 import { Capability, useRuntimeQuery } from './capabilities';
 import { useEffect,useState } from 'react';
@@ -66,8 +67,8 @@ function SwapForm({marketId,symbol,ogSymbol,available,services}:{marketId:string
       <button disabled={quote.isPending}>Preview swap quote</button></fieldset>
       {(inputError||quote.error)&&<Signal>{inputError||friendlyError(quote.error)}</Signal>}
     </form>
-    {quote.data&&<section className="quote-result" aria-label="Local swap quote">
-      <h3>{expired?'Quote expired':'Local exact-input quote'}</h3>
+    {quote.data&&<section className="quote-result" aria-label="Swap quote">
+      <h3>{expired?'Quote expired':'Exact-input quote'}</h3>
       <Facts items={[
         ['Input',tokenUnits(quote.data.inputUnits,quote.data.inputDecimals)+' '+inputSymbol],
         ['Expected output',tokenUnits(quote.data.expectedOutputUnits,quote.data.outputDecimals)+' '+outputSymbol],
@@ -79,14 +80,14 @@ function SwapForm({marketId,symbol,ogSymbol,available,services}:{marketId:string
         ...(quote.data.effectiveBuyFdvUsdMicros?[['Effective buy FDV',dollarsMicros(quote.data.effectiveBuyFdvUsdMicros)]] as [string,string][]:[]),
         ['Evidence slot',String(quote.data.contextSlot)],['Expires',quote.data.expiresAt.replace('T',' ').replace('Z',' UTC')],
       ]}/>
-      <p>Local fixture amounts include the trading fee. Network and token-account costs await a transaction simulation.</p>
+      <p>Quoted amounts include the trading fee. Network and token-account costs await a transaction simulation.</p>
       {expired&&<Signal>Refresh the quote with current evidence before reviewing its amounts.</Signal>}
     </section>}
   </>;
 }
 function SupportedQuotePanel({marketId,symbol,ogSymbol,services}:{marketId:string;symbol:string;ogSymbol:string;services:QuoteServices}){
   const available=useRuntimeQuery('/api/v1/markets/{id}/quote-status',{queryKey:['quote-status',marketId],staleTime:0,queryFn:({signal})=>services.availability(marketId,signal)});
-  return <Panel title="Swap quote preview"><Loaded query={available}>{a=>a.available?
+  return <Panel title="Swap quote preview"><p>{brand.risk}</p><Loaded query={available}>{a=>a.available?
     <SwapForm marketId={marketId} symbol={symbol} ogSymbol={ogSymbol} available={a} services={services}/>
     :<><p>A current pool and original-token price observation is required to quote this market.</p>
       <button onClick={()=>void available.refetch()} disabled={available.isFetching}>Check quote availability</button></>}</Loaded></Panel>;

@@ -24,15 +24,15 @@ export async function checkRuntimeProfiles({browser,origin}){
     });
     try{
       await page.goto(origin+'/collect');
-      await page.getByRole('heading',{name:'NFTs',exact:true}).waitFor();
+      await page.getByRole('heading',{name:'Collect',exact:true}).waitFor();
       await page.locator('#view[aria-busy=false]').waitFor();
       await page.getByText('This feature is unavailable in the connected runtime.',{exact:true}).first().waitFor();
       assert.equal(await page.getByText('No published stages',{exact:true}).count(),0);
-      assert.equal(await page.getByText('No local collection assets',{exact:true}).count(),0);
+      assert.equal(await page.getByText('No collectibles yet',{exact:true}).count(),0);
       assert.ok(!calls.some(path=>path.startsWith('/api/v1/collect/')),calls.join(','));
       await page.locator('#wallet-button').click();
       await page.getByText('Verified Solana wallet: fixture-worker-wallet',{exact:true}).waitFor();
-      assert.equal(await page.getByText('Local inbox settings',{exact:true}).count(),0);
+      assert.equal(await page.getByText('Inbox settings',{exact:true}).count(),0);
       assert.equal(await page.getByText('Find a transaction receipt',{exact:true}).count(),0);
       assert.ok(!calls.some(path=>/notifications|transactions/.test(path)));
       await page.keyboard.press('Escape');
@@ -61,7 +61,7 @@ export async function checkRuntimeProfiles({browser,origin}){
   try{
     await failed.goto(origin+'/collect');
     await failed.getByText('Runtime capabilities are unavailable. Retry shortly to refresh support.',{exact:true}).first().waitFor();
-    await failed.getByRole('heading',{name:'Genesis',exact:true}).waitFor();
+    await failed.getByRole('heading',{name:'10X NFT',exact:true}).waitFor();
     assert.ok(calls.includes('/api/v1/policy'));
     assert.deepEqual([...new Set(calls)].sort(),['/api/v1/capabilities','/api/v1/policy']);
     assert.equal(await failed.getByText('No published stages',{exact:true}).count(),0);

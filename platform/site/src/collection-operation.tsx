@@ -21,7 +21,7 @@ export function CollectionOperationFairness({operation,wallet}:{operation:Receip
  if(operation.owner!==wallet)return null;
  if(!capability.allowed)return <p>Fairness verification is unavailable in this runtime.</p>;
  const value=view?.identity===identity?view.value:null;
- return <section aria-label="Recorded fairness"><h4>Recorded fairness</h4><p>Local fixture evidence only. Financial execution is not applicable. Provider selection and production custody remain unverified.</p>
+ return <section aria-label="Recorded fairness"><h4>Recorded fairness</h4>
   <button type="button" onClick={()=>void load()} disabled={busy}>{busy?'Checking retained evidence…':value?'Refresh fairness evidence':'Inspect fairness evidence'}</button>
   {error&&<Signal>{error}</Signal>}{value&&<><p>Request: {value.requestState}. Evidence: {value.evidenceState}.</p><p className="wrap-anywhere">Opaque commitment: {value.commitment}</p>
   {value.disclosure==='sealed'?<p>Transcript sealed. Assignment and all required reveal evidence must be retained before disclosure.</p>:<><p>Recorded draw verified. This does not verify the complete policy, production ordering or custody. Reserved future assets are withheld.</p><details><summary>Inspect revealed transcript</summary><pre style={{whiteSpace:'pre-wrap',overflowWrap:'anywhere'}}>{JSON.stringify(value.transcript,null,2)}</pre></details></>}</>}

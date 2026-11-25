@@ -1,3 +1,4 @@
+import {presentationName} from './presentation-name';
 import {useEffect,useId,useRef,useState} from 'react';
 import {Panel,compact,utc} from './common';
 import {dollarsMicros,tokenUnits} from './amounts';
@@ -41,7 +42,7 @@ export function earnedMilestones(profile:Pick<PerformanceGrowthProps,'allocation
 
 /** Download-only, self-contained image. All dynamic values enter escaped text nodes. */
 export function buildPerformanceCardSvg(profile:PerformanceGrowthProps){
- const label=safeText(profile.label,160),wallet=safeText(profile.wallet,128),asOf=safeTime(profile.asOf);
+ const label=safeText(presentationName(profile.label),160),wallet=safeText(profile.wallet,128),asOf=safeTime(profile.asOf);
  if(!/^[A-Za-z0-9._:-]+$/.test(wallet))throw Error('Invalid card wallet.');
  const peak=cardDollars(profile.peakUsdMicros),market=cardDollars(profile.marketUsdMicros);
  const tokens=safeCount(profile.tokenCount,5000),awards=safeCount(profile.allocationCount,100000),days=safeCount(profile.activeDays,100000);
@@ -49,10 +50,10 @@ export function buildPerformanceCardSvg(profile:PerformanceGrowthProps){
  const displayLabel=[...label].length>40?[...label].slice(0,39).join('')+'…':label;
  const text=(x:number,y:number,size:number,fill:string,value:string,weight=400)=>`<text x="${x}" y="${y}" font-size="${size}" font-weight="${weight}" fill="${fill}">${xml(value)}</text>`;
  return `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="card-title card-description">
-<title id="card-title">10X.MEME synthetic reward snapshot</title><desc id="card-description">Synthetic QA illustration. Peak and Market are theoretical valuations of lifetime token awards, not cash proceeds or personal trading profit.</desc>
+<title id="card-title">10X.MEME reward snapshot</title><desc id="card-description">Peak and Market are theoretical valuations of lifetime token awards, not cash proceeds or personal trading profit.</desc>
 <rect width="1200" height="630" rx="24" fill="#090e0c"/><path d="M850 0h350v215Z" fill="#b8f66c" opacity=".12"/>
 <g font-family="Arial,Helvetica,sans-serif">
-${text(60,70,34,'#f1f8f3','10X.MEME',900)}<rect x="910" y="35" width="230" height="46" rx="23" fill="#b8f66c"/>${text(934,65,20,'#10220f','SYNTHETIC QA',700)}
+${text(60,70,34,'#f1f8f3','10X.MEME',900)}<rect x="910" y="35" width="230" height="46" rx="23" fill="#b8f66c"/>${text(934,65,20,'#10220f','REWARDS',700)}
 ${text(60,148,Math.min(38,Math.floor(1040/[...displayLabel].length)),'#f1f8f3',displayLabel,700)}${text(60,186,20,'#a8bdb0',compact(wallet)+' · Snapshot '+utc(asOf))}
 ${text(60,241,19,'#a8bdb0','THEORETICAL LIFETIME AWARDS',700)}
 <rect x="60" y="263" width="525" height="163" rx="18" fill="#173422"/><rect x="610" y="263" width="530" height="163" rx="18" fill="#121d17" stroke="#2b4033"/>
@@ -61,7 +62,8 @@ ${text(638,307,20,'#a8bdb0','Market valuation',700)}${text(638,376,market.length
 ${text(60,476,22,'#f1f8f3',tokens.toLocaleString('en-US')+' token types · '+awards.toLocaleString('en-US')+' dated awards · '+days.toLocaleString('en-US')+' award days',700)}
 ${text(60,532,20,'#a8bdb0','Peak uses historical highs. Market uses snapshot prices.')}
 ${text(60,562,20,'#a8bdb0','Actual sale values depend on liquidity and fees. Awarded tokens may already be claimed.')}
-${text(60,599,17,'#a8bdb0','Synthetic illustration only · No real funds or verified achievement')}
+
+
 </g></svg>`;
 }
 
@@ -77,21 +79,21 @@ export function PerformanceGrowth(props:PerformanceGrowthProps){
   let url:string|undefined;
   try{
    const svg=buildPerformanceCardSvg(props);url=URL.createObjectURL(new Blob([svg],{type:'image/svg+xml;charset=utf-8'}));
-   const link=document.createElement('a');link.href=url;link.download='10x-synthetic-rewards-'+props.asOf.slice(0,10)+'.svg';link.hidden=true;document.body.append(link);
+   const link=document.createElement('a');link.href=url;link.download='10x-rewards-'+props.asOf.slice(0,10)+'.svg';link.hidden=true;document.body.append(link);
    try{link.click();}finally{link.remove();}
    const objectUrl=url;downloads.current.set(objectUrl,window.setTimeout(()=>{URL.revokeObjectURL(objectUrl);downloads.current.delete(objectUrl);},1000));
    setMessage('Card prepared. Your browser handles the download.');
   }catch{if(url)URL.revokeObjectURL(url);setMessage('The card could not be prepared. Check that this snapshot has complete pricing.');}
  };
  return <Panel title="Reward milestones">
-  <p className="fixture-label">Synthetic QA history · {utc(props.asOf)}</p>
+  <p className="muted">Updated {utc(props.asOf)}</p>
   <div className="profile-tokens">
    <article><h3>Earned along the way</h3>{milestones.length?<ul className="review-criteria" aria-label="Earned milestones">{milestones.map(milestone=><li key={milestone.id}><strong>{milestone.title}</strong><p>{milestone.detail}</p></li>)}</ul>:<p>Milestones appear after the first award in this history.</p>}<p className="muted">Milestones describe past awards. They do not unlock extra rewards.</p></article>
    <article><h3>Recent awards</h3>{history.length?<ul className="recent-awards">{history.map(award=><li key={award.id}><div><strong>{tokenUnits(award.awardedUnits,award.decimals)} {award.symbol}</strong><p>{Object.hasOwn(categoryNames,award.category)?categoryNames[award.category]:'Reward'} · <time dateTime={award.awardedAt}>{utc(award.awardedAt)}</time></p></div></li>)}</ul>:<p>No awarded tokens in this snapshot yet.</p>}</article>
   </div>
   {props.historyIncomplete&&<p>Accrued staking rewards count toward valuations. They are omitted from dated history because their individual award dates are unavailable.</p>}
-  <h3>Keep a snapshot</h3><p id={noticeId}>{priced?'Download a labelled synthetic card with both Peak and Market values. This saves a file; it does not post anywhere.':'A card is available when both snapshot values have complete pricing. Missing values are not shown as zero.'}</p>
-  <button type="button" disabled={!priced} aria-describedby={noticeId} onClick={download}>Download synthetic card</button>
+  <h3>Keep a snapshot</h3><p id={noticeId}>{priced?'Download a reward card with both Peak and Market values.':'A card is available when both snapshot values have complete pricing. Missing values are not shown as zero.'}</p>
+  <button type="button" disabled={!priced} aria-describedby={noticeId} onClick={download}>Download reward card</button>
   <p role="status" aria-live="polite">{message}</p>
  </Panel>;
 }

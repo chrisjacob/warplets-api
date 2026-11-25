@@ -1,5 +1,7 @@
 # Overnight execution instructions
 
+> Current product direction: [24 November brand alignment](../spec/BRAND_ALIGNMENT_DECISION_2026-11-24.md) supersedes conflicting branding and first-launch theme in older records. Use the [current roadmap](../spec/ROADMAP.md) for launch sequence. Economic and financial release gates remain in force.
+
 ## Authority and operating envelope
 
 The execution run may implement, test, refactor within task boundaries, create local fixtures, prepare review artifacts, and commit/push milestones on the isolated feature branch. Existing project instructions remain authoritative. The founder is unavailable overnight, so routine implementation choices follow this blueprint.

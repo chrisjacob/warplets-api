@@ -20,12 +20,13 @@ export const pretty=(value:number)=>new Intl.NumberFormat('en-US').format(value)
 export function usePageMeta(title:string,description:string,canonicalPath:string,publicPage=false){
   useEffect(()=>{
     document.title=title+' · 10X.MEME';
+    document.head.querySelector('meta[property="og:image"]')?.remove();
     const canonical=new URL(canonicalPath,location.origin).href;
     const entries:[string,string,string][]=[
       ['name','description',description],['name','robots',publicPage?'noindex, follow':'noindex, nofollow'],
       ['property','og:title',document.title],['property','og:description',description],
-      ['property','og:url',canonical],['property','og:type','website'],['property','og:image',location.origin+'/social-card.png'],
-      ['name','twitter:card','summary_large_image'],
+      ['property','og:url',canonical],['property','og:type','website'],
+      ['name','twitter:card','summary'],
     ];
     for(const [attribute,key,value] of entries){
       const tag=document.head.querySelector<HTMLMetaElement>('meta['+attribute+'="'+key+'"]')??document.createElement('meta');
@@ -48,6 +49,13 @@ export function Panel({title,children,className='',technicalOnly=false}:{title?:
   const {technical}=useExperience();
   if(technicalOnly&&!technical)return null;
   return <section className={'panel '+className}>{title && <h2>{title}</h2>}{children}</section>;
+}
+export function Disclosure({title,id,children}:{title:string;id?:string;children:ReactNode}){
+  const {technical}=useExperience(),[opened,setOpened]=useState(technical);
+  useEffect(()=>setOpened(technical),[technical]);
+  return <details className="disclosure" id={id} open={opened} onToggle={e=>setOpened(e.currentTarget.open)}>
+    <summary>{title}</summary>{opened&&<div className="disclosure-content">{children}</div>}
+  </details>;
 }
 export function Empty({title,children}:{title:string;children?:ReactNode}){
   return <div className="empty"><h3>{title}</h3>{children && <p>{children}</p>}</div>;
@@ -135,6 +143,6 @@ export async function privateIntentKey(wallet:string,action:string,body:unknown)
 }
 
 export function CategoryChips(){
- const items=[['tokens','Tokens','M4 7h16M4 12h16M4 17h16'],['nfts','NFTs','M4 4h16v16H4zM4 16l5-5 4 4 3-3 4 4'],['airdrops','Airdrops','M12 3v12m-5-5 5 5 5-5M4 17v4h16v-4'],['stake','Stake','M4 20h16M6 16V8m6 8V4m6 12v-6'],['earn','Earn','m13 2-9 12h7l-1 8 10-12h-7z']] as const;
+ const items=[['tokens','Tokens','M4 7h16M4 12h16M4 17h16'],['nfts','NFTs','M4 4h16v16H4zM4 16l5-5 4 4 3-3 4 4'],['airdrops','Rewards','M12 3v12m-5-5 5 5 5-5M4 17v4h16v-4'],['stake','Stake','M4 20h16M6 16V8m6 8V4m6 12v-6'],['earn','Earn','m13 2-9 12h7l-1 8 10-12h-7z']] as const;
  return <nav className="category-chips" aria-label="Explore categories">{items.map(([path,label,icon])=><Link key={path} to={'/'+path as '/tokens'}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={icon}/></svg>{label}</Link>)}</nav>;
 }

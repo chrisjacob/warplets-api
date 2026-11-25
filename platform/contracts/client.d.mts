@@ -46,7 +46,7 @@ export interface PlatformClient {
   revokeSession(options?: { headers?: HeadersInit; signal?: AbortSignal; idempotencyKey?: string }): Promise<{ "data": { "revoked": boolean }; "meta": Meta }>;
   getProfile(options?: { headers?: HeadersInit; signal?: AbortSignal; idempotencyKey?: string }): Promise<{ "data": Profile; "meta": Meta }>;
   getWallets(options?: { headers?: HeadersInit; signal?: AbortSignal; idempotencyKey?: string }): Promise<{ "items": Array<{ "address": string; "chain": "solana" }>; "snapshotId": string; "meta": Meta }>;
-  listMarkets(options?: { headers?: HeadersInit; signal?: AbortSignal; idempotencyKey?: string; query?: { "limit"?: number; "cursor"?: string } }): Promise<{ "items": Array<Market>; "nextCursor": string | null; "snapshotId": string; "meta": Meta }>;
+  listMarkets(options?: { headers?: HeadersInit; signal?: AbortSignal; idempotencyKey?: string; query?: { "limit"?: number; "cursor"?: string; "q"?: string; "status"?: "all" | "active" | "campaign-ended" | "scheduled" } }): Promise<{ "items": Array<Market>; "nextCursor": string | null; "snapshotId": string; "meta": Meta }>;
   getMarket(options: { headers?: HeadersInit; signal?: AbortSignal; idempotencyKey?: string; path: { "id": string } }): Promise<{ "data": Market; "meta": Meta }>;
   getFeeSchedule(options?: { headers?: HeadersInit; signal?: AbortSignal; idempotencyKey?: string }): Promise<{ "data": { "points": Array<FeePoint>; "unit": string; "clock": string }; "meta": Meta }>;
   listLaunchPlans(options?: { headers?: HeadersInit; signal?: AbortSignal; idempotencyKey?: string }): Promise<{ "items": Array<unknown>; "terms": { "mode"?: "offline-validation"; "executable"?: false; "maxEvidenceAgeSeconds"?: number }; "snapshotId": string; "meta": Meta }>;

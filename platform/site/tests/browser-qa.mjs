@@ -36,11 +36,11 @@ try {
     const errors=[];
     page.on('pageerror',e=>errors.push(e.message));
     await page.route('**/*',route=>new URL(route.request().url()).origin===origin?route.continue():route.abort());
-    for(const section of ['Tokens','NFTs','Airdrops','Stake','Earn']){
-      await page.goto(origin+'/'+section.toLowerCase());
+    for(const [path,section] of [['tokens','Tokens'],['nfts','Collect'],['airdrops','Rewards'],['stake','Stake'],['earn','Earn']]){
+      await page.goto(origin+'/'+path);
       await page.getByRole('heading',{name:section,level:1}).waitFor();
       await page.locator('#view[aria-busy=false]').waitFor();
-      assert.equal(await page.locator('nav [aria-current=page]').getAttribute('href'),'/'+section.toLowerCase());
+      assert.equal(await page.locator('.site-header [aria-current=page]').getAttribute('href'),(['Stake','Earn'].includes(section)?'/earn':'/'+path));
       assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'Overflow: '+width+' '+section);
       assert.equal(await page.getByText('This response did not match the expected data format.').count(),0,'API shape: '+section);
       if(section==='Tokens'){
@@ -69,8 +69,8 @@ try {
   const details=await browser.newPage();
   for(const [path,heading,publicText] of [
     ['/markets/browser-att','BROWSERATT / BROWSEROG','Campaign status'],
-    ['/collections/genesis','Genesis','10,000'],
-    ['/seasons/browser-season','Season · browser-season','Season start'],
+    ['/collections/genesis','10X NFT','10,000'],
+    ['/seasons/browser-season','10X Cards · browser-season','Season start'],
     ['/nfts/browser-s1','browser-s1','Revealed metadata'],
     ['/earn/2026-11-01','Daily content scores','Awaiting final scores'],
   ]){

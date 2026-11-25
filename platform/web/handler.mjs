@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises';
 
 const pages = new Set(['/', '/markets', '/vault', '/stake', '/earn', '/collect']);
 const files = new Map([
+  ['/site/public-content.mjs', ['../site/public-content.mjs', 'text/javascript']],
   ['/assets/10x.css', ['10x.css', 'text/css']],
   ['/assets/client.mjs', ['client.mjs', 'text/javascript']],
   ['/assets/views.mjs', ['views.mjs', 'text/javascript']],

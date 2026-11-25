@@ -1,6 +1,16 @@
 # 10X browser client
 
-This standalone React 19 / TypeScript application reads the versioned 10X API through its generated client. TanStack Router owns the Home, Tokens, NFTs, Airdrops, Stake and Earn destinations and their shareable search parameters, TanStack Query manages remote state, and Vite with Tailwind v4 builds same-origin static assets. Native dialogs and form controls keep keyboard behavior in the platform. Wallet Standard discovery and an injected Solana fallback support message signing for local authentication.
+## Brand and launch presentation
+
+[The 24 November decision](../spec/BRAND_ALIGNMENT_DECISION_2026-11-24.md) governs current names and launch hierarchy. Shared typed presentation lives in `public-content.mjs` / `public-content.d.mts`. It does not control financial actions. `src/brand.tsx` composes the first $10X meme, Season 0 plan, FAQ and roadmap; `brand-art.tsx` provides provisional typographic studies.
+
+Home, Tokens, Collect and Earn are the primary navigation. Collect reuses `/nfts`; Rewards is a wallet-adjacent utility at `/airdrops`. Attention and Earn share one participation screen. Stake and rankings remain contextual links; all legacy paths and query links still work. No new $10X API market is fabricated. Season 0 pricing is informational; local test stages retain their recorded SOL prices. Actual token tickers are preserved even with the optional reference-image overlay.
+
+Per the owner’s 24 November consumer review, the private app-local interface omits local/test/demo disclaimers, including the shell, snapshots and exported reward card. Internal data provenance and execution controls remain intact. Legacy Base Warplet art and provenance remain archived, not presented as the permanent collection. The old social PNG is withheld from metadata pending an approved replacement; the existing generic favicon is retained.
+
+Validation: `pnpm test`, `pnpm build`, and the existing `tests/browser-qa.mjs` with an installed browser. `tests/brand-alignment.spec.mjs` covers identity preservation, missing dates, explicit timezones and concealed artwork. No lint or format script is configured in this package; use TypeScript, tests, build and `git diff --check`.
+
+This standalone React 19 / TypeScript application reads the versioned 10X API through its generated client. TanStack Router owns the Home, Tokens, NFTs, Airdrops, Attention and Leaderboard destinations, with retained Stake and Earn routes and their shareable search parameters, TanStack Query manages remote state, and Vite with Tailwind v4 builds same-origin static assets. Native dialogs and form controls keep keyboard behavior in the platform. Wallet Standard discovery and an injected Solana fallback support message signing for local authentication.
 
 From this directory:
 
@@ -40,10 +50,27 @@ Offline operator whitelist preparation is available through `node platform/colle
 
 ## Populated performance review
 
-The optional local performance source supplies a shared top-three Home preview and top-100 category boards, defaulting to Peak with a Market toggle. Boards display ten ranks per page; connected users retain their own rank beyond the top100. Public profiles separate lifetime awarded quantities and theoretical valuations from snapshot claimability, show twenty token types per page and include bounded award history, earned milestones and a labelled synthetic SVG download. No PnL is inferred.
+The optional local performance source supplies top-100 category boards inside expandable sections, defaulting to Market with a Peak toggle. Home omits ranking previews. Boards display ten ranks per page; connected users retain their own rank beyond the top100. Public profiles separate lifetime awarded quantities and theoretical valuations from snapshot claimability, show twenty token types per page and include bounded award history, earned milestones and a labelled synthetic SVG download. No PnL is inferred.
 
 Performance and sample-scoring requests wait for explicit optional runtime capabilities. Absent sources or failed discovery show unavailable states without issuing unsupported requests. The default Worker profile does not expose these synthetic extensions. The populated Node runtime also supplies their optional OpenAPI paths; no generated financial contracts change.
 
 Consumer lists start small: ten tokens, six NFTs/receipts, six Airdrops/Stake rows and five Earn submissions/awards. Show more reveals the rest of the current server page; server pagination and the technical view remain available. The five category pages share Explain → Participate → Compete structure.
 
 See [the populated review guide](../validation/THREE_MONTH_QA_GUIDE_2026-11-13.md), [the generator](../qa/README.md), [valuation rules](../performance/VALUATION_CONTRACT.md) and [AI review boundaries](../ai-review/README.md). `tests/performance-qa.mjs` runs the populated acceptance with installed Playwright; `BROWSER_ENGINE=webkit` uses the installed WebKit build without `BROWSER_EXE`.
+
+The 25 November consumer pass replaces the long homepage with a featured meme, Season 0 Cards and compact discovery. Product help, the roadmap and community rankings use lazy expandable sections. Ranking views default to Market; Peak remains selectable. The permanent and seasonal collectible offers use distinct brand artwork; collection metadata and mechanics are unchanged.
+
+
+The second 25 November pass adopts a sports-campaign visual direction: original action photography, self-hosted Barlow Condensed display fonts, charcoal/lime contrast and a light Season 0 feature. `brand.css` owns the shared treatment; `home.tsx` owns the campaign composition. [Asset provenance](src/assets/brand/provenance.json) records the built-in image-generation prompt and font sources; `OFL.txt` accompanies the fonts. PNG/TTF assets are explicitly allowlisted by the adapter, with same-origin font CSP. Brand browser checks cover 320/390/768/1440 px, loaded hero/fonts, navigation, disclosures, pricing and keyboard behavior.
+
+
+## Six-month catalogue review
+
+The app-local QA host can supply an explicit timeline manifest. `src/timeline.tsx` validates it and provides the timeline selector, current-edition feature, original-meme catalogue and searchable six-item season archive. Without that manifest the app retains its Season 0 launch presentation. Future editorial concepts never substitute for on-chain token identity or asset reveal metadata.
+
+Tokens supports full-catalogue search and active/ended/upcoming filters through optional `q` and `status` parameters on the existing market read. Filter values are carried in navigation and bound to the stable pagination cursor. Earn queries active campaigns directly so newer history cannot hide an eligible campaign on another catalogue page. Contract declarations are regenerated from the OpenAPI source; no economic rules change.
+
+The hero now uses `src/assets/brand/warplet-stratosphere.png`, generated from the existing Warplet reference with the built-in image tool. Its prompt and reference are in `provenance.json`. The Warplet is campaign artwork, separate from permanent NFT metadata.
+
+
+The owner adopted the exponential brand architecture on 25 November. Hero copy now follows belief (“The future is exponential.”), mindset (“Think 10X. Not 10%.”) and rallying cry (“10X Everything.”). The shared mission is “Unlock exponential potential.” The purple Warplet reference supplied by the owner replaces the earlier green character; `warplet-exponential.png` is the active hero, with its prompt/reference recorded in the asset provenance file. Both launch and six-month views use this direction.

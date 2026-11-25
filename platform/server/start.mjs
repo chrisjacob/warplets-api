@@ -27,7 +27,9 @@ export function createLocalServer(handler) {
       const request=new Request('http://'+req.headers.host+target,{method:req.method,headers:req.headers,
         body:bytes?Buffer.concat(chunks):undefined});
       const response=await handler(request,req.socket.remoteAddress);
-      res.writeHead(response.status,Object.fromEntries(response.headers));
+      const responseHeaders=Object.fromEntries(response.headers),cookies=response.headers.getSetCookie();
+      if(cookies.length)responseHeaders['set-cookie']=cookies;
+      res.writeHead(response.status,responseHeaders);
       res.end(Buffer.from(await response.arrayBuffer()));
     } catch {
       const response = failure(500,'internal_error','Request could not be completed.');

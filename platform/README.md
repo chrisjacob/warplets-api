@@ -1,5 +1,13 @@
 # 10X.MEME platform
 
+The adopted brand manifesto is **The future is exponential. Think 10X. Not 10%. 10X Everything.** Mission: **Unlock exponential potential.** The [latest architecture](spec/BRAND_ALIGNMENT_DECISION_2026-11-24.md#adopted-brand-architecture--25-november-2026) supersedes earlier provisional mission/tagline copy.
+
+## Current product direction — 24 November 2026
+
+10X is a culture-led memecoin brand. The core product is the monthly **10X Meme**, beginning with **10X ($10X)**. **10X NFT** is the permanent 10,000 collection, **Attention Tokens** are separate campaign assets around selected memes, and **10X Cards** is the provisional public name for 1,000 seasonal collectibles per edition.
+
+Start with a standalone Season 0 beta: planned US$1 card mint, 90% below intended US$10 standard pricing. The beta and later launches remain unscheduled. Working previews are demonstration data; financial execution is disabled. See the [canonical decision](spec/BRAND_ALIGNMENT_DECISION_2026-11-24.md), [roadmap and follow-up queue](spec/ROADMAP.md) and [implementation report](validation/BRAND_ALIGNMENT_2026-11-24.md). Older dated documents retain their historical context.
+
 The [implementation blueprint](blueprint/README.md) provides the ordered task queue, acceptance cases and [overnight kickoff](blueprint/KICKOFF.md) for continuing this local implementation. It preserves the PRD and separates implementation from financial release approval.
 
 Isolated API-first implementation of the November PRD. Run from this directory with Node 22.16 or later. No installation, wallet, RPC key or provider account is needed.

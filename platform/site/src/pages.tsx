@@ -1,12 +1,13 @@
+import {products} from '../public-content.mjs';
 import {CategoryCompetition,RewardSummary} from './performance';
-import {Diagnostics,TokenArt,Journey,useExperience,ProgressBar} from './experience';
+import {Diagnostics,TokenArt,useExperience,ProgressBar} from './experience';
 import { useRuntimeQuery } from './capabilities';
 import { useEffect,useState } from 'react';
 import { Link } from '@tanstack/react-router';
 import { useQuery,useQueryClient } from '@tanstack/react-query';
 import { rootRoute } from './routes';
 import { sdk } from './sdk';
-import {RevealMore, compact, Empty, Facts, Hero, Loaded, Metrics, MobileRecords, Panel, percent, pretty, usePageMeta, utc } from './common';
+import {RevealMore, Disclosure, compact, Empty, Facts, Hero, Loaded, Metrics, MobileRecords, Panel, percent, pretty, usePageMeta, utc } from './common';
 import { useSession } from './session';
 
 function VaultRows({id,cursor}:{id:string;cursor?:string}){
@@ -32,7 +33,7 @@ function VaultRows({id,cursor}:{id:string;cursor?:string}){
 export function Vault(){
   const {technical}=useExperience();
   const cache=useQueryClient();
-  usePageMeta('Airdrops','NFT allocations, vesting and historical ATT claims.','/airdrops');
+  usePageMeta('Rewards','NFT allocations, vesting and historical ATT claims.','/airdrops');
   const {asset,cursor}=rootRoute.useSearch();
   const {wallet,open}=useSession();
   const [shownHoldings,setShownHoldings]=useState(6),[shownRewards,setShownRewards]=useState(6);
@@ -41,26 +42,25 @@ export function Vault(){
   const holdings=useRuntimeQuery('/api/v1/vault',{queryKey:['private',wallet,'solana','vault',asset?'':cursor],enabled:!!wallet,
     queryFn:({signal})=>sdk.myVault(asset?undefined:cursor,signal)});
   return <>
-    <Hero title="Airdrops">Every reward, one place. Track your lifetime awards and what’s available to claim.</Hero>
-    <Journey steps={[['Take part','Collect NFTs, stake ATT or create eligible content.'],['Track your awards','See lifetime token awards across all three categories.'],['Check what’s available','Claimable amounts and vesting stay separate from valuations.']]}/>
+    <Hero title="Rewards">Your rewards. Ready when you are.</Hero>
     <Loaded query={policy}>{p=><Metrics items={[
-      ['Genesis allocation',percent(p.launch.allocationBps.genesisVault),'of each launch'],
-      ['Season allocation',percent(p.launch.allocationBps.seasonVault),'while Season weight is active'],
+      [products.genesis.name+' allocation',percent(p.launch.allocationBps.genesisVault),'of each daily Attention Token launch'],
+      [products.season.name+' allocation',percent(p.launch.allocationBps.seasonVault),'while Season weight is active'],
       ['Vesting period',pretty(p.vault.vestHours)+'h','after a '+p.vault.cliffHours+'h cliff'],
     ]}/>}</Loaded>
-    {wallet&&<RewardSummary wallet={wallet}/>}
-    <Panel title="Your NFT allocations">{wallet?<Loaded query={holdings} restart={<Link to="/airdrops" search={{}} onClick={()=>cache.removeQueries({queryKey:['private',wallet,'solana','vault',undefined],exact:true})}>Restart holdings</Link>}>{page=><>
-      <Diagnostics><p className="muted">Local holdings for {compact(wallet)} · projection as of {utc(page.asOf)}. This is a local fixture ledger, not verified chain coverage.</p></Diagnostics>
-      {page.items.length?<ul className="rows vault-holdings">{page.items.slice(0,technical?page.items.length:shownHoldings).map(nft=><li key={nft.id}><Link to="/airdrops" search={{asset:nft.id}}>
-        <TokenArt name={nft.id}/><strong>{nft.id}</strong><span>View airdrops →</span></Link></li>)}</ul>:<Empty title="No NFT holdings">This wallet has no assets in the local Vault ledger.</Empty>}
-      {!technical&&shownHoldings<page.items.length&&<RevealMore items=".vault-holdings > li" shown={shownHoldings} onReveal={()=>setShownHoldings(n=>n+6)}>Show more holdings ({shownHoldings} of {page.items.length})</RevealMore>}
+    <Panel title="Your NFT rewards" className={wallet?'':'connect-panel'}>{wallet?<Loaded query={holdings} restart={<Link to="/airdrops" search={{}} onClick={()=>cache.removeQueries({queryKey:['private',wallet,'solana','vault',undefined],exact:true})}>Restart holdings</Link>}>{page=><>
+      <Diagnostics><p className="muted">Local holdings for {compact(wallet)} · projection as of {utc(page.asOf)}.</p></Diagnostics>
       <h3>{technical?'Combined local Vault allocations':'Your token rewards'}</h3>
       {page.summary?.status==='complete'?<><Diagnostics><p>Complete local ledger snapshot across {page.summary.assetCount} owned NFTs as of {utc(page.summary.asOf)}. Token base units are separate for each campaign; fiat prices are unavailable.</p></Diagnostics>
         {technical?<Facts items={page.summary.items.map(i=>[i.marketId,i.allocated+' allocated · '+i.vested+' vested · '+i.claimed+' claimed · '+i.claimable+' available base units'])}/>:<div className="position-grid vault-rewards">{page.summary.items.slice(0,shownRewards).map(i=><article className="position-card" key={i.marketId}><TokenArt name={i.marketId}/><h3>{i.marketId}</h3><strong>{BigInt(i.claimable).toLocaleString()} available</strong><ProgressBar value={i.vested} total={i.allocated} label={'Unlocked rewards for '+i.marketId}/><small>Raw token units · {BigInt(i.claimed).toLocaleString()} already collected</small></article>)}</div>}
         {!technical&&shownRewards<page.summary.items.length&&<RevealMore items=".vault-rewards > article" shown={shownRewards} onReveal={()=>setShownRewards(n=>n+6)}>Show more token rewards ({shownRewards} of {page.summary.items.length})</RevealMore>}
       </>:<p>Combined amounts unavailable: {page.summary?.reason??'complete snapshot not supplied'}. No visible-page subtotal is presented.</p>}
+      <h3>Your collectibles</h3>
+      {page.items.length?<ul className="rows vault-holdings">{page.items.slice(0,technical?page.items.length:shownHoldings).map(nft=><li key={nft.id}><Link to="/airdrops" search={{asset:nft.id}}>
+        <TokenArt name={nft.id}/><strong>{nft.id}</strong><span>View rewards →</span></Link></li>)}</ul>:<Empty title="No NFT holdings">No NFT rewards found for this wallet.</Empty>}
+      {!technical&&shownHoldings<page.items.length&&<RevealMore items=".vault-holdings > li" shown={shownHoldings} onReveal={()=>setShownHoldings(n=>n+6)}>Show more holdings ({shownHoldings} of {page.items.length})</RevealMore>}
       {!asset&&page.nextCursor && <Link to="/airdrops" search={{cursor:String(page.nextCursor)}}>Next holdings →</Link>}
-    </>}</Loaded>:<><p>Connect a wallet to see its Genesis and Season assets.</p><button onClick={open}>Connect wallet</button></>}</Panel>
+    </>}</Loaded>:<><p>Connect your wallet to see available rewards and what’s still unlocking.</p><button onClick={open}>Connect wallet</button></>}</Panel>
     <p className="muted">Selling an NFT transfers its remaining rewards. Season expiry does not erase past allocations.</p>
     {asset && <VaultRows id={asset} cursor={cursor}/>}
     <Diagnostics><div className="two-up"><Panel title="How claims vest"><Loaded query={policy}>{p=><ol className="timeline">
@@ -70,7 +70,9 @@ export function Vault(){
     </ol>}</Loaded></Panel>
       <Panel title="Permanent claims"><p>The original vesting clock follows the allocation. Selling an NFT transfers its remaining Vault entitlement. Season expiry and Level changes preserve historical allocations; they do not restart vesting or restore already claimed amounts.</p>
         <Link to="/nfts">Explore collections ↗</Link></Panel></div></Diagnostics>
+    {wallet&&<Disclosure title="Lifetime award history"><RewardSummary wallet={wallet}/></Disclosure>}
     <CategoryCompetition category="airdrops"/>
+    <div className="context-links"><Link to="/earn">Your content rewards</Link><Link to="/stake">Your staking rewards</Link><Link to="/leaderboards">Community rankings</Link></div>
   </>;
 }
 export function Stake(){
@@ -87,11 +89,10 @@ export function Stake(){
   const positions=useRuntimeQuery('/api/v1/stake/positions',{queryKey:['private',wallet,'solana','stake',cursor],enabled:!!wallet,
     queryFn:({signal})=>sdk.positions(cursor,signal)});
   return <>
-    <Hero title="Stake">Stake an ATT during its campaign to earn rewards in that same token.</Hero>
-    <Journey steps={[['Choose an ATT','Open its campaign and review the reward terms.'],['Stake to participate','A corresponding $10 stake is required for Earn at entry and cutoff.'],['Track your rewards','View your positions and compare lifetime staking awards.']]}/>
+    <Hero title="Stake">Stake an Attention Token during its campaign to earn rewards in that same token.</Hero>
     <Loaded query={policy}>{p=><Metrics items={[
       ['Farm funding',percent(p.launch.allocationBps.stake),'of original ATT supply'],
-      ['Campaign length',pretty(p.launch.campaignDays)+' days','from actual activation'],
+      ['Daily-token campaign length',pretty(p.launch.campaignDays)+' days','from actual activation'],
       ['Accrual','Continuous','while the position is staked'],
     ]}/>}</Loaded>
     <Panel title="Find a token to stake"><Loaded query={catalog}>{page=>page.items.length?
@@ -101,10 +102,10 @@ export function Stake(){
       {farm && <Loaded query={detail}>{f=><><h3>{f.marketId} · {f.status}</h3><Facts items={[
         ['Funded units',f.fundedUnits],['Total staked units',f.totalStakedUnits??'Pending'],['Harvest treasury fee',percent(f.treasuryFeeBps)],['Emissions end',utc(f.emissionEnd)],
       ]}/></>}</Loaded>}</Panel>
-    <Panel title="Your positions"><p className="status-pill">Demo balances · Deposits and withdrawals are not enabled</p>{wallet?<Loaded query={positions} restart={<Link to="/stake" search={{farm,campaigns}} onClick={()=>cache.removeQueries({queryKey:['private',wallet,'solana','stake',undefined],exact:true})}>Restart positions</Link>}>{page=><>
+    <Panel title="Your positions">{wallet?<Loaded query={positions} restart={<Link to="/stake" search={{farm,campaigns}} onClick={()=>cache.removeQueries({queryKey:['private',wallet,'solana','stake',undefined],exact:true})}>Restart positions</Link>}>{page=><>
       {page.items.length?technical?<><MobileRecords entries={page.items.map(p=>({id:p.marketId,summary:p.marketId+' · '+p.principalUnits+' base units staked',
         facts:[['Principal',p.principalUnits],['Earned gross',p.earnedGrossUnits],['Available gross',p.claimableGrossUnits],['Harvested gross',p.harvestedGrossUnits]]}))}/>
-      <div className="scroller wide-table"><table><caption>Local positions · amounts in token base units</caption>
+      <div className="scroller wide-table"><table><caption>Positions · amounts in token base units</caption>
         <thead><tr>{['Campaign','Principal','Earned gross','Available gross','Harvested gross'].map(s=><th key={s}>{s}</th>)}</tr></thead>
         <tbody>{page.items.map(p=><tr key={p.marketId}><td><Link to="/stake" search={{farm:p.marketId,cursor,campaigns}}>{p.marketId}</Link></td><td>{p.principalUnits}</td>
           <td>{p.earnedGrossUnits}</td><td>{p.claimableGrossUnits}</td><td>{p.harvestedGrossUnits}</td></tr>)}</tbody></table></div></>:<div className="position-grid stake-positions">{page.items.slice(0,shownPositions).map(p=><article className="position-card" key={p.marketId}><TokenArt name={p.marketId}/><h3><Link to="/stake" search={{farm:p.marketId,cursor,campaigns}}>{p.marketId}</Link></h3><Facts items={[['Staked',p.principalUnits],['Rewards available before fees',p.claimableGrossUnits],['Rewards collected before fees',p.harvestedGrossUnits]]}/><small>Amounts in raw token units. Harvest fees apply.</small></article>)}</div>:<Empty title="No recorded positions"/>}

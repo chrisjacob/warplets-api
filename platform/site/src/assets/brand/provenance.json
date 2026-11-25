@@ -1,0 +1,31 @@
+{
+  "date": "2026-11-25",
+  "artwork": {
+    "file": "warplet-exponential.png",
+    "mode": "built-in image generation",
+    "reference": "warplet-reference.jpg",
+    "referenceSource": "Owner-supplied Photo 1.jpg on 25 November 2026",
+    "prompt": "Use case: ads-marketing / cinematic stylized concept.\nCreate an ORIGINAL premium wide landscape website hero, 3:2 ratio 1536x1024, a playful Warplet homage to the famous stratospheric balloon skydive. The attached image is the ONLY character identity reference. Faithfully preserve this PURPLE Warplet: squat plump rounded egg/blob body, lavender purple bumpy skin, TWO huge bulging WHITE eyes with tiny dark pupils, enormous open joyful mouth filled with uneven sharp triangular white teeth, visible pink tongue, very short arms and feet. NO ears, horns, snout, nose, human face or green skin. It must immediately read as the exact supplied Warplet, not a generic monster.\nScene: this purple Warplet on the small exterior footplate of an unbranded white high-altitude capsule, just about to take a leap, short arms spread with one glove lightly touching the rail. Curved blue Earth with rich cloud systems and a thin luminous atmospheric rim far below, deep nearly black upper sky, gorgeous sunrise rim light. The Warplet wears a custom white pressure suit tailored to its short round body, subtle acid-lime piping, chunky tiny boots, and a clear bubble helmet that reveals its enormous white eyes, broad grin and PURPLE face without distortion. Preserve funny reference proportions rather than turning it into a long-limbed human astronaut. High quality cinematic 3D rendering with tactile character skin, believable pressure-suit fabric and photographic Earth.\nComposition: whole character including helmet and feet on right third around x=75%, y=48%; capsule hatch at far right. Leave left 50% dark uncluttered space for website headlines. Character occupies roughly 60% of image height with generous headroom and margin below the step; no cropping of helmet. Keep Earth curvature readable and a palpable sense of altitude. Make the tone optimistic, astonishing and joyful.\nNo embedded text, numbers, logos, watermark, brands, sponsor patches, flags, Red Bull marks, bulls or humans. No bicycle. No financial charts or coins. Image only."
+  },
+  "fonts": {
+    "files": [
+      "BarlowCondensed-Black.ttf",
+      "BarlowCondensed-BlackItalic.ttf"
+    ],
+    "source": "https://github.com/google/fonts/tree/main/ofl/barlowcondensed",
+    "license": "OFL.txt"
+  },
+  "history": [
+    {
+      "file": "extraordinary-ride.png",
+      "mode": "built-in image generation",
+      "prompt": "Use case: ads-marketing. Asset type: cinematic website hero background for independent 10X brand, embodying extraordinary human achievement and daring creativity. Create an ORIGINAL premium action-sports editorial photograph, wide landscape 3:2 composition, approximately 1536x1024. A single mountain biker captured suspended in a huge clean jump over a rugged volcanic ridge, seen side-on, the entire bicycle and rider visible in the right third of frame, dust trailing diagonally behind. The rider wears unbranded dark technical clothing and a small vivid acid-lime helmet. Crisp realistic bicycle geometry, anatomical pose, palpable scale and speed. Dramatic hard backlight cuts through fine airborne dust, deep charcoal shadows, dark mountains in the distance and slightly hazy off-white sky. Mostly desaturated cinematic monochrome, restrained lime accent only on the helmet. Natural film grain, premium high-contrast sports photography, no CGI or cartoon effect. Reserve the left 50 percent as relatively dark uncluttered negative space for large white website headline (do NOT put the headline into the image). Rider in upper-right-middle around x=72%, y=35%, so subject survives a narrow mobile crop. Do not include any logos, wordmarks, letters, captions, watermarks, coins, charts or UI. No Nike or Red Bull marks or recognizable sponsored uniform. Image only, no frame."
+    },
+    {
+      "file": "warplet-stratosphere.png",
+      "mode": "built-in image generation",
+      "reference": "../collectibles/genesis-2.webp",
+      "prompt": "Use case: ads-marketing / stylized-concept. Create an original cinematic wide 3:2 website hero, 1536x1024, a humorous Warplet homage to a stratospheric balloon skydive. Reference image is ONLY the Warplet character identity: round squat green monster, short limbs, pointed little ears, large dark eyes, piglike snout and joyful huge toothy mouth. Preserve those recognizable features, translate the drawing into a beautifully sculpted expressive 3D character. Replace any human astronaut with this Warplet in a custom white pressure suit with subtle acid-lime accents, oversized clear bubble helmet through which the green Warplet face is unmistakable, short chunky boots and gloves. Scene: camera looks across the exterior step of a plain unbranded white stratospheric capsule, open hatch at far right. Warplet stands on the tiny platform ready to leap, one hand on the rail, staring out excitedly at the spectacular curved blue Earth and thin atmospheric rim far below. Photoreal Earth, clouds and spacecraft material, premium film lighting, charming meme character. Dark near-black upper sky, Earth occupying lower half. Compose character and capsule at x=70–85%, Warplet whole body at x=72%, y=45%; left 50% is dark uncluttered space reserved for white HTML text. Keep character large enough to read in mobile crop. Strong dimensional scale and sense of wonder. No text, numbers, sponsors, logos, Red Bull marks, bulls, branded suit patches, watermark, company flags or humans. Do not copy the green monochrome background or hat from the reference; character is green, suit white, space charcoal and Earth rich blue. Finished image only."
+    }
+  ]
+}

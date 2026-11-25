@@ -3,7 +3,7 @@ import {SubmissionReview} from './earn-review';
 import {PostContent} from './post-content';
 import {supportedPost} from '../../earn/supported-post.mjs';
 import {CategoryCompetition} from './performance';
-import {Diagnostics,Journey,TokenArt,ProgressBar,useExperience} from './experience';
+import {Diagnostics,TokenArt,ProgressBar,useExperience} from './experience';
 import {EarnMemberDetails} from './earn-details';
 import { Capability, useRuntimeQuery } from './capabilities';
 import { useEffect, useState } from 'react';
@@ -12,7 +12,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
 import { rootRoute } from './routes';
 import { client, sdk } from './sdk';
-import {RevealMore,dayDate, compact, Facts, Empty, friendlyError, Hero, intentKey, Loaded, Metrics, Panel, usePageMeta } from './common';
+import {RevealMore,Disclosure,dayDate, compact, Facts, Empty, friendlyError, Hero, intentKey, Loaded, Panel, usePageMeta } from './common';
 import { useSession } from './session';
 
 function Contribution({wallet}:{wallet:string}){
@@ -22,7 +22,7 @@ function Contribution({wallet}:{wallet:string}){
   useEffect(()=>setShownAwards(5),[wallet,awards]);
   const [tokenId,setTokenId]=useState('');
   const [urlError,setUrlError]=useState('');
-  const catalog=useRuntimeQuery('/api/v1/markets',{queryKey:['markets',undefined],queryFn:({signal})=>sdk.markets(undefined,signal)});
+  const catalog=useRuntimeQuery('/api/v1/markets',{queryKey:['markets','active'],queryFn:({signal})=>sdk.markets(undefined,signal,{status:'active'})});
   const history=useRuntimeQuery('/api/v1/earn/me',{queryKey:['private',wallet,'solana','submissions',submissions],queryFn:({signal})=>sdk.submissions(submissions,signal)});
   const claims=useRuntimeQuery('/api/v1/earn/claims',{queryKey:['private',wallet,'solana','awards',awards],queryFn:({signal})=>sdk.awards(awards,signal)});
   const submit=useMutation({mutationFn:async(body:{tokenId:string;url:string})=>{
@@ -39,9 +39,9 @@ function Contribution({wallet}:{wallet:string}){
         let post;try{post=supportedPost(String(fields.get('url')).trim());setUrlError('');}catch{setUrlError('Paste a shared Farcaster or X post link. Profile pages and other sites are not supported.');return;}
         submit.mutate({tokenId:String(fields.get('tokenId')),url:post.canonicalUrl});
       }}>
-        <label>ATT campaign<select name="tokenId" required value={selectedToken.id} onChange={e=>setTokenId(e.target.value)}>{active.map(m=><option value={m.id} key={m.id}>{m.symbol}</option>)}</select></label>
+        <label>Campaign<select name="tokenId" required value={selectedToken.id} onChange={e=>setTokenId(e.target.value)}>{active.map(m=><option value={m.id} key={m.id}>{m.symbol}</option>)}</select></label>
         <label>Farcaster or X post link<input name="url" type="url" required maxLength={2048} placeholder="https://x.com/yourname/status/…" aria-describedby="post-link-help" onChange={()=>setUrlError('')}/></label>
-        <p id="post-link-help">Share a public post about this token. Private, deleted or unavailable posts cannot be reviewed from a link alone.</p>
+        <p id="post-link-help">Share a public Farcaster or X post about this token.</p>
         <p>You’ll need at least $10 staked in the corresponding Attention Token when you submit and at the daily cutoff. Each campaign has its own requirement.</p><p><Link to="/stake" search={{farm:selectedToken.id}}>Stake {selectedToken.symbol} to participate →</Link></p>
         <button disabled={submit.isPending}>Submit contribution</button>
         <output aria-live="polite">{urlError|| (submit.isSuccess?'Contribution recorded for moderation.':submit.isError?friendlyError(submit.error):'')}</output>
@@ -69,28 +69,34 @@ function Contribution({wallet}:{wallet:string}){
       </>}</Loaded></Panel></div>
   </>;
 }
+function CampaignPreview(){
+ const catalog=useRuntimeQuery('/api/v1/markets',{queryKey:['markets','active'],queryFn:({signal})=>sdk.markets(undefined,signal,{status:'active'})});
+ return <section className="campaign-section" aria-labelledby="campaigns-title"><div className="catalog-header"><h2 id="campaigns-title">Find your campaign.</h2><Link className="action-link" to="/tokens" hash="attention-tokens">All Attention Tokens</Link></div>
+  <Loaded query={catalog}>{page=>{
+   const active=page.items.filter(m=>m.status==='active'),shown=(active.length?active:page.items).slice(0,3);
+   if(!active.length)return <Empty title="No active campaigns">Explore all Attention Tokens to find a campaign.</Empty>;
+   return <><div className="campaign-grid">{shown.map(m=><article className="campaign-card" key={m.id}><TokenArt name={m.id}/><h3>{m.symbol}</h3><p>Attention Token for {m.ogSymbol}</p><span className="launch-status">{m.status==='active'?'Active':m.status==='campaign-ended'?'Ended':m.status}</span><Link to="/markets/$marketId" params={{marketId:m.id}}>View token</Link></article>)}</div></>;
+  }}</Loaded>
+ </section>;
+}
 export function Attention(){
   const {wallet,open}=useSession();
-  usePageMeta('Earn','Create content, support projects and track your contributions.','/earn');
+  usePageMeta('Earn','Create content for Attention Token campaigns and track your rewards.','/earn');
   const policy=useQuery({queryKey:['policy'],queryFn:({signal})=>sdk.policy(signal)});
   const capacity=useRuntimeQuery('/api/v1/earn/capacity',{queryKey:['earn-capacity'],queryFn:({signal})=>client.getEarnAdmissionCapacity({signal})});
   const actions=useRuntimeQuery('/api/v1/earn/actions',{queryKey:['earn-actions'],queryFn:({signal})=>client.listActiveEarnActions({signal})});
   return <>
-    <Hero title="Earn">Bring attention to projects you believe in. Create content, submit your link and follow its review.</Hero>
-    <Journey steps={[['Create & share','Post original content on Farcaster or X.'],['Submit your link','Keep at least $10 staked in that token.'],['Get reviewed','Eligible top-ranked contributions earn rewards.']]}/>
+    <div className="earn-heading"><Hero title="Earn">Create something worth sharing.</Hero><Link className="action-link" to="/leaderboards">View rankings</Link></div>
+    {!wallet&&<CampaignPreview/>}
     {capacity.data&&<p className="status-pill">{capacity.data.data.accepting?'Submissions open · '+capacity.data.data.remaining+' places left today':'Submissions paused · Check back soon'}</p>}
-    <Loaded query={policy}>{p=><Metrics items={[
-      ['Winner places','Top '+p.earn.maxWinners,'across active campaigns'],['Stake requirement','US$'+p.earn.minimumCorrespondingStakeUsd,'in the corresponding ATT'],
-      ['Maximum multiplier',p.earn.maxMultiplierTenths/10+'×','applied to the content score'],
-    ]}/>}</Loaded>
-    <div className="two-up"><Panel technicalOnly title="Admission capacity"><Loaded query={capacity}>{({data:c})=><><Facts items={[
-      ['Mode',c.mode],['Admitted',c.admitted],['Remaining',c.remaining],['Daily limit',c.limit],['Admission',c.accepting?'Open':'Held'],
-    ]}/><p>Capacity does not prove this wallet meets the corresponding ATT stake requirement. Entry acceptance and final cutoff eligibility are separate.</p></>}</Loaded></Panel>
-    <Panel technicalOnly title="Active onboarding actions"><Loaded query={actions}>{a=><>{a.items.length?<ul>{a.items.map(i=><li key={i.actionId}><strong>{i.label}</strong> · verifier: {i.verifier}<br/>Wallet completion evidence is unavailable in this projection.</li>)}</ul>:<p>No active actions.</p>}<p>A click or unverified follow does not earn credit. The server applies verified evidence, the rolling streak, and the overall multiplier cap.</p></>}</Loaded></Panel></div>
-    {wallet?<Contribution key={wallet} wallet={wallet}/>:<Panel title="Submit content"><p>Sign in with a Solana wallet to submit a contribution.</p><button onClick={open}>Connect wallet</button><p><Link to="/tokens">Explore tokens and staking →</Link></p></Panel>}
-    <ReviewPreview/>
+    {wallet?<Contribution key={wallet} wallet={wallet}/>:<Panel title="Bring your voice." className="connect-panel"><p>Share original content for a campaign. Connect your wallet to submit a post and track your rewards.</p><button onClick={open}>Connect wallet</button></Panel>}
+    <Disclosure title="How to participate">
+     <Loaded query={policy}>{p=><><p>Post original content on Farcaster or X, then submit its link. Keep at least US${p.earn.minimumCorrespondingStakeUsd} staked in that campaign’s Attention Token at submission and the daily cutoff.</p><p>Eligible contributions compete for the top {p.earn.maxWinners} places. Scores and verified participation determine rewards, with a maximum {p.earn.maxMultiplierTenths/10}× multiplier.</p></>}</Loaded>
+     <ReviewPreview/><Link to="/stake">View staking campaigns</Link>
+    </Disclosure>
+    <Diagnostics><div className="two-up"><Panel title="Admission capacity"><Loaded query={capacity}>{({data:c})=><Facts items={[[ 'Mode',c.mode],['Admitted',c.admitted],['Remaining',c.remaining],['Daily limit',c.limit],['Admission',c.accepting?'Open':'Held']]}/>}</Loaded></Panel>
+     <Panel title="Active onboarding actions"><Loaded query={actions}>{a=>a.items.length?<ul>{a.items.map(i=><li key={i.actionId}><strong>{i.label}</strong> · verifier: {i.verifier}</li>)}</ul>:<p>No active actions.</p>}</Loaded></Panel></div></Diagnostics>
     <CategoryCompetition category="earn"/>
-    <Panel title="Daily content scores"><p>The daily score board determines eligible reward allocations. The performance leaderboard above values lifetime awards.</p><Link to="/leaderboards">View daily content scores →</Link></Panel>
   </>;
 }
 export function Leaderboards({epochId}:{epochId?:string}={}){
@@ -105,8 +111,7 @@ export function Leaderboards({epochId}:{epochId?:string}={}){
   usePageMeta('Daily content scores','Content rankings and finalized daily reward results.',epochId?'/earn/'+boardDate:'/leaderboards'+(selected?'?date='+boardDate:''));
   const board=useRuntimeQuery('/api/v1/earn/epochs/{epoch}/leaderboard',{queryKey:['leaderboard',boardDate],queryFn:({signal})=>sdk.board(boardDate,signal)});
   return <><Hero title="Daily content scores">See who’s creating attention. Explore content rankings and daily reward results.</Hero>
-    <Journey steps={[['Choose a day','Explore the content leaderboard for a UTC date.'],['See the results','Compare reviewed scores, multipliers and final rankings.'],['Join the next board','Submit content through Earn. Eligibility and ranking determine rewards.']]}/>
-    <Panel title="Content"><p>Rankings use reviewed content scores and eligibility multipliers. They do not measure verified views or reach. Eligible top-ranked contributions can earn rewards.</p><Link className="action-link" to="/earn">Submit content →</Link></Panel>
+    <div className="context-links"><Link to="/earn">Submit content</Link></div>
     <Panel title="Daily leaderboard"><form className="inline-form" onSubmit={e=>{e.preventDefault();void navigate({to:'/leaderboards',search:{date:editing}});}}>
       <label htmlFor="board-date">Board date (UTC)</label><input id="board-date" type="date" required value={editing} onChange={e=>setEditing(e.target.value)}/>
       <button>View board</button></form><Loaded query={board}>{b=>{

@@ -1,5 +1,7 @@
 # 10X MEME implementation blueprint
 
+> Current product direction: [24 November brand alignment](../spec/BRAND_ALIGNMENT_DECISION_2026-11-24.md) supersedes conflicting branding and first-launch theme in older records. Use the [current roadmap](../spec/ROADMAP.md) for launch sequence. Economic and financial release gates remain in force.
+
 Turn the existing local product into a coherent Cloudflare implementation without deploying it or moving funds. The next overnight run should finish a verified vertical workflow before expanding the feature surface. This pack specifies the remaining implementation, preserves the founder's settled rules, and provides a resumable work queue.
 
 Prepared 5 November 2026 in Australia/Sydney. Governing product specification is [PRD 1.2](../spec/10X_MEME_PRD_v1_2.docx), with [searchable source](../spec/prd-v1.2-source.txt). Inspected implementation head is **5f3cafffc08d2404976ea14532dad2d2751cffcd**, branch **work/10x-prd-foundation**, repository **chrisjacob/warplets-api**. Product code starts from released main ec052a0. These are starting observations, not instructions to reset a newer checkout.

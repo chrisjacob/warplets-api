@@ -24,6 +24,17 @@ test('static adapter serves known routes and hashed assets with restrictive CSP;
   }
   assert.equal(await serveSite(request('/src/main.tsx'),dist),null);
   assert.equal((await serveSite(request('/site-assets/missing.js'),dist)).status,404);
+  for(const [extension,type] of [['png','image/png'],['ttf','font/ttf']]){
+    const bytes=new Uint8Array([0,128,255,42]);const assetPath='/site-assets/campaign-demo.'+extension;
+    await writeFile(join(path,'site-assets','campaign-demo.'+extension),bytes);
+    const response=await serveSite(request(assetPath),dist);
+    assert.equal(response.headers.get('content-type'),type);
+    assert.deepEqual(new Uint8Array(await response.arrayBuffer()),bytes);
+    const head=await serveSite(request(assetPath,'HEAD'),dist);
+    assert.equal(head.headers.get('content-length'),'4');assert.equal(await head.text(),'');
+  }
+  assert.equal(await serveSite(request('/site-assets/source-demo.tsx'),dist),null);
+  assert.match((await serveSite(request('/'),dist)).headers.get('content-security-policy'),/font-src 'self'/);
   const js=await serveSite(request('/site-assets/index-demo.js','HEAD'),dist);
   assert.match(js.headers.get('cache-control'),/immutable/);assert.equal(await js.text(),'');
 });
@@ -40,7 +51,7 @@ test('public initial HTML uses anonymous allowlisted reads, meaningful status an
   const html=renderInitialPage('<head><title>old</title><meta name="description" content="old"></head><!--initial:start-->old<!--initial:end-->',page);
   assert.deepEqual(requests,['/api/v1/markets/att']);
   assert.equal(page.status,200);assert.match(html,/ATT&lt;img src=x&gt; \/ OG/);assert.doesNotMatch(html,/unused=secret|<mint>/);
-  assert.match(html,/property="og:image"/);assert.match(html,/rel="canonical" href="http:\/\/localhost:4173\/markets\/att"/);
+  assert.match(html,/name="twitter:card" content="summary"/);assert.doesNotMatch(html,/property="og:image"/);assert.match(html,/rel="canonical" href="http:\/\/localhost:4173\/markets\/att"/);
   const unknown=new URL(base+'/nfts/missing');
   assert.equal((await initialPage(routeFor(unknown),unknown,async()=>new Response(null,{status:404}))).status,404);
   assert.equal((await initialPage(routeFor(unknown),unknown,async()=>new Response(null,{status:500}))).status,503);

@@ -34,13 +34,13 @@ await page.getByRole('dialog').getByText('Total cost',{exact:true}).waitFor();aw
 const radio=page.getByRole('radio',{name:'As soon as possible',exact:true});await radio.focus();await page.keyboard.press('ArrowRight');assert.equal(await page.getByRole('radio',{name:'7 days',exact:true}).isChecked(),true);
 const labelSize=await radio.evaluate(e=>e.closest('label').getBoundingClientRect().height);assert(labelSize>=44);
 
-const button=page.getByRole('button',{name:'Preview visual reroll'}).first();await button.focus();await page.keyboard.press('Enter');await page.getByRole('dialog').waitFor();await page.getByRole('button',{name:'Record preview request'}).waitFor();
+const button=page.getByRole('button',{name:'Preview visual reroll'}).first();await button.focus();await page.keyboard.press('Enter');await page.getByRole('dialog').waitFor();await page.getByRole('button',{name:'Confirm request'}).waitFor();
 const dialog=await page.getByRole('dialog').evaluate(d=>({overflow:d.scrollWidth>d.clientWidth,height:d.getBoundingClientRect().height,viewport:innerHeight,buttons:[...d.querySelectorAll('button')].map(e=>({name:e.textContent.trim(),width:e.getBoundingClientRect().width,height:e.getBoundingClientRect().height}))}));
 assert.equal(dialog.overflow,false);assert(dialog.height<=dialog.viewport);assert(dialog.buttons.every(b=>b.height>=44&&b.width>=44));
 for(let step=0;step<10;step++){await page.keyboard.press('Tab');const focused=await page.evaluate(()=>({inside:document.querySelector('dialog').contains(document.activeElement),hasFocus:document.hasFocus()}));assert(focused.inside||!focused.hasFocus,'Focus escaped modal');}
-await page.getByRole('button',{name:'Refresh quote',exact:true}).focus();await page.keyboard.press('Enter');await page.getByRole('button',{name:'Record preview request'}).waitFor();
-try{await page.waitForFunction(()=>[...document.querySelectorAll('dialog button')].some(b=>b.textContent==='Record preview request'&&!b.disabled),null,{timeout:7000});}catch(e){console.log(await page.getByRole('dialog').innerText());throw e;}
-await page.getByRole('button',{name:'Record preview request',exact:true}).focus();
+await page.getByRole('button',{name:'Refresh quote',exact:true}).focus();await page.keyboard.press('Enter');await page.getByRole('button',{name:'Confirm request'}).waitFor();
+try{await page.waitForFunction(()=>[...document.querySelectorAll('dialog button')].some(b=>b.textContent==='Confirm request'&&!b.disabled),null,{timeout:7000});}catch(e){console.log(await page.getByRole('dialog').innerText());throw e;}
+await page.getByRole('button',{name:'Confirm request',exact:true}).focus();
 await page.screenshot({path:'work/navigation-review/reroll-'+width+'.png'});await page.keyboard.press('Escape');const restored=await button.evaluate(b=>b===document.activeElement);assert.equal(restored,true);results.push({width,height,dialog,restored});
 }
 }await context.close();}

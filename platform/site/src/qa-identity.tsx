@@ -1,3 +1,4 @@
+import {presentationName} from './presentation-name';
 import {useState,type ReactNode} from 'react';
 import {useQuery} from '@tanstack/react-query';
 import {z} from 'zod';
@@ -17,18 +18,19 @@ function useIdentityOverlay(){
 const tokenFor=(data:ReturnType<typeof useIdentityOverlay>,id:string)=>data?.tokens.find(token=>token.tokenId===id||token.originalSymbol===id);
 export const useQaTokenPresentation=(id:string)=>tokenFor(useIdentityOverlay(),id);
 export function QaIdentityArt({name,fallback}:{name:string;fallback:ReactNode}){
- const data=useIdentityOverlay(),[failed,setFailed]=useState<string|null>(null),source=tokenFor(data,name)?.image??data?.profiles.find(profile=>profile.wallet===name)?.image;
- return source&&source!==failed?<span className="token-art qa-public-art" aria-hidden="true"><img src={source} alt="" width="48" height="48" loading="lazy" decoding="async" referrerPolicy="no-referrer" onError={()=>setFailed(source)}/></span>:<>{fallback}</>;
+ const data=useIdentityOverlay(),[failed,setFailed]=useState<string|null>(null),source=data?.profiles.find(profile=>profile.wallet===name)?.image;
+ return source&&source!==failed?<span className="token-art qa-public-art" aria-hidden="true"><img src={source} alt="" width="48" height="48" loading="lazy" decoding="async" referrerPolicy="no-referrer" onError={()=>setFailed(source)}/></span>:<>{typeof fallback==='string'?presentationName(fallback):fallback}</>;
 }
-export function QaTokenName({id,fallback,compact=false}:{id:string;fallback:ReactNode;compact?:boolean}){
- const token=tokenFor(useIdentityOverlay(),id);return token?<span className="qa-public-name">{compact?token.symbol:token.name}<small>{compact?'demo':token.symbol+' · demo'}</small></span>:<>{fallback}</>;
+export function QaTokenName({fallback}:{id:string;fallback:ReactNode;compact?:boolean}){
+ // Reference artwork must never replace an Attention Token’s recorded ticker.
+ return <>{typeof fallback==='string'?presentationName(fallback):fallback}</>;
 }
 export function QaParticipantName({wallet,fallback,full=false}:{wallet:string|null;fallback:ReactNode;full?:boolean}){
- const profile=useIdentityOverlay()?.profiles.find(profile=>profile.wallet===wallet);return profile?<span className="qa-public-name">{full?profile.displayName:'@'+profile.username}<small>{full?'@'+profile.username+' · demo':'demo'}</small></span>:<>{fallback}</>;
+ const profile=useIdentityOverlay()?.profiles.find(profile=>profile.wallet===wallet);return profile?<span className="qa-public-name">{full?profile.displayName:'@'+profile.username}{full&&<small>@{profile.username}</small>}</span>:<>{typeof fallback==='string'?presentationName(fallback):fallback}</>;
 }
 export function QaIdentityDetails({wallet}:{wallet:string}){
- const data=useIdentityOverlay(),profile=data?.profiles.find(profile=>profile.wallet===wallet);return profile?<p className="qa-public-attribution">Public profile artwork: <a href={profile.profileUrl} target="_blank" rel="noreferrer noopener">@{profile.username}</a>. This demo wallet and its activity are simulated. No affiliation.</p>:null;
+ const data=useIdentityOverlay(),profile=data?.profiles.find(profile=>profile.wallet===wallet);return profile?<p className="qa-public-attribution">Public profile artwork: <a href={profile.profileUrl} target="_blank" rel="noreferrer noopener">@{profile.username}</a>.</p>:null;
 }
 export function QaTokenDetails({id}:{id:string}){
- const data=useIdentityOverlay(),token=tokenFor(data,id);return token?<div className="qa-public-attribution"><h3>{token.name} <small>{token.symbol} · demo</small></h3><p>Simulated Attention Token using public artwork from <a href={token.sourceUrl} target="_blank" rel="noreferrer noopener">GeckoTerminal trending pools</a>, captured {data!.capturedAt.slice(0,10)}. Prices and rewards remain demo data.</p></div>:null;
+ const data=useIdentityOverlay(),token=tokenFor(data,id);return token?<div className="qa-public-attribution"><h3>Selected meme reference: {token.name} <small>{token.symbol}</small></h3><p>This reference artwork is not the Attention Token identity or evidence of affiliation. Artwork from <a href={token.sourceUrl} target="_blank" rel="noreferrer noopener">GeckoTerminal trending pools</a>, captured {data!.capturedAt.slice(0,10)}.</p></div>:null;
 }

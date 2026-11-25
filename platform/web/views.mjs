@@ -1,3 +1,4 @@
+import {brand,products,firstLaunch} from '../site/public-content.mjs';
 /** All amounts, ranks and campaign schedules come from the versioned API. */
 export const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char =>
   ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' })[char]);
@@ -17,7 +18,7 @@ export const compactAddress = wallet => [...wallet].length <= 16 ? wallet : wall
 function allocation(policy) {
   const rows = Object.entries(policy.launch.allocationBps);
   const labels = { liquidity:'Pool liquidity', earn:'Earn rewards', stake:'Staking rewards',
-    genesisVault:'Genesis Vault', seasonVault:'Season Vault' };
+    genesisVault:products.genesis.name+' Vault', seasonVault:products.season.name+' Vault' };
   const colors = ['#b5da4e','#5f9768','#335548','#577e93','#777bab'];
   let start = 0;
   const bars = rows.map(([,bps],i) => {
@@ -72,15 +73,15 @@ function marketDirectory(markets,selectedId) {
 }
 
 export function marketsView({policy,markets,schedule,selectedId}) {
-  return intro('Markets','Explore curated Solana attention tokens and the original tokens they pair with.')
+  return intro('Tokens',brand.description)+card(firstLaunch.name+' ('+firstLaunch.ticker+') — '+products.original.name,'<p>'+e(firstLaunch.status)+'</p><p>First original meme. The Attention Tokens below are separate assets.</p>')
     +'<div class="market-grid">'+feeChart(schedule)+allocation(policy)+'</div>'+marketDirectory(markets,selectedId);
 }
 
 export function vaultView({policy,me}) {
   const {vault,launch}=policy;
-  return intro('Vault','Genesis and active Season NFTs accrue a share of each ATT launch.')
-    +statGrid(metric('Genesis allocation',percent(launch.allocationBps.genesisVault),'of each launch')
-      +metric('Season allocation',percent(launch.allocationBps.seasonVault),'while Season weight is active')
+  return intro('Vault',products.genesis.name+' and active '+products.season.name+' participate under the published daily Attention Token allocation rules.')
+    +statGrid(metric(products.genesis.name+' allocation',percent(launch.allocationBps.genesisVault),'of each launch')
+      +metric(products.season.name+' allocation',percent(launch.allocationBps.seasonVault),'while Season weight is active')
       +metric('Vesting period',number(vault.vestHours)+'h','after a '+number(vault.cliffHours)+'h cliff'))
     +'<div class="two-up">'+card('How claims vest','<ol class="timeline"><li><strong>Launch</strong><p>Allocations follow each NFT’s Level, including reserved unminted slots.</p></li>'
       +'<li><strong>After '+number(vault.cliffHours)+' hours</strong><p>The allocation begins to vest continuously.</p></li>'
@@ -115,16 +116,16 @@ export function earnView({policy,board,date}) {
 export function collectView({collections}) {
   const items=collections?.items ?? [];
   const genesis=items.find(row=>row.id==='genesis'),season=items.find(row=>row.id==='seasons');
-  const heading=intro('Collect','Explore permanent Genesis membership and monthly Season collections.');
+  const heading=intro('Collect','Explore the permanent '+products.genesis.name+' collection and seasonal '+products.season.name+'.');
   if (!genesis || !season) return heading+unavailable('Collection terms are unavailable. Reload to try again.');
   const specs=pairs=>'<dl class="breakdown">'+pairs.map(([label,value])=>'<div><dt>'+e(label)+'</dt><dd>'+e(value)+'</dd></div>').join('')+'</dl>';
   return heading+'<div class="two-up collections">'
-    +'<section class="card collection"><div class="collection-mark genesis-mark" aria-hidden="true">G<span>/</span></div><h2>Genesis</h2>'
+    +'<section class="card collection"><div class="collection-mark genesis-mark" aria-hidden="true">G<span>/</span></div><h2>'+e(products.genesis.name)+'</h2>'
     +'<p>Permanent Vault eligibility with an immutable Level from 1 to 10.</p>'
     +specs([['Maximum supply',number(genesis.cap)],['Per tranche',number(genesis.trancheSize)],['First whitelist price',genesis.firstWhitelistPriceSol+' SOL'],['Eligible wallet',genesis.mintsPerEligibleWalletPerStage+' mint per stage']])
     +'</section>'
-    +'<section class="card collection"><div class="collection-mark season-mark" aria-hidden="true">S<span>/</span></div><h2>Seasons</h2>'
+    +'<section class="card collection"><div class="collection-mark season-mark" aria-hidden="true">S<span>/</span></div><h2>'+e(products.season.name)+'</h2>'
     +'<p>Benefit duration follows the current Level, measured from the published Season start.</p>'
-    +specs([['Monthly supply',number(season.monthlyCap)],['Free stage','Revealed Genesis 1X'],['Eligible wallet',season.freeMintsPerEligibleWallet+' free mint']])
+    +specs([['Monthly supply',number(season.monthlyCap)],['Free stage','Revealed '+products.genesis.name+' Level 1'],['Eligible wallet',season.freeMintsPerEligibleWallet+' free mint']])
     +'<details><summary>Upgrades and visual rerolls</summary><p>Pair two same-Level NFTs from the same Season to raise one NFT’s Level. The other receives a new Level draw. Visual rerolls change Model, Backdrop and Symbol together.</p></details></section></div>';
 }

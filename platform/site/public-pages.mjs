@@ -1,3 +1,4 @@
+import {brand,products,firstLaunch,collectionName} from './public-content.mjs';
 const idPattern='([A-Za-z0-9._:-]{1,128})';
 const html=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
 const pct=value=>Number.isInteger(value)?new Intl.NumberFormat('en-US').format(value/100)+'%':'Unavailable';
@@ -5,15 +6,15 @@ const numeric=n=>Number.isFinite(n)?new Intl.NumberFormat('en-US').format(n):'Un
 const knownDates=s=>/^\d{4}-\d{2}-\d{2}$/.test(s) && Date.parse(s)>=0 && new Date(s).toISOString().startsWith(s);
 
 const routes={
-  '/':{title:'10X.meme',description:'Discover tokens, collect NFTs, stake and create attention. Explore participant rewards.',canonical:'/'},
-  '/markets':{title:'Markets',description:'Curated Solana attention tokens and the original tokens they pair with.',type:'markets'},
+  '/':{title:brand.headline,description:brand.description,canonical:'/'},
+  '/markets':{title:'Markets',description:'Meet $10X, the first 10X Meme. Explore separate Attention Tokens and their selected meme pairs.',type:'markets'},
   '/vault':{title:'Vault',description:'NFT allocations, vesting and historical ATT claims.',private:true},
   '/stake':{title:'Stake',description:'Continuous same-token campaign rewards and recorded staking positions.',private:true},
   '/earn':{title:'Earn',description:'Global daily content scores and reward allocations.',private:true},
-  '/collect':{title:'Collect',description:'Explore permanent Genesis and monthly Season collections.',private:true},
-  '/collections/genesis':{title:'Genesis',description:'Collection terms, release stages and permanent Genesis membership.',type:'genesis'},
+  '/collect':{title:'Collect',description:'Explore the permanent 10X NFT collection and seasonal 10X Cards.',private:true},
+  '/collections/genesis':{title:products.genesis.name,description:'Permanent 10X NFT collection terms and recorded release stages.',type:'genesis'},
 };
-for(const [path,legacy,title] of [['/tokens','/markets','Tokens'],['/airdrops','/vault','Airdrops'],['/nfts','/collect','NFTs'],['/attention','/earn','Earn']])routes[path]={...routes[legacy],title,canonical:path};
+for(const [path,legacy,title] of [['/tokens','/markets','Tokens'],['/airdrops','/vault','Rewards'],['/nfts','/collect','Collect'],['/attention','/earn','Earn']])routes[path]={...routes[legacy],title,canonical:path};
 routes['/leaderboards']={title:'Daily content scores',description:'Content rankings and finalized daily reward results.',private:true};
 const dynamic=[
   ['participant',/^\/participants\/([1-9A-HJ-NP-Za-km-z]{32,44})$/,'Participant rewards'],
@@ -57,11 +58,11 @@ function describe(route,record){
   }
   if(route.type==='genesis')return {content:summaryList([['Maximum supply',numeric(record.genesis.cap)],['Tranche size',numeric(record.genesis.trancheSize)],
     ['First whitelist price',record.genesis.firstWhitelistPriceSol+' SOL'],['Stage notice',record.genesis.noticeHours+' hours']])};
-  if(route.type==='market')return {title:record.symbol+' / '+record.ogSymbol,description:record.symbol+' pairs with '+record.ogSymbol+' in the Solana preview.',
-    content:summaryList([['Campaign status',record.status],['Activated',record.activatedAt],['Opening fee',pct(record.feeBps)],['ATT mint',record.attMint],['OG mint',record.ogMint]])};
+  if(route.type==='market')return {title:record.symbol+' / '+record.ogSymbol,description:record.symbol+' is a separate Attention Token paired with '+record.ogSymbol+' on Solana.',
+    content:summaryList([['Product',products.attention.name],['Campaign status',record.status],['Activated',record.activatedAt],['Opening fee',pct(record.feeBps)],['ATT mint',record.attMint],['OG mint',record.ogMint]])};
   if(route.type==='season'){
     if(record.kind!=='season')return {missing:true};
-    return {title:'Season · '+record.id,content:summaryList([['Season start',record.seasonStart],['Capacity',numeric(record.capacity)],
+    return {title:products.season.name+' · '+record.id,content:summaryList([['Product',collectionName(record.kind)],['Season start',record.seasonStart],['Capacity',numeric(record.capacity)],
       ['Slots available',numeric(record.counts.unsold)],['Priced-stage allocations',numeric(record.counts.paid)]])};
   }
   if(route.type==='nft'){
@@ -97,6 +98,8 @@ export async function initialPage(route,url,readPublic){
       }
     }catch{status=503;}
   }
+  if(status===200&&(route.canonical==='/'||route.type==='markets'))content='<section><h2>'+html(firstLaunch.name+' ('+firstLaunch.ticker+') — the first '+products.original.name)+'</h2><p>'+html(firstLaunch.status)+'</p></section>'+content;
+  if(status===200&&route.canonical==='/')content+=links(Object.values(products).map(p=>[p.plural+' — '+p.purpose,p.path+(p.hash?'#'+p.hash:'')]));
   if(status===404){title='Page not found';description='This resource could not be found.';content='';}
   if(status===503){description='Public data is temporarily unavailable.';content='';}
   const canonical=new URL(route.canonical,url.origin).href;
@@ -105,8 +108,8 @@ export async function initialPage(route,url,readPublic){
     +'<meta name="robots" content="'+(privatePage?'noindex, nofollow':'noindex, follow')+'">'
     +'<meta property="og:type" content="website"><meta property="og:title" content="'+html(title+' · 10X.MEME')+'">'
     +'<meta property="og:description" content="'+html(description)+'"><meta property="og:url" content="'+html(canonical)+'">'
-    +'<meta property="og:image" content="'+html(url.origin+'/social-card.png')+'"><meta name="twitter:card" content="summary_large_image">';
-  const fallback='<div class="frame main"><nav aria-label="Public sections">'+links([['Home','/'],['Tokens','/tokens'],['NFTs','/nfts'],['Airdrops','/airdrops'],['Stake','/stake'],['Earn','/earn']])
+    + '<meta name="twitter:card" content="summary">';
+  const fallback='<div class="frame main"><nav aria-label="Public sections">'+links([['Home','/'],['Tokens','/tokens'],['Collect','/nfts'],['Earn','/earn'],['Rewards','/airdrops']])
     +'</nav><main class="page-hero"><h1>'+html(title)+'</h1><p>'+html(description)+'</p>'+content+'</main></div>';
   return {title:title+' · 10X.MEME',metadata,content:fallback,status};
 }

@@ -28,19 +28,19 @@ export async function checkMintLifecycle({browser,widths=[360,390,768,1440],wron
   const dialog=page.locator('#collection-dialog'),count=()=>f.db.prepare('SELECT COUNT(*) n FROM app_collection_mint_admissions').get().n;
   try{
    await page.goto(f.origin+'/collect');await signIn();await page.getByRole('button',{name:'Review reservation',exact:true}).click();await page.getByRole('heading',{name:'Review mint reservation',exact:true}).waitFor();
-   await dialog.getByText('Local creation cost',{exact:true}).waitFor();assert.equal(await dialog.getByText('Unknown',{exact:true}).count(),2);assert.equal(await dialog.getByText('Creation and network quote',{exact:true}).count(),0);
-   await dialog.getByText('These are the disclosed local components. Network and total costs are unknown. No SOL is sent by this preview.',{exact:true}).waitFor();
+   await dialog.getByText('Creation cost',{exact:true}).waitFor();assert.equal(await dialog.getByText('Unknown',{exact:true}).count(),2);assert.equal(await dialog.getByText('Creation and network quote',{exact:true}).count(),0);
+   await dialog.getByText('Network and total costs are not yet available.',{exact:true}).waitFor();
    assert.equal(await dialog.evaluate(node=>node.scrollWidth<=node.clientWidth),true);
    if(process.env.SCREENSHOT_DIR){await mkdir(process.env.SCREENSHOT_DIR,{recursive:true});await page.screenshot({path:join(process.env.SCREENSHOT_DIR,'mint-reviewed-terms-'+width+(wrongResponse?'-wrong-response':expireBeforeConfirm?'-expiry':'')+'.png')});}
    if(expireBeforeConfirm){
-    f.advanceTo(f.input.closesAt+1);await page.clock.setFixedTime(f.now());await dialog.getByText('The stage is no longer available for a new reservation. Close this review and refresh the published stage.',{exact:true}).waitFor();assert.equal(await dialog.getByRole('button',{name:'Reserve preview slot',exact:true}).isDisabled(),true);assert.equal(count(),0);assert.equal(requests.length,0);
+    f.advanceTo(f.input.closesAt+1);await page.clock.setFixedTime(f.now());await dialog.getByText('The stage is no longer available for a new reservation. Close this review and refresh the published stage.',{exact:true}).waitFor();assert.equal(await dialog.getByRole('button',{name:'Reserve slot',exact:true}).isDisabled(),true);assert.equal(count(),0);assert.equal(requests.length,0);
    }else if(serverRejectBeforeConfirm){
     // The browser still displays its original review; only the private server
     // clock advances. The actual API must reject it without creating a receipt.
-    f.advanceTo(f.input.closesAt+1);await dialog.getByRole('button',{name:'Reserve preview slot',exact:true}).click();await dialog.getByText('The stage is no longer available for a new reservation. Close this review and refresh the published stage.',{exact:true}).waitFor();
-    assert.equal(await dialog.getByRole('button',{name:'Reserve preview slot',exact:true}).isDisabled(),true);assert.equal(count(),0);assert.equal(requests.length,1);assert.equal(await page.evaluate(()=>Object.keys(sessionStorage).filter(key=>key.startsWith('10x.mint.pending.v1:')).length),0);
+    f.advanceTo(f.input.closesAt+1);await dialog.getByRole('button',{name:'Reserve slot',exact:true}).click();await dialog.getByText('The stage is no longer available for a new reservation. Close this review and refresh the published stage.',{exact:true}).waitFor();
+    assert.equal(await dialog.getByRole('button',{name:'Reserve slot',exact:true}).isDisabled(),true);assert.equal(count(),0);assert.equal(requests.length,1);assert.equal(await page.evaluate(()=>Object.keys(sessionStorage).filter(key=>key.startsWith('10x.mint.pending.v1:')).length),0);
    }else{
-    await dialog.getByRole('button',{name:'Reserve preview slot',exact:true}).click();await dialog.getByRole('button',{name:'Retry original request',exact:true}).waitFor();await dialog.getByText('The result of this original mint request is unresolved. Retry its retained key and reviewed terms to recover the result.',{exact:true}).waitFor();
+    await dialog.getByRole('button',{name:'Reserve slot',exact:true}).click();await dialog.getByRole('button',{name:'Retry original request',exact:true}).waitFor();await dialog.getByText('The result of this original mint request is unresolved. Retry its retained key and reviewed terms to recover the result.',{exact:true}).waitFor();
     if(wrongResponse)await dialog.getByText('The response did not match the retained mint request. Retry the original request.',{exact:true}).waitFor();
     assert.equal(count(),1);const original=requests[0];assert.deepEqual(original.body,{expectedTermsDigest:f.published.value.termsDigest});assert.ok(original.key);
     const accepted=f.db.prepare('SELECT result_json FROM app_command_receipts WHERE operation_kind=?').get('collection.reserve-operation.v1');

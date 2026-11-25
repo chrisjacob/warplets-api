@@ -1449,6 +1449,27 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "all",
+                "active",
+                "campaign-ended",
+                "scheduled"
+              ]
+            }
           }
         ],
         "responses": {

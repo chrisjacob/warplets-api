@@ -4,6 +4,7 @@ import { RouterProvider } from '@tanstack/react-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { router } from './routes';
 import './style.css';
+import './brand.css';
 
 const cache=new QueryClient({defaultOptions:{queries:{retry:false,staleTime:15_000,refetchOnWindowFocus:false},
   mutations:{retry:false}}});

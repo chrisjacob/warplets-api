@@ -1,5 +1,7 @@
 # Overnight build kickoff
 
+> Current product direction: [24 November brand alignment](../spec/BRAND_ALIGNMENT_DECISION_2026-11-24.md) supersedes conflicting branding and first-launch theme in older records. Use the [current roadmap](../spec/ROADMAP.md) for launch sequence. Economic and financial release gates remain in force.
+
 Paste the following into the next execution conversation from the existing repository workspace.
 
 ~~~text

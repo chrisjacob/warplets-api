@@ -45,7 +45,7 @@ function InboxSettings({pref,topics,wallet}:{pref:z.infer<typeof preference>;top
     <fieldset disabled={change.isPending || refreshing}><legend>Topics</legend>
       {activeTopics(topics).map(t=><label className="check" key={t}><input type="checkbox" checked={selected.includes(t)}
         onChange={e=>setSelected(old=>e.target.checked?[...old,t]:old.filter(x=>x!==t))}/>{labels[t]}</label>)}</fieldset>
-    <button disabled={change.isPending || refreshing || !!change.error || !selected.length}>{pref.enabled?'Save topics':'Enable local inbox'}</button>
+    <button disabled={change.isPending || refreshing || !!change.error || !selected.length}>{pref.enabled?'Save topics':'Enable inbox'}</button>
     {pref.enabled && <button type="button" disabled={change.isPending || refreshing || !!change.error} onClick={()=>change.mutate(false)}>Turn off and clear inbox</button>}
     <output aria-live="polite">{refreshError || (change.error?friendlyError(change.error):'')}</output>
     {change.error && <><p>Refresh the saved preferences, then review your topics before trying again. No change will be retried automatically.</p><button type="button" disabled={refreshing} onClick={()=>void refreshPreferences()}>Refresh saved preferences</button></>}
@@ -59,13 +59,13 @@ export function Notifications({wallet}:{wallet:string}){
     z.object({data:preference}).parse(await client.getMyNoticePreferences({signal})).data});
   const notices=useRuntimeQuery('/api/v1/notifications/inbox',{queryKey:['private',wallet,'solana','notifications','inbox',cursor],enabled:opened && !!prefs.data?.enabled,
     queryFn:async({signal})=>{const page=inbox.parse(await client.getMyLocalNotices({query:{cursor},signal}));return {...page,items:page.items.filter(n=>n.topic!=='voting')};}});
-  return <details onToggle={e=>setOpened(e.currentTarget.open)}><summary>Local inbox settings</summary>
+  return <details onToggle={e=>setOpened(e.currentTarget.open)}><summary>Inbox settings</summary>
     {opened && <Loaded query={caps}>{c=><Loaded query={prefs}>{pref=><>
-      <p>{pref.enabled?'Local inbox enabled.':'Local inbox off.'} Notices appear inside this preview. Daily maximum: {c.dailyLimit}.</p>
+      <p>{pref.enabled?'Inbox enabled.':'Inbox off.'} Receive updates here. Daily maximum: {c.dailyLimit}.</p>
       <Capability method="POST" path="/api/v1/notifications/subscriptions"><InboxSettings key={pref.revision} pref={pref} topics={c.topics} wallet={wallet}/></Capability>
       {pref.enabled && <Loaded query={notices}>{page=><>
         {page.items.length?<ul className="records">{page.items.map(n=><li key={n.id}><strong>{n.title}</strong><small>{utc(new Date(n.deliveredMs).toISOString())}</small>
-          <p>{n.message}</p>{safeTarget(n.target) && <a href={safeTarget(n.target)!}>Open notice ↗</a>}</li>)}</ul>:<Empty title="No local notices"/>}
+          <p>{n.message}</p>{safeTarget(n.target) && <a href={safeTarget(n.target)!}>Open notice ↗</a>}</li>)}</ul>:<Empty title="No notices"/>}
         {page.nextCursor!==null && <button onClick={()=>setCursor(String(page.nextCursor))}>Older notices</button>}
       </>}</Loaded>}</>}</Loaded>}</Loaded>}
   </details>;

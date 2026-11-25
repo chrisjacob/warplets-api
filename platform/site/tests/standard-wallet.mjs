@@ -83,12 +83,12 @@ export async function checkStandardWallet({browser,origin,db}){
     await page.getByText(/This session remains authenticated as/).waitFor();
     await page.getByText('Verified Solana wallet: '+address,{exact:true}).waitFor();
     await page.evaluate(()=>window.selectStandardAccount());
-    await page.getByText('Local inbox settings',{exact:true}).click();
+    await page.getByText('Inbox settings',{exact:true}).click();
     await page.getByLabel('Market launches',{exact:true}).check();
-    await page.getByRole('button',{name:'Enable local inbox'}).click();
-    await page.getByText('No local notices',{exact:true}).waitFor();
+    await page.getByRole('button',{name:'Enable inbox'}).click();
+    await page.getByText('No notices',{exact:true}).waitFor();
     await page.getByRole('button',{name:'Turn off and clear inbox'}).click();
-    await page.getByRole('button',{name:'Enable local inbox'}).waitFor();
+    await page.getByRole('button',{name:'Enable inbox'}).waitFor();
     assert.equal(db.prepare('SELECT enabled FROM notice_preferences WHERE wallet=?').get(address).enabled,0);
     await page.getByText('Find a transaction receipt').click();
     await page.getByLabel('Transaction ID').fill(intent.id);
@@ -156,7 +156,7 @@ export async function checkWalletBoundaries({browser}){
   const screenshot=async name=>{if(process.env.SCREENSHOT_DIR){await mkdir(process.env.SCREENSHOT_DIR,{recursive:true});await page.screenshot({path:join(process.env.SCREENSHOT_DIR,'wallet-'+name+'-'+width+'.png')});}};
   try{
    await page.goto(origin+'/markets');await page.locator('#view[aria-busy=false]').waitFor();await page.locator('#wallet-button').focus();await page.keyboard.press('Enter');
-   await page.getByText('Open the preview in a browser with a Solana wallet that supports message signing.',{exact:true}).waitFor();assert.equal(await page.getByRole('button',{name:'Connect B18 No Message'}).count(),0);
+   await page.getByText('Open 10X in a browser with a Solana wallet that supports message signing.',{exact:true}).waitFor();assert.equal(await page.getByRole('button',{name:'Connect B18 No Message'}).count(),0);
    await page.evaluate(()=>window.b18Register());await page.getByRole('button',{name:'Connect B18 Standard',exact:true}).waitFor();
    await page.evaluate(()=>window.b18Select(0,true));await page.getByRole('button',{name:'Connect B18 Standard',exact:true}).click();await page.getByText('Choose a Solana account that supports sign-in messages.',{exact:true}).waitFor();assert.equal(signatures,0);assert.equal(db.prepare('SELECT COUNT(*) n FROM auth_challenges').get().n,0);
    await page.evaluate(()=>window.b18Select(0));await review();

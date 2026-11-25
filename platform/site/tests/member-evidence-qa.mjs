@@ -56,7 +56,7 @@ export async function checkMemberEvidence({browser}){
     assert.match(await page.locator('#view').textContent(),/board-not-sealed/);
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'Earn overflow '+label+' '+width);
     await screenshot(page,'member-earn-'+label+'-'+width);
-    await page.getByRole('navigation',{name:'Main navigation'}).getByRole('link',{name:'Airdrops',exact:true}).click();await page.getByRole('heading',{name:'Combined local Vault allocations',exact:true}).waitFor();
+    await page.locator('.rewards-link').click();await page.getByRole('heading',{name:'Combined local Vault allocations',exact:true}).waitFor();
     const vault=await (await page.request.get(origin+'/api/v1/vault')).json();
     if(label==='minimum'){
      assert.equal(vault.summary.assetCount,26);await page.getByText(/Complete local ledger snapshot across 26 owned NFTs/).waitFor();

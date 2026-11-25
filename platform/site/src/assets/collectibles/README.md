@@ -1,4 +1,10 @@
-# Collectible preview artwork
+# Collectible presentation assets
+
+Current product art uses provisional typographic studies. Final $10X, permanent 10X NFT and 10X Cards artwork awaits owner approval. The prior character studies remain explicitly labelled concepts in the gallery; they are not assigned at random as revealed metadata or future scheduled editions.
+
+The six `genesis-*.webp` files are historical Base Warplet samples. Their names, bytes and provenance in `provenance.json` are preserved. They are no longer displayed as the new permanent 10X NFT collection. Historical sources remain unchanged.
+
+## Historical asset preparation
 
 Genesis uses six existing 10X Warplet images from the URLs recorded in `10x-warplets-metadata.csv`. Cached copies avoid remote browser image requests. These samples do not claim that a demo asset owns the corresponding original Warplet.
 

@@ -1,3 +1,5 @@
+import {TimelineSwitch} from './timeline';
+import {brand} from '../public-content.mjs';
 import {ExperienceProvider,TechnicalToggle} from './experience';
 import {useEffect,useRef} from 'react';
 import { createRootRoute, createRoute, createRouter, lazyRouteComponent, Link, Outlet, useRouterState, type RouteComponent } from '@tanstack/react-router';
@@ -5,8 +7,8 @@ import { useIsFetching } from '@tanstack/react-query';
 import { SessionProvider, useSession } from './session';
 import { compact } from './common';
 
-const destinations=[['','Home'],['tokens','Tokens'],['nfts','NFTs'],['airdrops','Airdrops'],['stake','Stake'],['earn','Earn']] as const;
-const searchKeys=['market','cursor','campaigns','asset','farm','date','submissions','awards','owned','operations','inventories','receipt'] as const;
+const destinations=[['','Home'],['tokens','Tokens'],['nfts','Collect'],['earn','Earn']] as const;
+const searchKeys=['market','cursor','campaigns','asset','farm','date','submissions','awards','owned','operations','inventories','receipt','tokenQuery','tokenStatus'] as const;
 export type Search=Partial<Record<typeof searchKeys[number],string>>;
 function validateSearch(input:Record<string,unknown>):Search{
   const result:Search={};
@@ -27,19 +29,30 @@ function Shell(){
     const frame=requestAnimationFrame(()=>document.getElementById('page-title')?.focus({preventScroll:true}));
     return ()=>cancelAnimationFrame(frame);
   },[path,isLoading]);
+  const hash=useRouterState({select:s=>s.location.hash});
+  useEffect(()=>{
+    if(!hash)return;
+    const frame=requestAnimationFrame(()=>{
+      const target=document.getElementById(hash);
+      if(target instanceof HTMLDetailsElement)target.open=true;
+      target?.scrollIntoView({block:'start'});
+    });
+    return()=>cancelAnimationFrame(frame);
+  },[hash,path,isLoading]);
   const section=path.split('/')[1];
-  const current=!section?'':({markets:'tokens',vault:'airdrops',collect:'nfts',collections:'nfts',seasons:'nfts',attention:'earn',leaderboards:'earn'} as Record<string,string>)[section]??section;
+  const current=!section?'':({markets:'tokens',vault:'airdrops',collect:'nfts',collections:'nfts',seasons:'nfts',stake:'earn',attention:'earn',leaderboards:'earn'} as Record<string,string>)[section]??section;
   return <>
     <a className="skip" href="#main">Skip to content</a>
     <header className="site-header"><div className="frame mast">
       <Link to="/" aria-label="10X.MEME home" className="brand"><i>10X</i>.MEME</Link>
       <nav aria-label="Main navigation">{destinations.map(([name,label])=><Link key={name} to={'/'+name as '/tokens'}
-        aria-label={label} aria-current={name===current?'page':undefined}>{name?label:<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="m3 10 9-7 9 7v11h-6v-7H9v7H3Z"/></svg>}</Link>)}</nav>
-      <button className="wallet-button" id="wallet-button" onClick={open}><span aria-hidden="true">◎</span> <span id="wallet-name">{wallet?compact(wallet):'Connect wallet'}</span></button>
+        aria-label={label} aria-current={name===current?'page':undefined}>{label}</Link>)}</nav>
+      <div className="account-actions"><Link className="rewards-link" to="/airdrops" aria-current={current==='airdrops'?'page':undefined}>Rewards</Link>
+      <button className="wallet-button" id="wallet-button" onClick={open}><span aria-hidden="true">◎</span> <span id="wallet-name">{wallet?compact(wallet):'Connect wallet'}</span></button></div>
     </div></header>
-    <main id="main" tabIndex={-1} className="frame main"><div className="environment"><i aria-hidden="true"/> Demo · No real funds <span/> Solana</div>
+    <main id="main" tabIndex={-1} className={'frame main'+(path==='/'?' home-main':'')}>
       <div id="view" aria-busy={fetching>0}><Outlet/></div></main>
-    <footer><div className="frame footer-row"><Link to="/" className="brand">10X.MEME</Link><span>Solana preview</span><TechnicalToggle/></div></footer>
+    <footer><div className="frame footer-row"><Link to="/" className="brand">10X.MEME</Link><nav className="footer-links" aria-label="Product help"><Link to="/" hash="how-it-works">How 10X works</Link><Link to="/" hash="roadmap">Roadmap</Link><Link to="/stake">Stake</Link><Link to="/leaderboards">Rankings</Link><Link to="/airdrops">Rewards</Link><a href="/api/v1/policy">Published policy</a></nav><TechnicalToggle/><TimelineSwitch/></div><p className="frame footer-risk">{brand.risk}</p></footer>
   </>;
 }
 export const rootRoute=createRootRoute({validateSearch,component:()=> <ExperienceProvider><SessionProvider><Shell/></SessionProvider></ExperienceProvider>});

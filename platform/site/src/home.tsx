@@ -1,24 +1,39 @@
+import {futureTimeline,currentEdition,EditionArt} from './timeline';
 import {Link} from '@tanstack/react-router';
-import {CategoryChips,Hero,Panel,usePageMeta} from './common';
-import {PerformanceBoard,RecentActivity,type Category} from './performance';
-import {NftArt,TokenArt} from './experience';
-import {useRuntimeQuery} from './capabilities';
-import {sdk} from './sdk';
-import {QaTokenName} from './qa-identity';
-const sections:{category:Category;title:string;description:string;action:string}[]=[
- {category:'tokens',title:'Find a community worth your attention',description:'Discover Attention Tokens paired with memecoins and crypto project tokens. Review each pair and its trading terms.',action:'Explore tokens'},
- {category:'nfts',title:'Collect a place in the ecosystem',description:'Genesis offers permanent membership. Seasons have a benefit period. NFT ownership is optional and can unlock allocation benefits and reward boosts.',action:'Explore NFTs'},
- {category:'airdrops',title:'See the rewards adding up',description:'Track awards from NFTs, staking and content in one place. Lifetime valuations are separate from amounts available to claim.',action:'Explore airdrops'},
- {category:'stake',title:'Join a campaign. Build your stake.',description:'Stake an Attention Token for its campaign rewards. A corresponding $10 stake is required for content eligibility at entry and cutoff.',action:'Explore staking'},
- {category:'earn',title:'Create attention. Earn rewards.',description:'Publish original content, submit your link and follow its review. Eligible top-ranked contributions can receive ATT awards.',action:'Explore Earn'},
-];
+import {usePageMeta,Disclosure} from './common';
+import {brand,products,firstLaunch} from '../public-content.mjs';
+import {Roadmap,ProductHelp} from './brand';
+import {BrandMark} from './brand-art';
+import hero from './assets/brand/warplet-exponential.png';
+
 export function Home(){
- const tokens=useRuntimeQuery('/api/v1/markets',{queryKey:['markets',undefined],queryFn:({signal})=>sdk.markets(undefined,signal)});
- usePageMeta('10X.meme','Discover tokens, collect NFTs and create attention. Explore participant rewards across the ecosystem.','/',true);
- return <><header className="home-hero"><div><p className="eyebrow">Discover. Create. Get noticed.</p><Hero title="Make your attention count.">Find a community you care about. Collect, stake or create original content—and follow the rewards you earn.</Hero><div className="home-actions"><Link className="primary-link" to="/tokens">Explore tokens →</Link><Link className="action-link" to="/earn">Start creating →</Link></div></div><div className="home-art"><NftArt name="10x-home" level={1}/>{tokens.data?.items.length?<div className="hero-token-strip" aria-label="Explore featured tokens">{tokens.data.items.slice(1,4).map(token=><Link key={token.id} to="/markets/$marketId" params={{marketId:token.id}}><TokenArt name={token.id}/><strong><QaTokenName id={token.id} fallback={token.symbol} compact/></strong></Link>)}</div>:null}</div></header><CategoryChips/>
- <Panel title="Find your way into 10X"><ol className="flywheel" aria-label="Ways to participate">{[['Discover','/tokens'],['Collect','/nfts'],['Stake','/stake'],['Earn','/earn'],['Claim','/airdrops']].map(([label,to],index)=><li key={label}><span>{index+1}</span><Link to={to as '/tokens'}>{label}</Link></li>)}</ol><p>Choose your own starting point. NFTs are optional. Explore the full experience here with demo data; claims and financial actions are disabled.</p></Panel>
- <div className="home-categories">{sections.map(s=><Panel key={s.category} className="home-category"><div className="category-intro"><p className="eyebrow">{s.category==='nfts'?'NFTs':s.category[0].toUpperCase()+s.category.slice(1)}</p><h2>{s.title}</h2><p>{s.description}</p><Link className="action-link" to={'/'+s.category as '/tokens'}>{s.action} →</Link></div><PerformanceBoard category={s.category} preview/><Link to={'/'+s.category as '/tokens'} hash={'performance-'+s.category} className="full-board-link">View top 100 →</Link></Panel>)}</div>
- <RecentActivity/>
- <p className="valuation-disclosure">All displayed performance is synthetic QA data. Peak values are historical theoretical valuations, not profit or cash proceeds. Market values use the snapshot price. Each award is counted once across the ecosystem.</p>
- </>;
+ usePageMeta(brand.headline,brand.description,'/',true);
+ return <div className="campaign-home">
+  <section className="launch-hero" aria-labelledby="page-title">
+   <img className="launch-photo" src={hero} width="1536" height="1024" alt="" fetchPriority="high"/>
+   <div className="launch-shade" aria-hidden="true"/>
+   <div className="launch-content"><div className="launch-copy">
+    <p className="brand-worldview">{brand.worldview}</p><p className="brand-mindset">{brand.mindset}</p>
+    <h1 id="page-title" tabIndex={-1}>10X<br/><span>Everything.</span></h1>
+    <p className="launch-description">{futureTimeline?<>Original memecoins. New frontiers.</>:<>Meet $10X. Our first original memecoin.</>}</p>
+    <Link className="primary-link" to="/tokens" hash="tenx-meme">{futureTimeline?'Explore the memes':'Explore $10X'}</Link>
+    <p className="launch-footnote"><strong>{futureTimeline?'10X Memes':'$10X'}</strong><span>{futureTimeline?'Originals. Attention. Collectibles.':'The first 10X Meme · Not launched'}</span></p>
+   </div></div>
+  </section>
+  <section className="season-feature" aria-labelledby="season-feature-title">
+   <div className="season-feature-copy"><p className="eyebrow">10X Cards · {currentEdition?'Season '+currentEdition.number:firstLaunch.seasonLabel}</p><h2 id="season-feature-title">{currentEdition?<>Beyond the<br/>ordinary.</>:<>Collect the<br/>beginning.</>}</h2><p>{currentEdition?<>Meet ${currentEdition.symbol}. The latest 10X Cards edition.</>:<>The first seasonal collectible edition, inspired by $10X.</>}</p>
+    <div className="edition-stats"><div><strong>1,000</strong><span>cards in the edition</span></div><div><strong>{currentEdition?String(currentEdition.number).padStart(2,'0'):'US$1'}</strong><span>{currentEdition?'the latest season':'planned beta mint'}</span></div></div>
+    <div className="feature-action">{currentEdition?<><Link className="action-link" to="/seasons/$seasonId" params={{seasonId:currentEdition.id}}>Explore Season {currentEdition.number}</Link><Link className="action-link" to="/nfts" hash="season-archive">All seasons</Link></>:<><Link className="action-link" to="/nfts" hash="season-0">Explore Season 0</Link><span className="launch-status">Mint not open</span></>}</div>
+   </div>
+   <div className="season-feature-art"><div className="edition-backplate" aria-hidden="true"/>{currentEdition?<EditionArt edition={currentEdition}/>:<BrandMark variant="card"/>}</div>
+  </section>
+  <section className="explore-section" aria-labelledby="explore-title"><div className="section-heading"><h2 id="explore-title">Find your edge.</h2><span>Explore. Collect. Participate.</span></div>
+   <div className="discovery-grid">
+    <Link className="discovery-card discovery-attention" to="/tokens" hash="attention-tokens"><div className="discovery-visual" aria-hidden="true"><span>FOCUS.</span><i/></div><div className="discovery-copy"><h3>{products.attention.plural}</h3><p>Discover tokens and campaigns around selected memes.</p><span className="discovery-action">Explore tokens</span></div></Link>
+    <Link className="discovery-card discovery-permanent" to="/collections/genesis"><div className="discovery-visual" aria-hidden="true"><span>10X</span><i/></div><div className="discovery-copy"><h3>{products.genesis.name}</h3><p>One permanent collection. Your lasting connection to 10X.</p><span className="discovery-action">Explore the collection</span></div></Link>
+    <Link className="discovery-card discovery-earn" to="/earn"><div className="discovery-visual" aria-hidden="true"><span>CREATE.</span><i/></div><div className="discovery-copy"><h3>Make your mark.</h3><p>Create content for a campaign. Earn rewards for eligible contributions.</p><span className="discovery-action">Explore Earn</span></div></Link>
+   </div>
+  </section>
+  <div className="home-more"><Disclosure title="About 10X" id="how-it-works"><ProductHelp/></Disclosure><Disclosure title="What comes next" id="roadmap"><Roadmap/></Disclosure></div>
+ </div>;
 }

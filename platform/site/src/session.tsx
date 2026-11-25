@@ -117,7 +117,7 @@ export function SessionProvider({children}:{children:ReactNode}){
         :accounts.length?<><p>Choose the Solana account to sign in with.</p>{accounts.map(account=><button className="wrap-anywhere" key={account.address} disabled={busy} onClick={()=>void chooseAccount(account)}>Use account {account.address}</button>)}<p>Missing an account? Select it in the Trust Wallet extension, then refresh accounts. The app can only list accounts the extension shares.</p><button disabled={busy} onClick={()=>activeAdapter&&void connect(activeAdapter)}>Refresh accounts</button>{activeAdapter?.disconnect&&<button disabled={busy} onClick={()=>void connect(activeAdapter,true)}>Reconnect wallet permissions</button>}<button disabled={busy} onClick={resetSelection}>Choose another wallet</button></>
         :adapters.length?<Capability method="POST" path="/api/v1/auth/challenges"><><p>Select your desired account in the wallet extension, then connect. You will choose an account before reviewing a sign-in message.</p>
           {adapters.map((a,i)=><button key={i} onClick={()=>void connect(a)} disabled={busy}>Connect {a.name}</button>)}</></Capability>
-        :<p>Open the preview in a browser with a Solana wallet that supports message signing.</p>}
+        :<p>Open 10X in a browser with a Solana wallet that supports message signing.</p>}
       {error && <Signal>{error}</Signal>}
     </Modal>}
   </SessionContext.Provider>;

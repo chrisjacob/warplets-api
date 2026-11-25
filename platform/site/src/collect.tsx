@@ -1,6 +1,10 @@
-import {SeasonGallery} from './collection-art';
+import {futureTimeline,CurrentEditionOffer,SeasonArchive} from './timeline';
+import {brand,products,collectionName} from '../public-content.mjs';
+import {BetaPlan} from './brand';
+import {presentationName} from './presentation-name';
+import {BrandMark} from './brand-art';
 import {CategoryCompetition} from './performance';
-import {Diagnostics,NftArt,Journey,useExperience} from './experience';
+import {Diagnostics,NftArt,useExperience} from './experience';
 import {AssetEvidence,InventoryEvidence,StageEvidence,eligibleMaterials} from './collection-details';
 import {ProgressionAssetContext} from './progression-review';
 import {CollectionOperationHold,CollectionOperationFairness} from './collection-operation';
@@ -13,7 +17,7 @@ import { sdk, PlatformApiError, type ProgressionRequest } from './sdk';
 import {progressionJournal,matchesProgressionReceipt,type ProgressionAttempt,type ProgressionJournalEntry} from './progression-intent';
 import {mintJournal,mintReviewAvailable,matchesMintReceipt,type MintAttempt,type MintJournalEntry} from './mint-intent';
 import type { Asset, Inventory, ProgressQuote, Receipt, Stage } from './models';
-import {RevealMore, Empty, Facts, friendlyError, Hero, Loaded, Modal, Panel, pretty, Signal, sol, usePageMeta, utc } from './common';
+import {RevealMore, Disclosure, Empty, Facts, friendlyError, Hero, Loaded, Modal, Panel, pretty, Signal, sol, usePageMeta, utc } from './common';
 import { useSession } from './session';
 
 type Review={kind:'mint';inventory:Pick<Inventory,'id'>;stage:Stage} | {kind:'progress';asset:Asset;materialId?:string};
@@ -95,7 +99,7 @@ function ReviewOperation({review,wallet,onClose}:{review:Review;wallet:string;on
       {needsRefresh&&<Signal>The request was not accepted. Refresh the quote and review current ownership and terms.</Signal>}
       <button disabled={confirm.isPending} onClick={()=>{confirm.reset();setNeedsRefresh(false);setQuoteSession({key:crypto.randomUUID(),allowUpdated:true});}}>Refresh quote</button></>}
     <button disabled={confirm.isPending || (review.kind==='mint'?(!mintCapability.allowed||pendingMint?.kind==='invalid'||needsRefresh||(!pendingMint&&!mintReviewAvailable(review.stage,now))):(!reserveCapability.allowed||pending?.kind==='invalid'||(!pending&&(!quote.data||quote.isError||expired||needsRefresh))))} onClick={()=>confirm.mutate()}>
-      {review.kind==='mint'?pendingMint?'Retry original request':'Reserve preview slot':pending?'Retry original request':'Record preview request'}</button>
+      {review.kind==='mint'?pendingMint?'Retry original request':'Reserve slot':pending?'Retry original request':'Confirm request'}</button>
     {review.kind==='mint'&&!mintCapability.allowed&&<Signal>{mintCapability.reason}</Signal>}
     {review.kind==='progress'&&!reserveCapability.allowed&&<Signal>{reserveCapability.reason}</Signal>}
     {confirm.error&&<Signal>{friendlyError(confirm.error)}</Signal>}
@@ -103,10 +107,10 @@ function ReviewOperation({review,wallet,onClose}:{review:Review;wallet:string;on
 }
 function MintTerms({inventoryId,stage}:{inventoryId:string;stage:Stage}){
  return <><Facts items={[
-   ['Collection',inventoryId],['Stage',stage.id],['Mint price',sol(stage.priceLamports)],['Local creation cost',sol(stage.costLamports)],
+   ['Collection',inventoryId],['Stage',stage.id],['Mint price',sol(stage.priceLamports)],['Creation cost',sol(stage.costLamports)],
    ['Network cost','Unknown'],['Total cost','Unknown'],['Wallet limit',stage.walletLimit],['Stage closes',utc(stage.closesAt)]
- ]}/><p>These are the disclosed local components. Network and total costs are unknown. No SOL is sent by this preview.</p>
- <p>Reserve one local slot and wait for its committed draw.</p></>;
+ ]}/><p>Network and total costs are not yet available.</p>
+ <p>Reserve a slot to receive your collectible assignment.</p><p>{brand.risk}</p></>;
 }
 function PendingMint({wallet,review}:{wallet:string;review:(value:Review)=>void}){
  const journal=useMemo(()=>typeof sessionStorage==='undefined'?null:mintJournal(sessionStorage,wallet),[wallet]),[entries,setEntries]=useState<MintJournalEntry[]>(()=>journal?.list()??[]);
@@ -119,14 +123,14 @@ function PendingMint({wallet,review}:{wallet:string;review:(value:Review)=>void}
   </>}</article>)}</Panel>;
 }
 function QuoteDetails({quote:q}:{quote:ProgressQuote}){
-  const facts:Array<[string,React.ReactNode]>=[['Target',q.targetId],['Fee quote',sol(q.feeLamports)],['Reviewed local-component ceiling',sol(q.maxTotalLamports)],['Network cost','Unknown'],['Total cost','Unknown'],['Quote expires',utc(q.expiresAt)]];
+  const facts:Array<[string,React.ReactNode]>=[['Target',q.targetId],['Fee quote',sol(q.feeLamports)],['Reviewed cost ceiling',sol(q.maxTotalLamports)],['Network cost','Unknown'],['Total cost','Unknown'],['Quote expires',utc(q.expiresAt)]];
   if(q.kind==='visual')facts.push(['Traits replaced',q.fields?.join(', ')],['Cooldown after fulfillment',(q.cooldownMs??0)/3_600_000+' hours']);
   else facts.push(['Material NFT',q.materialId],['New target Level',q.nextTargetLevel],['Target expiry',q.nextTargetExpiry&&utc(q.nextTargetExpiry)]);
   return <><Facts items={facts}/>
     <Diagnostics>{q.asOf&&<p>Server quote as of {utc(q.asOf)} · {q.source??'Local evidence'}.</p>}</Diagnostics>
     {q.materialProbabilities&&<><p>The material survives and may drop to a lower Level, shortening its future benefit period. Its past allocations remain intact.</p><details><summary>Material Level probabilities</summary><Facts items={q.materialProbabilities.map(row=>['Level '+row.level,row.count+' of '+row.total+(row.expiresAt?' · expires '+utc(row.expiresAt):'')+(row.remainingMs===undefined?'':' · '+row.remainingMs+' ms remaining at quote time')])}/></details></>}
-    <p>The ceiling covers the disclosed local components only. Network and total costs are unknown. No SOL is sent by this preview.</p>
-    <p>After acceptance, the selected assets remain reserved locally until the committed result arrives.</p></>;
+    <p>Network and total costs are not yet available.</p>
+    <p>After acceptance, the selected assets remain reserved until the result arrives.</p></>;
 }
 function PendingProgression({wallet,review}:{wallet:string;review:(value:Review)=>void}){
   const journal=useMemo(()=>typeof sessionStorage==='undefined'?null:progressionJournal(sessionStorage,wallet),[wallet]),[entries,setEntries]=useState<ProgressionJournalEntry[]>(()=>journal?.list()??[]);
@@ -141,20 +145,15 @@ function PendingProgression({wallet,review}:{wallet:string;review:(value:Review)
 
 function CollectionTerms(){
   const policy=useQuery({queryKey:['policy'],queryFn:({signal})=>sdk.policy(signal)});
-  return <Loaded query={policy}>{p=><div className="two-up"><Panel className="collection-card">
-    <NftArt name="genesis"/><h2><Link to="/collections/genesis">Genesis</Link></h2>
-    <p>Your permanent place in 10X. Genesis unlocks airdrop eligibility with a fixed Level from 1 to 10.</p>
-    <Facts items={[['Maximum supply',pretty(p.genesis.cap)],['Per tranche',pretty(p.genesis.trancheSize)],
-      ['First whitelist price',p.genesis.firstWhitelistPriceSol+' SOL'],['Eligible wallet',p.genesis.mintsPerEligibleWalletPerStage+' mint per stage']]}/>
-    </Panel>
-    <Panel className="collection-card"><NftArt name="season"/><h2>Seasons</h2>
-      <p>A fresh cast of collectibles. Season benefits run for a limited time, based on Level and the published start date.</p>
-      <Facts items={[['Monthly supply',pretty(p.season.monthlyCap)],['Free stage','Revealed Genesis 1X'],
-        ['Eligible wallet',p.season.freeMintsPerEligibleWallet+' free mint']]}/>
-      <Diagnostics><details><summary>Upgrades and visual rerolls</summary><p>Pair two same-Level NFTs from one Season to raise the target’s Level.
-        The other NFT receives a Level draw. Visual rerolls replace Model, Backdrop and Symbol.</p></details></Diagnostics></Panel></div>}</Loaded>;
+  return <section className="collection-offer offer-permanent"><BrandMark variant="permanent"/>
+   <div className="offer-copy"><p className="eyebrow">Permanent collection</p><h2>{products.genesis.name}</h2><p>Your lasting connection to 10X. Level-based benefits across the ecosystem.</p>
+    <Loaded query={policy}>{p=><><div className="offer-terms"><strong>{pretty(p.genesis.cap)} <small>collectibles, one collection</small></strong><span>Levels 1–10</span></div>
+     <Link className="action-link" to="/collections/genesis">Explore 10X NFT</Link>
+     <Disclosure title="Collection details"><Facts items={[[ 'Per tranche',pretty(p.genesis.trancheSize)],['First whitelist price',p.genesis.firstWhitelistPriceSol+' SOL'],['Eligible wallet',p.genesis.mintsPerEligibleWalletPerStage+' mint per stage']]}/><p>Benefits depend on published eligibility and campaign rules. Release dates are to be announced.</p></Disclosure>
+    </>}</Loaded>
+   </div>
+  </section>;
 }
-
 export function PublishedStage({inventory,stage,review}:{inventory:Inventory;stage:Stage;review?:(review:Review)=>void}){
   const {wallet,open}=useSession();
   const {technical}=useExperience();
@@ -162,8 +161,8 @@ export function PublishedStage({inventory,stage,review}:{inventory:Inventory;sta
   const eligible=stage.eligibility?stage.eligibility.status==='eligible':stage.eligible===true;
   const canReserve=stage.status==='open' && stage.type!=='founder' && stage.available>0;
   return <article className="stage"><div className="entry-head"><h4>{stage.id}</h4><span>{stage.status}</span></div>
-    <Facts items={[['Mint price',sol(stage.priceLamports)],['Local creation cost',sol(stage.costLamports)],['Network cost','Unknown'],['Total cost','Unknown'],
-      ['Slots available',stage.available],['Limit per wallet',stage.walletLimit],['Opens',utc(stage.opensAt)],['Closes',utc(stage.closesAt)]].filter(([label])=>technical||!['Local creation cost','Network cost','Total cost','Opens'].includes(String(label))) as [string,React.ReactNode][]}/><p>Additional costs are shown before you confirm.</p>
+    <Facts items={[['Mint price',sol(stage.priceLamports)],['Creation cost',sol(stage.costLamports)],['Network cost','Unknown'],['Total cost','Unknown'],
+      ['Slots available',stage.available],['Limit per wallet',stage.walletLimit],['Opens',utc(stage.opensAt)],['Closes',utc(stage.closesAt)]].filter(([label])=>technical||!['Creation cost','Network cost','Total cost','Opens'].includes(String(label))) as [string,React.ReactNode][]}/><p>Additional costs are shown before you confirm.</p>
     <StageEvidence stage={stage}/>{canReserve && review && <Capability method="POST" path="/api/v1/collect/inventories/{id}/stages/{stage}/reservations">{(wallet?(eligible?(stage.walletReservations??0)<stage.walletLimit?
       stage.termsDigest&&(!stage.reservationStatus||stage.reservationStatus.status==='available')?<button onClick={()=>review({kind:'mint',inventory,stage})}>Review reservation</button>:<p>Reviewed reservation terms are unavailable in the connected runtime.</p>:<p>The wallet limit for this stage has been reached.</p>
       :<p>{stage.eligible===null||stage.eligibility?.status==='unknown'?'Eligibility is unknown until complete evidence is available.':'This wallet is outside the published stage eligibility list.'}</p>):<button onClick={open}>Connect wallet</button>)}</Capability>}
@@ -204,14 +203,14 @@ function MemberAssets({wallet,review}:{wallet:string;review:(review:Review)=>voi
     queryFn:({signal})=>sdk.receipt(search.receipt!,signal)});
   return <>
     <Panel title="Your collection"><Loaded query={assets}>{page=><>
-      {!page.items.length && <Empty title="No local collection assets"/>}
-      <div className="nft-grid">{page.items.slice(0,technical?page.items.length:visibleAssets).map(asset=><article className="record nft-card" key={asset.id}><NftArt name={asset.id} inventoryId={asset.inventoryId} level={asset.level} concealed={asset.revealStatus!=='revealed'}/><h3 className="wrap-anywhere"><Link to="/nfts/$assetId" params={{assetId:asset.id}}>{asset.id}</Link></h3><p>{asset.inventoryId} · {asset.revealStatus}</p>
+      {!page.items.length && <Empty title="No collectibles yet"/>}
+      <div className="nft-grid">{page.items.slice(0,technical?page.items.length:visibleAssets).map(asset=><article className="record nft-card" key={asset.id}><NftArt name={asset.id} inventoryId={asset.inventoryId} level={asset.level} concealed={asset.revealStatus!=='revealed'}/><h3 className="wrap-anywhere"><Link to="/nfts/$assetId" params={{assetId:asset.id}}>{asset.id}</Link></h3><p>{presentationName(asset.inventoryId)} · {asset.revealStatus}</p>
         {asset.revealStatus==='revealed' && <><Facts items={[['Level',asset.level],['Model',asset.traits?.model],['Backdrop',asset.traits?.backdrop],
           ['Symbol',asset.traits?.symbol],['Benefit expiry',asset.expiresAt?utc(asset.expiresAt):'Permanent']].filter(([label])=>technical||!['Level','Model','Backdrop','Symbol'].includes(String(label))) as [string,React.ReactNode][]}/>
           {asset.operationPending?<p>{technical?'Awaiting committed draw evidence.':'Your request is processing. Check its status below.'}</p>:asset.expiresAt&&<>
             <Capability method="POST" path="/api/v1/collect/inventories/{id}/progression"><Capability method="POST" path="/api/v1/collect/inventories/{id}/progression/quote"><button onClick={()=>review({kind:'progress',asset})}>Preview visual reroll</button>
             {asset.level!<10&&<MaterialPicker target={asset} wallet={wallet} review={review}/>}</Capability></Capability></>}
-          <AssetEvidence asset={asset}/><Link to="/airdrops" search={{asset:asset.id}}>{technical?'Vault allocations ↗':'View airdrops ↗'}</Link></>}
+          <AssetEvidence asset={asset}/><Link to="/airdrops" search={{asset:asset.id}}>{technical?'Vault allocations ↗':'View rewards ↗'}</Link></>}
       </article>)}</div>
       {!technical&&visibleAssets<page.items.length&&<RevealMore items=".nft-card" shown={visibleAssets} onReveal={()=>setVisibleAssets(n=>n+6)}>Show more NFTs on this page ({Math.min(visibleAssets,page.items.length)} of {page.items.length})</RevealMore>}
       {page.nextCursor!==null&&<Link to="/nfts" search={{owned:String(page.nextCursor)}}>Next assets →</Link>}
@@ -225,8 +224,9 @@ function MemberAssets({wallet,review}:{wallet:string;review:(review:Review)=>voi
         {page.nextCursor!==null&&<Link to="/nfts" search={{operations:String(page.nextCursor)}}>Next operations →</Link>}</>}</Loaded></Panel>
   </>;
 }
+function Availability({children}:{children:React.ReactNode}){return futureTimeline?<Disclosure title="Published stages">{children}</Disclosure>:<>{children}</>;}
 export function Collect(){
-  usePageMeta('NFTs','Explore permanent Genesis membership and monthly Season collections.','/nfts');
+  usePageMeta('Collect','Explore the permanent 10X NFT collection and seasonal 10X Cards.','/nfts');
   const {wallet}=useSession(),search=rootRoute.useSearch();
   const {technical}=useExperience(),[visibleInventories,setVisibleInventories]=useState(2);
   useEffect(()=>setVisibleInventories(2),[wallet,search.inventories]);
@@ -234,21 +234,21 @@ export function Collect(){
   useEffect(()=>setReview(null),[wallet]);
   const inventories=useRuntimeQuery('/api/v1/collect/inventories',{queryKey:principalKey(wallet,'inventories',search.inventories),queryFn:({signal})=>sdk.inventories(search.inventories,signal)});
   return <>
-    <Hero title="NFTs">Find your next collectible. Make it yours, level it up, and follow its rewards.</Hero>
-    <Journey steps={[['Find your collectible','Genesis lasts. Seasons have a benefit period.'],['Make it yours','Preview a mint or update a Season NFT.'],['Follow your rewards','See your NFT’s allocations in Airdrops.']]}/>
+    <Hero title="Collect">Find something worth keeping.</Hero>
+    <div className="collection-offers">{futureTimeline?<CurrentEditionOffer/>:<BetaPlan/>}<CollectionTerms/></div>
+    <SeasonArchive/>
     {wallet&&<><PendingMint key={'mint-pending:'+wallet} wallet={wallet} review={setReview}/><PendingProgression key={'pending:'+wallet} wallet={wallet} review={setReview}/><MemberAssets key={wallet} wallet={wallet} review={setReview}/></>}
-    <CollectionTerms/><SeasonGallery/>
-    <Panel title="Published stages"><Loaded query={inventories}>{page=><>
+    <Availability><Panel title="Collection availability"><Loaded query={inventories}>{page=><>
       {!page.items.length&&<Empty title="No published stages"/>}
-      {page.items.slice(0,technical?page.items.length:visibleInventories).map(inv=><article key={inv.id} className="record published-inventory"><h3>{inv.kind==='season'?<Link to="/seasons/$seasonId" params={{seasonId:inv.id}}>{inv.id}</Link>:inv.id}</h3>
+      {page.items.slice(0,technical?page.items.length:visibleInventories).map(inv=><article key={inv.id} className="record published-inventory"><p className="eyebrow">{collectionName(inv.kind)}</p><h3>{inv.kind==='season'?<Link to="/seasons/$seasonId" params={{seasonId:inv.id}}>{presentationName(inv.id)}</Link>:presentationName(inv.id)}</h3>
         <InventoryEvidence inventory={inv}/>
         {inv.stages.map(s=><PublishedStage key={s.id} inventory={inv} stage={s} review={setReview}/>)}</article>)}
       {!technical&&visibleInventories<page.items.length&&<RevealMore items=".published-inventory" shown={visibleInventories} onReveal={()=>setVisibleInventories(n=>n+2)}>Show more collections ({visibleInventories} of {page.items.length})</RevealMore>}
       {page.nextCursor!==null&&<Link to="/nfts" search={{inventories:String(page.nextCursor)}}>Next collections →</Link>}
-    </>}</Loaded></Panel>
+    </>}</Loaded></Panel></Availability>
 
     {wallet&&review&&<Capability method="POST" path={review.kind==='mint'?'/api/v1/collect/inventories/{id}/stages/{stage}/reservations':'/api/v1/collect/inventories/{id}/progression/quote'}>
       <ReviewOperation key={wallet} wallet={wallet} review={review} onClose={()=>setReview(null)}/></Capability>}
-    <CategoryCompetition category="nfts"/>
+    <Disclosure title="Collecting, Levels and rewards"><p>10X NFT is the permanent collection. Benefits follow the published rules. 10X Cards have seasonal utility; you keep ownership and historical allocations after expiry.</p><p>Pair two same-Level Cards from the same season to upgrade the target. Review the costs and effect on both cards before confirming.</p><Link to="/airdrops">View your rewards</Link></Disclosure><CategoryCompetition category="nfts"/>
   </>;
 }
