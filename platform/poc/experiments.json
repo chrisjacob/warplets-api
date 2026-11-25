@@ -1,0 +1,226 @@
+{
+  "schemaVersion": 1,
+  "createdAt": "2026-11-25",
+  "targetNetwork": "solana-mainnet-beta",
+  "fundedMainnetRuns": 0,
+  "statusScope": "Full funded-mainnet acceptance; local checks and narrower probes are separate",
+  "budget": {
+    "currency": "USD",
+    "maximum": 10,
+    "includes": [
+      "transaction fees",
+      "protocol fees",
+      "account rent",
+      "permanently locked test liquidity"
+    ],
+    "recurringServicesAllowed": false,
+    "approvedSolAmount": null,
+    "fxObservation": null,
+    "spent": 0
+  },
+  "experiments": [
+    {
+      "id": "P00",
+      "title": "Harness, identities and evidence",
+      "dependsOn": [],
+      "status": "not-run",
+      "steps": [
+        "Pin code revision, chain genesis, exact programs/configuration, costs, disposable asset names and wallet roles.",
+        "Reserve independent wallets for payer, treasury, Alice, Bob and negative tests; separate account rent, fees and locked capital.",
+        "Use the local runner's typed builders, inspect exact instruction/account effects, and retain simulation, signature, final receipt and postcondition evidence."
+      ],
+      "passCriteria": [
+        "Every action has expected account deltas, cost ceiling and replay identity.",
+        "No keys or funded addresses enter the public Git history."
+      ],
+      "blocker": "Runner implemented and locally tested. Actual mainnet execution awaits a funded browser wallet and per-transaction approval; full POC acceptance remains open."
+    },
+    {
+      "id": "P01",
+      "title": "Disposable original token",
+      "dependsOn": [
+        "P00"
+      ],
+      "status": "not-run",
+      "steps": [
+        "Choose provisional SPL/Token-2022 settings only after protocol compatibility checks; no official $10X chain/allocation decision is inferred.",
+        "Create a disposable mint, set metadata/supply/authorities and test transfer plus real buy/sell route if affordable."
+      ],
+      "passCriteria": [
+        "Supply and allocations reconcile; unsupported extensions rejected.",
+        "Retained authorities are explicit; buy and sell complete with expected balances."
+      ],
+      "blocker": "Original launch mechanism and allocation remain provisional."
+    },
+    {
+      "id": "P02",
+      "title": "Attention/original pool and fees",
+      "dependsOn": [
+        "P01"
+      ],
+      "status": "not-run",
+      "steps": [
+        "Create a Meteora DAMM v2 test ATT/original pool using the intended 80% allocation, actual activation and quote-token fee configuration.",
+        "Check pre-activation rejection, schedule boundaries through the first 90 seconds, both swap directions, output limits, permanent LP lock and fee collection.",
+        "Compare each fresh quote with execution using retained pre-swap state; separate protocol fees from total trading fees."
+      ],
+      "passCriteria": [
+        "Pool identities and balance deltas match configuration.",
+        "Locked liquidity cannot be withdrawn; permitted fees remain collectable.",
+        "No one-unit seed is represented as realistic market economics."
+      ],
+      "blocker": "Current program/configuration and complete setup cost must be verified."
+    },
+    {
+      "id": "P03",
+      "title": "Complete allocation and two campaigns",
+      "dependsOn": [
+        "P02"
+      ],
+      "status": "not-run",
+      "steps": [
+        "Fund exactly 80/10/5/2.5/2.5 into liquidity/Earn/Stake/permanent/seasonal destinations.",
+        "Run no-active-Season fallback and active-Season cases; keep historical fallback allocations fixed.",
+        "Interrupt setup and replay without double-funding; reserve all unminted entitlements."
+      ],
+      "passCriteria": [
+        "All supply reconciles in base units.",
+        "Partial setup cannot activate an integrated campaign; overlapping campaigns remain separate."
+      ],
+      "blocker": "Depends on enforceable custody from P04/P06 for a complete campaign. Isolated pool P02 is only a protocol experiment."
+    },
+    {
+      "id": "P04",
+      "title": "Stake custody and lifecycle",
+      "dependsOn": [
+        "P00"
+      ],
+      "status": "not-run",
+      "steps": [
+        "Reproduce the known administrator-principal-withdrawal counterexample locally; evaluate a reviewed restricted configuration or alternative.",
+        "Test same-token deposit/reward, late entry, empty periods, fractional rates, repeated harvest, immediate withdrawal/re-stake, ten-day end and surplus recovery.",
+        "Challenge direct program instructions, not merely API permissions."
+      ],
+      "passCriteria": [
+        "Principal and earned rewards survive all allowed admin operations.",
+        "Empty periods do not create catch-up rewards; rounding and unused balances reconcile."
+      ],
+      "blocker": "Known unrestricted Kamino admin can withdraw deposited principal; selected fee/configuration, precision and license review remain open."
+    },
+    {
+      "id": "P05",
+      "title": "Earn evidence, final awards and claims",
+      "dependsOn": [
+        "P00"
+      ],
+      "status": "not-run",
+      "steps": [
+        "Use real supported Farcaster/X posts with complete authorized capture and authorship evidence; score and settle a small board.",
+        "Verify thresholds, per-wallet caps, cutoff completeness, immutable results, first-launch empty-board 1% burn and pending-vs-empty distinction.",
+        "Use actual distributor proof format; test cliff/linear vesting, partial claims, duplicates and independent proof recovery."
+      ],
+      "passCriteria": [
+        "Awards equal funded liabilities; incomplete feeds never produce an empty-board burn.",
+        "Partial/late claims remain available; duplicate claims rejected."
+      ],
+      "blocker": "X excerpt is insufficient full evidence; funding/timing configuration and distributor review unresolved."
+    },
+    {
+      "id": "P06",
+      "title": "Permanent NFT custody and transferable claims",
+      "dependsOn": [
+        "P00"
+      ],
+      "status": "not-run",
+      "steps": [
+        "Model all 10,000 reserve positions locally and mint only a costed small on-chain sample.",
+        "Fund before mint, bind slots fairly, inherit historical vesting; Alice claims part, transfers, Bob claims rest; reject former owner.",
+        "Check account delegates, external burns, collection plugins, image-update permissions and portable proofs."
+      ],
+      "passCriteria": [
+        "No double claim, vesting restart, reserve reassignment or unintended loss of historical rights.",
+        "Economic attributes remain protected while supported image changes work."
+      ],
+      "blocker": "Known Core burn/authority policy conflicts; ordinary burns can strand signer funds."
+    },
+    {
+      "id": "P07",
+      "title": "Paid mint, assignment and reveal",
+      "dependsOn": [
+        "P06"
+      ],
+      "status": "not-run",
+      "steps": [
+        "Test finite shared inventory, eligible stages, paid/free/founder categories and concurrent last-slot requests.",
+        "Bind payment to future randomness; test timeout, retry, refund and failed fulfillment without free redraw.",
+        "Test provisional USD-denominated Season 0 payment quote separately from historical SOL stages; use simple locally served metadata or an approved storage path."
+      ],
+      "passCriteria": [
+        "No overselling, duplicate charge, privileged assignment or outcome-dependent redraw.",
+        "Accepted payments reach the defined asset/refund result; metadata is retrievable."
+      ],
+      "blocker": "Randomness/provider and fee quotes not selected; hosted metadata may require separate provisioning."
+    },
+    {
+      "id": "P08",
+      "title": "Card progression and expiry",
+      "dependsOn": [
+        "P07"
+      ],
+      "status": "not-run",
+      "steps": [
+        "Upgrade two same-Season equal-Level Cards; target rises one Level, material redraws without burn.",
+        "Test execution-time owner/Level checks, atomicity or reviewed escrow, retries and concurrent transfers.",
+        "Exercise reroll fees/cooldowns across transfers, month-end expiry, reactivation and historical claims."
+      ],
+      "passCriteria": [
+        "No half-updated pair, repeated fee or cooldown reset.",
+        "Expiry affects future eligibility only; prior allocations remain unchanged."
+      ],
+      "blocker": "Requires on-chain metadata/authority configuration compatible with P06 and real randomness."
+    },
+    {
+      "id": "P09",
+      "title": "Wallet and marketplace compatibility",
+      "dependsOn": [
+        "P06",
+        "P07"
+      ],
+      "status": "not-run",
+      "steps": [
+        "On actual selected desktop/mobile wallets, verify transaction decoding, signing return and unsupported-message behaviour.",
+        "Test direct transfer, listing, cancellation, purchase, escrow ownership, metadata refresh and remaining-claim disclosure.",
+        "Measure realized royalties rather than assuming enforcement."
+      ],
+      "passCriteria": [
+        "The actual current claimant matches on-chain ownership through each supported custody state.",
+        "Wallet/device evidence is recorded separately from browser fixtures."
+      ],
+      "blocker": "Requires physical wallet/user participation and a supported marketplace. Do not imply market demand from self-trades."
+    },
+    {
+      "id": "P10",
+      "title": "Recovery, outages and integration rehearsal",
+      "dependsOn": [
+        "P02",
+        "P03",
+        "P04",
+        "P05",
+        "P06"
+      ],
+      "status": "not-run",
+      "steps": [
+        "Run one complete campaign with distinct disposable test assets; include P07-P09 only if offering those features.",
+        "Test RPC timeout, expired unsigned packet, ambiguous submission, service restart, replay, restore, stale observations and independently retained proofs.",
+        "Reconcile after finality; pause optional new actions while preserving claims/withdrawals.",
+        "Run accelerated time locally, then complete real 24/48-hour and ten-day observations; no shortened experiment counts as full duration."
+      ],
+      "passCriteria": [
+        "Zero unexplained base-unit variance; recovery creates no duplicate financial action.",
+        "Results distinguish local/simulator/read-only-mainnet/funded-mainnet evidence.",
+        "Every offered feature has compatible custody and a measured cost."
+      ],
+      "blocker": "Full-duration mainnet validation cannot finish overnight; no financial transactions will be signed by this agent."
+    }
+  ]
+}

@@ -1,0 +1,69 @@
+{
+  "updatedAt": "2026-11-25T12:01:37.959Z",
+  "baselineCommit": "09114c89eb50bfedcaa8db71054b1c2bbd2e8ed2",
+  "node": "v22.22.3",
+  "focusedRepository": {
+    "passed": 95,
+    "failed": 0,
+    "evidenceClass": "local",
+    "scope": "allowlisted files in runner/catalogue.mjs; not the entire reference suite"
+  },
+  "runner": {
+    "passed": 22,
+    "failed": 0,
+    "evidenceClass": "local-mock",
+    "command": "node --test platform/poc/runner/test/*.spec.mjs"
+  },
+  "browser": {
+    "evidenceClass": "local-browser-mock",
+    "mainnetTransactions": 0,
+    "checks": [
+      "Preparing never signs or broadcasts",
+      "Wallet rejection does not send",
+      "Explicit wallet signature finalizes and stores evidence",
+      "Reload preserves completed action and does not resend",
+      "Manual evidence stays separately labelled",
+      "1440px and 390px layouts have no overflow"
+    ],
+    "passed": true
+  },
+  "generatedContracts": "passed",
+  "mainnetRead": {
+    "evidenceClass": "read-only-mainnet",
+    "slot": 473720144,
+    "programParity": true,
+    "sourceMatchVerified": false,
+    "programs": [
+      {
+        "name": "meteora-deployment-observation.json",
+        "binarySha256": "967ff9fb161eec2e62f66d2c899100739fb747c445f697b8625c86b31b9a2022",
+        "deployedSlot": "457080014"
+      },
+      {
+        "name": "kamino-public.json",
+        "binarySha256": "67c4a989342024efedf6181c1d91cf6aac2bb2bcd17f43b8848c9f3d8ba21011",
+        "deployedSlot": "444035168"
+      },
+      {
+        "name": "rewards-program.json",
+        "binarySha256": "cd1c6572a0eb8681460e0eb6748d5b82ec1173326f79d412bb608b808b44ef71",
+        "deployedSlot": "422571636"
+      },
+      {
+        "name": "core-program.json",
+        "binarySha256": "51d41542456639a01820c747e72b9d3b4ca258930a5bbb7e78db0cda133dc209",
+        "deployedSlot": "455005931"
+      }
+    ]
+  },
+  "broadReference": "interrupted; no completion report; not counted as pass",
+  "fundedMainnetTransactions": 0,
+  "mainnetPocsAccepted": 0,
+  "spentUsd": 0,
+  "limitations": [
+    "No physical wallet or funded mainnet execution",
+    "Single-leaf accelerated wallet-bound distribution only",
+    "Custody/randomness/progression/marketplace funded adapters remain blocked",
+    "Public RPC outages or unresolved signatures may hold the run"
+  ]
+}

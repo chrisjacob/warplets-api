@@ -1,0 +1,32 @@
+{
+  "name": "@10x/disposable-poc-runner",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.16.0"
+  },
+  "scripts": {
+    "start": "node server.mjs",
+    "test": "node --test test/*.spec.mjs",
+    "test:browser": "node test/browser-qa.mjs"
+  },
+  "dependencies": {
+    "@meteora-ag/cp-amm-sdk": "1.5.1",
+    "@noble/hashes": "1.8.0",
+    "@solana/spl-token": "0.4.14",
+    "@solana/web3.js": "1.98.4",
+    "@wallet-standard/app": "1.1.1",
+    "bn.js": "5.2.5"
+  },
+  "pnpm": {
+    "overrides": {
+      "@solana/web3.js@1.98.4>jayson": "5.0.0",
+      "ws@>=7.0.0 <7.5.11": "7.5.11",
+      "ws@>=8.0.0 <8.21.0": "8.21.3"
+    }
+  },
+  "devDependencies": {
+    "esbuild": "0.25.12"
+  }
+}

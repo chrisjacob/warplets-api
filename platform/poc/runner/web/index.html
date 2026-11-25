@@ -1,0 +1,10 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Disposable POC lab</title><link rel="stylesheet" href="/style.css"></head>
+<body>
+  <header><div><span class="eyebrow" id="network">LOCAL ONLY · MAINNET</span><h1>Disposable POC lab</h1><p>Technical probes, wallet approvals, and a durable record of what happened.</p></div><a href="/api/export" download>Export evidence</a></header>
+  <section class="toolbar" aria-label="Run controls"><div><label for="wallets">Browser wallet</label><select id="wallets"><option>No compatible wallet detected</option></select><button id="connect">Connect wallet</button><p id="account">Connect a separate test account. Keep its seed in your wallet.</p></div><div><strong id="budget">$10 total ceiling</strong><p id="spend">Loading local evidence…</p><button id="all-checks">Run all local checks</button><button id="observe">Check mainnet / SOL price</button><p id="price"></p></div></section>
+  <div id="message" role="status" aria-live="polite"></div>
+  <div class="layout"><nav id="scenarios" aria-label="POC scenarios"></nav><main id="detail"></main></div>
+  <footer>Local checks and mainnet receipts are separate evidence. No complete campaign is approved by this page. No paid services or automatic transactions. <span id="revision"></span></footer>
+  <script type="module" src="/app.js"></script>
+</body></html>

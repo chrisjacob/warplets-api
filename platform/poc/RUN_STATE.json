@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "updatedAt": "2026-11-25",
+  "baselineCommit": "09114c8",
+  "phase": "local-runner-ready-mainnet-unrun",
+  "mainnetTransactionsSubmitted": 0,
+  "mainnetPocsPassed": 0,
+  "spentUsd": 0,
+  "budgetUsd": 10,
+  "signing": "user-browser-wallet-per-transaction",
+  "deployment": "not-authorized",
+  "wallets": "five-unfunded-DPAPI-lab-wallets-created; not used by browser runner",
+  "localTests": "95 focused repository checks passed; broad suite interrupted without result",
+  "runnerTests": "see VALIDATION_RESULTS.json",
+  "blockers": [
+    "Actual mainnet probes await a funded user-controlled browser wallet and transaction approval.",
+    "Full Stake/NFT custody requirements remain incompatible with the previously inspected configurations.",
+    "Paid mint, progression, hosted metadata and marketplace adapters require unresolved provider/custody choices.",
+    "Full 24/48-hour and ten-day real-time tests exceed one night.",
+    "The $10 ceiling may stop additional probes; no top-up or subscription is authorized."
+  ]
+}
