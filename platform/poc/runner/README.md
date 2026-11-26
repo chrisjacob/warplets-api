@@ -28,7 +28,7 @@ Tunnel mode is opt-in via `mobile.json`; without it the server remains loopback-
 
 To revoke mobile access, stop the scoped runner, remove or rotate `mobile.json`, and restart it; existing cookies then fail. To remove the route, restore `work/app-local-tunnel-restored.yml.before-poc` over the corresponding YAML and restart only that connector. Preserve `evidence.sqlite` and unresolved attempts. Access credentials and machine-specific tunnel configuration are never committed.
 
-Implementation was validated with HTTP authorization tests and a 390px mock-browser login/reload test. Live tunnel activation was initially blocked by automatic approval review on 26 November; do not treat these local tests as a successful public-route verification.
+Activated on 26 November after explicit owner confirmation. Live HTTPS verification confirmed the existing app at `/` returns 200, `/poc/` serves the private login, and unauthenticated state/export requests return 401. A 390px browser authenticated through the public tunnel, loaded all eleven scenarios, cleared the access fragment, and reloaded successfully without page errors or horizontal overflow. No wallet signing or financial transaction was performed. Redacted operational evidence is retained in `work/poc-mobile-live-verification.json`; the private access key remains outside Git.
 
 ## Executable coverage
 

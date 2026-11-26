@@ -2,6 +2,8 @@
 
 Open **http://127.0.0.1:4195** on this Windows machine. If the server stopped, run `platform/poc/runner/start.ps1` from the `C:\Users\ichri\Documents\Codex\10x` checkout. Keep the terminal open. Nothing is deployed.
 
+Mobile access was activated on 26 November through the existing tunnel at **https://app-local.10x.meme/poc/**. Use the private access link supplied in chat (the bare URL asks for its access key). The computer and tunnel must stay running. The existing app remains at `/`. Live login/reload was verified at 390px; wallet signing on a physical phone is still untested. See [mobile access instructions](runner/README.md#mobile-access-through-the-existing-tunnel) for restart and revocation.
+
 1. Review the P00–P10 plan and local results. **Run all local checks** needs no wallet and makes no financial transactions.
 2. Use **Check mainnet / SOL price** for the current network and funding conversion. The whole run has a $10 budget; it is not guaranteed to cover every probe.
 3. Select a separate test account in your browser wallet and connect it. Use a Wallet Standard wallet supporting Solana `signTransaction`. Fund that account yourself. The five encrypted, unfunded lab wallets are not used by this runner.

@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-11-25T12:01:37.959Z",
+  "updatedAt": "2026-11-26T04:58:15.807Z",
   "baselineCommit": "09114c89eb50bfedcaa8db71054b1c2bbd2e8ed2",
   "node": "v22.22.3",
   "focusedRepository": {
@@ -9,7 +9,7 @@
     "scope": "allowlisted files in runner/catalogue.mjs; not the entire reference suite"
   },
   "runner": {
-    "passed": 22,
+    "passed": 24,
     "failed": 0,
     "evidenceClass": "local-mock",
     "command": "node --test platform/poc/runner/test/*.spec.mjs"
@@ -65,5 +65,19 @@
     "Single-leaf accelerated wallet-bound distribution only",
     "Custody/randomness/progression/marketplace funded adapters remain blocked",
     "Public RPC outages or unresolved signatures may hold the run"
-  ]
+  ],
+  "mobileTunnel": {
+    "checkedAt": "2026-11-26T04:57:45.998Z",
+    "evidenceClass": "live-tunnel-browser-read-only",
+    "url": "https://app-local.10x.meme/poc/",
+    "access": "private-tunnel",
+    "fragmentCleared": true,
+    "scenarios": 11,
+    "attempts": 0,
+    "spentUsd": 0,
+    "viewportWidth": 390,
+    "noOverflow": true,
+    "errors": [],
+    "reloadPassed": true
+  }
 }
