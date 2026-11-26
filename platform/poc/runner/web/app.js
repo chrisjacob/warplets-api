@@ -1,4 +1,5 @@
 import {getWallets} from '@wallet-standard/app';
+if(new URLSearchParams(location.hash.slice(1)).has('access'))history.replaceState(null,'',location.pathname);
 
 const $=id=>document.getElementById(id);
 const element=(tag,text,cls)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;if(cls)e.className=cls;return e;};
@@ -12,7 +13,7 @@ const drafts=new Map();
 const registry=getWallets();
 const say=text=>{$('message').textContent=text;};
 async function request(path,body) {
-  const response=await fetch('/api/'+path,body===undefined?{}:{method:'POST',headers:{'content-type':'application/json','x-poc-csrf':data.csrf},body:json(body)});
+  const response=await fetch('./api/'+path,body===undefined?{}:{method:'POST',headers:{'content-type':'application/json','x-poc-csrf':data.csrf},body:json(body)});
   const result=await response.json();if(!response.ok)throw Error(result.error??'Request failed');return result;
 }
 async function refresh(render=true) {data=await request('state');if(render)paint();}
@@ -39,7 +40,7 @@ $('observe').onclick=()=>work(async()=>{await request('observe',{});say('Mainnet
 function paint() {
   if(!data)return;
   const state=data.state,pending=state.attempts.find(a=>['prepared','submitted','unknown','verification-failed'].includes(a.status));
-  $('network').textContent=data.mode==='mainnet'?'LOCAL ONLY · SOLANA MAINNET':'MOCK QA · NO REAL TRANSACTIONS';
+  $('network').textContent=data.mode==='mainnet'?(data.access==='private-tunnel'?'PRIVATE TUNNEL · SOLANA MAINNET':'LOCAL ONLY · SOLANA MAINNET'):'MOCK QA · NO REAL TRANSACTIONS';
   $('network').classList.toggle('mock',data.mode!=='mainnet');
   $('account').textContent=account?account.address:(state.wallet?'This run is bound to '+state.wallet+'. Reconnect that account.':'Connect a separate test account. Keep its seed in your wallet.');
   $('connect').disabled=busy;
